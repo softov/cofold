@@ -1,0 +1,19 @@
+{
+  "name": "softcli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "One command declaration, many surfaces: CLI, MCP, docs, completion.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "pnpm -r --filter=@softcli/* build",
+    "clean": "pnpm -r exec rm -rf dist",
+    "typecheck": "pnpm -r --filter=@softcli/* typecheck",
+    "test": "pnpm -r --filter=@softcli/* test"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.9"
+  }
+}

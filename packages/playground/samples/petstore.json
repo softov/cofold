@@ -1,0 +1,63 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "petstore", "version": "1.0.0", "description": "The usual example API, with two x-cli hints." },
+  "servers": [{ "url": "http://127.0.0.1:8793" }],
+  "paths": {
+    "/pets": {
+      "get": {
+        "operationId": "listPets",
+        "tags": ["pets"],
+        "summary": "List the pets",
+        "parameters": [
+          { "name": "limit", "in": "query", "description": "How many", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } },
+          { "name": "species", "in": "query", "description": "Only this species", "schema": { "type": "string" } }
+        ]
+      },
+      "post": {
+        "operationId": "createPet",
+        "tags": ["pets"],
+        "summary": "Add a pet",
+        "x-cli": { "pattern": ["pet", "add"] },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string", "description": "What it answers to" },
+                  "species": { "type": "string", "description": "What it is" },
+                  "age": { "type": "integer", "minimum": 0, "description": "How old" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pets/{id}": {
+      "get": {
+        "operationId": "showPetById",
+        "tags": ["pets"],
+        "summary": "Show one pet",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The pet's id", "schema": { "type": "string" } }]
+      },
+      "delete": {
+        "operationId": "deletePet",
+        "tags": ["pets"],
+        "summary": "Remove a pet",
+        "x-cli": { "pattern": ["pet", "rm", ":id"] },
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }]
+      }
+    },
+    "/internal/metrics": {
+      "get": {
+        "operationId": "internalMetrics",
+        "tags": ["internal"],
+        "summary": "Not for people",
+        "x-cli": { "skip": true }
+      }
+    }
+  }
+}
