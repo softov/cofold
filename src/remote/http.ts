@@ -2,7 +2,7 @@ import { compact, UnavailableError, SoftcliError } from "../index.js";
 import { bodyFields, expandPath, type HttpBinding, type Transport } from "./manifest.js";
 
 /**
- * The transport a materialised command uses, and where the credentials are.
+ * The transport a command built from a manifest uses, and where the credentials are.
  *
  * On this side of the boundary on purpose. A manifest says what a command is;
  * it does not get to say where to send it or what to send with it. A server

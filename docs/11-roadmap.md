@@ -15,7 +15,7 @@ What is built works: `pnpm build && pnpm test` is green, and the three playgroun
 
 **How much should `run` be allowed to do?** Today it returns one `Output`. Long-running commands want progress, and streaming commands want to yield rows. An async iterator return would cover both - `--json` becomes JSON Lines - but it doubles the contract every surface has to honour.
 
-**Should the HTTP binding be first-class?** It lives in `meta.http` and only `softcli/remote` understands it. If a `serve` package ever renders a registry as an HTTP API directly - the fourth surface - the binding stops being an extension and becomes part of the declaration.
+**Should the HTTP binding be first-class?** It lives in `meta.http` and only `softcli/remote` understands it. If a `serve` entry point ever renders a registry as an HTTP API directly - the fourth surface - the binding stops being an extension and becomes part of the declaration.
 
 **Trust for remote surfaces.** Today the client decides the transport, which is the important half. Not yet done: pinning a manifest per target so a changed surface is *noticed*, and a signature so it can be verified. Worth doing before anything points at a host somebody else controls.
 

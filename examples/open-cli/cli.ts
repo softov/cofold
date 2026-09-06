@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { createKernel } from "softcli";
+import { createRegistry } from "softcli";
 import { Program, runEntry } from "softcli/cli";
-import { httpTransport, manifestFromOpenApi, materialise } from "softcli/remote";
+import { httpTransport, manifestFromOpenApi, commandsFrom } from "softcli/remote";
 
 /**
  * `open-cli` - a command line for an API that never heard of this library.
@@ -49,18 +49,18 @@ async function build(argv: readonly string[]): Promise<Program> {
     .filter((group): group is string => group !== undefined)
     .map((group) => ({ name: group, title: group, agent: true }));
 
-  const kernel = createKernel({ groups }).provide("transport", {
+  const registry = createRegistry({ groups }).provide("transport", {
     description: `HTTP against ${baseUrl}`,
     resolve: () => httpTransport({ baseUrl, timeoutMs: 10_000 }),
   });
 
-  kernel.register(...materialise(manifest, { capability: "transport" }));
+  registry.register(...commandsFrom(manifest, { capability: "transport" }));
 
   return new Program({
     name: "open-cli",
     version: VERSION,
     description: `${manifest.program.name} ${manifest.program.version}, as a command line.`,
-    kernel,
+    registry,
     globals: [
       { name: "--spec", value: "PATH", description: "The OpenAPI document", env: "OPENAPI_SPEC" },
       { name: "--base-url", value: "URL", description: "Override the server in the document" },

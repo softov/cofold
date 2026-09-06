@@ -2,9 +2,9 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { coerce, compact, createKernel, output, type Command } from "softcli";
+import { coerce, compact, createRegistry, output, type Command } from "softcli";
 import { Program, runEntry } from "softcli/cli";
-import { httpTransport, loadManifest, materialise } from "softcli/remote";
+import { httpTransport, loadManifest, commandsFrom } from "softcli/remote";
 import { createPetServer } from "./server.js";
 
 /**
@@ -30,7 +30,7 @@ async function build(argv: readonly string[]): Promise<Program> {
   const token = process.env["CLERVER_TOKEN"];
   const refresh = argv.includes("--refresh");
 
-  const kernel = createKernel({
+  const registry = createRegistry({
     groups: [
       { name: "pets", title: "Pets (from the server)", agent: true },
       { name: "local", title: "This machine", agent: false },
@@ -44,7 +44,7 @@ async function build(argv: readonly string[]): Promise<Program> {
     }),
   });
 
-  const serve = kernel.command({
+  const serve = registry.command({
     id: "serve",
     group: "local",
     pattern: ["serve"],
@@ -71,20 +71,20 @@ async function build(argv: readonly string[]): Promise<Program> {
       warn: (message) => process.stderr.write(`clerver: ${message}\n`),
       ...compact({ headers: token === undefined ? undefined : { authorization: `Bearer ${token}` } }),
     });
-    remote = materialise(manifest, { capability: "transport", expose: () => false });
+    remote = commandsFrom(manifest, { capability: "transport", expose: () => false });
   } catch (error: unknown) {
     if (!argv.includes("serve")) {
       process.stderr.write(`clerver: ${error instanceof Error ? error.message : "no command surface"}; only local commands are available\n`);
     }
   }
 
-  kernel.register(serve, ...remote);
+  registry.register(serve, ...remote);
 
   return new Program({
     name: "clerver",
     version: VERSION,
     description: "A CLI whose commands come from the server it talks to.",
-    kernel,
+    registry,
     globals: [
       { name: "--url", value: "URL", description: "Where the service is", env: "CLERVER_URL" },
       { name: "--refresh", description: "Re-fetch the command surface" },

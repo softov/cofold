@@ -1,5 +1,5 @@
 import { compact, type OptionSpec } from "../index.js";
-import type { HttpBinding, Manifest, ManifestCommand, ManifestOption } from "./manifest.js";
+import type { HttpBinding, ProgramManifest, ManifestCommand, ManifestOption } from "./manifest.js";
 import { boundsOf, coercerFor, typeOf, type ValueShape } from "./shape.js";
 
 /**
@@ -37,7 +37,7 @@ interface OpenApiParameter {
   in: "path" | "query" | "header" | "cookie";
   required?: boolean;
   description?: string;
-  schema?: { type?: string; enum?: readonly string[]; minimum?: number; maximum?: number };
+  schema?: ValueShape;
 }
 
 interface OpenApiOperation {
@@ -138,11 +138,11 @@ function manifestOption(option: OptionSpec, schema: ValueShape | undefined): Man
 /**
  * A manifest, so an imported API and a native one are the same thing downstream.
  *
- * Deliberately not a separate materialiser: everything after this point -
+ * Deliberately not a second way of building commands: everything after this point -
  * building commands, help, completion, `--json` - is code that already exists
  * and does not need to know where the description came from.
  */
-export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiOptions = {}): Manifest {
+export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiOptions = {}): ProgramManifest {
   const commands: ManifestCommand[] = [];
 
   for (const [path, item] of Object.entries(document.paths ?? {})) {
@@ -182,7 +182,7 @@ export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiO
       const parameterDescriptions = Object.fromEntries(parameters
         .filter((one) => one.in === "path")
         .map((one) => [one.name, {
-          type: one.schema?.type ?? "string",
+          type: typeOf(one.schema),
           ...compact({ description: one.description }),
         }]));
 

@@ -43,11 +43,11 @@ export function styleFor(options: { color?: boolean; tty?: boolean } = {}): Styl
   return (options.tty ?? process.stdout.isTTY) === true ? coloured : plain;
 }
 
-export function json(value: unknown): string {
+export function renderJson(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
-export function table(headers: readonly string[], rows: readonly (readonly unknown[])[]): string {
+export function renderTable(headers: readonly string[], rows: readonly (readonly unknown[])[]): string {
   const cells = rows.map((row) => row.map((value) => displayValue(value)));
   const widths = headers.map((header, index) =>
     Math.max(header.length, ...cells.map((row) => row[index]?.length ?? 0)));
@@ -57,14 +57,14 @@ export function table(headers: readonly string[], rows: readonly (readonly unkno
 }
 
 /** One record, one field per line: what a `show` command answers with. */
-export function document(value: Record<string, unknown>): string {
+export function renderDocument(value: Record<string, unknown>): string {
   const width = Math.max(...Object.keys(value).map((key) => key.length));
   return `${Object.entries(value).map(([key, item]) =>
     `${`${key}:`.padEnd(width + 1)} ${displayValue(item)}`).join("\n")}\n`;
 }
 
 /** Two columns that stay aligned however long the left one gets. */
-export function definitions(entries: readonly (readonly [string, string])[], indent = "  "): string {
+export function renderDefinitions(entries: readonly (readonly [string, string])[], indent = "  "): string {
   if (entries.length === 0) return "";
   const width = Math.max(...entries.map(([left]) => left.length));
   return `${entries.map(([left, right]) =>

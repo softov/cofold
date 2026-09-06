@@ -10,7 +10,7 @@ import {
   type OptionSpec,
   type Runner,
 } from "../index.js";
-import { boundsOf, coercerFor, typeOf } from "./shape.js";
+import { boundsOf, coercerFor, typeOf, type ManifestType, type ValueShape } from "./shape.js";
 
 /**
  * A command, over the wire.
@@ -28,16 +28,11 @@ import { boundsOf, coercerFor, typeOf } from "./shape.js";
 
 export const MANIFEST_VERSION = 1;
 
-export interface ManifestOption {
+export interface ManifestOption extends ValueShape<ManifestType> {
   name: string;
   short?: string;
   value?: string;
   description: string;
-  type?: "string" | "integer" | "number" | "boolean";
-  enum?: readonly string[];
-  /** Bounds, so a remote command refuses `--age -3` as fast as a local one. */
-  minimum?: number;
-  maximum?: number;
   repeatable?: boolean;
   required?: boolean;
   env?: string;
@@ -61,18 +56,12 @@ export interface ManifestCommand {
   summary: string;
   description?: string;
   group?: string;
-  arguments?: Record<string, {
-    description?: string;
-    type?: string;
-    enum?: readonly string[];
-    minimum?: number;
-    maximum?: number;
-  }>;
+  arguments?: Record<string, ValueShape<ManifestType> & { description?: string }>;
   options?: readonly ManifestOption[];
   http: HttpBinding;
 }
 
-export interface Manifest {
+export interface ProgramManifest {
   softcli: number;
   program: { name: string; version: string; description?: string };
   groups?: readonly CommandGroup[];
@@ -94,12 +83,12 @@ export class ManifestError extends Error {
  * Commands without a binding are simply not published - a local `doctor`
  * command is nobody else's business.
  */
-export function describe(
-  kernel: Runner,
+export function manifestFrom(
+  registry: Runner,
   program: { name: string; version: string; description?: string },
-): Manifest {
+): ProgramManifest {
   const commands: ManifestCommand[] = [];
-  for (const command of kernel.commands) {
+  for (const command of registry.commands) {
     const http = command.meta?.["http"] as HttpBinding | undefined;
     if (http === undefined || !surfaceEnabled(command, "docs")) continue;
     commands.push({
@@ -125,7 +114,7 @@ export function describe(
     softcli: MANIFEST_VERSION,
     program,
     commands,
-    ...compact({ groups: kernel.groups.length === 0 ? undefined : kernel.groups }),
+    ...compact({ groups: registry.groups.length === 0 ? undefined : registry.groups }),
   };
 }
 
@@ -147,9 +136,9 @@ function describeOption(option: OptionSpec): ManifestOption {
   };
 }
 
-export function parseManifest(value: unknown): Manifest {
+export function parseManifest(value: unknown): ProgramManifest {
   if (typeof value !== "object" || value === null) throw new ManifestError("The manifest is not an object");
-  const manifest = value as Manifest;
+  const manifest = value as ProgramManifest;
   if (typeof manifest.softcli !== "number") throw new ManifestError("The manifest has no version");
   if (manifest.softcli > MANIFEST_VERSION) {
     throw new ManifestError(
@@ -160,13 +149,13 @@ export function parseManifest(value: unknown): Manifest {
   return manifest;
 }
 
-/** What a materialised command calls. Supplied by a capability, never imported. */
+/** What a command built from a manifest calls. Supplied by a capability, never imported. */
 export interface Transport {
   request(binding: HttpBinding, input: Readonly<Record<string, unknown>>): Promise<unknown>;
 }
 
-export interface MaterialiseOptions {
-  /** The capability name a materialised command declares it needs. */
+export interface CommandsFromOptions {
+  /** The capability name a command built from a manifest declares it needs. */
   capability?: string;
   /** Prefixed to every pattern, when a client namespaces a remote surface. */
   prefix?: readonly string[];
@@ -182,7 +171,7 @@ export interface MaterialiseOptions {
  * the transport, as a capability: that is where the base URL, the credentials
  * and the retry policy live, and none of them is the server's to dictate.
  */
-export function materialise(manifest: Manifest, options: MaterialiseOptions = {}): Command[] {
+export function commandsFrom(manifest: ProgramManifest, options: CommandsFromOptions = {}): Command[] {
   const capability = options.capability ?? "transport";
   const prefix = options.prefix ?? [];
 

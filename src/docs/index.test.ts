@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { coerce, createKernel, output } from "../index.js";
+import { coerce, createRegistry, output } from "../index.js";
 import { agentSkill, reference } from "./index.js";
 
 function build() {
-  const kernel = createKernel({
+  const registry = createRegistry({
     groups: [
       { name: "work", title: "Work", agent: true },
       { name: "setup", title: "Setup", agent: false },
     ],
   });
-  kernel.register(
-    kernel.command({
+  registry.register(
+    registry.command({
       id: "note.list",
       group: "work",
       pattern: ["note", "list", ":project?"],
@@ -21,14 +21,14 @@ function build() {
       examples: [{ command: "notes note list acme -n 5" }],
       run: () => output(null),
     }),
-    kernel.command({
+    registry.command({
       id: "token.rotate",
       group: "setup",
       pattern: ["token", "rotate"],
       summary: "Rotate the access token",
       run: () => output(null),
     }),
-    kernel.command({
+    registry.command({
       id: "internal",
       group: "setup",
       pattern: ["internal"],
@@ -37,7 +37,7 @@ function build() {
       run: () => output(null),
     }),
   );
-  return kernel;
+  return registry;
 }
 
 describe("the reference", () => {

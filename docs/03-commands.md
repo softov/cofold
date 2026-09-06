@@ -1,7 +1,7 @@
 # Commands
 
 ```ts
-kernel.command({
+registry.command({
   id, pattern, summary, description, group,
   arguments, options, needs, scopes, input, stdin,
   surfaces, examples, hidden, meta,

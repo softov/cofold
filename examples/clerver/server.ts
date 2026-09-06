@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { canonicalFromObject, type Command } from "softcli";
-import { describe, type HttpBinding } from "softcli/remote";
-import { kernel, NotFound } from "./registry.js";
+import { manifestFrom, type HttpBinding } from "softcli/remote";
+import { registry, NotFound } from "./registry.js";
 
 /**
  * The server half of the round trip.
@@ -20,7 +20,7 @@ interface Route {
 }
 
 function routes(): Route[] {
-  return kernel.commands.flatMap((command) => {
+  return registry.commands.flatMap((command) => {
     const binding = command.meta?.["http"] as HttpBinding | undefined;
     return binding === undefined ? [] : [{ command, binding, segments: binding.path.split("/").filter(Boolean) }];
   });
@@ -64,7 +64,7 @@ export function createPetServer(program: { name: string; version: string; descri
       const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
       if (url.pathname === "/cli-manifest") {
-        send(response, 200, describe(kernel, program));
+        send(response, 200, manifestFrom(registry, program));
         return;
       }
 
@@ -76,7 +76,7 @@ export function createPetServer(program: { name: string; version: string; descri
           const query = Object.fromEntries([...url.searchParams.keys()]
             .map((key) => [key, url.searchParams.getAll(key).length > 1 ? url.searchParams.getAll(key) : url.searchParams.get(key)]));
           const input = await canonicalFromObject(route.command, { ...query, ...body, ...parameters });
-          const result = await kernel.execute(route.command, { surface: "remote", input });
+          const result = await registry.execute(route.command, { surface: "remote", input });
           send(response, 200, result?.data ?? null);
         } catch (error: unknown) {
           const status = error instanceof NotFound ? 404 : (error as { kind?: string }).kind === "argument" ? 400 : 500;

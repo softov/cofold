@@ -35,7 +35,7 @@ export interface ProviderDefinition<Deps extends object, Value> {
   /** Shown by `doctor`-style commands that report what an installation resolves. */
   description?: string;
   deps?: readonly string[];
-  /** Refused before the resolve runs, when the kernel knows the caller's scopes. */
+  /** Refused before the resolve runs, when the registry knows the caller's scopes. */
   scopes?: readonly string[];
   resolve(deps: Deps, context: CommandContext): Value | Promise<Value>;
   /** Run in reverse resolution order after the handler, whether it threw or not. */
@@ -103,7 +103,7 @@ export interface AuthorizeRequest {
   scopes: readonly string[];
 }
 
-export interface KernelOptions {
+export interface RegistryOptions {
   /**
    * The declared sections of the surface.
    *
@@ -130,16 +130,16 @@ export interface Resolution {
   dispose(): Promise<void>;
 }
 
-export class Kernel<Ctx extends object = object> {
+export class Registry<Ctx extends object = object> {
   readonly #providers = new Map<string, StoredProvider>();
   readonly #commands: Command[] = [];
-  readonly #options: KernelOptions;
+  readonly #options: RegistryOptions;
 
-  public constructor(options: KernelOptions = {}) {
+  public constructor(options: RegistryOptions = {}) {
     this.#options = options;
   }
 
-  /** Register a capability. Returns the same kernel, typed with what it now has. */
+  /** Register a capability. Returns the same registry, typed with what it now has. */
   public provide<Name extends string, Value, const Deps extends readonly (keyof Ctx & string)[] = []>(
     name: Name,
     definition: {
@@ -149,7 +149,7 @@ export class Kernel<Ctx extends object = object> {
       resolve(deps: Pick<Ctx, Deps[number]>, context: CommandContext): Value | Promise<Value>;
       dispose?(value: Awaited<Value>): void | Promise<void>;
     },
-  ): Kernel<Ctx & { [Key in Name]: Awaited<Value> }> {
+  ): Registry<Ctx & { [Key in Name]: Awaited<Value> }> {
     if (RESERVED_CONTEXT_KEYS.includes(name)) {
       throw new Error(`A capability cannot be called ${name}: the context already has it`);
     }
@@ -167,11 +167,11 @@ export class Kernel<Ctx extends object = object> {
         : { dispose: (value: unknown) => definition.dispose!(value as Awaited<Value>) }),
     };
     this.#providers.set(name, stored);
-    return this as unknown as Kernel<Ctx & { [Key in Name]: Awaited<Value> }>;
+    return this as unknown as Registry<Ctx & { [Key in Name]: Awaited<Value> }>;
   }
 
   /**
-   * Declare a command against this kernel.
+   * Declare a command against this registry.
    *
    * An identity function that exists for its types: `needs` is checked against
    * the capabilities registered above it, and the handler's context is typed to
@@ -329,10 +329,10 @@ export class Kernel<Ctx extends object = object> {
 }
 
 /**
- * What a surface needs from a kernel, and nothing more.
+ * What a surface needs from a registry, and nothing more.
  *
  * The CLI, the MCP adapter and the reference generator all take one of these
- * rather than `Kernel<Ctx>`: the capability types are the *command author's*
+ * rather than `Registry<Ctx>`: the capability types are the *command author's*
  * business, and a surface that was generic over them would force every program
  * to thread its context type through code that never touches it.
  */
@@ -344,8 +344,8 @@ export interface Runner {
   execute(command: Command, options: ExecuteOptions): Promise<Output | null>;
 }
 
-export function createKernel(options: KernelOptions = {}): Kernel<object> {
-  return new Kernel<object>(options);
+export function createRegistry(options: RegistryOptions = {}): Registry<object> {
+  return new Registry<object>(options);
 }
 
 /**

@@ -103,8 +103,8 @@ export function commandSection(command: Command, options: DocumentOptions, level
 }
 
 /** Everything, for a person: the manual page this library replaces. */
-export function reference(kernel: Runner, options: DocumentOptions): string {
-  const listed = visible(kernel.commands).filter((command) => surfaceEnabled(command, "docs"));
+export function reference(registry: Runner, options: DocumentOptions): string {
+  const listed = visible(registry.commands).filter((command) => surfaceEnabled(command, "docs"));
   const parts: string[] = [
     `# ${options.name}${options.version === undefined ? "" : ` ${options.version}`}`,
     "",
@@ -112,7 +112,7 @@ export function reference(kernel: Runner, options: DocumentOptions): string {
     ...(options.preamble === undefined ? [] : [options.preamble.trim(), ""]),
   ];
 
-  for (const section of sectionsOf(kernel.groups, listed)) {
+  for (const section of sectionsOf(registry.groups, listed)) {
     parts.push(`## ${section.title}`, "");
     for (const command of section.commands) parts.push(commandSection(command, options));
   }
@@ -131,10 +131,10 @@ export function reference(kernel: Runner, options: DocumentOptions): string {
  * configuration or administration. An agent reads this to decide which command
  * to run, so what belongs in it is exactly the commands it could run.
  */
-export function agentSkill(kernel: Runner, options: DocumentOptions): string {
-  const listed = visible(kernel.commands).filter((command) => surfaceEnabled(command, "docs"));
+export function agentSkill(registry: Runner, options: DocumentOptions): string {
+  const listed = visible(registry.commands).filter((command) => surfaceEnabled(command, "docs"));
   const sections: CommandSection[] = sectionsOf(
-    kernel.groups.filter((group) => group.agent !== false),
+    registry.groups.filter((group) => group.agent !== false),
     listed,
   );
 

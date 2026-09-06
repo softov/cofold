@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { coerce, createKernel, output } from "../index.js";
+import { coerce, createRegistry, output } from "../index.js";
 import { Program } from "../cli/index.js";
-import { describe as describeRegistry, materialise, type HttpBinding, type Transport } from "./manifest.js";
+import { manifestFrom, commandsFrom, type HttpBinding, type Transport } from "./manifest.js";
 import { manifestFromOpenApi } from "./openapi.js";
 
 function service() {
-  const kernel = createKernel({ groups: [{ name: "pets", title: "Pets" }] })
+  const registry = createRegistry({ groups: [{ name: "pets", title: "Pets" }] })
     .provide("pets", { resolve: () => [{ id: "1", name: "Ada" }] });
-  kernel.register(kernel.command({
+  registry.register(registry.command({
     id: "pet.list",
     group: "pets",
     pattern: ["pet", "list"],
@@ -17,12 +17,12 @@ function service() {
     meta: { http: { method: "GET", path: "/pets", query: ["limit"] } satisfies HttpBinding },
     run: (context) => output(context.pets),
   }));
-  return kernel;
+  return registry;
 }
 
 describe("the round trip", () => {
-  it("describes a registry and materialises it back into the same command", async () => {
-    const manifest = describeRegistry(service(), { name: "pets", version: "1.0.0" });
+  it("describes a registry and builds it back into the same command", async () => {
+    const manifest = manifestFrom(service(), { name: "pets", version: "1.0.0" });
     expect(manifest.commands).toHaveLength(1);
     expect(manifest.commands[0]?.options?.[0]).toMatchObject({ name: "--limit", type: "integer", minimum: 1, maximum: 100 });
 
@@ -31,12 +31,12 @@ describe("the round trip", () => {
       request: (binding, input) => { calls.push({ binding, input: { ...input } }); return Promise.resolve([{ id: "1" }]); },
     };
 
-    const client = createKernel().provide("transport", { resolve: () => transport });
-    client.register(...materialise(manifest));
+    const client = createRegistry().provide("transport", { resolve: () => transport });
+    client.register(...commandsFrom(manifest));
 
     const out: string[] = [];
     const program = new Program({
-      name: "client", version: "0", kernel: client,
+      name: "client", version: "0", registry: client,
       io: { out: (text) => { out.push(text); }, err: () => {} },
     });
 
@@ -47,19 +47,19 @@ describe("the round trip", () => {
   });
 
   it("refuses locally what the server would have refused, because the bounds travel", async () => {
-    const manifest = describeRegistry(service(), { name: "pets", version: "1.0.0" });
-    const client = createKernel().provide("transport", {
+    const manifest = manifestFrom(service(), { name: "pets", version: "1.0.0" });
+    const client = createRegistry().provide("transport", {
       resolve: (): Transport => ({ request: () => Promise.reject(new Error("must not be called")) }),
     });
-    client.register(...materialise(manifest));
-    const program = new Program({ name: "client", version: "0", kernel: client, io: { out: () => {}, err: () => {} } });
+    client.register(...commandsFrom(manifest));
+    const program = new Program({ name: "client", version: "0", registry: client, io: { out: () => {}, err: () => {} } });
     await expect(program.run(["pet", "list", "--limit", "999"])).rejects.toThrow(/--limit must be an integer/u);
   });
 
   it("publishes only the commands that carry a binding", () => {
-    const kernel = service();
-    kernel.register({ id: "local", pattern: ["doctor"], summary: "", group: "pets", run: () => {} });
-    const manifest = describeRegistry(kernel, { name: "pets", version: "1.0.0" });
+    const registry = service();
+    registry.register({ id: "local", pattern: ["doctor"], summary: "", group: "pets", run: () => {} });
+    const manifest = manifestFrom(registry, { name: "pets", version: "1.0.0" });
     expect(manifest.commands.map((command) => command.id)).toEqual(["pet.list"]);
   });
 });

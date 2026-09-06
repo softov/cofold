@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
-import { coerce, createKernel, output } from "softcli";
-import { globalOptions, Program, runEntry, table } from "softcli/cli";
+import { coerce, createRegistry, output } from "softcli";
+import { globalOptions, Program, renderTable, runEntry } from "softcli/cli";
 import { agentSkill, reference } from "softcli/docs";
 import { listTools } from "softcli/mcp";
 import {
@@ -27,7 +27,7 @@ import {
 
 const VERSION = "0.1.0";
 
-const kernel = createKernel({
+const registry = createRegistry({
   groups: [
     { name: "notes", title: "Notes", agent: true },
     { name: "meta", title: "This program", agent: false },
@@ -54,7 +54,7 @@ const status = coerce.oneOf(["open", "done"]);
 /** Completion reads the store directly: it runs before any command does. */
 const noteIds = (): string[] => readNotes(defaultStorePath()).map((note) => note.id);
 
-const list = kernel.command({
+const list = registry.command({
   id: "note.list",
   group: "notes",
   pattern: ["note", "list"],
@@ -77,14 +77,14 @@ const list = kernel.command({
 
     return output(
       found,
-      () => table(["id", "status", "title", "tags"],
+      () => renderTable(["id", "status", "title", "tags"],
         found.map((note) => [note.id, note.status, note.title, note.tags.join(",")])),
       found.map((note) => note.id).join("\n"),
     );
   },
 });
 
-const show = kernel.command({
+const show = registry.command({
   id: "note.show",
   group: "notes",
   pattern: ["note", "show", ":id"],
@@ -95,7 +95,7 @@ const show = kernel.command({
   run: (context) => output(context.store.get(context.value("id"))),
 });
 
-const add = kernel.command({
+const add = registry.command({
   id: "note.add",
   group: "notes",
   pattern: ["note", "add", ":title"],
@@ -127,7 +127,7 @@ const add = kernel.command({
   },
 });
 
-const edit = kernel.command({
+const edit = registry.command({
   id: "note.edit",
   group: "notes",
   pattern: ["note", "edit", ":id"],
@@ -154,7 +154,7 @@ const edit = kernel.command({
   },
 });
 
-const remove = kernel.command({
+const remove = registry.command({
   id: "note.remove",
   group: "notes",
   pattern: ["note", "rm", ":ids..."],
@@ -167,7 +167,7 @@ const remove = kernel.command({
   },
 });
 
-const tags = kernel.command({
+const tags = registry.command({
   id: "note.tags",
   group: "notes",
   pattern: ["note", "tags"],
@@ -184,7 +184,7 @@ const tags = kernel.command({
   },
 });
 
-const where = kernel.command({
+const where = registry.command({
   id: "config.show",
   group: "meta",
   pattern: ["config"],
@@ -196,13 +196,13 @@ const where = kernel.command({
   }),
 });
 
-const docs = kernel.command({
+const docs = registry.command({
   id: "docs",
   group: "meta",
   pattern: ["docs"],
   summary: "Print the command reference as markdown",
   description: "Generated from the registry, so it is never out of date.",
-  run: () => output(reference(kernel, {
+  run: () => output(reference(registry, {
     name: "notes",
     version: VERSION,
     description: "A small note-taking CLI, built on softcli.",
@@ -210,34 +210,34 @@ const docs = kernel.command({
   })),
 });
 
-const skill = kernel.command({
+const skill = registry.command({
   id: "skill",
   group: "meta",
   pattern: ["skill"],
   summary: "Print the agent-facing skill as markdown",
   description: "The same registry, filtered to what an agent can act on.",
-  run: () => output(agentSkill(kernel, {
+  run: () => output(agentSkill(registry, {
     name: "notes",
     description: "Read and write the notes on this machine.",
   })),
 });
 
-const toolList = kernel.command({
+const toolList = registry.command({
   id: "mcp.tools",
   group: "meta",
   pattern: ["mcp", "tools"],
   summary: "Print the MCP tools this program would serve",
   description: "Only the commands that opted in with `surfaces: { mcp: true }`.",
-  run: () => output(listTools(kernel)),
+  run: () => output(listTools(registry)),
 });
 
-kernel.register(list, show, add, edit, remove, tags, where, docs, skill, toolList);
+registry.register(list, show, add, edit, remove, tags, where, docs, skill, toolList);
 
 export const program = new Program({
   name: "notes",
   version: VERSION,
   description: "A small note-taking CLI: the softcli playground.",
-  kernel,
+  registry,
   globals: [
     { name: "--store", value: "PATH", description: "The notes file", env: "NOTES_STORE" },
   ],

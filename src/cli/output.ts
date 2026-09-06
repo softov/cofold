@@ -1,5 +1,5 @@
 import { displayValue, type Io, type Output } from "../index.js";
-import { document, json, table } from "./render.js";
+import { renderDocument, renderJson, renderTable } from "./render.js";
 import type { OutputMode } from "./globals.js";
 
 /**
@@ -29,21 +29,21 @@ export function renderHuman(data: unknown): string {
     if (data.length === 0) return "";
     const rows = data.filter((item): item is Record<string, unknown> =>
       typeof item === "object" && item !== null && !Array.isArray(item));
-    if (rows.length !== data.length) return json(data);
+    if (rows.length !== data.length) return renderJson(data);
     const headers = [...new Set(rows.flatMap((row) => Object.keys(row)))];
-    return table(headers, rows.map((row) => headers.map((header) => displayValue(row[header]))));
+    return renderTable(headers, rows.map((row) => headers.map((header) => displayValue(row[header]))));
   }
   if (typeof data === "object") {
-    return document(Object.fromEntries(
+    return renderDocument(Object.fromEntries(
       Object.entries(data as Record<string, unknown>).map(([key, value]) => [key, displayValue(value)])));
   }
-  return json(data);
+  return renderJson(data);
 }
 
 export function emit(io: Io, result: Output | null, mode: OutputMode): void {
   if (result === null) return;
   if (mode === "json") {
-    io.out(json(result.data));
+    io.out(renderJson(result.data));
     return;
   }
   if (mode === "quiet") {

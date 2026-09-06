@@ -7,10 +7,10 @@ If a command is data, a command can arrive from somewhere else. This is the prop
 A service describes its own registry:
 
 ```ts
-import { describe } from "softcli/remote";
+import { manifestFrom } from "softcli/remote";
 
 // GET /cli-manifest
-send(describe(kernel, { name: "clerver", version: "0.1.0" }));
+send(manifestFrom(registry, { name: "clerver", version: "0.1.0" }));
 ```
 
 The one extra fact a command carries is how it becomes a request:
@@ -23,11 +23,11 @@ meta: { http: { method: "GET", path: "/pets", query: ["species", "limit"] } }
 
 The core ignores `meta`; `softcli/remote` reads it from **both** ends - the server routes with it, the client builds requests with it. Commands with no binding are simply not published: a local `doctor` command is nobody else's business.
 
-A client materialises them:
+A client turns them back into commands:
 
 ```ts
 const manifest = await loadManifest(`${url}/cli-manifest`, { directory: cacheDir });
-kernel.register(...materialise(manifest, { capability: "transport" }));
+registry.register(...commandsFrom(manifest, { capability: "transport" }));
 ```
 
 and they behave like any other command - help, completion, `--json`, coercion, exit codes - because they *are* any other command. [`examples/clerver`](../examples/clerver) is the whole round trip in three small files.

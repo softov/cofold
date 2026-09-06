@@ -8,12 +8,12 @@ npm add softcli
 
 ```ts
 #!/usr/bin/env node
-import { coerce, createKernel, output } from "softcli";
+import { coerce, createRegistry, output } from "softcli";
 import { Program, runEntry } from "softcli/cli";
 
-const kernel = createKernel();
+const registry = createRegistry();
 
-const greet = kernel.command({
+const greet = registry.command({
   id: "greet",
   pattern: ["greet", ":name"],
   summary: "Say hello",
@@ -31,9 +31,9 @@ const greet = kernel.command({
   },
 });
 
-kernel.register(greet);
+registry.register(greet);
 
-const program = new Program({ name: "hello", version: "1.0.0", kernel });
+const program = new Program({ name: "hello", version: "1.0.0", registry });
 await runEntry(program, process.argv.slice(2));
 ```
 
@@ -41,11 +41,11 @@ That is a complete program. It already has `--help`, `--version`, `--json`, `--q
 
 ## The three parts
 
-**The kernel** is the registry. It holds the commands and the capabilities they can ask for. `createKernel({ groups })` additionally makes `group` mandatory, which is worth turning on the moment you generate documentation.
+**The registry** holds the commands and the capabilities they can ask for. `createRegistry({ groups })` additionally makes `group` mandatory, which is worth turning on the moment you generate documentation.
 
 **A command** is the object above. `pattern` is the words, with `:name` for a slot (`:name?` optional, `:name...` one or more). `options` are the flags. `run` receives a context whose `input` is everything already parsed, coerced and validated.
 
-**The program** is the terminal in front of the kernel: argv in, one of three output shapes out. Nothing about your commands is in it, which is why a test can build a program over a two-command kernel and drive exactly the code path the binary does.
+**The program** is the terminal in front of the registry: argv in, one of three output shapes out. Nothing about your commands is in it, which is why a test can build a program over a two-command registry and drive exactly the code path the binary does.
 
 ## Growing it
 

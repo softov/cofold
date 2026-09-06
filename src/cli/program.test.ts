@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coerce, createKernel, output, type Io } from "../index.js";
+import { coerce, createRegistry, output, type Io } from "../index.js";
 import { Program } from "./program.js";
 
 function build() {
@@ -7,11 +7,11 @@ function build() {
   const err: string[] = [];
   const io: Io = { out: (text) => { out.push(text); }, err: (text) => { err.push(text); } };
 
-  const kernel = createKernel({ groups: [{ name: "work", title: "Work" }] })
+  const registry = createRegistry({ groups: [{ name: "work", title: "Work" }] })
     .provide("store", { resolve: () => [{ id: "1", title: "One" }, { id: "2", title: "Two" }] });
 
-  kernel.register(
-    kernel.command({
+  registry.register(
+    registry.command({
       id: "note.list",
       group: "work",
       pattern: ["note", "list"],
@@ -20,7 +20,7 @@ function build() {
       options: [{ name: "--limit", value: "N", description: "How many", coerce: coerce.integer({ min: 1 }) }],
       run: (context) => output(context.store.slice(0, context.optional<number>("limit") ?? 10)),
     }),
-    kernel.command({
+    registry.command({
       id: "note.fail",
       group: "work",
       pattern: ["note", "fail"],
@@ -29,7 +29,7 @@ function build() {
     }),
   );
 
-  const program = new Program({ name: "notes", version: "9.9.9", kernel, io, readStdin: async () => "" });
+  const program = new Program({ name: "notes", version: "9.9.9", registry, io, readStdin: async () => "" });
   return { program, out, err, text: () => out.join(""), errors: () => err.join("") };
 }
 

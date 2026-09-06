@@ -9,7 +9,7 @@ needs: "nothing" | "config" | "server"
 and an `if` ladder in the runner that turns it into state. The list is closed, the resolution is positional, and adding a fourth thing means editing the runner. This is the generalisation.
 
 ```ts
-const kernel = createKernel()
+const registry = createRegistry()
   .provide("config", {
     description: "The configuration file",
     resolve: () => loadConfig(),
@@ -28,7 +28,7 @@ const kernel = createKernel()
 A command then declares what it wants, and **its handler is typed to exactly that**:
 
 ```ts
-kernel.command({
+registry.command({
   id: "case.show",
   pattern: ["case", "show", ":id"],
   summary: "Show one case",
@@ -46,7 +46,7 @@ kernel.command({
 
 **Disposed in reverse.** `dispose` runs after the handler whether it returned or threw, innermost first. If a *later* capability throws during resolution, the ones already opened are still disposed. This is where a store flushes, a connection closes, a lock is released - and no command has to remember.
 
-**Checked at startup.** `kernel.verify()`, which `Program.run` calls, refuses a command that needs an unregistered capability, a capability that depends on one, and a cycle - naming the path that closed it.
+**Checked at startup.** `registry.verify()`, which `Program.run` calls, refuses a command that needs an unregistered capability, a capability that depends on one, and a cycle - naming the path that closed it.
 
 **Reserved names.** A capability cannot be called `input`, `command`, `out`, or anything else the context already has. Refused at `provide()`, not discovered when a command mysteriously stops working.
 
@@ -66,10 +66,10 @@ Globals are deliberately *not* in `context.input`: an MCP call has no `--config`
 
 ## Scopes
 
-A command may declare what it requires, and a capability may declare what it requires; the kernel's `authorize` hook sees both, plus the resolved capabilities:
+A command may declare what it requires, and a capability may declare what it requires; the registry's `authorize` hook sees both, plus the resolved capabilities:
 
 ```ts
-createKernel({
+createRegistry({
   authorize: ({ command, scopes, capabilities }) => {
     const held = (capabilities["credentials"] as Credentials).scopes;
     const missing = scopes.filter((scope) => !held.includes(scope));

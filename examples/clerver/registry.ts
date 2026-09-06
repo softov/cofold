@@ -1,9 +1,9 @@
-import { coerce, createKernel, output } from "softcli";
+import { coerce, createRegistry, output } from "softcli";
 
 /**
  * One registry, two programs.
  *
- * The server routes HTTP at these commands; the client materialises the same
+ * The server routes HTTP at these commands; the client builds the same
  * commands out of the manifest they describe. Neither side hand-writes the
  * other's half, and the only thing that crosses the wire is data - which is the
  * property that makes this possible at all.
@@ -24,14 +24,14 @@ const pets: Pet[] = [
   { id: "2", name: "Byte", species: "dog", age: 2 },
 ];
 
-export const kernel = createKernel({
+export const registry = createRegistry({
   groups: [{ name: "pets", title: "Pets", agent: true }],
 }).provide("pets", {
   description: "The in-memory pet store",
   resolve: () => pets,
 });
 
-const list = kernel.command({
+const list = registry.command({
   id: "pet.list",
   group: "pets",
   pattern: ["pet", "list"],
@@ -48,7 +48,7 @@ const list = kernel.command({
     .slice(0, context.value<number>("limit"))),
 });
 
-const show = kernel.command({
+const show = registry.command({
   id: "pet.show",
   group: "pets",
   pattern: ["pet", "show", ":id"],
@@ -64,7 +64,7 @@ const show = kernel.command({
   },
 });
 
-const add = kernel.command({
+const add = registry.command({
   id: "pet.add",
   group: "pets",
   pattern: ["pet", "add", ":name"],
@@ -88,7 +88,7 @@ const add = kernel.command({
   },
 });
 
-const remove = kernel.command({
+const remove = registry.command({
   id: "pet.remove",
   group: "pets",
   pattern: ["pet", "rm", ":id"],
@@ -107,4 +107,4 @@ export class NotFound extends Error {
   public readonly status = 404;
 }
 
-kernel.register(list, show, add, remove);
+registry.register(list, show, add, remove);

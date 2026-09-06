@@ -12,7 +12,7 @@ import {
   type OptionNote,
   type OptionSpec,
 } from "../index.js";
-import { definitions, styleFor, type Style } from "./render.js";
+import { renderDefinitions, styleFor, type Style } from "./render.js";
 
 /**
  * `--help`, derived from the registry.
@@ -58,19 +58,19 @@ export function helpForCommand(command: Command, options: HelpOptions): string {
   ];
   if (command.description !== undefined) sections.push(`\n${command.description.trim()}\n`);
   if (slots.some(([, description]) => description !== "")) {
-    sections.push(`\n${style.heading("Arguments:")}\n${definitions(slots)}`);
+    sections.push(`\n${style.heading("Arguments:")}\n${renderDefinitions(slots)}`);
   }
   if (own.length > 0) {
-    sections.push(`\n${style.heading("Options:")}\n${definitions(own.map(optionLine))}`);
+    sections.push(`\n${style.heading("Options:")}\n${renderDefinitions(own.map(optionLine))}`);
   }
   if (command.needs !== undefined && command.needs.length > 0) {
     sections.push(`\n${style.dim(`Needs: ${command.needs.join(", ")}`)}\n`);
   }
   if (command.examples !== undefined && command.examples.length > 0) {
-    sections.push(`\n${style.heading("Examples:")}\n${definitions(
+    sections.push(`\n${style.heading("Examples:")}\n${renderDefinitions(
       command.examples.map((example) => [example.command, example.description ?? ""] as const))}`);
   }
-  sections.push(`\n${style.heading("Global options:")}\n${definitions(visible(options.globals).map(optionLine))}`);
+  sections.push(`\n${style.heading("Global options:")}\n${renderDefinitions(visible(options.globals).map(optionLine))}`);
   return sections.join("");
 }
 
@@ -85,10 +85,10 @@ export function helpForProgram(options: HelpOptions): string {
     + (options.description === undefined ? "" : `\n${options.description}\n`);
 
   const body = sectionsOf(options.groups ?? [], listed)
-    .map((section) => `\n${style.heading(`${section.title}:`)}\n${definitions(commandLines(section.commands))}`)
+    .map((section) => `\n${style.heading(`${section.title}:`)}\n${renderDefinitions(commandLines(section.commands))}`)
     .join("");
 
-  return `${head}${body}\n${style.heading("Global options:")}\n${definitions(visible(options.globals).map(optionLine))}`;
+  return `${head}${body}\n${style.heading("Global options:")}\n${renderDefinitions(visible(options.globals).map(optionLine))}`;
 }
 
 /**
@@ -115,5 +115,5 @@ export function help(
   }
   const style = options.style ?? styleFor();
   return `${style.bold("Usage:")} ${options.name} ${prefix.join(" ")} <command>\n`
-    + `\n${style.heading("Commands:")}\n${definitions(commandLines(matches))}`;
+    + `\n${style.heading("Commands:")}\n${renderDefinitions(commandLines(matches))}`;
 }

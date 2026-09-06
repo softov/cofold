@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { ArgumentError, coerce, createKernel, output } from "../index.js";
+import { ArgumentError, coerce, createRegistry, output } from "../index.js";
 import { callTool, listTools, tools } from "./index.js";
 
 function build() {
-  const kernel = createKernel().provide("store", { resolve: () => [{ id: "1" }] });
-  kernel.register(
-    kernel.command({
+  const registry = createRegistry().provide("store", { resolve: () => [{ id: "1" }] });
+  registry.register(
+    registry.command({
       id: "note.list",
       pattern: ["note", "list"],
       summary: "List notes",
@@ -17,13 +17,13 @@ function build() {
       ],
       run: (context) => output({ notes: context.store, limit: context.value("limit"), tags: context.list("tag") }),
     }),
-    kernel.command({
+    registry.command({
       id: "note.destroy",
       pattern: ["note", "destroy"],
       summary: "Delete everything",
       run: () => output(null),
     }),
-    kernel.command({
+    registry.command({
       id: "note.strict",
       pattern: ["note", "strict", ":id"],
       summary: "Refuses politely",
@@ -31,7 +31,7 @@ function build() {
       run: () => { throw new ArgumentError("id must be a number"); },
     }),
   );
-  return kernel;
+  return registry;
 }
 
 describe("the MCP surface", () => {

@@ -9,12 +9,12 @@ Every CLI library treats a command as *behaviour with a description attached* - 
 Here a command is a plain object that outlives the call. The parser reads it, `--help` reads it, the shell completion reads it, the markdown reference reads it, the agent-facing skill reads it, and the MCP adapter reads it. One statement; six renderings.
 
 ```ts
-const kernel = createKernel()
+const registry = createRegistry()
   .provide("config", { resolve: () => loadConfig() })
   .provide("store",  { deps: ["config"], resolve: ({ config }) => open(config.path),
                        dispose: (store) => store.flush() });
 
-const list = kernel.command({
+const list = registry.command({
   id: "note.list",
   pattern: ["note", "list"],
   summary: "List notes, newest first",
@@ -47,7 +47,7 @@ One package, five entry points. They are subpaths rather than separate packages 
 
 | import | what it is |
 |---|---|
-| [`softcli`](src/index.ts) | the declaration, the capability kernel, the canonical input. Knows nothing about terminals. |
+| [`softcli`](src/index.ts) | the declaration, the capability registry, the canonical input. Knows nothing about terminals. |
 | [`softcli/cli`](src/cli) | argv, help, completion, the output contract, exit codes |
 | [`softcli/mcp`](src/mcp) | the same registry as MCP tools. No SDK dependency. |
 | [`softcli/docs`](src/docs) | the same registry as markdown - for people, and for agents |

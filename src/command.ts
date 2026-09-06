@@ -119,7 +119,7 @@ export interface CommandDefinition<Deps extends object = object, Needs extends r
   arguments?: Readonly<Record<string, ArgumentSpec>>;
   /** Capability names resolved before the handler runs, and typed into its context. */
   needs?: Needs;
-  /** Checked against whatever the kernel's `authorize` hook knows. */
+  /** Checked against whatever the registry's `authorize` hook knows. */
   scopes?: readonly string[];
   /**
    * A schema over the whole canonical input, after coercion.

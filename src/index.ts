@@ -2,7 +2,7 @@
  * softcli/core - a command is data.
  *
  * Nothing in this package knows what a terminal is. It holds the declaration
- * (`command.ts`), the capabilities a command declares it needs (`kernel.ts`),
+ * (`command.ts`), the capabilities a command declares it needs (`registry.ts`),
  * the one object every surface turns its arguments into (`input.ts`), and the
  * three readings of a result (`context.ts`). The surfaces - the CLI, MCP, the
  * generated reference - are renderings of what is here, and each of them is
@@ -57,16 +57,16 @@ export {
 export type { FaultKind } from "./errors.js";
 export { argumentFields, canonicalFromCli, canonicalFromObject, fieldsOf } from "./input.js";
 export type { FieldDescriptor, RawCliInput } from "./input.js";
-export { createKernel, Kernel, sectionsOf, validateCommand } from "./kernel.js";
+export { createRegistry, Registry, sectionsOf, validateCommand } from "./registry.js";
 export type {
   Runner,
   AuthorizeRequest,
   CommandGroup,
   CommandSection,
   ExecuteOptions,
-  KernelOptions,
+  RegistryOptions,
   ProviderDefinition,
   Resolution,
-} from "./kernel.js";
+} from "./registry.js";
 export { isStandardSchema, validate } from "./schema.js";
 export type { StandardIssue, StandardResult, StandardSchemaV1 } from "./schema.js";

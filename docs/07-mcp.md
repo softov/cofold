@@ -3,8 +3,8 @@
 ```ts
 import { listTools, callTool, tools } from "softcli/mcp";
 
-listTools(kernel);              // { tools: [{ name, description, inputSchema }] }
-await callTool(kernel, "note_list", { limit: 5 });
+listTools(registry);              // { tools: [{ name, description, inputSchema }] }
+await callTool(registry, "note_list", { limit: 5 });
 ```
 
 No SDK is imported. `tools()` returns plain descriptors with JSON Schema - what the protocol speaks - and wiring them to a particular SDK is a few lines in the program that ships the server, which keeps that program's choice its own.

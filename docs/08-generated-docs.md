@@ -3,8 +3,8 @@
 ```ts
 import { reference, agentSkill } from "softcli/docs";
 
-reference(kernel, { name: "notes", version, description, globals: globalOptions });
-agentSkill(kernel, { name: "notes", description: "Read and write the notes on this machine." });
+reference(registry, { name: "notes", version, description, globals: globalOptions });
+agentSkill(registry, { name: "notes", description: "Read and write the notes on this machine." });
 ```
 
 Both are markdown, both are generated from the registry, and both are usually wired up as commands - `notes docs`, `notes skill` - so a build step can write them to a file and CI can fail when the checked-in copy differs.
@@ -18,7 +18,7 @@ Both are markdown, both are generated from the registry, and both are usually wi
 That filter is what `groups` is for:
 
 ```ts
-createKernel({
+createRegistry({
   groups: [
     { name: "work",  title: "Cases and reports", agent: true },
     { name: "tokens", title: "Access tokens",    agent: false },

@@ -9,9 +9,13 @@ import { coerce, compact, type Coercer } from "../index.js";
  * parts nobody needed removed. So the conversion is written once here rather
  * than once per description format, which is how the two copies had already
  * begun to differ.
+ *
+ * The parameter is the `type` vocabulary. Reading a description leaves it open,
+ * because an OpenAPI document may say anything; a manifest narrows it to the
+ * four `ManifestType` names it is allowed to carry.
  */
-export interface ValueShape {
-  type?: string;
+export interface ValueShape<T extends string = string> {
+  type?: T;
   enum?: readonly string[];
   minimum?: number;
   maximum?: number;

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { UnavailableError } from "../index.js";
-import { parseManifest, type Manifest } from "./manifest.js";
+import { parseManifest, type ProgramManifest } from "./manifest.js";
 
 /**
  * The manifest on disk, and why it has to be.
@@ -28,7 +28,7 @@ export interface CacheOptions {
 interface CacheEntry {
   fetchedAt: number;
   url: string;
-  manifest: Manifest;
+  manifest: ProgramManifest;
 }
 
 function fileFor(directory: string, url: string): string {
@@ -43,7 +43,7 @@ async function readCache(path: string): Promise<CacheEntry | null> {
   }
 }
 
-export async function loadManifest(url: string, options: CacheOptions): Promise<Manifest> {
+export async function loadManifest(url: string, options: CacheOptions): Promise<ProgramManifest> {
   const path = fileFor(options.directory, url);
   const cached = await readCache(path);
   const ttl = options.ttlMs ?? 24 * 60 * 60 * 1000;

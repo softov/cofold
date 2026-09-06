@@ -23,7 +23,7 @@ import { styleFor } from "./render.js";
 import { didYouMean } from "./suggest.js";
 
 /**
- * The command line in front of a kernel.
+ * The command line in front of a registry.
  *
  * Everything true of *every* command lives here exactly once: `--version`,
  * `--help`, the output contract, completion, and turning argv into the
@@ -31,7 +31,7 @@ import { didYouMean } from "./suggest.js";
  * is why handlers in a program built on this are three lines long.
  *
  * What is deliberately absent: any knowledge of what the commands are. The
- * kernel is passed in, so a program can register its surface in as many files
+ * registry is passed in, so a program can register its surface in as many files
  * as it has domains, and a test can build a registry of two commands and drive
  * the same code path the binary does.
  */
@@ -40,7 +40,7 @@ export interface ProgramOptions {
   name: string;
   version: string;
   description?: string;
-  kernel: Runner;
+  registry: Runner;
   io?: Io;
   /** Program-wide options beyond the standard set: `--url`, `--config`, `--profile`. */
   globals?: readonly OptionSpec[];
@@ -92,7 +92,7 @@ export class Program {
   /** Registered commands and the built-in ones, as the parser sees them. */
   public get commands(): readonly Command[] {
     return [
-      ...this.#options.kernel.commands.filter((command) => surfaceEnabled(command, "cli")),
+      ...this.#options.registry.commands.filter((command) => surfaceEnabled(command, "cli")),
       ...this.#builtins,
     ];
   }
@@ -102,7 +102,7 @@ export class Program {
   }
 
   public async run(argv: readonly string[]): Promise<number> {
-    this.#options.kernel.verify();
+    this.#options.registry.verify();
 
     const invocation = parse(this.commands, this.#globals, argv);
     const flag = (name: string): boolean => invocation.options[name] === true;
@@ -122,7 +122,7 @@ export class Program {
       version: this.#options.version,
       commands: this.commands,
       globals: this.#globals,
-      groups: this.#options.kernel.groups,
+      groups: this.#options.registry.groups,
       style,
       ...compact({ description: this.#options.description }),
     };
@@ -158,7 +158,7 @@ export class Program {
     }
 
     const command = invocation.command;
-    const mode: OutputMode = flag("--json") ? "json" : flag("--quiet") ? "quiet" : "human";
+    const mode: OutputMode = flag("--json") ? "json" : flag("--quiet") ? "quiet" : "plain";
     const readStdin = this.#options.readStdin ?? readAllStdin;
 
     const globals = await canonicalFromCli(
@@ -174,7 +174,7 @@ export class Program {
       ...compact({ stdin: command.stdin === undefined ? undefined : await readStdin() }),
     });
 
-    const result = await this.#options.kernel.execute(command, {
+    const result = await this.#options.registry.execute(command, {
       surface: "cli",
       input,
       globals,

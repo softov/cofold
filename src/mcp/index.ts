@@ -82,8 +82,8 @@ export interface ToolOptions {
  * tools. That default has to live at the declaration, not at the call site
  * here, or somebody eventually passes the wrong filter.
  */
-export function tools(kernel: Runner, options: ToolOptions = {}): ToolDefinition[] {
-  return kernel.commands
+export function tools(registry: Runner, options: ToolOptions = {}): ToolDefinition[] {
+  return registry.commands
     .filter((command) => surfaceEnabled(command, "mcp"))
     .filter((command) => options.filter?.(command) ?? true)
     .map((command) => ({
@@ -93,7 +93,7 @@ export function tools(kernel: Runner, options: ToolOptions = {}): ToolDefinition
       command,
       invoke: async (raw: Record<string, unknown>): Promise<unknown> => {
         const input = await canonicalFromObject(command, raw);
-        const result = await kernel.execute(command, {
+        const result = await registry.execute(command, {
           surface: "mcp",
           input,
           ...compact({ signal: options.signal }),
@@ -104,11 +104,11 @@ export function tools(kernel: Runner, options: ToolOptions = {}): ToolDefinition
 }
 
 /** What a `tools/list` response holds, ready to serialise. */
-export function listTools(kernel: Runner, options: ToolOptions = {}): {
+export function listTools(registry: Runner, options: ToolOptions = {}): {
   tools: { name: string; description: string; inputSchema: unknown }[];
 } {
   return {
-    tools: tools(kernel, options).map(({ name, description, inputSchema }) =>
+    tools: tools(registry, options).map(({ name, description, inputSchema }) =>
       ({ name, description, inputSchema })),
   };
 }
@@ -129,12 +129,12 @@ export class UnknownToolError extends Error {
  * dressing it up as a tool result invites a retry loop.
  */
 export async function callTool(
-  kernel: Runner,
+  registry: Runner,
   name: string,
   input: Record<string, unknown>,
   options: ToolOptions & { recoverable?: (error: unknown) => boolean } = {},
 ): Promise<{ content: { type: "text"; text: string }[]; isError?: true }> {
-  const tool = tools(kernel, options).find((candidate) => candidate.name === name);
+  const tool = tools(registry, options).find((candidate) => candidate.name === name);
   if (tool === undefined) throw new UnknownToolError(name);
   try {
     const value = await tool.invoke(input);

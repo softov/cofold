@@ -15,7 +15,7 @@ export type { HelpOptions } from "./help.js";
 export { emit, renderHuman } from "./output.js";
 export { matchCommand, optionTable, parse, tokenize } from "./parse.js";
 export type { Invocation, Match, Tokens } from "./parse.js";
-export { definitions, document, json, styleFor, table } from "./render.js";
+export { renderDefinitions, renderDocument, renderJson, renderTable, styleFor } from "./render.js";
 export type { Style } from "./render.js";
 export { Program, processIo } from "./program.js";
 export type { ProgramOptions } from "./program.js";

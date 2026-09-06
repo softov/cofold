@@ -5,7 +5,7 @@
 ```ts
 return output(
   notes,                                     // data: what --json prints, and what MCP returns
-  () => table(["id", "title"], rows),        // human: what a person sees
+  () => renderTable(["id", "title"], rows),  // human: what a person sees
   notes.map((note) => note.id).join("\n"),   // quiet: what a shell script consumes
 );
 ```
