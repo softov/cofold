@@ -30,4 +30,11 @@ export type {
   Transport,
 } from "./manifest.js";
 export { manifestFromOpenApi, patternFor } from "./openapi.js";
-export type { OpenApiOperationHint, OpenApiOptions } from "./openapi.js";
+export type {
+  DescribedSchema,
+  OpenApiDocument,
+  OpenApiOperation,
+  OpenApiOperationHint,
+  OpenApiOptions,
+  OpenApiParameter,
+} from "./openapi.js";

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { coerce, createRegistry, output } from "../index.js";
 import { Program } from "../cli/index.js";
 import { manifestFrom, commandsFrom, type HttpBinding, type Transport } from "./manifest.js";
-import { manifestFromOpenApi } from "./openapi.js";
+import { manifestFromOpenApi, type OpenApiDocument } from "./openapi.js";
 
 function service() {
   const registry = createRegistry({ groups: [{ name: "pets", title: "Pets" }] })
@@ -70,7 +70,7 @@ describe("the round trip", () => {
 });
 
 describe("reading OpenAPI", () => {
-  const document = {
+  const document: OpenApiDocument = {
     info: { title: "petstore", version: "1.0.0" },
     paths: {
       "/pets": {

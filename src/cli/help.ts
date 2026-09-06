@@ -81,8 +81,11 @@ function commandLines(commands: readonly Command[]): readonly (readonly [string,
 export function helpForProgram(options: HelpOptions): string {
   const style = options.style ?? styleFor();
   const listed = visible(options.commands);
+  // The version belongs here as much as behind `--version`: a bug report that
+  // says "notes, latest" is a bug report nobody can act on.
+  const named = options.version === undefined ? options.name : `${options.name} ${options.version}`;
   const head = `${style.bold("Usage:")} ${options.name} [global options] <command> [arguments] [options]\n`
-    + (options.description === undefined ? "" : `\n${options.description}\n`);
+    + `\n${named}${options.description === undefined ? "" : ` - ${options.description}`}\n`;
 
   const body = sectionsOf(options.groups ?? [], listed)
     .map((section) => `\n${style.heading(`${section.title}:`)}\n${renderDefinitions(commandLines(section.commands))}`)

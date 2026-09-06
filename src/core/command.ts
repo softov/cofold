@@ -269,6 +269,21 @@ export interface ActionDefinition<
     | Promise<import("./context.js").Output | void>;
 }
 
+/**
+ * A schema as the coercer every surface reads.
+ *
+ * An `enum` is the set, so it is also the completion candidates and the values
+ * help prints. Leaving it as the schema alone would mean an action declaring
+ * `enum: ["open", "done"]` completed nothing, while the same set written as
+ * `coerce.oneOf` completed both.
+ */
+function coercerFor(schema: JsonSchema): Coercer<unknown> {
+  return {
+    schema,
+    ...(schema.enum === undefined ? {} : { candidates: schema.enum.map(String) }),
+  };
+}
+
 /** `dryRun` -> `--dry-run`, so a flag is never spelled twice. */
 const flagFor = (name: string): string => `--${name.replace(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`)}`;
 
@@ -302,7 +317,7 @@ export function commandFor(definition: ActionDefinition<never, never, Record<str
     args[name] = {
       ...(schema.description === undefined ? {} : { description: schema.description }),
       ...(spelling?.complete === undefined ? {} : { complete: spelling.complete }),
-      coerce: { schema },
+      coerce: coercerFor(schema),
     };
   }
 
@@ -316,7 +331,7 @@ export function commandFor(definition: ActionDefinition<never, never, Record<str
         name: spelling?.flag ?? flagFor(name),
         description: schema.description ?? "",
         field: name,
-        coerce: { schema: each },
+        coerce: coercerFor(each),
         ...(spelling?.short === undefined ? {} : { short: spelling.short }),
         ...(each.type === "boolean" && spelling?.value === undefined
           ? {}
@@ -326,6 +341,7 @@ export function commandFor(definition: ActionDefinition<never, never, Record<str
         ...(required.includes(name) ? { required: true } : {}),
         ...(env === undefined ? {} : { env }),
         ...(spelling?.hidden === true ? { hidden: true } : {}),
+        ...(spelling?.complete === undefined ? {} : { complete: spelling.complete }),
       };
     });
 

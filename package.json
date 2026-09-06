@@ -53,13 +53,16 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "check": "npm run typecheck && npm run examples && npm run test",
     "clean": "rm -rf dist examples/dist",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "coverage": "vitest run src examples --coverage --coverage.include='src/**'",
+    "examples": "npm run build && tsc -p examples/tsconfig.json",
     "test": "vitest run src examples",
-    "examples": "npm run build && tsc -p examples/tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
+    "@vitest/coverage-v8": "2.1.9",
     "typescript": "^5.8.3",
     "vitest": "^2.1.9"
   }

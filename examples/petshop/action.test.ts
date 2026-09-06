@@ -50,7 +50,8 @@ describe("the schema is the only rulebook", () => {
 
 describe("the MCP surface", () => {
   const tool = listTools(registry).tools.find((one) => one.name === "pet_add")!;
-  const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>;
+  const schema = tool.inputSchema as { properties: Record<string, Record<string, unknown>>; required?: string[] };
+  const properties = schema.properties;
 
   it("advertises every constraint it enforces", () => {
     expect(properties["name"]).toMatchObject({ type: "string", minLength: 1, maxLength: 40 });
@@ -60,7 +61,7 @@ describe("the MCP surface", () => {
   });
 
   it("says which fields are required", () => {
-    expect(tool.inputSchema.required).toEqual(["name"]);
+    expect(schema.required).toEqual(["name"]);
   });
 
   it("shows an agent nothing about how a terminal spells it", () => {

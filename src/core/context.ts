@@ -38,7 +38,7 @@ export interface Io {
  * mysteriously stops working.
  */
 export const RESERVED_CONTEXT_KEYS: readonly string[] = [
-  "command", "commands", "surface", "input", "globals", "raw", "signal",
+  "command", "commands", "surface", "input", "globals", "signal",
   "value", "optional", "flag", "list", "pairs", "required",
   "stdin", "out", "write", "error",
 ];

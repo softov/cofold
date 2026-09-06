@@ -8,7 +8,7 @@ import type { JsonSchema } from "../core/coerce.js";
  * Deliberately looser than `JsonSchema`: this is somebody else's file, and a
  * `type` it names is a claim rather than one of the six this library checks.
  */
-interface DescribedSchema {
+export interface DescribedSchema {
   type?: string;
   description?: string;
   enum?: readonly unknown[];
@@ -50,7 +50,7 @@ export interface OpenApiOptions {
   program?: { name: string; version: string; description?: string };
 }
 
-interface OpenApiParameter {
+export interface OpenApiParameter {
   name: string;
   in: "path" | "query" | "header" | "cookie";
   required?: boolean;
@@ -58,7 +58,7 @@ interface OpenApiParameter {
   schema?: DescribedSchema;
 }
 
-interface OpenApiOperation {
+export interface OpenApiOperation {
   operationId?: string;
   summary?: string;
   description?: string;
@@ -71,7 +71,7 @@ interface OpenApiOperation {
   "x-cli"?: OpenApiOperationHint;
 }
 
-interface OpenApiDocument {
+export interface OpenApiDocument {
   openapi?: string;
   info?: { title?: string; version?: string; description?: string };
   paths?: Record<string, Record<string, OpenApiOperation> & { parameters?: readonly OpenApiParameter[] }>;
