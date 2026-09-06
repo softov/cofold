@@ -1,15 +1,62 @@
 {
   "name": "softcli",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "One command declaration, many surfaces: CLI, MCP, docs, completion.",
-  "engines": { "node": ">=22" },
+  "license": "MIT",
+  "author": "Luiz Fernando Softov <lfs@softov.dev>",
+  "keywords": [
+    "cli",
+    "command-line",
+    "mcp",
+    "model-context-protocol",
+    "argv",
+    "parser",
+    "completion",
+    "openapi",
+    "zero-dependency"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/index.d.ts",
+      "default": "./dist/cli/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "default": "./dist/mcp/index.js"
+    },
+    "./docs": {
+      "types": "./dist/docs/index.d.ts",
+      "default": "./dist/docs/index.js"
+    },
+    "./remote": {
+      "types": "./dist/remote/index.d.ts",
+      "default": "./dist/remote/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "pnpm -r --filter=@softcli/* build",
-    "clean": "pnpm -r exec rm -rf dist",
-    "typecheck": "pnpm -r --filter=@softcli/* typecheck",
-    "test": "pnpm -r --filter=@softcli/* test"
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist examples/dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run src",
+    "examples": "npm run build && tsc -p examples/tsconfig.json"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

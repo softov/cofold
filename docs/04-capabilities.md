@@ -6,9 +6,7 @@ Every hand-written CLI grows this field:
 needs: "nothing" | "config" | "server"
 ```
 
-and an `if` ladder in the runner that turns it into state. The list is closed,
-the resolution is positional, and adding a fourth thing means editing the runner.
-This is the generalisation.
+and an `if` ladder in the runner that turns it into state. The list is closed, the resolution is positional, and adding a fourth thing means editing the runner. This is the generalisation.
 
 ```ts
 const kernel = createKernel()
@@ -27,8 +25,7 @@ const kernel = createKernel()
   });
 ```
 
-A command then declares what it wants, and **its handler is typed to exactly
-that**:
+A command then declares what it wants, and **its handler is typed to exactly that**:
 
 ```ts
 kernel.command({
@@ -43,32 +40,19 @@ kernel.command({
 
 ## What you get
 
-**Resolution before entry.** A handler runs only once everything it declared is
-resolved. A command that needs a server fails on the missing configuration
-*before* it starts, rather than halfway through its own work - and handlers stay
-three lines long because none of that is in them.
+**Resolution before entry.** A handler runs only once everything it declared is resolved. A command that needs a server fails on the missing configuration *before* it starts, rather than halfway through its own work - and handlers stay three lines long because none of that is in them.
 
-**Resolved once.** Two capabilities that both depend on `config` share one
-`config`. The order is a depth-first walk of the dependency graph, computed per
-invocation.
+**Resolved once.** Two capabilities that both depend on `config` share one `config`. The order is a depth-first walk of the dependency graph, computed per invocation.
 
-**Disposed in reverse.** `dispose` runs after the handler whether it returned or
-threw, innermost first. If a *later* capability throws during resolution, the
-ones already opened are still disposed. This is where a store flushes, a
-connection closes, a lock is released - and no command has to remember.
+**Disposed in reverse.** `dispose` runs after the handler whether it returned or threw, innermost first. If a *later* capability throws during resolution, the ones already opened are still disposed. This is where a store flushes, a connection closes, a lock is released - and no command has to remember.
 
-**Checked at startup.** `kernel.verify()`, which `Program.run` calls, refuses a
-command that needs an unregistered capability, a capability that depends on one,
-and a cycle - naming the path that closed it.
+**Checked at startup.** `kernel.verify()`, which `Program.run` calls, refuses a command that needs an unregistered capability, a capability that depends on one, and a cycle - naming the path that closed it.
 
-**Reserved names.** A capability cannot be called `input`, `command`, `out`, or
-anything else the context already has. Refused at `provide()`, not discovered
-when a command mysteriously stops working.
+**Reserved names.** A capability cannot be called `input`, `command`, `out`, or anything else the context already has. Refused at `provide()`, not discovered when a command mysteriously stops working.
 
 ## Reading the globals
 
-Capabilities are resolved with the context, whose `globals` holds the
-program-wide options - `--config`, `--url`, `--profile`, `--verbose`:
+Capabilities are resolved with the context, whose `globals` holds the program-wide options - `--config`, `--url`, `--profile`, `--verbose`:
 
 ```ts
 .provide("config", {
@@ -78,15 +62,11 @@ program-wide options - `--config`, `--url`, `--profile`, `--verbose`:
 })
 ```
 
-Globals are deliberately *not* in `context.input`: an MCP call has no `--config`,
-and mixing them in would put fields into every generated schema that only one
-surface can produce.
+Globals are deliberately *not* in `context.input`: an MCP call has no `--config`, and mixing them in would put fields into every generated schema that only one surface can produce.
 
 ## Scopes
 
-A command may declare what it requires, and a capability may declare what it
-requires; the kernel's `authorize` hook sees both, plus the resolved
-capabilities:
+A command may declare what it requires, and a capability may declare what it requires; the kernel's `authorize` hook sees both, plus the resolved capabilities:
 
 ```ts
 createKernel({
@@ -98,6 +78,4 @@ createKernel({
 })
 ```
 
-Without an `authorize` hook, a command that declares `scopes` is refused rather
-than quietly allowed. A program that checks nothing should not be able to
-*look* as though it checks something.
+Without an `authorize` hook, a command that declares `scopes` is refused rather than quietly allowed. A program that checks nothing should not be able to *look* as though it checks something.

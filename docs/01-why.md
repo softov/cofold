@@ -2,9 +2,7 @@
 
 Not because parsing is hard. Parsing is the solved part.
 
-Look at what a real CLI actually contains. Take any program that has been
-maintained for a year and count the lines that are *about* its commands versus
-the lines that are about being a program at all:
+Look at what a real CLI actually contains. Take any program that has been maintained for a year and count the lines that are *about* its commands versus the lines that are about being a program at all:
 
 - loading a config file, and a profile or target within it
 - credentials, and never printing them in an error
@@ -16,10 +14,7 @@ the lines that are about being a program at all:
 - a reference document that is still true
 - and now: MCP tools, for the agent that will drive it
 
-Commander gives you the first third of the first line. Everything else, every
-program writes again. I have written it twice in the last year - once in
-`advisor`, once in `tasker` - and the second time was a copy of the first with
-the names changed.
+Commander gives you the first third of the first line. Everything else, every program writes again. I have written it twice in the last year - once in `advisor`, once in `tasker` - and the second time was a copy of the first with the names changed.
 
 ## The structural problem
 
@@ -31,9 +26,7 @@ program
   .action(async (options) => { /* ... */ });
 ```
 
-The description is a string passed to a builder. The behaviour is a closure. After
-this call returns, there is nothing left to *ask*: no object that knows this
-command exists, what it takes, what it means, or what it needs. So:
+The description is a string passed to a builder. The behaviour is a closure. After this call returns, there is nothing left to *ask*: no object that knows this command exists, what it takes, what it means, or what it needs. So:
 
 - **help drifts**, because a usage line is a comment and comments rot
 - **there is no second surface**, because you cannot enumerate what was never kept
@@ -57,12 +50,6 @@ None of them owns the boring 70%. That is the gap.
 
 Keep the declaration. Make everything else a rendering of it.
 
-The cost is a constraint on handlers: a handler receives a canonical input object
-and returns a value, rather than reading `process.argv` and printing. That is the
-whole discipline, and everything in this library falls out of it - because a
-handler that never touches the terminal can be run by something that is not a
-terminal.
+The cost is a constraint on handlers: a handler receives a canonical input object and returns a value, rather than reading `process.argv` and printing. That is the whole discipline, and everything in this library falls out of it - because a handler that never touches the terminal can be run by something that is not a terminal.
 
-The test of the bet is [`@softcli/mcp`](../packages/mcp): a complete MCP surface,
-including JSON Schema generation, in about 170 lines with no dependencies. It is
-that small because it had nothing to invent - the commands already knew.
+The test of the bet is [`softcli/mcp`](../src/mcp): a complete MCP surface, including JSON Schema generation, in about 170 lines with no dependencies. It is that small because it had nothing to invent - the commands already knew.

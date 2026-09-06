@@ -10,22 +10,13 @@ return output(
 );
 ```
 
-The caller picks, not the handler. `--json` prints the data; `--quiet` prints the
-identifier; neither is re-implemented per command, and no command can print prose
-into something being piped.
+The caller picks, not the handler. `--json` prints the data; `--quiet` prints the identifier; neither is re-implemented per command, and no command can print prose into something being piped.
 
-The human rendering is a *function* when it is expensive: `--json` never calls
-it.
+The human rendering is a *function* when it is expensive: `--json` never calls it.
 
-**Sensible defaults.** A handler that gives only data still reads well: a list of
-records becomes a table, one record becomes a field per line, a string is itself.
-And `--quiet` with nothing declared falls back to the `id`/`name`/`key` field, so
-the `create` command whose author forgot still prints the id rather than nothing.
+**Sensible defaults.** A handler that gives only data still reads well: a list of records becomes a table, one record becomes a field per line, a string is itself. And `--quiet` with nothing declared falls back to the `id`/`name`/`key` field, so the `create` command whose author forgot still prints the id rather than nothing.
 
-**The exception.** `context.write(text)` goes straight to stdout, for the
-commands whose output *is* the payload - `completion bash`, `docs`. It opts out
-of all three readings, which is right roughly twice per program and wrong
-everywhere else.
+**The exception.** `context.write(text)` goes straight to stdout, for the commands whose output *is* the payload - `completion bash`, `docs`. It opts out of all three readings, which is right roughly twice per program and wrong everywhere else.
 
 ## Failure
 
@@ -40,8 +31,7 @@ Errors carry their own exit code, so the entry point has no `instanceof` ladder:
 | `SoftcliError("conflict")` | understood and refused | 1 |
 | anything else | | 1 |
 
-Scripts switch on these, so they are part of your surface. Add your own by
-extending `SoftcliError` with one of the kinds.
+Scripts switch on these, so they are part of your surface. Add your own by extending `SoftcliError` with one of the kinds.
 
 ```ts
 await runEntry(program, process.argv.slice(2), {
@@ -50,7 +40,4 @@ await runEntry(program, process.argv.slice(2), {
 });
 ```
 
-Redaction happens at the last edge rather than at each place a message is built,
-because those messages are written by people thinking about something else. Set
-`SOFTCLI_TRACE` to see a stack for an *unexpected* error; expected ones print one
-sentence, because a stack trace for "the note does not exist" is noise.
+Redaction happens at the last edge rather than at each place a message is built, because those messages are written by people thinking about something else. Set `SOFTCLI_TRACE` to see a stack for an *unexpected* error; expected ones print one sentence, because a stack trace for "the note does not exist" is noise.
