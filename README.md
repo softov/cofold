@@ -47,7 +47,7 @@ One package, five entry points. They are subpaths rather than separate packages 
 
 | import | what it is |
 |---|---|
-| [`softcli`](src/index.ts) | the declaration, the capability registry, the canonical input. Knows nothing about terminals. |
+| [`softcli`](src/core) | the declaration, the capability registry, the canonical input. Knows nothing about terminals. |
 | [`softcli/cli`](src/cli) | argv, help, completion, the output contract, exit codes |
 | [`softcli/mcp`](src/mcp) | the same registry as MCP tools. No SDK dependency. |
 | [`softcli/docs`](src/docs) | the same registry as markdown - for people, and for agents |

@@ -8,7 +8,7 @@
  * generated reference - are renderings of what is here, and each of them is
  * small because all of the meaning is in this package.
  */
-export * as coerce from "./coerce.js";
+export * as coerce from "./core/coerce.js";
 export {
   commandPattern,
   fieldNameOf,
@@ -21,7 +21,7 @@ export {
   surfaceEnabled,
   underPrefix,
   visible,
-} from "./command.js";
+} from "./core/command.js";
 export type {
   ArgumentSpec,
   Command,
@@ -34,18 +34,18 @@ export type {
   PatternToken,
   Surface,
   SurfaceFlags,
-} from "./command.js";
-export { compact } from "./compact.js";
-export type { Compacted } from "./compact.js";
-export { displayValue } from "./display.js";
-export type { Coercer, JsonSchemaFragment } from "./coerce.js";
+} from "./core/command.js";
+export { compact } from "./core/compact.js";
+export type { Compacted } from "./core/compact.js";
+export { displayValue } from "./core/display.js";
+export type { Coercer, JsonSchemaFragment } from "./core/coerce.js";
 export {
   BaseContext,
   output,
   RESERVED_CONTEXT_KEYS,
   silentIo,
-} from "./context.js";
-export type { CommandContext, Io, Output } from "./context.js";
+} from "./core/context.js";
+export type { CommandContext, Io, Output } from "./core/context.js";
 export {
   ArgumentError,
   AuthorizationError,
@@ -53,11 +53,11 @@ export {
   SoftcliError,
   UnavailableError,
   exitCodeFor,
-} from "./errors.js";
-export type { FaultKind } from "./errors.js";
-export { argumentFields, canonicalFromCli, canonicalFromObject, fieldsOf } from "./input.js";
-export type { FieldDescriptor, RawCliInput } from "./input.js";
-export { createRegistry, Registry, sectionsOf, validateCommand } from "./registry.js";
+} from "./core/errors.js";
+export type { FaultKind } from "./core/errors.js";
+export { argumentFields, canonicalFromCli, canonicalFromObject, fieldsOf } from "./core/input.js";
+export type { FieldDescriptor, RawCliInput } from "./core/input.js";
+export { createRegistry, Registry, sectionsOf, validateCommand } from "./core/registry.js";
 export type {
   Runner,
   AuthorizeRequest,
@@ -67,6 +67,6 @@ export type {
   RegistryOptions,
   ProviderDefinition,
   Resolution,
-} from "./registry.js";
-export { isStandardSchema, validate } from "./schema.js";
-export type { StandardIssue, StandardResult, StandardSchemaV1 } from "./schema.js";
+} from "./core/registry.js";
+export { isStandardSchema, validate } from "./core/schema.js";
+export type { StandardIssue, StandardResult, StandardSchemaV1 } from "./core/schema.js";
