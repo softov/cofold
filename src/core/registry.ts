@@ -8,6 +8,7 @@ import {
   type CommandDefinition,
   type Surface,
 } from "./command.js";
+import { assertSupported } from "./coerce.js";
 import { compact } from "./compact.js";
 import {
   BaseContext,
@@ -410,8 +411,12 @@ export function validateCommand(command: Command, groups?: readonly CommandGroup
       throw new Error(`${command.id} has a variadic slot that is not last`);
     }
   }
+  for (const [name, spec] of Object.entries(command.arguments ?? {})) {
+    if (spec.coerce !== undefined) assertSupported(spec.coerce.schema, `${command.id} :${name}`);
+  }
   const names = new Set<string>();
   for (const option of command.options ?? []) {
+    if (option.coerce !== undefined) assertSupported(option.coerce.schema, `${command.id} ${option.name}`);
     if (!option.name.startsWith("--")) {
       throw new Error(`${command.id} declares ${option.name}, which is not a long option`);
     }

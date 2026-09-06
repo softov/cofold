@@ -99,3 +99,27 @@ describe("decode", () => {
     expect(decode("maybe", { type: "boolean" })).toBe("maybe");
   });
 });
+
+describe("what will not be carried", () => {
+  /*
+   * The schema is served to an agent and to a remote client verbatim, so a
+   * keyword nothing enforces would be a rule advertised and never applied. It
+   * is refused where a mistake is cheapest: at registration.
+   */
+  it("refuses a keyword it does not enforce, and says where", () => {
+    expect(() => coerce.assertSupported({ anyOf: [{ type: "string" }] } as never, "note.add --tag"))
+      .toThrow("note.add --tag uses anyOf");
+    expect(() => coerce.assertSupported({ $ref: "#/x" } as never, "x")).toThrow("$ref");
+  });
+
+  it("looks inside a list and an object, not only at the top", () => {
+    expect(() => coerce.assertSupported({ type: "array", items: { allOf: [] } as never }, "x"))
+      .toThrow("x[] uses allOf");
+    expect(() => coerce.assertSupported({ type: "object", properties: { a: { not: {} } as never } }, "who"))
+      .toThrow("who.a uses not");
+  });
+
+  it("says nothing about a schema it can hold to", () => {
+    expect(() => coerce.assertSupported(coerce.integer({ min: 1 }).schema, "x")).not.toThrow();
+  });
+});

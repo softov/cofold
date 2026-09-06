@@ -1,6 +1,6 @@
 # Roadmap and open questions
 
-What is built works: `pnpm build && pnpm test` is green, and the four example programs run end to end. What follows is honest about the rest.
+What is built works: `npm run check` is green, and the four example programs run end to end. What follows is honest about the rest.
 
 ## Not built yet
 

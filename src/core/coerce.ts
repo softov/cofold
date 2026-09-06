@@ -184,6 +184,29 @@ export function coerceValue<T>(coercer: Coercer<T>, raw: string, label: string):
   return value as T;
 }
 
+/**
+ * The keywords this does not enforce, and so will not carry.
+ *
+ * Checked at registration rather than trusted to the type, because a schema
+ * built at runtime or written in JavaScript reaches the MCP `inputSchema` and
+ * the manifest verbatim. A keyword an agent is shown and a request is not held
+ * to reads as a promise, which is worse than one nobody wrote.
+ */
+const UNSUPPORTED = ["$ref", "anyOf", "allOf", "oneOf", "not", "additionalProperties", "patternProperties"] as const;
+
+export function assertSupported(schema: JsonSchema, where: string): void {
+  const held = schema as Record<string, unknown>;
+  for (const keyword of UNSUPPORTED) {
+    if (held[keyword] !== undefined) {
+      throw new Error(`${where} uses ${keyword}, which softcli does not enforce and will not advertise`);
+    }
+  }
+  if (schema.items !== undefined) assertSupported(schema.items, `${where}[]`);
+  for (const [name, property] of Object.entries(schema.properties ?? {})) {
+    assertSupported(property, `${where}.${name}`);
+  }
+}
+
 export const text: Coercer<string> = { schema: { type: "string" } };
 
 /** Text with a length, a pattern, or both. */

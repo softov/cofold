@@ -1,4 +1,4 @@
-# Commands
+# Actions
 
 An action is one thing a program does, declared once, before any surface has spelled it:
 
@@ -100,25 +100,18 @@ Two commands may declare the same option name with different shapes. The parser 
 
 ## Values
 
-`coerce` is a parse *and* a JSON Schema fragment, declared together:
+`coerce` is the raw form's way of writing a field's schema, and it is a parse *and* a JSON Schema fragment declared together:
 
 ```ts
-coerce.text | coerce.integer({min, max}) | coerce.decimal() | coerce.boolean
+coerce.text | coerce.string({minLength, maxLength, pattern})
+coerce.integer({min, max}) | coerce.decimal({min, max}) | coerce.boolean
 coerce.oneOf(["open", "done"])   // also the completion candidates and the enum
 coerce.timestamp | coerce.json | coerce.pair | coerce.commaSeparated()
 ```
 
 Declaring both is what lets an MCP tool advertise `{"type": "integer", "minimum": 1}` for the same option the terminal parses. A coercer that was only a function could not be described to an agent.
 
-For what per-field rules cannot express - "either `--since` or `--until`", "`--limit` only with `--sort`" - `refine` takes any [Standard Schema](https://standardschema.dev) over the whole canonical object:
-
-```ts
-import { z } from "zod";
-refine: z.object({ since: z.string().optional(), until: z.string().optional() })
-         .refine((value) => !(value.since && value.until), "Give one of --since or --until")
-```
-
-zod is not a dependency of this library. Neither is valibot or arktype. Any of them works.
+What each keyword means, where it is enforced and how a fault is worded is [Validation](04-validation.md).
 
 ## The canonical input
 
@@ -140,10 +133,19 @@ Return an `Output` rather than printing. `context.write()` exists for the two co
 
 ## Surfaces, and meta
 
+An action says which surfaces render it by naming them, and the raw form says so with flags:
+
 ```ts
-surfaces: { cli: true, mcp: false, docs: true }
+surfaces: { cli: { pattern }, http: { method, path }, mcp: true }   // action
+surfaces: { cli: true, mcp: false, docs: true }                     // command
 ```
 
 `mcp` is off unless a command says otherwise: registering a package of commands must never quietly hand an agent a set of arbitrary mutation tools.
 
-`meta` is for whatever an adapter needs and this library does not understand - the HTTP binding a remote command carries, for instance. Deliberately untyped and deliberately ignored by the core: an extension point the core has an opinion about is not an extension point.
+`meta` is for whatever an adapter needs and the core does not understand. It is ignored by the core and typed by whoever owns the key: `softcli/remote` widens both `Surfaces` and `CommandMeta` by declaration merging, so `surfaces.http` is checked where it is written while the core still knows no protocol. An adapter that grows a key does the same, in its own file:
+
+```ts
+declare module "softcli" {
+  interface Surfaces { grpc?: { service: string; method: string } }
+}
+```

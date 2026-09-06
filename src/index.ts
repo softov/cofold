@@ -9,7 +9,7 @@
  * small because all of the meaning is in this package.
  */
 export * as coerce from "./core/coerce.js";
-export { check, coerceValue, decode, expectationOf } from "./core/coerce.js";
+export { assertSupported, check, coerceValue, decode, expectationOf } from "./core/coerce.js";
 export {
   commandPattern,
   fieldNameOf,

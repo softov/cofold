@@ -93,4 +93,4 @@ node examples/dist/open-cli/cli.js \
 
 ## Documentation
 
-[docs/](docs/) - start with [why](docs/01-why.md), then [getting started](docs/02-getting-started.md).
+[docs/](docs/) - start with [why](docs/01-why.md), then [getting started](docs/02-getting-started.md). [Actions](docs/03-actions.md) is the declaration in full and [Validation](docs/04-validation.md) is where the rules are held.
