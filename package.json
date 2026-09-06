@@ -55,7 +55,7 @@
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist examples/dist",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run src",
+    "test": "vitest run src examples",
     "examples": "npm run build && tsc -p examples/tsconfig.json"
   },
   "devDependencies": {
