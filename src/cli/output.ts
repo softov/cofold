@@ -21,7 +21,7 @@ import type { OutputMode } from "./globals.js";
  * which is the difference between a library that is pleasant for the first
  * twenty commands and one that is pleasant only after you have styled them all.
  */
-export function renderHuman(data: unknown): string {
+export function renderPlain(data: unknown): string {
   if (data === null || data === undefined) return "";
   if (typeof data === "string") return data.endsWith("\n") ? data : `${data}\n`;
   if (typeof data === "number" || typeof data === "boolean") return `${String(data)}\n`;
@@ -51,8 +51,8 @@ export function emit(io: Io, result: Output | null, mode: OutputMode): void {
     if (identifier !== undefined) io.out(`${String(identifier)}\n`);
     return;
   }
-  const human = typeof result.human === "function" ? result.human() : result.human;
-  io.out(human ?? renderHuman(result.data));
+  const plain = typeof result.plain === "function" ? result.plain() : result.plain;
+  io.out(plain ?? renderPlain(result.data));
 }
 
 /**

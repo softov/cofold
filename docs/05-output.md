@@ -5,14 +5,14 @@
 ```ts
 return output(
   notes,                                     // data: what --json prints, and what MCP returns
-  () => renderTable(["id", "title"], rows),  // human: what a person sees
+  () => renderTable(["id", "title"], rows),  // plain: what a person sees
   notes.map((note) => note.id).join("\n"),   // quiet: what a shell script consumes
 );
 ```
 
 The caller picks, not the handler. `--json` prints the data; `--quiet` prints the identifier; neither is re-implemented per command, and no command can print prose into something being piped.
 
-The human rendering is a *function* when it is expensive: `--json` never calls it.
+The plain rendering is a *function* when it is expensive: `--json` never calls it.
 
 **Sensible defaults.** A handler that gives only data still reads well: a list of records becomes a table, one record becomes a field per line, a string is itself. And `--quiet` with nothing declared falls back to the `id`/`name`/`key` field, so the `create` command whose author forgot still prints the id rather than nothing.
 

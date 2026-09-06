@@ -92,7 +92,7 @@ Precedence is fixed and the same everywhere: **what was typed, then the environm
 ## Handlers
 
 ```ts
-run: (context) => output(data, human?, quiet?)
+run: (context) => output(data, plain?, quiet?)
 ```
 
 `context.input` is the object. The accessors - `value`, `optional`, `flag`, `list`, `pairs`, `required` - are shorthand over it. `context.command` and `context.commands` are there for the commands whose subject is the surface itself.

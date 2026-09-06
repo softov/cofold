@@ -9,19 +9,19 @@ import { ArgumentError } from "./errors.js";
  * decided it is running in a terminal, and the whole point of this library is
  * that it might be running as an MCP tool, or as an HTTP route, or in a test.
  * `Output` carries the three readings of one result and lets each surface pick:
- * the data (JSON, and what an agent gets), a human rendering, and the bare
+ * the data (JSON, and what an agent gets), a plain rendering, and the bare
  * identifier a shell script wants.
  */
 
 export interface Output {
   data: unknown;
   /** A function when rendering is expensive: never called for `--json`. */
-  human?: string | (() => string);
+  plain?: string | (() => string);
   quiet?: string | number;
 }
 
-export function output(data: unknown, human?: string | (() => string), quiet?: string | number): Output {
-  return { data, ...compact({ human, quiet }) };
+export function output(data: unknown, plain?: string | (() => string), quiet?: string | number): Output {
+  return { data, ...compact({ plain, quiet }) };
 }
 
 export interface Io {

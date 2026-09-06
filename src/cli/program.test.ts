@@ -41,9 +41,9 @@ describe("a program", () => {
   });
 
   it("renders a table for a person and JSON for a machine", async () => {
-    const human = build();
-    await human.program.run(["note", "list", "--no-color"]);
-    expect(human.text()).toContain("id  title");
+    const plain = build();
+    await plain.program.run(["note", "list", "--no-color"]);
+    expect(plain.text()).toContain("id  title");
 
     const machine = build();
     await machine.program.run(["note", "list", "--json"]);

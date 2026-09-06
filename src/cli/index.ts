@@ -12,7 +12,7 @@ export { GLOBAL_NAMES, globalOptions } from "./globals.js";
 export type { OutputMode } from "./globals.js";
 export { help, helpForCommand, helpForProgram } from "./help.js";
 export type { HelpOptions } from "./help.js";
-export { emit, renderHuman } from "./output.js";
+export { emit, renderPlain } from "./output.js";
 export { matchCommand, optionTable, parse, tokenize } from "./parse.js";
 export type { Invocation, Match, Tokens } from "./parse.js";
 export { renderDefinitions, renderDocument, renderJson, renderTable, styleFor } from "./render.js";

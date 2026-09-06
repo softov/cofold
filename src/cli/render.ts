@@ -5,7 +5,7 @@ import { displayValue } from "../index.js";
  *
  * Nothing here knows which command is running or what the person asked for.
  * A renderer that reaches for the invocation starts deciding policy, and the
- * policy - human, JSON, or a bare identifier - belongs to the program.
+ * policy - plain, JSON, or a bare identifier - belongs to the program.
  */
 
 export interface Style {
