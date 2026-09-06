@@ -24,7 +24,12 @@ describe("the round trip", () => {
   it("describes a registry and builds it back into the same command", async () => {
     const manifest = manifestFrom(service(), { name: "pets", version: "1.0.0" });
     expect(manifest.commands).toHaveLength(1);
-    expect(manifest.commands[0]?.options?.[0]).toMatchObject({ name: "--limit", type: "integer", minimum: 1, maximum: 100 });
+    expect(manifest.commands[0]?.options?.[0]).toMatchObject({
+      name: "--limit",
+      // The schema travels whole, so a client holds the value to the rule the
+      // service declared rather than to a flattening of it.
+      schema: { type: "integer", minimum: 1, maximum: 100 },
+    });
 
     const calls: { binding: HttpBinding; input: Record<string, unknown> }[] = [];
     const transport: Transport = {

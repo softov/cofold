@@ -1,3 +1,4 @@
+import type { JsonSchema } from "../core/coerce.js";
 import {
   compact,
   fieldNameOf,
@@ -10,7 +11,6 @@ import {
   type OptionSpec,
   type Runner,
 } from "../index.js";
-import { boundsOf, coercerFor, typeOf, type ManifestType, type ValueShape } from "./shape.js";
 
 /**
  * A command, over the wire.
@@ -28,11 +28,20 @@ import { boundsOf, coercerFor, typeOf, type ManifestType, type ValueShape } from
 
 export const MANIFEST_VERSION = 1;
 
-export interface ManifestOption extends ValueShape<ManifestType> {
+export interface ManifestOption {
   name: string;
   short?: string;
   value?: string;
   description: string;
+  /**
+   * What the value must be, exactly as the command declared it.
+   *
+   * Carried rather than flattened: this was four fields copied out of a
+   * coercer, which meant a client rebuilt an approximation of the rule and
+   * anything the four could not express - a length, a pattern - was enforced
+   * at one end and unknown at the other.
+   */
+  schema: JsonSchema;
   repeatable?: boolean;
   required?: boolean;
   env?: string;
@@ -70,7 +79,7 @@ export interface ManifestCommand {
   summary: string;
   description?: string;
   group?: string;
-  arguments?: Record<string, ValueShape<ManifestType> & { description?: string }>;
+  arguments?: Record<string, { schema: JsonSchema; description?: string }>;
   options?: readonly ManifestOption[];
   http: HttpBinding;
 }
@@ -117,9 +126,8 @@ export function manifestFrom(
         arguments: command.arguments === undefined
           ? undefined
           : Object.fromEntries(Object.entries(command.arguments).map(([name, spec]) => [name, {
-            type: typeOf(spec.coerce?.jsonSchema),
-            ...boundsOf(spec.coerce?.jsonSchema),
-            ...compact({ description: spec.description, enum: spec.coerce?.candidates }),
+            schema: spec.coerce?.schema ?? { type: "string" },
+            ...compact({ description: spec.description }),
           }])),
       }),
     });
@@ -136,13 +144,11 @@ function describeOption(option: OptionSpec): ManifestOption {
   return {
     name: option.name,
     description: option.description,
-    type: isFlag(option) ? "boolean" : typeOf(option.coerce?.jsonSchema),
+    schema: isFlag(option) ? { type: "boolean" } : option.coerce?.schema ?? { type: "string" },
     field: fieldNameOf(option),
-    ...boundsOf(option.coerce?.jsonSchema),
     ...compact({
       short: option.short,
       value: option.value,
-      enum: option.coerce?.candidates,
       repeatable: option.repeatable === true ? true : undefined,
       required: option.required === true ? true : undefined,
       env: option.env,
@@ -200,13 +206,13 @@ export function commandsFrom(manifest: ProgramManifest, options: CommandsFromOpt
         required: option.required === true ? true : undefined,
         env: option.env,
         field: option.field,
-        coerce: coercerFor(option),
+        coerce: { schema: option.schema },
       }),
     }));
 
     const argumentSpecs = Object.fromEntries(
       Object.entries(descriptor.arguments ?? {}).map(([name, spec]) =>
-        [name, compact({ description: spec.description, coerce: coercerFor(spec) })]));
+        [name, compact({ description: spec.description, coerce: { schema: spec.schema } })]));
 
     return {
       id: descriptor.id,

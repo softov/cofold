@@ -1,6 +1,24 @@
 import { compact, type OptionSpec } from "../index.js";
 import type { HttpBinding, ProgramManifest, ManifestCommand, ManifestOption } from "./manifest.js";
-import { boundsOf, coercerFor, typeOf, type ValueShape } from "./shape.js";
+import type { JsonSchema } from "../core/coerce.js";
+
+/**
+ * What a document may say about one value, before it is narrowed.
+ *
+ * Deliberately looser than `JsonSchema`: this is somebody else's file, and a
+ * `type` it names is a claim rather than one of the six this library checks.
+ */
+interface DescribedSchema {
+  type?: string;
+  description?: string;
+  enum?: readonly unknown[];
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  format?: string;
+}
 
 /**
  * An OpenAPI document, read as a command surface.
@@ -37,7 +55,7 @@ interface OpenApiParameter {
   in: "path" | "query" | "header" | "cookie";
   required?: boolean;
   description?: string;
-  schema?: ValueShape;
+  schema?: DescribedSchema;
 }
 
 interface OpenApiOperation {
@@ -48,7 +66,7 @@ interface OpenApiOperation {
   parameters?: readonly OpenApiParameter[];
   requestBody?: {
     required?: boolean;
-    content?: Record<string, { schema?: { type?: string; properties?: Record<string, { type?: string; description?: string; enum?: readonly string[] }>; required?: readonly string[] } }>;
+    content?: Record<string, { schema?: { type?: string; properties?: Record<string, DescribedSchema>; required?: readonly string[] } }>;
   };
   "x-cli"?: OpenApiOperationHint;
 }
@@ -101,10 +119,27 @@ export function patternFor(
   return [noun, verb, ...slots];
 }
 
+/** The types this library checks. Anything else a document names travels as text. */
+const TYPES = ["string", "number", "integer", "boolean", "array", "object"] as const;
+
+/**
+ * A described value as this library's own schema.
+ *
+ * An OpenAPI schema *is* a JSON Schema, so it is kept rather than read: what
+ * the document says about a value is what a client holds it to, including the
+ * keywords this library has no builder for. Only `type` is narrowed, because a
+ * document may name one nothing here can check.
+ */
+function schemaOf(described: DescribedSchema | undefined): JsonSchema {
+  if (described === undefined) return { type: "string" };
+  const { type, ...rest } = described;
+  return { type: TYPES.find((one) => one === type) ?? "string", ...rest } as JsonSchema;
+}
+
 function optionFor(
   name: string,
   description: string,
-  schema: ValueShape | undefined,
+  schema: DescribedSchema | undefined,
   required: boolean,
 ): OptionSpec {
   const flag = schema?.type === "boolean";
@@ -115,22 +150,20 @@ function optionFor(
     ...compact({
       value: flag ? undefined : (schema?.type ?? "value").toUpperCase(),
       required: required ? true : undefined,
-      coerce: flag ? undefined : coercerFor(schema),
+      coerce: flag ? undefined : { schema: schemaOf(schema) },
     }),
   };
 }
 
-function manifestOption(option: OptionSpec, schema: ValueShape | undefined): ManifestOption {
+function manifestOption(option: OptionSpec, schema: DescribedSchema | undefined): ManifestOption {
   return {
     name: option.name,
     description: option.description,
-    type: typeOf(schema),
-    ...boundsOf(schema),
+    schema: schemaOf(schema),
     ...compact({
       value: option.value,
       required: option.required === true ? true : undefined,
       field: option.field,
-      enum: schema?.enum,
     }),
   };
 }
@@ -182,7 +215,7 @@ export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiO
       const parameterDescriptions = Object.fromEntries(parameters
         .filter((one) => one.in === "path")
         .map((one) => [one.name, {
-          type: typeOf(one.schema),
+          schema: schemaOf(one.schema),
           ...compact({ description: one.description }),
         }]));
 

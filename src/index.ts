@@ -9,6 +9,7 @@
  * small because all of the meaning is in this package.
  */
 export * as coerce from "./core/coerce.js";
+export { check, coerceValue, decode, expectationOf } from "./core/coerce.js";
 export {
   commandPattern,
   fieldNameOf,
@@ -38,7 +39,7 @@ export type {
 export { compact } from "./core/compact.js";
 export type { Compacted } from "./core/compact.js";
 export { displayValue } from "./core/display.js";
-export type { Coercer, JsonSchemaFragment } from "./core/coerce.js";
+export type { Coercer, JsonSchema } from "./core/coerce.js";
 export {
   BaseContext,
   output,

@@ -7,10 +7,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { canonicalFromCli, canonicalFromObject } from "softcli";
+import { canonicalFromCli, canonicalFromObject, check, expectationOf } from "softcli";
 import { callTool, listTools } from "softcli/mcp";
 import { manifestFrom } from "softcli/remote";
-import { check, expectationOf } from "./action.js";
 import { registry } from "./cli.js";
 
 const add = registry.find("pet.add")!;
@@ -68,9 +67,14 @@ describe("the MCP surface", () => {
     for (const property of Object.values(properties)) expect(property["cli"]).toBeUndefined();
   });
 
+  /*
+   * Reported to the agent rather than thrown at the host: a broken argument is
+   * something the caller can fix, so MCP answers with `isError` and the reason.
+   */
   it("refuses a call that breaks a rule it advertised", async () => {
-    await expect(callTool(registry, "pet_add", { name: "Rex", age: 40 }))
-      .rejects.toThrow("must be an integer between 0 and 30");
+    const answer = await callTool(registry, "pet_add", { name: "Rex", age: 40 });
+    expect(answer.isError).toBe(true);
+    expect(answer.content[0]?.text).toContain("must be an integer between 0 and 30");
   });
 
   it("runs a call that keeps them", async () => {

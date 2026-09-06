@@ -7,7 +7,7 @@ import {
   type Command,
   type OptionSpec,
 } from "./command.js";
-import { text, type Coercer } from "./coerce.js";
+import { coerceValue, text, type Coercer } from "./coerce.js";
 import { ArgumentError } from "./errors.js";
 import { validate } from "./schema.js";
 
@@ -43,7 +43,7 @@ function asText(value: unknown): string {
 }
 
 function coerceOne(coercer: Coercer<unknown>, raw: string, label: string): unknown {
-  return coercer.parse(raw, label);
+  return coerceValue(coercer, raw, label);
 }
 
 function slotSpec(command: Command, name: string): ArgumentSpec | undefined {
@@ -94,8 +94,8 @@ export function fieldsOf(command: Command): FieldDescriptor[] {
 
 /** A flag's "type" for schema purposes; never used to parse a word. */
 const BOOLEAN_PRESENT: Coercer<boolean> = {
+  schema: { type: "boolean" },
   expects: "a flag",
-  jsonSchema: { type: "boolean" },
   parse: () => true,
 };
 

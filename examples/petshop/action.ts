@@ -13,31 +13,7 @@
  * translation at the bottom is scaffolding.
  */
 
-import { coerce, type Coercer, type CommandDefinition, type JsonSchemaFragment, type Registry } from "softcli";
-
-/**
- * The JSON Schema subset this enforces.
- *
- * Nothing is carried that is not checked: a keyword an agent is shown and a
- * request is not held to is worse than one nobody wrote, because it reads as a
- * promise. `$ref`, `anyOf` and friends are absent for that reason rather than
- * from lack of interest.
- */
-export interface JsonSchema {
-  type?: "string" | "number" | "integer" | "boolean" | "array" | "object";
-  description?: string;
-  enum?: readonly unknown[];
-  const?: unknown;
-  default?: unknown;
-  minimum?: number;
-  maximum?: number;
-  minLength?: number;
-  maxLength?: number;
-  pattern?: string;
-  items?: JsonSchema;
-  properties?: Record<string, JsonSchema>;
-  required?: readonly string[];
-}
+import { check, coerce, expectationOf, type Coercer, type CommandDefinition, type JsonSchema, type Registry } from "softcli";
 
 /**
  * How one field is typed at a terminal. Spelling, never shape.
@@ -53,6 +29,8 @@ export interface CliField {
 
 /** One input field: what the value is, and how a terminal spells it. */
 export type Field = JsonSchema & { cli?: CliField };
+
+export type { JsonSchema };
 
 /** Which surfaces render an action. Presence is the switch. */
 export interface Surfaces {
@@ -96,97 +74,13 @@ export interface ActionDefinition<
   run(context: { input: Input<I, R> } & Deps): unknown;
 }
 
-/** What a person is told the field accepts, built from the schema alone. */
-export function expectationOf(schema: JsonSchema): string {
-  if (schema.enum !== undefined) return `one of ${schema.enum.map(String).join(", ")}`;
-  if (schema.const !== undefined) return String(schema.const);
-
-  if (schema.type === "integer" || schema.type === "number") {
-    const kind = schema.type === "integer" ? "an integer" : "a number";
-    if (schema.minimum !== undefined && schema.maximum !== undefined) {
-      return `${kind} between ${schema.minimum} and ${schema.maximum}`;
-    }
-    if (schema.minimum !== undefined) return `${kind} >= ${schema.minimum}`;
-    if (schema.maximum !== undefined) return `${kind} <= ${schema.maximum}`;
-    return kind;
-  }
-
-  if (schema.type === "boolean") return "true or false";
-
-  if (schema.minLength !== undefined && schema.maxLength !== undefined) {
-    return `${schema.minLength} to ${schema.maxLength} characters`;
-  }
-  if (schema.minLength !== undefined) return `at least ${schema.minLength} character${schema.minLength === 1 ? "" : "s"}`;
-  if (schema.maxLength !== undefined) return `at most ${schema.maxLength} character${schema.maxLength === 1 ? "" : "s"}`;
-  if (schema.pattern !== undefined) return `text matching ${schema.pattern}`;
-  return "text";
-}
-
-/** A value read from text, by the type the schema names. */
-export function decode(raw: string, schema: JsonSchema): unknown {
-  if (schema.type === "integer" || schema.type === "number") return Number(raw);
-  if (schema.type === "boolean") {
-    if (["true", "yes", "1", "on"].includes(raw.toLowerCase())) return true;
-    if (["false", "no", "0", "off"].includes(raw.toLowerCase())) return false;
-    return raw;
-  }
-  return raw;
-}
-
 /**
- * Every rule the schema states, held against one value.
+ * The schema as a `Coercer`.
  *
- * The only place a constraint is enforced, so what an agent is shown and what a
- * request is held to cannot come apart - which is what happened when the bound
- * lived in a parse function and the schema beside it was written by hand.
- */
-export function check(value: unknown, schema: JsonSchema, label: string): void {
-  const fault = (): never => { throw new Error(`${label} must be ${expectationOf(schema)}`); };
-
-  if (schema.enum !== undefined && !schema.enum.includes(value)) fault();
-  if (schema.const !== undefined && value !== schema.const) fault();
-
-  if (schema.type === "integer" || schema.type === "number") {
-    if (typeof value !== "number" || !Number.isFinite(value)) fault();
-    if (schema.type === "integer" && !Number.isSafeInteger(value)) fault();
-    if (schema.minimum !== undefined && (value as number) < schema.minimum) fault();
-    if (schema.maximum !== undefined && (value as number) > schema.maximum) fault();
-    return;
-  }
-
-  if (schema.type === "boolean") {
-    if (typeof value !== "boolean") fault();
-    return;
-  }
-
-  if (schema.type === "array") {
-    if (!Array.isArray(value)) fault();
-    if (schema.items !== undefined) {
-      for (const one of value as unknown[]) check(one, schema.items, label);
-    }
-    return;
-  }
-
-  if (schema.type === "string") {
-    if (typeof value !== "string") fault();
-    const text = value as string;
-    if (schema.minLength !== undefined && text.length < schema.minLength) fault();
-    if (schema.maxLength !== undefined && text.length > schema.maxLength) fault();
-    if (schema.pattern !== undefined && !new RegExp(schema.pattern, "u").test(text)) fault();
-  }
-}
-
-/**
- * The schema as the current engine's `Coercer`.
- *
- * `parse` decodes and then checks, so the rules hold on every surface - the
- * command line hands it text, and an object arriving over HTTP or MCP is
- * stringified into the same door.
- *
- * The cast is the one piece of scaffolding here: `JsonSchemaFragment` predates
- * `minLength`, `maxLength` and `pattern`, so the fuller schema travels as a
- * runtime value that its own type does not admit. Moving the machinery is what
- * removes it.
+ * Nothing left to build: a coercer *is* a schema now, so this only lifts the
+ * terminal spelling out of the way. Unknown keywords are legal JSON Schema, so
+ * leaving `cli` in would validate fine and still put `"cli": { "short": "-a" }`
+ * in front of a model reading the tool.
  */
 function coercerFor(field: Field): Coercer<unknown> {
   // The spelling is softcli's and the rest is the schema. Unknown keywords are
@@ -194,14 +88,8 @@ function coercerFor(field: Field): Coercer<unknown> {
   // `"cli": { "short": "-a" }` in front of a model reading the tool.
   const { cli: _spelling, ...schema } = field;
   return {
-    expects: expectationOf(schema),
-    jsonSchema: schema as JsonSchemaFragment,
+    schema,
     ...(schema.enum === undefined ? {} : { candidates: schema.enum.map(String) }),
-    parse(raw: string, label: string): unknown {
-      const value = decode(raw, schema);
-      check(value, schema, label);
-      return value;
-    },
   };
 }
 

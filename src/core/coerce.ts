@@ -1,145 +1,249 @@
+/**
+ * What a value is allowed to be, and how a word becomes one.
+ *
+ * A schema is the declaration and the only place a rule is written. Every
+ * surface reads it: the command line checks against it, the MCP adapter serves
+ * it as a tool's `inputSchema`, and the manifest carries it to a remote client
+ * unchanged. So a bound cannot be advertised and not enforced, which is what
+ * happened while each coercer stated its rules three times - once in a message,
+ * once in a schema written by hand, and once inside its own `parse`.
+ *
+ * `parse` is left with the one job a schema cannot do: reading a value out of
+ * text. `check` does the rest, once, for everybody.
+ */
+
 import { compact } from "./compact.js";
 import { ArgumentError } from "./errors.js";
 
 /**
- * Turning a word into a value, and saying what shape that value has.
+ * The JSON Schema subset this enforces.
  *
- * A coercer is two things at once on purpose: the runtime parse, and the JSON
- * Schema fragment describing what it accepts. The second is what lets the MCP
- * adapter exist at all - a tool needs a typed input schema, and inferring one
- * from a parse function is impossible. Declaring both together means a command
- * cannot accept an integer on the command line and advertise a string to an
- * agent.
+ * Nothing is carried that is not checked. A keyword an agent is shown and a
+ * request is not held to reads as a promise, and is worse than one nobody
+ * wrote - `$ref`, `anyOf`, `allOf` and `oneOf` are absent for that reason and
+ * are refused at registration rather than passed along.
  */
-
-export interface JsonSchemaFragment {
+export interface JsonSchema {
   type?: "string" | "number" | "integer" | "boolean" | "array" | "object";
-  enum?: readonly string[];
+  description?: string;
+  enum?: readonly unknown[];
+  const?: unknown;
+  default?: unknown;
   minimum?: number;
   maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
   format?: string;
-  items?: JsonSchemaFragment;
-  description?: string;
-  default?: unknown;
+  items?: JsonSchema;
+  properties?: Record<string, JsonSchema>;
+  required?: readonly string[];
 }
 
+/**
+ * How a word becomes a value, and what shape that value has.
+ *
+ * `schema` is required and `parse` is not: a value whose text reading is the
+ * ordinary one for its type needs no function at all. A coercer that declares
+ * one is saying its *text* form is not its value form - `KEY=VALUE` becoming a
+ * pair - and `schema` then describes what arrives, because that is what a
+ * client has to send and an agent has to be shown.
+ */
 export interface Coercer<T = unknown> {
-  /** For messages: "must be a positive integer". */
-  readonly expects: string;
-  readonly jsonSchema: JsonSchemaFragment;
-  parse(raw: string, label: string): T;
+  readonly schema: JsonSchema;
+  /** Only where the text form differs from the value. Runs after `check`. */
+  parse?(raw: string, label: string): T;
+  /** Overrides the sentence built from the schema. */
+  readonly expects?: string;
   /** Fixed candidates, when there are any. Feeds shell completion. */
   readonly candidates?: readonly string[];
 }
 
-function fault(label: string, expects: string): never {
-  throw new ArgumentError(`${label} must be ${expects}`);
+/** What a person is told the value must be, built from the schema alone. */
+export function expectationOf(schema: JsonSchema): string {
+  if (schema.enum !== undefined) return `one of ${schema.enum.map(String).join(", ")}`;
+  if (schema.const !== undefined) return String(schema.const);
+
+  if (schema.type === "integer" || schema.type === "number") {
+    const kind = schema.type === "integer" ? "an integer" : "a number";
+    if (schema.minimum !== undefined && schema.maximum !== undefined) {
+      return `${kind} between ${schema.minimum} and ${schema.maximum}`;
+    }
+    if (schema.minimum !== undefined) return `${kind} >= ${schema.minimum}`;
+    if (schema.maximum !== undefined) return `${kind} <= ${schema.maximum}`;
+    return kind;
+  }
+
+  if (schema.type === "boolean") return "true or false";
+  if (schema.type === "array") {
+    return schema.items === undefined ? "a list" : `a list of ${expectationOf(schema.items)}`;
+  }
+
+  if (schema.minLength !== undefined && schema.maxLength !== undefined) {
+    return `${schema.minLength} to ${schema.maxLength} characters`;
+  }
+  if (schema.minLength !== undefined) {
+    return `at least ${schema.minLength} character${schema.minLength === 1 ? "" : "s"}`;
+  }
+  if (schema.maxLength !== undefined) {
+    return `at most ${schema.maxLength} character${schema.maxLength === 1 ? "" : "s"}`;
+  }
+  if (schema.pattern !== undefined) return `text matching ${schema.pattern}`;
+  if (schema.format === "date-time") return "an ISO-8601 timestamp";
+  return "text";
 }
 
-export const text: Coercer<string> = {
-  expects: "text",
-  jsonSchema: { type: "string" },
-  parse: (raw) => raw,
-};
+/**
+ * A value read from text, by the type the schema names.
+ *
+ * The ordinary reading, which is all most fields need. Anything given back
+ * unchanged is then checked, so a word that is not a number faults by the same
+ * route as one that is out of range.
+ */
+export function decode(raw: string, schema: JsonSchema): unknown {
+  if (schema.type === "integer" || schema.type === "number") {
+    const parsed = Number(raw);
+    return raw.trim() === "" || Number.isNaN(parsed) ? raw : parsed;
+  }
+  if (schema.type === "boolean") {
+    if (["true", "yes", "1", "on"].includes(raw.toLowerCase())) return true;
+    if (["false", "no", "0", "off"].includes(raw.toLowerCase())) return false;
+    return raw;
+  }
+  return raw;
+}
+
+/**
+ * Every rule the schema states, held against one value.
+ *
+ * The only place a constraint is enforced. A surface that reaches a value by a
+ * different road - text at a terminal, a number in a JSON body, an argument
+ * from an agent - arrives at this same function, so the three cannot disagree.
+ */
+export function check(value: unknown, schema: JsonSchema, label: string, expects?: string): void {
+  const fault = (): never => { throw new ArgumentError(`${label} must be ${expects ?? expectationOf(schema)}`); };
+
+  if (schema.enum !== undefined && !schema.enum.includes(value)) fault();
+  if (schema.const !== undefined && value !== schema.const) fault();
+
+  if (schema.type === "integer" || schema.type === "number") {
+    if (typeof value !== "number" || !Number.isFinite(value)) fault();
+    if (schema.type === "integer" && !Number.isSafeInteger(value)) fault();
+    if (schema.minimum !== undefined && (value as number) < schema.minimum) fault();
+    if (schema.maximum !== undefined && (value as number) > schema.maximum) fault();
+    return;
+  }
+
+  if (schema.type === "boolean") {
+    if (typeof value !== "boolean") fault();
+    return;
+  }
+
+  if (schema.type === "array") {
+    if (!Array.isArray(value)) fault();
+    if (schema.items !== undefined) for (const one of value as unknown[]) check(one, schema.items, label);
+    return;
+  }
+
+  if (schema.type === "object") {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) fault();
+    const held = value as Record<string, unknown>;
+    for (const name of schema.required ?? []) {
+      if (held[name] === undefined) throw new ArgumentError(`${label}.${name} is required`);
+    }
+    for (const [name, property] of Object.entries(schema.properties ?? {})) {
+      if (held[name] !== undefined) check(held[name], property, `${label}.${name}`);
+    }
+    return;
+  }
+
+  if (schema.type === "string") {
+    if (typeof value !== "string") fault();
+    const text = value as string;
+    if (schema.minLength !== undefined && text.length < schema.minLength) fault();
+    if (schema.maxLength !== undefined && text.length > schema.maxLength) fault();
+    if (schema.pattern !== undefined && !new RegExp(schema.pattern, "u").test(text)) fault();
+    if (schema.format === "date-time" && Number.isNaN(Date.parse(text))) fault();
+  }
+}
+
+/**
+ * One word, as the value a coercer describes.
+ *
+ * Decode, then check - and for a coercer with its own `parse`, check the text
+ * against the schema first, because the schema of such a coercer describes what
+ * arrives rather than what it becomes.
+ */
+export function coerceValue<T>(coercer: Coercer<T>, raw: string, label: string): T {
+  if (coercer.parse !== undefined) {
+    check(raw, coercer.schema, label, coercer.expects);
+    return coercer.parse(raw, label);
+  }
+  const value = decode(raw, coercer.schema);
+  check(value, coercer.schema, label, coercer.expects);
+  return value as T;
+}
+
+export const text: Coercer<string> = { schema: { type: "string" } };
+
+/** Text with a length, a pattern, or both. */
+export function string(rules: { minLength?: number; maxLength?: number; pattern?: string } = {}): Coercer<string> {
+  return { schema: { type: "string", ...compact(rules) } };
+}
 
 export function integer(bounds: { min?: number; max?: number } = {}): Coercer<number> {
-  const { min, max } = bounds;
-  const expects = min === 1 && max === undefined
-    ? "a positive integer"
-    : `an integer${min === undefined ? "" : ` >= ${min}`}${max === undefined ? "" : ` <= ${max}`}`;
   return {
-    expects,
-    jsonSchema: { type: "integer", ...compact({ minimum: min, maximum: max }) },
-    parse(raw, label) {
-      const parsed = Number(raw);
-      if (!Number.isSafeInteger(parsed)) fault(label, expects);
-      if (min !== undefined && parsed < min) fault(label, expects);
-      if (max !== undefined && parsed > max) fault(label, expects);
-      return parsed;
-    },
+    schema: { type: "integer", ...compact({ minimum: bounds.min, maximum: bounds.max }) },
+    ...(bounds.min === 1 && bounds.max === undefined ? { expects: "a positive integer" } : {}),
   };
 }
 
 export function decimal(bounds: { min?: number; max?: number } = {}): Coercer<number> {
-  const expects = "a number";
-  return {
-    expects,
-    jsonSchema: { type: "number" },
-    parse(raw, label) {
-      const parsed = Number(raw);
-      if (!Number.isFinite(parsed)) fault(label, expects);
-      if (bounds.min !== undefined && parsed < bounds.min) fault(label, `at least ${bounds.min}`);
-      if (bounds.max !== undefined && parsed > bounds.max) fault(label, `at most ${bounds.max}`);
-      return parsed;
-    },
-  };
+  return { schema: { type: "number", ...compact({ minimum: bounds.min, maximum: bounds.max }) } };
 }
 
 /**
  * One of a fixed set.
  *
- * The set is also the completion source and the JSON Schema enum, so adding a
- * value to a command teaches the shell, the agent and the help text at once.
+ * The set is the completion source, the JSON Schema enum and the check, so
+ * adding a value teaches the shell, the agent and the help text at once.
  */
 export function oneOf<const T extends readonly string[]>(values: T): Coercer<T[number]> {
-  const expects = `one of ${values.join(", ")}`;
-  return {
-    expects,
-    jsonSchema: { type: "string", enum: values },
-    candidates: values,
-    parse(raw, label) {
-      if (!values.includes(raw)) fault(label, expects);
-      return raw as T[number];
-    },
-  };
+  return { schema: { type: "string", enum: values }, candidates: values };
 }
 
-export const boolean: Coercer<boolean> = {
-  expects: "true or false",
-  jsonSchema: { type: "boolean" },
-  parse(raw, label) {
-    if (["true", "yes", "1", "on"].includes(raw.toLowerCase())) return true;
-    if (["false", "no", "0", "off"].includes(raw.toLowerCase())) return false;
-    return fault(label, "true or false");
-  },
-};
+export const boolean: Coercer<boolean> = { schema: { type: "boolean" } };
 
 /**
  * An ISO-8601 instant, kept as the string it was given.
  *
  * Deliberately not a `Date`: the value travels to a server as JSON either way,
  * and turning it into an object here would mean turning it back at every edge.
- * What is checked is that it is a real instant, which is the part a person gets
- * wrong.
  */
-export const timestamp: Coercer<string> = {
-  expects: "an ISO-8601 timestamp",
-  jsonSchema: { type: "string", format: "date-time" },
-  parse(raw, label) {
-    if (Number.isNaN(Date.parse(raw))) fault(label, "an ISO-8601 timestamp");
-    return raw;
-  },
-};
+export const timestamp: Coercer<string> = { schema: { type: "string", format: "date-time" } };
 
+/** Arbitrary JSON in one word. The text is a string; what it becomes is not. */
 export const json: Coercer<unknown> = {
+  schema: { type: "string" },
   expects: "valid JSON",
-  jsonSchema: {},
   parse(raw, label) {
     try {
       return JSON.parse(raw) as unknown;
-    } catch {
-      return fault(label, "valid JSON");
+    }
+    catch {
+      throw new ArgumentError(`${label} must be valid JSON`);
     }
   },
 };
 
 /** `KEY=VALUE`, for the options that are given several times to build a map. */
 export const pair: Coercer<readonly [string, string]> = {
+  // The shape is in the pattern rather than only in the message, so a client
+  // sending one is told the rule before it is refused by it.
+  schema: { type: "string", pattern: "^[^=]+=.*$" },
   expects: "KEY=VALUE",
-  jsonSchema: { type: "string" },
-  parse(raw, label) {
+  parse(raw) {
     const index = raw.indexOf("=");
-    if (index <= 0) fault(label, "KEY=VALUE");
     return [raw.slice(0, index), raw.slice(index + 1)] as const;
   },
 };
@@ -147,8 +251,8 @@ export const pair: Coercer<readonly [string, string]> = {
 /** `a,b,c` in one word, for the lists nobody wants to repeat a flag for. */
 export function commaSeparated(item: Coercer<string> = text): Coercer<string[]> {
   return {
+    schema: { type: "string" },
     expects: "a comma-separated list",
-    jsonSchema: { type: "array", items: item.jsonSchema },
-    parse: (raw, label) => raw.split(",").map((part) => item.parse(part.trim(), label)),
+    parse: (raw, label) => raw.split(",").map((part) => coerceValue(item, part.trim(), label)),
   };
 }

@@ -4,7 +4,7 @@ import {
   fieldsOf,
   surfaceEnabled,
   type Command,
-  type JsonSchemaFragment,
+  type JsonSchema,
   type Runner,
 } from "../index.js";
 
@@ -26,7 +26,7 @@ import {
 export interface ToolDefinition {
   name: string;
   description: string;
-  inputSchema: JsonSchemaFragment & { type: "object"; properties: Record<string, JsonSchemaFragment>; required?: string[] };
+  inputSchema: JsonSchema & { type: "object"; properties: Record<string, JsonSchema>; required?: string[] };
   /** The command behind it, for a caller that wants to annotate or filter. */
   command: Command;
   invoke(input: Record<string, unknown>): Promise<unknown>;
@@ -38,12 +38,12 @@ export function toolNameOf(command: Command): string {
 }
 
 export function inputSchemaFor(command: Command): ToolDefinition["inputSchema"] {
-  const properties: Record<string, JsonSchemaFragment> = {};
+  const properties: Record<string, JsonSchema> = {};
   const required: string[] = [];
   for (const field of fieldsOf(command)) {
-    const base: JsonSchemaFragment = field.repeated
-      ? { type: "array", items: field.coerce.jsonSchema }
-      : { ...field.coerce.jsonSchema };
+    const base: JsonSchema = field.repeated
+      ? { type: "array", items: field.coerce.schema }
+      : { ...field.coerce.schema };
     if (field.description !== "") base.description = field.description;
     if (field.option?.default !== undefined) base.default = field.option.default;
     properties[field.name] = base;
