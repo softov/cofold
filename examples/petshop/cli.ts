@@ -15,7 +15,6 @@ import { Program, renderTable, runEntry } from "softcli/cli";
 import { listTools } from "softcli/mcp";
 import { canonicalFromObject } from "softcli";
 import { manifestFrom } from "softcli/remote";
-import { action } from "./action.js";
 
 export interface Pet {
   id: string;
@@ -31,8 +30,7 @@ const pets: Pet[] = [
   { id: "2", name: "Byte", breed: "beagle", age: 2, tags: [] },
 ];
 
-const registry = createRegistry();
-registry.provide("pets", {
+const registry = createRegistry().provide("pets", {
   resolve: () => ({
     all: (): Pet[] => pets,
     add: (pet: Omit<Pet, "id">): Pet => {
@@ -48,9 +46,7 @@ registry.provide("pets", {
   }),
 });
 
-type Pets = { pets: { all(): Pet[]; add(pet: Omit<Pet, "id">): Pet; get(id: string): Pet } };
-
-action<Record<string, never>, [], Pets>(registry, {
+registry.action({
   id: "pet.list",
   group: "pets",
   summary: "List the pets",
@@ -68,7 +64,7 @@ action<Record<string, never>, [], Pets>(registry, {
   ),
 });
 
-action(registry, {
+registry.action({
   id: "pet.add",
   group: "pets",
   summary: "Add a pet",
@@ -111,7 +107,7 @@ action(registry, {
     mcp: true,
   },
 
-  run: ({ input, pets: store }: { input: { name: string; breed: string; tags: string[]; age?: number } } & Pets) =>
+  run: ({ input, pets: store }) =>
     output(store.add({
       name: input.name,
       breed: input.breed,
@@ -120,7 +116,7 @@ action(registry, {
     })),
 });
 
-action(registry, {
+registry.action({
   id: "pet.show",
   group: "pets",
   summary: "Show one pet",
@@ -132,25 +128,25 @@ action(registry, {
     http: { method: "GET", path: "/pets/{id}" },
     mcp: true,
   },
-  run: ({ input, pets: store }: { input: { id: string } } & Pets) => output(store.get(input.id)),
+  run: ({ input, pets: store }) => output(store.get(input.id)),
 });
 
-const tools = registry.command({
+registry.action({
   id: "mcp.tools",
   group: "meta",
-  pattern: ["mcp", "tools"],
   summary: "Print the MCP tools this program would serve",
+  surfaces: { cli: { pattern: ["mcp", "tools"] } },
   run: () => output(listTools(registry)),
 });
 
-const serve = registry.command({
+registry.action({
   id: "serve",
   group: "meta",
-  pattern: ["serve"],
   summary: "Answer the same actions over HTTP",
-  options: [{ name: "--port", value: "PORT", description: "Which port", default: "8799" }],
+  input: { port: { type: "integer", description: "Which port", minimum: 1, maximum: 65535, default: 8799 } },
+  surfaces: { cli: { pattern: ["serve"] } },
   run: (context) => {
-    const port = Number(context.value("port"));
+    const { port } = context.input;
     const manifest = manifestFrom(registry, { name: "petshop", version: "0.1.0" });
 
     createServer((request, response) => {
@@ -199,8 +195,6 @@ const serve = registry.command({
     return output(null, "");
   },
 });
-
-registry.register(tools, serve);
 
 export const program = new Program({
   name: "petshop",

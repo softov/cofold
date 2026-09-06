@@ -99,14 +99,25 @@ const BOOLEAN_PRESENT: Coercer<boolean> = {
   parse: () => true,
 };
 
-async function finish(command: Command, input: Record<string, unknown>): Promise<Record<string, unknown>> {
+/**
+ * The checks that belong to the whole input rather than to one value.
+ *
+ * `naming` is how a missing field is named back to whoever asked for it: its
+ * terminal spelling at a terminal, its own name everywhere else, because a
+ * client that sends an object has no flags to be told about.
+ */
+async function finish(
+  command: Command,
+  input: Record<string, unknown>,
+  naming: (field: FieldDescriptor) => string,
+): Promise<Record<string, unknown>> {
   for (const field of fieldsOf(command)) {
     if (field.required && input[field.name] === undefined) {
-      throw new ArgumentError(`${field.label} is required`);
+      throw new ArgumentError(`${naming(field)} is required`);
     }
   }
-  if (command.input === undefined) return input;
-  return await validate(command.input, input, (message) => new ArgumentError(message)) as Record<string, unknown>;
+  if (command.refine === undefined) return input;
+  return await validate(command.refine, input, (message) => new ArgumentError(message)) as Record<string, unknown>;
 }
 
 /**
@@ -160,7 +171,7 @@ export async function canonicalFromCli(command: Command, raw: RawCliInput): Prom
     input[command.stdin] = raw.stdin;
   }
 
-  return await finish(command, input);
+  return await finish(command, input, (field) => field.label);
 }
 
 /**
@@ -195,11 +206,14 @@ export async function canonicalFromObject(
      * and MCP, because a JSON number is not a string. `oneOf` was never
      * enforced here at all, because its type *is* string. A bound the coercer
      * never sees is a bound nobody checks.
+     *
+     * The fault is named as the caller named it: `label` is the terminal
+     * spelling, and a client that sent `{"age": -5}` has no `--age` to correct.
      */
-    const convert = (one: unknown): unknown => coerceOne(field.coerce, asText(one), field.label);
+    const convert = (one: unknown): unknown => coerceOne(field.coerce, asText(one), field.name);
     input[field.name] = Array.isArray(given) ? given.map(convert) : convert(given);
   }
-  return await finish(command, input);
+  return await finish(command, input, (field) => field.name);
 }
 
 /**

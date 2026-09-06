@@ -1,13 +1,52 @@
 # Commands
 
+An action is one thing a program does, declared once, before any surface has spelled it:
+
+```ts
+registry.action({
+  id: "pet.add",
+  summary: "Add a pet",
+  needs: ["pets"],
+
+  input: {
+    name: { type: "string", minLength: 1, maxLength: 40, description: "What it answers to" },
+    age: { type: "integer", minimum: 0, maximum: 30, cli: { short: "-a", value: "YEARS" } },
+    breed: { type: "string", enum: ["beagle", "corgi", "mixed"], default: "mixed" },
+  },
+  required: ["name"],
+
+  surfaces: {
+    cli: { pattern: ["pet", "add", ":name"] },
+    http: { method: "POST", path: "/pets" },
+    mcp: true,
+  },
+
+  run: ({ input, pets }) => output(pets.add(input)),
+});
+```
+
+`input` is a map of JSON Schema, and it is the only statement of what a value may be. The terminal parses against it, the MCP tool advertises it as its `inputSchema`, and an HTTP request is checked against it before the handler is reached - so `--age 99` and `{"age": 99}` are refused for the same reason, by the same code, and no surface can advertise a rule another does not enforce.
+
+The schemas are also the handler's types. `input.breed` is `"beagle" | "corgi" | "mixed"` and `input.age` is `number | undefined`, without a cast and without a second statement of the type for the compiler to disagree with. A field is required if `required` names it or it carries a `default`.
+
+Presence in `surfaces` is what enables a surface, and each surface holds only what is its own: `cli` the words a person types, `http` the method and path, `mcp` nothing but the fact. An action with no `cli` is not a command anybody can type, and one with no `http` is nobody else's business over the network.
+
+Per-field surface detail follows the same rule. `cli` on a field is spelling and never shape - the flag when it is not the field's own name, a short form, the placeholder in the help line. It is stripped before the schema is served, because `"cli": { "short": "-a" }` in front of a model is noise about a terminal it will never see.
+
+## The raw form
+
+`registry.command` is what an action becomes, and what a command that arrived from a manifest already is:
+
 ```ts
 registry.command({
   id, pattern, summary, description, group,
-  arguments, options, needs, scopes, input, stdin,
+  arguments, options, needs, scopes, refine, stdin,
   surfaces, examples, hidden, meta,
   run,
 })
 ```
+
+It states the same things in the terminal's vocabulary - slots and options rather than fields - so a spelling can be given that `action` has no way to derive. Everything below describes this form, which is also what `action` produces.
 
 ## Identity
 
@@ -71,12 +110,12 @@ coerce.timestamp | coerce.json | coerce.pair | coerce.commaSeparated()
 
 Declaring both is what lets an MCP tool advertise `{"type": "integer", "minimum": 1}` for the same option the terminal parses. A coercer that was only a function could not be described to an agent.
 
-For what per-option coercion cannot express - "either `--since` or `--until`", "`--limit` only with `--sort`" - `input` takes any [Standard Schema](https://standardschema.dev) over the whole canonical object:
+For what per-field rules cannot express - "either `--since` or `--until`", "`--limit` only with `--sort`" - `refine` takes any [Standard Schema](https://standardschema.dev) over the whole canonical object:
 
 ```ts
 import { z } from "zod";
-input: z.object({ since: z.string().optional(), until: z.string().optional() })
-        .refine((value) => !(value.since && value.until), "Give one of --since or --until")
+refine: z.object({ since: z.string().optional(), until: z.string().optional() })
+         .refine((value) => !(value.since && value.until), "Give one of --since or --until")
 ```
 
 zod is not a dependency of this library. Neither is valibot or arktype. Any of them works.

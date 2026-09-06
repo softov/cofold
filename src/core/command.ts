@@ -1,4 +1,4 @@
-import type { Coercer } from "./coerce.js";
+import type { Coercer, JsonSchema } from "./coerce.js";
 import type { StandardSchemaV1 } from "./schema.js";
 
 /**
@@ -145,10 +145,11 @@ export interface CommandDefinition<Deps extends object = object, Needs extends r
   /**
    * A schema over the whole canonical input, after coercion.
    *
-   * For what per-option coercers cannot say: "either --since or --until",
-   * "--limit only with --sort". Any Standard Schema library will do.
+   * For what a field's own schema cannot say: "either --since or --until",
+   * "--limit only with --sort". Any Standard Schema library will do. Named for
+   * what it adds rather than what it covers, because `input` is the fields.
    */
-  input?: StandardSchemaV1;
+  refine?: StandardSchemaV1;
   /** The canonical field piped stdin fills, when nothing was given for it. */
   stdin?: string;
   surfaces?: SurfaceFlags;
@@ -170,6 +171,196 @@ export interface CommandDefinition<Deps extends object = object, Needs extends r
 }
 
 export type Command = CommandDefinition<object, readonly string[]>;
+
+/**
+ * How one field is typed at a terminal. Spelling, never shape.
+ *
+ * `flag` only where it is not the field's own name, and `value` only where the
+ * placeholder should read as something other than the type. Absence of `value`
+ * is what makes a field a flag, because arity is not derivable from a type:
+ * `--color` and `--color=true` are both spellings of one boolean.
+ */
+export interface CliField {
+  flag?: string;
+  short?: string;
+  value?: string;
+  complete?: CompletionSource;
+  hidden?: boolean;
+}
+
+/** One input field: what the value may be, and how a surface spells it. */
+export type Field = JsonSchema & {
+  cli?: CliField;
+  /** Consulted before the default, on any surface that has an environment. */
+  env?: string;
+};
+
+/**
+ * Which surfaces render an action, and what each needs to do it.
+ *
+ * Presence is the switch: an action with no `cli` has no command line and needs
+ * no pattern, which is what an MCP-only tool wants and could not say while
+ * `pattern` was required of everything.
+ *
+ * Widened by whichever surface owns the key - `softcli/remote` adds `http` -
+ * so a protocol is declared where it is written without the core learning one.
+ */
+export interface Surfaces {
+  cli?: { pattern: readonly string[]; stdin?: string };
+  mcp?: boolean;
+  docs?: boolean;
+}
+
+/** The TypeScript type a field's schema describes. */
+export type ValueOf<S> =
+  S extends { enum: readonly (infer E)[] } ? E
+    : S extends { const: infer C } ? C
+      : S extends { type: "string" } ? string
+        : S extends { type: "integer" | "number" } ? number
+          : S extends { type: "boolean" } ? boolean
+            : S extends { type: "array"; items: infer Item } ? ValueOf<Item>[]
+              : unknown;
+
+/** Whether a field is always there: named in `required`, or carrying a default. */
+type Always<I, R extends readonly string[], K extends keyof I> =
+  K extends R[number] ? true : I[K] extends { default: unknown } ? true : false;
+
+/**
+ * The object a handler is given, typed from the schemas that declared it.
+ *
+ * What the schemas buy beyond validation: `input.breed` is the union its `enum`
+ * named and `input.age` is a number that may be absent, without a cast and
+ * without a second statement of the type for the compiler to disagree with.
+ */
+export type InputOf<I, R extends readonly string[]> =
+  { [K in keyof I as Always<I, R, K> extends true ? K : never]: ValueOf<I[K]> }
+  & { [K in keyof I as Always<I, R, K> extends true ? never : K]?: ValueOf<I[K]> };
+
+/**
+ * An action: one thing a program does, before any surface has spelled it.
+ *
+ * The input is declared once, as JSON Schema, and every surface is fed from it.
+ * `registry.action` turns this into the `Command` the surfaces read, which is
+ * where a pattern becomes positional slots and everything else becomes options.
+ */
+export interface ActionDefinition<
+  Deps extends object = object,
+  Needs extends readonly string[] = readonly string[],
+  I extends Record<string, Field> = Record<string, Field>,
+  R extends readonly string[] = readonly string[],
+> {
+  id: string;
+  summary: string;
+  description?: string;
+  group?: string;
+  input?: I;
+  /** Field names that must be given. JSON Schema's own shape, and its place. */
+  required?: R;
+  surfaces: Surfaces;
+  needs?: Needs;
+  scopes?: readonly string[];
+  refine?: StandardSchemaV1;
+  meta?: CommandMeta;
+  examples?: readonly CommandExample[];
+  hidden?: boolean;
+  run(context: Deps & Omit<import("./context.js").CommandContext, "input"> & { input: InputOf<I, R> }):
+    | import("./context.js").Output
+    | void
+    | Promise<import("./context.js").Output | void>;
+}
+
+/** `dryRun` -> `--dry-run`, so a flag is never spelled twice. */
+const flagFor = (name: string): string => `--${name.replace(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`)}`;
+
+/**
+ * One action, as the command every surface reads.
+ *
+ * The pattern decides which fields are positional; the rest become options,
+ * spelled from `cli` where it says so and from the field's own name where it
+ * does not. Everything else is carried across untouched.
+ */
+export function commandFor(definition: ActionDefinition<never, never, Record<string, Field>, readonly string[]>): Command {
+  const input = definition.input ?? {};
+  const cli = definition.surfaces.cli;
+  const required = definition.required ?? [];
+  const slots = (cli?.pattern ?? [])
+    .filter((word) => word.startsWith(":"))
+    .map((word) => word.replace(/^:|\.{3}$|\?$/gu, ""));
+
+  for (const name of slots) {
+    if (input[name] === undefined) {
+      throw new Error(`${definition.id}: the pattern names :${name}, which is not an input field`);
+    }
+  }
+
+  const { cli: _cli, mcp: _mcp, docs: _docs, ...rest } = definition.surfaces;
+  const surfaceMeta = Object.keys(rest).length === 0 ? undefined : rest as CommandMeta;
+
+  const args: Record<string, ArgumentSpec> = {};
+  for (const name of slots) {
+    const { cli: spelling, env: _env, ...schema } = input[name] as Field;
+    args[name] = {
+      ...(schema.description === undefined ? {} : { description: schema.description }),
+      ...(spelling?.complete === undefined ? {} : { complete: spelling.complete }),
+      coerce: { schema },
+    };
+  }
+
+  const options: OptionSpec[] = Object.entries(input)
+    .filter(([name]) => !slots.includes(name))
+    .map(([name, field]) => {
+      const { cli: spelling, env, ...schema } = field;
+      const list = schema.type === "array";
+      const each = list ? schema.items ?? { type: "string" as const } : schema;
+      return {
+        name: spelling?.flag ?? flagFor(name),
+        description: schema.description ?? "",
+        field: name,
+        coerce: { schema: each },
+        ...(spelling?.short === undefined ? {} : { short: spelling.short }),
+        ...(each.type === "boolean" && spelling?.value === undefined
+          ? {}
+          : { value: spelling?.value ?? "VALUE" }),
+        ...(list ? { repeatable: true } : {}),
+        ...(schema.default === undefined ? {} : { default: schema.default }),
+        ...(required.includes(name) ? { required: true } : {}),
+        ...(env === undefined ? {} : { env }),
+        ...(spelling?.hidden === true ? { hidden: true } : {}),
+      };
+    });
+
+  return {
+    id: definition.id,
+    // An action with no command line still needs an id-shaped pattern: nothing
+    // will match it, because `cli` is off and no parser is offered the words.
+    pattern: cli?.pattern ?? definition.id.split("."),
+    summary: definition.summary,
+    ...(definition.description === undefined ? {} : { description: definition.description }),
+    ...(definition.group === undefined ? {} : { group: definition.group }),
+    ...(Object.keys(args).length === 0 ? {} : { arguments: args }),
+    ...(options.length === 0 ? {} : { options }),
+    ...(definition.needs === undefined ? {} : { needs: definition.needs }),
+    ...(definition.scopes === undefined ? {} : { scopes: definition.scopes }),
+    ...(definition.refine === undefined ? {} : { refine: definition.refine }),
+    ...(cli?.stdin === undefined ? {} : { stdin: cli.stdin }),
+    ...(definition.examples === undefined ? {} : { examples: definition.examples }),
+    ...(definition.hidden === undefined ? {} : { hidden: definition.hidden }),
+    /*
+     * A surface's own configuration, kept where that surface already reads it.
+     * `Surfaces` is widened by the adapter that owns the key, so the binding is
+     * typed at the declaration and the core still knows no protocol.
+     */
+    ...(definition.meta === undefined && surfaceMeta === undefined
+      ? {}
+      : { meta: { ...definition.meta, ...surfaceMeta } }),
+    surfaces: {
+      cli: cli !== undefined,
+      mcp: definition.surfaces.mcp === true,
+      docs: definition.surfaces.docs ?? cli !== undefined,
+    },
+    run: definition.run,
+  } as Command;
+}
 
 /** The parsed form of one pattern word. */
 export type PatternToken =

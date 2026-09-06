@@ -76,7 +76,7 @@ describe("the canonical input", () => {
    */
   it("enforces a bound on a value that arrived as a number", async () => {
     await expect(canonicalFromObject(command, { project: "p", ids: [1], limit: 0 }))
-      .rejects.toThrow("--limit must be a positive integer");
+      .rejects.toThrow("limit must be a positive integer");
   });
 
   it("enforces a bound inside a list of numbers", async () => {
@@ -86,7 +86,19 @@ describe("the canonical input", () => {
 
   it("enforces oneOf, whose own type is string", async () => {
     await expect(canonicalFromObject(command, { project: "p", ids: [1], status: "half" }))
-      .rejects.toThrow("--status must be one of open, done");
+      .rejects.toThrow("status must be one of open, done");
+  });
+
+  /*
+   * The same fault, named twice, because the two callers gave it two names.
+   * A client that sent `{"limit": 0}` has no `--limit` to correct, and telling
+   * it about one sends it looking for a flag in a JSON body.
+   */
+  it("names a fault the way the caller named the field", async () => {
+    await expect(canonicalFromCli(command, { slots: { project: "p", ids: ["1"] }, options: { "--limit": "0" } }))
+      .rejects.toThrow("--limit must be a positive integer");
+    await expect(canonicalFromObject(command, { ids: [1] }))
+      .rejects.toThrow("project is required");
   });
 
   it("treats an explicit null as nothing given", async () => {

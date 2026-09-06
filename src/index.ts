@@ -24,12 +24,16 @@ export {
   visible,
 } from "./core/command.js";
 export type {
+  ActionDefinition,
   ArgumentSpec,
   Command,
   CommandDefinition,
   CommandExample,
   CompletionContext,
   CompletionSource,
+  Field,
+  CliField,
+  Surfaces,
   OptionNote,
   OptionSpec,
   PatternToken,
@@ -58,6 +62,7 @@ export {
 export type { FaultKind } from "./core/errors.js";
 export { argumentFields, canonicalFromCli, canonicalFromObject, fieldsOf } from "./core/input.js";
 export type { FieldDescriptor, RawCliInput } from "./core/input.js";
+export { commandFor } from "./core/command.js";
 export { createRegistry, Registry, sectionsOf, validateCommand } from "./core/registry.js";
 export type {
   Runner,

@@ -13,15 +13,24 @@ import { manifestFrom } from "softcli/remote";
 send(manifestFrom(registry, { name: "clerver", version: "0.1.0" }));
 ```
 
-The one extra fact a command carries is how it becomes a request:
+HTTP is a surface, declared beside the others:
 
 ```ts
-meta: { http: { method: "GET", path: "/pets/{id}" } }
-meta: { http: { method: "POST", path: "/pets", body: ["name", "species", "age"] } }
-meta: { http: { method: "GET", path: "/pets", query: ["species", "limit"] } }
+surfaces: {
+  cli: { pattern: ["pet", "show", ":id"] },
+  http: { method: "GET", path: "/pets/{id}" },
+  mcp: true,
+}
 ```
 
-The core ignores `meta`; `softcli/remote` reads it from **both** ends - the server routes with it, the client builds requests with it. Commands with no binding are simply not published: a local `doctor` command is nobody else's business.
+```ts
+http: { method: "POST", path: "/pets", body: ["name", "species", "age"] }
+http: { method: "GET", path: "/pets", query: ["species", "limit"] }
+```
+
+`surfaces.http` is `softcli/remote`'s own key, added to `Surfaces` by declaration merging: the binding is typed where it is written and the core still knows no protocol. `softcli/remote` reads it from **both** ends - the server routes with it, the client builds requests with it. Actions with no binding are simply not published: a local `doctor` command is nobody else's business.
+
+The rules are the same rules. A request is validated against the same schemas the terminal parses against, so `{"age": -5}` is refused with `400` for the reason `--age -5` is refused at a prompt. What differs is only the name in the message: a client that sent an object is told `age`, not `--age`, because it has no flag to correct.
 
 A client turns them back into commands:
 

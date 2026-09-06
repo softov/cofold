@@ -50,6 +50,14 @@ export interface ManifestOption {
 
 /** How one command becomes one request. Ordinary REST, described. */
 declare module "../core/command.js" {
+  /**
+   * HTTP as a surface an action declares, on the same footing as `cli` and
+   * `mcp`. The key is owned here, so the core carries a binding it never reads.
+   */
+  interface Surfaces {
+    http?: HttpBinding;
+  }
+
   interface CommandMeta {
     /** How this command becomes one request. Read by `softcli/remote` alone. */
     http?: HttpBinding;

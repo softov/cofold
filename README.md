@@ -14,27 +14,36 @@ const registry = createRegistry()
   .provide("store",  { deps: ["config"], resolve: ({ config }) => open(config.path),
                        dispose: (store) => store.flush() });
 
-const list = registry.command({
+registry.action({
   id: "note.list",
-  pattern: ["note", "list"],
   summary: "List notes, newest first",
   needs: ["store"],                       // resolved before the handler runs
-  surfaces: { mcp: true },                // and it is an MCP tool too
-  options: [
-    { name: "--status", short: "-s", value: "STATUS", description: "Only this status",
-      coerce: coerce.oneOf(["open", "done"]) },
-    { name: "--limit", short: "-n", value: "N", description: "How many",
-      coerce: coerce.integer({ min: 1 }), default: 20 },
-  ],
-  run: (context) => output(context.store.all().slice(0, context.value<number>("limit"))),
+
+  input: {
+    status: { type: "string", enum: ["open", "done"], description: "Only this status",
+              cli: { short: "-s", value: "STATUS" } },
+    limit: { type: "integer", minimum: 1, default: 20, description: "How many",
+             cli: { short: "-n", value: "N" } },
+  },
+
+  surfaces: {                             // presence is the switch
+    cli: { pattern: ["note", "list"] },
+    http: { method: "GET", path: "/notes" },
+    mcp: true,
+  },
+
+  run: ({ input, store }) => output(store.all(input.status).slice(0, input.limit)),
 });
 ```
+
+`input` is JSON Schema and it is the only statement of the rules. The terminal parses against it, the MCP tool advertises it, an HTTP request is validated against it, and TypeScript types the handler from it - `input.status` is `"open" | "done" | undefined` and `input.limit` is a `number`. A bound cannot be shown to an agent and go unenforced on a request, because there is one copy of it.
 
 That declaration produces, with nothing else written:
 
 | | |
 |---|---|
 | `notes note list -s open -n 5` | parsed, coerced, refused with a message if wrong |
+| `GET /notes?status=open` | the same action, the same rules, `400` for the same reasons |
 | `notes note list --json` / `--quiet` | a stable JSON contract and a bare-identifier contract |
 | `notes note list --help` | usage, options, defaults, enum values, what it needs |
 | `notes note <TAB>` | completion, with candidates the running program computes |
@@ -52,7 +61,7 @@ One package, five entry points. They are subpaths rather than separate packages 
 | [`softcli/mcp`](src/mcp) | the same registry as MCP tools. No SDK dependency. |
 | [`softcli/docs`](src/docs) | the same registry as markdown - for people, and for agents |
 | [`softcli/remote`](src/remote) | a command surface that arrives over the wire, or out of an OpenAPI document |
-| [`examples/`](examples) | three working programs: `notes`, `clerver`, `open-cli` |
+| [`examples/`](examples) | four working programs: `petshop`, `kitchen-sink`, `clerver`, `open-cli` |
 
 Zero runtime dependencies, anywhere. Validation is optional and speaks [Standard Schema](https://standardschema.dev), so zod, valibot and arktype all work and none of them is installed.
 
@@ -60,6 +69,12 @@ Zero runtime dependencies, anywhere. Validation is optional and speaks [Standard
 
 ```sh
 npm install && npm run examples
+
+# one declaration on three surfaces
+node examples/dist/petshop/cli.js pet add Rex -a 3 -b corgi
+node examples/dist/petshop/cli.js mcp tools           # what an agent is shown
+node examples/dist/petshop/cli.js serve --port 8799 & # the same rules over HTTP
+curl -XPOST localhost:8799/pets -d '{"name":"Ada","age":99}'
 
 # a local CLI
 node examples/dist/kitchen-sink/cli.js note add "Ship softcli" -t work

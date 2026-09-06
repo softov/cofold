@@ -1,6 +1,9 @@
 import {
   literalPrefix,
   parsePattern,
+  type ActionDefinition,
+  type Field,
+  commandFor,
   type Command,
   type CommandDefinition,
   type Surface,
@@ -183,6 +186,26 @@ export class Registry<Ctx extends object = object> {
     definition: CommandDefinition<Pick<Ctx, Needs[number]>, Needs>,
   ): Command {
     return definition as unknown as Command;
+  }
+
+  /**
+   * Declare one action, and register it.
+   *
+   * The authored form, and the one to reach for: the input is stated once and
+   * `commandFor` spells it for each surface. `command` is the derived form
+   * underneath, kept for the places that build one by hand - a manifest arriving
+   * from a service, the help and version commands a program adds to itself.
+   */
+  public action<
+    const Needs extends readonly (keyof Ctx & string)[] = [],
+    const I extends Record<string, Field> = Record<string, never>,
+    const R extends readonly (keyof I & string)[] = [],
+  >(
+    definition: ActionDefinition<Pick<Ctx, Needs[number]>, Needs, I, R>,
+  ): Command {
+    const made = commandFor(definition as unknown as ActionDefinition<never, never, Record<string, Field>, readonly string[]>);
+    this.register(made);
+    return made;
   }
 
   public register(...commands: readonly Command[]): this {

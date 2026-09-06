@@ -51,6 +51,7 @@ That is a complete program. It already has `--help`, `--version`, `--json`, `--q
 
 - Something the command needs before it runs - a config file, a database, an authenticated client? That is a [capability](04-capabilities.md).
 - Want the command to be an MCP tool as well? `surfaces: { mcp: true }`, and see [MCP](07-mcp.md).
+- Want it to answer over HTTP too? `surfaces: { http: { method, path } }`, and see [Remote](09-remote.md).
 - Want a reference document that cannot go stale? [Generated docs](08-generated-docs.md).
 
 The whole surface, exercised, is [`examples/kitchen-sink`](../examples/kitchen-sink/cli.ts) - about 250 lines for ten commands, two capabilities, dynamic completion, piped input and two generated documents.
