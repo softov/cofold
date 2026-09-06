@@ -35,6 +35,13 @@ function environment(name: string | undefined): string | undefined {
   return value === undefined || value === "" ? undefined : value;
 }
 
+/** A value as the coercer wants to read it: coercers parse text. */
+function asText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
 function coerceOne(coercer: Coercer<unknown>, raw: string, label: string): unknown {
   return coercer.parse(raw, label);
 }
@@ -171,17 +178,25 @@ export async function canonicalFromObject(
   const input: Record<string, unknown> = {};
   for (const field of fieldsOf(command)) {
     const given = value[field.name];
-    if (given === undefined) {
+    // `null` is how a JSON client says nothing, so it takes the same road as a
+    // key that was never there - including `finish`'s required check.
+    if (given === undefined || given === null) {
       const fallback = environment(field.option?.env) ?? field.option?.default;
       if (fallback !== undefined) input[field.name] = fallback;
       else if (field.option !== undefined && isFlag(field.option)) input[field.name] = false;
       continue;
     }
-    const wants = field.coerce.jsonSchema.type;
-    const convert = (one: unknown): unknown =>
-      typeof one === "string" && wants !== undefined && wants !== "string"
-        ? coerceOne(field.coerce, one, field.label)
-        : one;
+    /*
+     * Every value goes through the declared coercer, whatever it arrived as.
+     *
+     * This used to coerce only what arrived as text, which made validation a
+     * property of the wire encoding rather than of the declaration: `--age -5`
+     * was refused at the command line and `{"age": -5}` was accepted over HTTP
+     * and MCP, because a JSON number is not a string. `oneOf` was never
+     * enforced here at all, because its type *is* string. A bound the coercer
+     * never sees is a bound nobody checks.
+     */
+    const convert = (one: unknown): unknown => coerceOne(field.coerce, asText(one), field.label);
     input[field.name] = Array.isArray(given) ? given.map(convert) : convert(given);
   }
   return await finish(command, input);

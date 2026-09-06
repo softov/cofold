@@ -61,9 +61,37 @@ describe("the canonical input", () => {
       .rejects.toThrow("project is required");
   });
 
-  it("reads an already-typed object the same way, coercing only what arrived as text", async () => {
+  it("reads an already-typed object the same way, whatever each value arrived as", async () => {
     const input = await canonicalFromObject(command, { project: "p", ids: [1, "2"], limit: "5" });
     expect(input).toEqual({ project: "p", ids: [1, 2], limit: 5, dryRun: false });
+  });
+
+  /*
+   * The bounds hold on every surface, not only the one where values are text.
+   *
+   * Each of these was accepted before: a JSON number never reached the coercer
+   * because it was not a string, and `oneOf` never reached it at all because
+   * its own type *is* string. So the same command refused `--age -5` at the
+   * terminal and created the record over HTTP.
+   */
+  it("enforces a bound on a value that arrived as a number", async () => {
+    await expect(canonicalFromObject(command, { project: "p", ids: [1], limit: 0 }))
+      .rejects.toThrow("--limit must be a positive integer");
+  });
+
+  it("enforces a bound inside a list of numbers", async () => {
+    await expect(canonicalFromObject(command, { project: "p", ids: [0] }))
+      .rejects.toThrow("ids must be a positive integer");
+  });
+
+  it("enforces oneOf, whose own type is string", async () => {
+    await expect(canonicalFromObject(command, { project: "p", ids: [1], status: "half" }))
+      .rejects.toThrow("--status must be one of open, done");
+  });
+
+  it("treats an explicit null as nothing given", async () => {
+    const input = await canonicalFromObject(command, { project: "p", ids: [1], limit: null });
+    expect(input["limit"]).toBe(20);
   });
 
   it("fills a declared field from standard input when nothing was given for it", async () => {
