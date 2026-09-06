@@ -42,7 +42,7 @@ const list = registry.command({
     { name: "--species", value: "SPECIES", description: "Only this species" },
     { name: "--limit", short: "-n", value: "N", description: "How many", coerce: coerce.integer({ min: 1 }), default: 50 },
   ],
-  meta: { http: { method: "GET", path: "/pets", query: ["species", "limit"] } },
+  meta: { http: { method: "GET", path: "/pets" } },
   run: (context) => output(context.pets
     .filter((pet) => context.optional("species") === undefined || pet.species === context.value("species"))
     .slice(0, context.value<number>("limit"))),
@@ -75,7 +75,7 @@ const add = registry.command({
     { name: "--species", value: "SPECIES", description: "What it is", default: "cat" },
     { name: "--age", value: "YEARS", description: "How old", coerce: coerce.integer({ min: 0 }) },
   ],
-  meta: { http: { method: "POST", path: "/pets", body: ["name", "species", "age"] } },
+  meta: { http: { method: "POST", path: "/pets" } },
   run: (context) => {
     const pet: Pet = {
       id: String(context.pets.length + 1),

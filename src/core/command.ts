@@ -91,7 +91,28 @@ export interface SurfaceFlags {
   cli?: boolean;
   mcp?: boolean;
   docs?: boolean;
+  /**
+   * Whether a command with a binding is published to a remote surface.
+   *
+   * On when there is a binding to publish, because writing one is already the
+   * opt-in - unlike `mcp`, which is a bare flag and so has to default off.
+   * This exists so a command can be an endpoint's business and not the
+   * documentation's, or the other way round; publishing used to be decided by
+   * `docs`, which meant hiding a command from the reference also withdrew it
+   * from the network.
+   */
+  remote?: boolean;
 }
+
+/**
+ * What an adapter attaches to a command that the core does not read.
+ *
+ * Empty here on purpose, and widened by whichever surface owns the key -
+ * `softcli/remote` adds `http`. So the binding is checked at the declaration
+ * without the core learning a protocol, and a program that never imports a
+ * surface is never offered its key.
+ */
+export interface CommandMeta {}
 
 export interface CommandDefinition<Deps extends object = object, Needs extends readonly string[] = readonly string[]> {
   /** Stable, dotted, and never rendered to a person: `case.show`. */
@@ -139,7 +160,7 @@ export interface CommandDefinition<Deps extends object = object, Needs extends r
    * by everything in this package: an extension point that the core has an
    * opinion about is not an extension point.
    */
-  meta?: Readonly<Record<string, unknown>>;
+  meta?: CommandMeta;
   examples?: readonly CommandExample[];
   hidden?: boolean;
   run(context: Deps & import("./context.js").CommandContext):
@@ -194,6 +215,7 @@ export function surfaceEnabled(command: Command, surface: Surface): boolean {
   if (surface === "mcp") return flags.mcp === true;
   if (surface === "docs") return flags.docs !== false;
   if (surface === "cli") return flags.cli !== false;
+  if (surface === "remote") return flags.remote !== false;
   return true;
 }
 

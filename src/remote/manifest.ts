@@ -40,13 +40,27 @@ export interface ManifestOption extends ValueShape<ManifestType> {
 }
 
 /** How one command becomes one request. Ordinary REST, described. */
+declare module "../core/command.js" {
+  interface CommandMeta {
+    /** How this command becomes one request. Read by `softcli/remote` alone. */
+    http?: HttpBinding;
+    /** The program a command was built from, on the commands `commandsFrom` returns. */
+    remote?: string;
+  }
+}
+
 export interface HttpBinding {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** `/cases/{id}` - each `{name}` is filled from the canonical input. */
   path: string;
-  /** Canonical field names sent as the query string. */
+  /**
+   * Canonical field names sent as the query string.
+   *
+   * An override. Left out, `placementOf` decides, which is the answer for
+   * every ordinary request and cannot name an option that does not exist.
+   */
   query?: readonly string[];
-  /** Canonical field names sent as a JSON body. `"*"` sends everything left. */
+  /** The same override for the body. `"*"` sends everything the path left. */
   body?: readonly string[];
 }
 
@@ -89,8 +103,8 @@ export function manifestFrom(
 ): ProgramManifest {
   const commands: ManifestCommand[] = [];
   for (const command of registry.commands) {
-    const http = command.meta?.["http"] as HttpBinding | undefined;
-    if (http === undefined || !surfaceEnabled(command, "docs")) continue;
+    const http = command.meta?.http;
+    if (http === undefined || !surfaceEnabled(command, "remote")) continue;
     commands.push({
       id: command.id,
       pattern: [...command.pattern],
@@ -216,17 +230,41 @@ export function commandsFrom(manifest: ProgramManifest, options: CommandsFromOpt
 }
 
 /** The fields a binding does not place in the path or the query. */
-export function bodyFields(binding: HttpBinding, input: Readonly<Record<string, unknown>>): Record<string, unknown> {
+/**
+ * Which canonical fields travel where, when the binding does not say.
+ *
+ * The declaration already names every option, so a binding that listed them
+ * again was a second list to keep in step - and nothing checked that a name in
+ * it was an option at all. So the split is derived: the path takes what it
+ * names, and of what is left a method without a body sends it as query and a
+ * method with one sends it as body. `query` and `body` remain for the requests
+ * that are not shaped like that.
+ *
+ * One function, because the client builds the request from this answer and the
+ * manifest is described from it - two readings that must not differ.
+ */
+export function placementOf(
+  binding: HttpBinding,
+  names: readonly string[],
+): { query: readonly string[]; body: readonly string[] } {
   const inPath = [...binding.path.matchAll(/\{([^}]+)\}/gu)].map((match) => match[1]!);
-  const declared = binding.body ?? [];
-  const explicit = declared.filter((name) => name !== "*");
-  const rest = declared.includes("*");
-  const entries = Object.entries(input).filter(([name, value]) =>
-    value !== undefined
-    && !inPath.includes(name)
-    && !(binding.query ?? []).includes(name)
-    && (explicit.includes(name) || rest));
-  return Object.fromEntries(entries);
+  const left = names.filter((name) => !inPath.includes(name));
+  const carries = binding.method !== "GET" && binding.method !== "DELETE";
+
+  const query = binding.query ?? (carries ? [] : left);
+  const explicit = (binding.body ?? []).filter((name) => name !== "*");
+  const rest = binding.body === undefined ? carries : binding.body.includes("*");
+  const body = carries
+    ? left.filter((name) => !query.includes(name) && (rest || explicit.includes(name)))
+    : [];
+  return { query, body };
+}
+
+export function bodyFields(binding: HttpBinding, input: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const { body } = placementOf(binding, Object.keys(input));
+  return Object.fromEntries(
+    Object.entries(input).filter(([name, value]) => value !== undefined && body.includes(name)),
+  );
 }
 
 export function expandPath(binding: HttpBinding, input: Readonly<Record<string, unknown>>): string {

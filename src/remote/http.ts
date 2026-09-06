@@ -1,5 +1,5 @@
 import { compact, UnavailableError, SoftcliError } from "../index.js";
-import { bodyFields, expandPath, type HttpBinding, type Transport } from "./manifest.js";
+import { bodyFields, expandPath, placementOf, type HttpBinding, type Transport } from "./manifest.js";
 
 /**
  * The transport a command built from a manifest uses, and where the credentials are.
@@ -36,7 +36,7 @@ export function httpTransport(options: HttpTransportOptions): Transport {
   return {
     async request(binding: HttpBinding, input: Readonly<Record<string, unknown>>): Promise<unknown> {
       const url = new URL(`${base}${expandPath(binding, input)}`);
-      for (const name of binding.query ?? []) {
+      for (const name of placementOf(binding, Object.keys(input)).query) {
         const value = input[name];
         if (value === undefined) continue;
         for (const one of Array.isArray(value) ? value : [value]) url.searchParams.append(name, String(one));
