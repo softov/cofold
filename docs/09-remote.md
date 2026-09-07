@@ -1,6 +1,6 @@
 # Remote commands
 
-If a command is data, a command can arrive from somewhere else. This is the property nothing built on Commander can have, and it is worth the package.
+If a command is data, a command can arrive from somewhere else. That is the property a builder call cannot have, and it is worth the package.
 
 ## The round trip
 

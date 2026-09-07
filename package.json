@@ -56,7 +56,8 @@
     "!src/**/*.test.ts",
     "docs",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "ROADMAP.md"
   ],
   "publishConfig": {
     "access": "public"

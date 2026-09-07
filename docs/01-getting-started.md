@@ -47,11 +47,11 @@ That is a complete program. It already has `--help`, `--version`, `--json`, `--q
 
 ## Growing it
 
-- Something the action needs before it runs - a config file, a database, an authenticated client? That is a [capability](05-capabilities.md).
-- Want it to be an MCP tool as well? `surfaces: { mcp: true }`, and see [MCP](08-mcp.md).
-- Want it to answer over HTTP too? `surfaces: { http: { method, path } }`, and see [Remote](10-remote.md).
-- Want a reference document that cannot go stale? [Generated docs](09-generated-docs.md).
-- Wondering where a rule is actually enforced? [Validation](04-validation.md).
+- Something the action needs before it runs - a config file, a database, an authenticated client? That is a [capability](04-capabilities.md).
+- Want it to be an MCP tool as well? `surfaces: { mcp: true }`, and see [MCP](07-mcp.md).
+- Want it to answer over HTTP too? `surfaces: { http: { method, path } }`, and see [Remote](09-remote.md).
+- Want a reference document that cannot go stale? [Generated docs](08-generated-docs.md).
+- Wondering where a rule is actually enforced? [Validation](03-validation.md).
 
 One declaration on three surfaces at once is [`examples/petshop`](../examples/petshop/cli.ts): the same actions typed at a terminal, printed as MCP tools, and served over HTTP by `petshop serve`.
 

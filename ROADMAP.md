@@ -21,4 +21,4 @@ What is built works: `npm run check` is green, and the four example programs run
 
 **Should capabilities be lazy?** They resolve eagerly in declaration order. A command that needs `database` but exits early on a bad argument still opened the database. A lazy proxy would fix it and would make the failure order harder to predict, which is the thing this design deliberately made predictable.
 
-**Plugin loading.** `oclif` loads commands from installed packages. Since commands are data, this is nearly free - but "nearly free to load" and "safe to load" are different questions, and the second one has not been answered.
+**Plugin loading.** Loading commands from installed packages is nearly free, since commands are data - but "nearly free to load" and "safe to load" are different questions, and the second one has not been answered.

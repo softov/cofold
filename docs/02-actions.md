@@ -111,7 +111,7 @@ coerce.timestamp | coerce.json | coerce.pair | coerce.commaSeparated()
 
 Declaring both is what lets an MCP tool advertise `{"type": "integer", "minimum": 1}` for the same option the terminal parses. A coercer that was only a function could not be described to an agent.
 
-What each keyword means, where it is enforced and how a fault is worded is [Validation](04-validation.md).
+What each keyword means, where it is enforced and how a fault is worded is [Validation](03-validation.md).
 
 ## The canonical input
 

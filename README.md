@@ -2,9 +2,15 @@
 
 **Declare a command once. Run it anywhere.**
 
+[![npm](https://img.shields.io/npm/v/softcli.svg)](https://www.npmjs.com/package/softcli)
+[![node](https://img.shields.io/node/v/softcli.svg)](https://www.npmjs.com/package/softcli)
+[![types](https://img.shields.io/npm/types/softcli.svg)](https://www.npmjs.com/package/softcli)
+[![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#entry-points)
+[![license](https://img.shields.io/npm/l/softcli.svg)](LICENSE)
+
 ## What it is
 
-`softcli` softcli is a TypeScript command framework where commands are reusable definitions rather than CLI-only handlers. 
+`softcli` is a TypeScript command framework where commands are reusable definitions rather than CLI-only handlers. 
 
 The same declaration can be exposed through CLI, HTTP endpoint, an MCP tool, generated documentation, shell completion, an agent-facing skill, or other adapters without redefining its inputs and behavior.
 
@@ -51,6 +57,39 @@ registry.action({
   run: ({ input, store }) =>
     output(store.all(input.status).slice(0, input.limit)),
 });
+
+registry.action({
+  id: "note.add",
+  summary: "Add a note",
+
+  needs: ["store"],
+
+  input: {
+    title: {
+      type: "string",
+      minLength: 1,
+      maxLength: 120,
+      description: "What the note says",
+    },
+
+    status: {
+      type: "string",
+      enum: ["open", "done"],
+      default: "open",
+      description: "Where it starts",
+      cli: { short: "-s", value: "STATUS" },
+    },
+  },
+  required: ["title"],
+
+  surfaces: {
+    cli:  { pattern: ["note", "add", ":title"] },
+    http: { method: "POST", path: "/notes" },
+    mcp: true,
+  },
+
+  run: ({ input, store }) => output(store.add(input)),
+});
 ```
 
 There is no separate command definition for each surface.
@@ -70,28 +109,29 @@ The action remains a plain object. The different parts of `softcli` decide how t
 
 ## One schema
 
-`input` is the canonical description of the input.
+`input` is the canonical description of the input, and the only statement of the rules.
 
 ```ts
-input: {
-  status: {
-    type: "string",
-    enum: ["open", "done"],
-  },
-  limit: {
-    type: "integer",
-    minimum: 1,
-    default: 20,
-  },
-}
+title:  { type: "string",  minLength: 1, maxLength: 120 }
+status: { type: "string",  enum: ["open", "done"], default: "open" }
+limit:  { type: "integer", minimum: 1, default: 20 }
 ```
 
 The CLI uses it to parse and coerce arguments. HTTP uses it to validate requests. MCP publishes it as the tool's input schema. Documentation gets the same defaults, enums, descriptions, and constraints.
 
+So a rule is enforced the same way whichever road the value took:
+
+```sh
+notes note add ""                     # title must be 1 to 120 characters
+curl -X POST /notes -d '{"title":""}' # 400 title must be 1 to 120 characters
+note_add({ status: "later" })         # isError: status must be one of open, done
+```
+
 TypeScript derives the handler input from it too:
 
 ```ts
-input.status // "open" | "done" | undefined
+input.title  // string
+input.status // "open" | "done"
 input.limit  // number
 ```
 
@@ -101,24 +141,26 @@ There is only one copy of the rules to keep correct.
 
 From the declaration above, `softcli` can provide:
 
-| Surface                        | Result                                       |
-| ------------------------------ | -------------------------------------------- |
-| `notes note list -s open -n 5` | parsed and coerced CLI input                 |
-| `GET /notes?status=open`       | the same action over HTTP                    |
-| `notes note list --json`       | stable machine-readable output               |
-| `notes note list --quiet`      | bare output for scripts                      |
-| `notes note list --help`       | generated usage, options, defaults and enums |
-| `notes note <TAB>`             | shell completion                             |
-| `notes docs`                   | generated Markdown reference                 |
-| `notes skill`                  | agent-facing command reference               |
-| `note_list`                    | MCP tool backed by the same input schema     |
+| Surface                          | Result                                       |
+| -------------------------------- | -------------------------------------------- |
+| `notes note list -s open -n 5`   | parsed and coerced CLI input                 |
+| `notes note add "Ship it"`       | the slot, the default and the length bound   |
+| `GET /notes?status=open`         | the same action over HTTP                    |
+| `POST /notes`                    | the same validation, answered with `400`     |
+| `notes note list --json`         | stable machine-readable output               |
+| `notes note list --quiet`        | bare output for scripts                      |
+| `notes note add --help`          | generated usage, options, defaults and enums |
+| `notes note <TAB>`               | shell completion                             |
+| `notes docs`                     | generated Markdown reference                 |
+| `notes skill`                    | agent-facing command reference               |
+| `note_list`, `note_add`          | MCP tools backed by the same input schemas   |
 
 Adding a surface does not mean adding another implementation.
 
 ```ts
 surfaces: {
-  cli:  { pattern: ["note", "list"] },
-  http: { method: "GET", path: "/notes" },
+  cli:  { pattern: ["note", "add", ":title"] },
+  http: { method: "POST", path: "/notes" },
   mcp: true,
 }
 ```
@@ -129,15 +171,20 @@ If a surface is not declared, the action is not exposed there.
 
 Actions can declare what they need instead of constructing dependencies themselves.
 
+The usual case is an authenticated client that half the program needs and nobody wants to build twice.
+
 ```ts
 const registry = createRegistry()
   .provide("config", {
     resolve: () => loadConfig(),
   })
-  .provide("store", {
+  .provide("api", {
     deps: ["config"],
-    resolve: ({ config }) => open(config.path),
-    dispose: (store) => store.flush(),
+    resolve: ({ config }) => createClient({
+      baseUrl: config.url,
+      token: config.token,
+    }),
+    dispose: (api) => api.close(),
   });
 ```
 
@@ -145,23 +192,33 @@ Then:
 
 ```ts
 registry.action({
-  id: "note.list",
-  needs: ["store"],
+  id: "case.show",
+  needs: ["api"],
 
-  run: ({ input, store }) => {
-    // store is ready here
+  input: {
+    id: { type: "string", minLength: 1 },
   },
+  required: ["id"],
+
+  surfaces: {
+    cli: { pattern: ["case", "show", ":id"] },
+    mcp: true,
+  },
+
+  run: ({ input, api }) => output(api.get(`/cases/${input.id}`)),
 });
 ```
 
 ```mermaid
 flowchart LR
-  config["config"] -->|deps| store["store"]
-  store -->|needs| run["run"]
-  run -.->|dispose| flush["store.flush"]
+  config["config"] -->|deps| api["api"]
+  api -->|needs| run["run"]
+  run -.->|dispose| close["api.close"]
 ```
 
-Capabilities are resolved before the handler runs and can depend on other capabilities.
+Capabilities are resolved before the handler runs, in dependency order, and can depend on other capabilities. Whatever they open is disposed afterwards, whether the handler returned or threw.
+
+Nothing is constructed for an action that does not ask for it, so a command that fails on a bad argument never opens the connection.
 
 This keeps actions declarative without turning the registry into a global bag of objects.
 
@@ -252,14 +309,31 @@ The full manual lives in [`docs/`](docs/) and ships with the package.
 
 Start with:
 
-* [`Why softcli`](docs/01-why.md)
-* [`Getting started`](docs/02-getting-started.md)
-* [`Actions`](docs/03-actions.md)
-* [`Validation`](docs/04-validation.md)
+* [`Getting started`](docs/01-getting-started.md)
+* [`Actions`](docs/02-actions.md)
+* [`Validation`](docs/03-validation.md)
+
+What is not built yet, and the questions still open, are in [`ROADMAP.md`](ROADMAP.md).
 
 ## Why
 
-Most CLI libraries make the command declaration part of the setup process:
+Not because parsing is hard. Parsing is the solved part.
+
+Take any program that has been maintained for a year and count the lines that are *about* its commands against the lines that are about being a program at all:
+
+* loading a config file, and a profile or target within it
+* credentials, and never printing them in an error
+* `--json` that stays stable, `--quiet` that prints one identifier
+* exit codes a script can switch on
+* reading stdin when something is piped in
+* `NO_COLOR`, TTY detection, terminal width
+* completion that knows this installation's ids, not just the flag names
+* a reference document that is still true
+* and now MCP tools, for the agent that will drive it
+
+A parser gives you the first third of the first line. Everything after that, every program writes again.
+
+Most CLI libraries also make the command declaration part of the setup process:
 
 ```ts
 program
@@ -267,6 +341,8 @@ program
   .option("-s, --status <status>")
   .action(handler);
 ```
+
+The description is a string handed to a builder and the behaviour is a closure. After that call returns there is nothing left to *ask*: no object that knows the command exists, what it takes, what it means, or what it needs. So help drifts, because a usage line is a comment and comments rot. Cross-cutting behaviour has nowhere to live, so `--json` is written again per action and one of them prints a stray `console.log`. And nothing can be checked, because there is no registry to check against.
 
 That works well when the terminal is the only consumer.
 
@@ -292,6 +368,10 @@ The CLI is a view of that action.
 So is HTTP.
 
 So is MCP.
+
+The cost is one constraint on handlers: a handler receives a canonical input object and returns a value, rather than reading `process.argv` and printing. That is the whole discipline, and everything else follows from it, because a handler that never touches the terminal can be run by something that is not a terminal.
+
+[`softcli/mcp`](src/mcp) is the test of that. A complete MCP surface, JSON Schema generation included, in 155 lines with no dependencies. It is that small because it had nothing to invent: the actions already knew.
 
 **The command is the data. The interfaces are adapters.**
 
