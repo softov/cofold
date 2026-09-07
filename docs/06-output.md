@@ -33,6 +33,8 @@ Errors carry their own exit code, so the entry point has no `instanceof` ladder:
 
 Scripts switch on these, so they are part of your surface. Add your own by extending `SoftcliError` with one of the kinds.
 
+`Program.run` returns an exit code for a run that finished and *throws* for one that did not: turning a failure into a code, printing the sentence and redacting what must not be printed are `runEntry`'s job, so a program that embeds `Program` directly has to catch and call `exitCodeFor` itself.
+
 ```ts
 await runEntry(program, process.argv.slice(2), {
   // Every secret this installation knows, so none of them reaches a terminal.
