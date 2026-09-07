@@ -9,5 +9,6 @@
 7. [MCP](07-mcp.md) - the registry as tools, and why exposure is opt-in
 8. [Generated documentation](08-generated-docs.md) - references and agent skills
 9. [Remote commands](09-remote.md) - manifests, the clerver round trip, OpenAPI
+10. [Configuration](10-config.md) - finding the file, and saying which one it was
 
 Why any of this exists is in the [README](../README.md), and what is not built yet is in the [roadmap](../ROADMAP.md).
