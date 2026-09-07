@@ -1,0 +1,168 @@
+# A command line written as a document.
+#
+# Every command below gets argument parsing, coercion, validation, --help,
+# completion, --json, a generated reference and - where it says so - an HTTP
+# route and an MCP tool, without anybody writing a handler. What the document
+# adds is `run`: named executors and an ordered list of steps, because a file
+# cannot hold a function.
+#
+# The `pet` commands call the petshop example, which is the HTTP server this
+# repository already ships, so the whole document runs end to end:
+#
+#   node examples/dist/petshop/cli.js serve --port 8799 &
+#   node examples/dist/s2cli/cli.js --document examples/samples/depot.yaml pet list
+
+name: depot
+version: 1.0.0
+description: A CLI defined in YAML, over the petshop example.
+
+# Later wins, and this file wins over both. A file marked optional that is not
+# there is not an error - which is what a local override is for.
+imports:
+  - depot.defaults.yaml
+  - { path: depot.local.yaml, optional: true }
+
+env:
+  - depot.env
+  - { path: depot.local.env, optional: true }
+
+commands:
+
+  pet.list:
+    group: pets
+    summary: List the pets the service knows
+    input:
+      limit:
+        type: integer
+        description: How many
+        minimum: 1
+        maximum: 100
+        default: 20
+        cli: { short: -n, value: N }
+    surfaces:
+      cli: { pattern: [pet, list] }
+      http: { method: GET, path: /pets }
+      mcp: true
+    run:
+      rest:
+        method: GET
+        endpoint: "{$config.api}/pets"
+        query:
+          limit: "{limit}"
+
+  pet.add:
+    group: pets
+    summary: Add a pet
+    description: The bounds below are stated once and enforced on the terminal, the HTTP route and the MCP tool.
+    input:
+      name:
+        type: string
+        description: What it answers to
+        minLength: 1
+        maxLength: 40
+      age:
+        type: integer
+        description: How old
+        minimum: 0
+        maximum: 30
+        cli: { short: -a, value: YEARS }
+      breed:
+        type: string
+        description: Which breed
+        enum: [beagle, corgi, mixed]
+        default: mixed
+        cli: { short: -b, value: BREED }
+    required: [name]
+    surfaces:
+      cli: { pattern: [pet, add, ":name"] }
+      http: { method: POST, path: /pets }
+      mcp: true
+    run:
+      rest:
+        method: POST
+        endpoint: "{$config.api}/pets"
+        body:
+          name: "{name}"
+          breed: "{breed}"
+          # Left out of the request entirely when nothing gave it a value.
+          age: { when: age, value: "{age}" }
+
+  release:
+    group: release
+    summary: The release commands
+    surfaces:
+      cli: { pattern: [release] }
+    run: noop
+
+  release.build:
+    group: release
+    summary: Build the application
+    input:
+      env:
+        type: string
+        description: Which environment
+        enum: [staging, production]
+        default: production
+        cli: { short: -e, value: ENV }
+      targets:
+        type: array
+        description: Build only these targets
+        items: { type: string, minLength: 1 }
+        default: []
+        cli: { flag: --target, short: -t, value: TARGET }
+    run:
+      exec:
+        command: ./scripts/build.sh
+        args:
+          - "{env}"
+          - { each: targets, value: "{$item}" }
+
+  release.deploy:
+    group: release
+    summary: Deploy the application
+    input:
+      env:
+        type: string
+        description: Which environment
+        enum: [staging, production]
+        default: production
+        cli: { short: -e, value: ENV }
+      force:
+        type: boolean
+        description: Deploy even when the checks disagree
+        default: false
+        cli: { short: -f }
+    run:
+      - exec:
+          command: ./scripts/build.sh
+          args: ["{env}"]
+      - exec:
+          command: ./scripts/deploy.sh
+          args:
+            - "{env}"
+            - "{$env.RELEASE_CHANNEL}"
+            - { when: force, value: "--force" }
+      - rest:
+          method: POST
+          endpoint: "{$config.hooks.deployed}"
+          body:
+            name: "released-{env}"
+            breed: mixed
+
+  release.ship:
+    group: release
+    summary: Build and deploy in one word
+    input:
+      env:
+        type: string
+        description: Which environment
+        enum: [staging, production]
+        default: production
+        cli: { short: -e, value: ENV }
+    run:
+      - internal:
+          command: release.build
+          input: { env: "{env}" }
+      - internal:
+          command: release.deploy
+          input: { env: "{env}" }

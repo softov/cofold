@@ -1,10 +1,10 @@
 # Roadmap and open questions
 
-What is built works: `npm run check` is green, and the four example programs run end to end. What follows is honest about the rest.
+What is built works: `npm run check` is green, and the five example programs run end to end. What follows is honest about the rest.
 
 ## Not built yet
 
-- **A `runtime` package: config and targets.** Finding the config file, not parsing it: `--config` over `$APP_CONFIG` over a project file over `$XDG_CONFIG_HOME`, each layer merging rather than replacing, and able to say which file a value came from. On top of it, targets: one program pointed at staging, production or a colleague's box, selected by a global so the capability graph resolves *after* the selection. Both are providers a program drops into `createRegistry()`, so there is no new concept to learn, only a boring resolution order that everybody implements slightly differently and slightly wrong. It is the next package and the one with the most reuse in it.
+- **Targets, on top of the configuration.** One program pointed at staging, production or a colleague's box, selected by a global so the capability graph resolves *after* the selection. The half underneath this is now built: [`softcli/config`](src/config) resolves `--config` over `$APP_CONFIG` over a project file over `$XDG_CONFIG_HOME`, each layer merging rather than replacing, and says which file a value came from. It is a provider a program drops into `createRegistry()` rather than a package, because finding a file is not worth one - and it takes the parser rather than shipping one, which is what keeps the dependency count at zero. Targets are the same shape and are the part still missing.
 
 - **Authentication, as a capability.** Where a token lives and how it is found: a flag, the environment, an OS keychain, a config file, an interactive login, scoped per target so production credentials are never sent to staging. Two things to keep straight. Authorization is *already built* - commands and providers declare `scopes`, the registry takes an `authorize` hook, and a command's scopes are unioned with those of every capability it needs and checked before any `resolve` runs. This entry is only about authentication, which needs no new mechanism either: `needs: ["auth"]` is a capability like any other. The keychain is the part that cannot be portable, which is the argument for a separate package: the core has zero dependencies and runs unmodified on Node, Bun and Deno, and a native secret store is where that stops being free. Worth being deliberate about, because a wrong config file is inconvenient and a wrong credential store is dangerous.
 
@@ -12,7 +12,9 @@ What is built works: `npm run check` is green, and the four example programs run
 
 - **Renaming the built-in commands.** `builtins` is a boolean and the patterns are fixed, so a program can have `completion` or nothing, and would inherit the same for `doctor`. It should be a map: keep the built-in but call it `check`, or `verify`, or nothing at all. Small, and better decided before a second built-in exists than after.
 
-- **`s2cli`: a CLI defined by a document.** Commands already arrive from two documents this library did not write, a remote manifest and an OpenAPI spec. A YAML or JSON file is the same seam a third time, and the third instance is what turns "commands are data" from a claim into a demonstrated property. The file declares actions the way an action is declared here, and gets validation, help, completion, `--json`, a generated reference, an HTTP surface and MCP tools without anybody writing a handler. See below for the design; build it as a fifth example first, the way `open-cli` proves the OpenAPI seam, and extract it once the executor interface has stopped moving.
+- **Extracting `s2cli` into a package.** The front end itself is built, as [`examples/s2cli`](examples/s2cli): a YAML or JSON document becomes actions, and gets validation, help, completion, `--json`, a generated reference, HTTP routes and MCP tools without anybody writing a handler. It stays an example until the executor interface has stopped moving, the way `open-cli` proves the OpenAPI seam without being a package. What would have to be decided first: whether third-party executors can be registered, and what a document is allowed to name if they can.
+
+- **An `object` field at a terminal.** `{ type: object, properties: { ... } }` is validated over HTTP and MCP, because those send objects, and cannot be typed at a command line at all: a schema of `type: object` has no text reading, so the string that arrived is refused by `check`. `coerce.json` is the shape of the answer - a coercer whose schema describes what *arrives* rather than what it becomes - but as something a field can ask for rather than only the raw form. Worth doing now that a document can write `{theme.mode}` and reach into one.
 
 - **A `serve` for MCP.** `softcli/mcp` stops at descriptors; a program still writes the six lines that hand them to an SDK. Deliberate for now, so nothing depends on an SDK version.
 
@@ -51,7 +53,7 @@ commands:
             - { when: force, value: "--force" }
       - rest:
           method: POST
-          endpoint: "{config.hooks.deployed}"
+          endpoint: "{$config.hooks.deployed}"
 ```
 
 `run` is a list, because a command is usually a batch. Its arguments belong to the step rather than the command, since each step has its own. A single step may be written unwrapped. Steps run in order and stop at the first failure, and an unknown executor is a registration error rather than a runtime surprise.
@@ -60,7 +62,7 @@ The executors worth having: `exec` for a process, `rest` for an HTTP call, `inte
 
 **Arguments are arrays, never a shell string,** unless the step says `shell: true`. Interpolating a value into a shell string is command injection the moment that value comes from anywhere but somebody's own keyboard.
 
-**No template language.** `{{#if force}}--force{{/if}}` means a dependency and an argument list that gets re-parsed. Since the input is already validated and typed, conditionals and repetition can be data: `{ when: force, value: "--force" }`, `{ each: tag, value: "--tag={}" }`. Uglier for one case, inspectable for all of them, and `--help` can show what will actually run.
+**No template language.** `{{#if force}}--force{{/if}}` means a dependency and an argument list that gets re-parsed. Since the input is already validated and typed, conditionals and repetition can be data: `{ when: force, value: "--force" }`, `{ each: tag, value: "--tag={$item}" }`. Uglier for one case, inspectable for all of them, and `--help` can show what will actually run. Interpolation is one rule with no exception: `$` means "not an input field", so `{env}` and `{theme.mode}` are the input, and `{$env.NAME}`, `{$config.theme.mode}` and `{$item}` are not.
 
 **A shell step must not become an agent tool by accident.** If MCP comes for free then a YAML file becomes a set of tools an agent can call, and `exec` is arbitrary shell: a remote code execution surface handed over by a config file. `mcp` being opt-in already prevents the worst of it, but this front end should go further and refuse to publish an `exec` step as an MCP tool or an HTTP route without an explicit per-command opt-in that is separate from `surfaces`. `rest` and `internal` steps can default the normal way.
 

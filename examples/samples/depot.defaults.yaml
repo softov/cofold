@@ -1,0 +1,6 @@
+# Imported by depot.yaml. Shared defaults, and nothing else.
+
+config:
+  api: http://127.0.0.1:8799
+  hooks:
+    deployed: http://127.0.0.1:8799/pets
