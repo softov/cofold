@@ -10,7 +10,7 @@ import { loadDocument, parseDocument } from "./load.js";
 import { createDocumentServer } from "./serve.js";
 
 /**
- * `s2cli` - a command line whose commands are written in YAML or JSON.
+ * `s2cmd` - a command line whose commands are written in YAML or JSON.
  *
  * Commands already arrive here from two documents this library did not author:
  * a remote manifest and an OpenAPI specification. A file on disk is the same
@@ -88,15 +88,15 @@ function attempt<T>(read: () => T): T {
   try {
     return read();
   } catch (error: unknown) {
-    process.stderr.write(`s2cli: ${error instanceof Error ? error.message : "the document could not be read"}\n`);
+    process.stderr.write(`s2cmd: ${error instanceof Error ? error.message : "the document could not be read"}\n`);
     process.exit(error instanceof FacioError ? error.exitCode : 3);
   }
 }
 
 async function build(argv: readonly string[]): Promise<Program> {
-  const path = readGlobal(argv, "--document") ?? process.env["S2CLI_DOCUMENT"];
+  const path = readGlobal(argv, "--document") ?? process.env["S2CMD_DOCUMENT"];
   if (path === undefined) {
-    process.stderr.write("s2cli: --document PATH is required (a YAML or JSON command document)\n");
+    process.stderr.write("s2cmd: --document PATH is required (a YAML or JSON command document)\n");
     process.exit(2);
   }
 
@@ -107,7 +107,7 @@ async function build(argv: readonly string[]): Promise<Program> {
    * than as the stack trace of a startup that had not reached `runEntry` yet.
    */
   const loaded = attempt(() => loadDocument(path));
-  const program = programOf(loaded.document, { name: "s2cli", version: VERSION });
+  const program = programOf(loaded.document, { name: "s2cmd", version: VERSION });
 
   /*
    * The document's own `config:` block is the bottom layer, and the files the
@@ -196,7 +196,7 @@ async function build(argv: readonly string[]): Promise<Program> {
     description: program.description ?? `${loaded.files.length} document(s), as a command line.`,
     registry,
     globals: [
-      { name: "--document", value: "PATH", description: "The command document", env: "S2CLI_DOCUMENT" },
+      { name: "--document", value: "PATH", description: "The command document", env: "S2CMD_DOCUMENT" },
       configGlobal,
     ],
   });

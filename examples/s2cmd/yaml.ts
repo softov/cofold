@@ -81,11 +81,11 @@ function scan(text: string): Line[] {
     if (trimmed === "") return;
 
     if (trimmed === "---") {
-      if (opened || lines.length > 0) throw new YamlError("s2cli reads one document per file", number);
+      if (opened || lines.length > 0) throw new YamlError("s2cmd reads one document per file", number);
       opened = true;
       return;
     }
-    if (trimmed === "...") throw new YamlError("s2cli reads one document per file", number);
+    if (trimmed === "...") throw new YamlError("s2cmd reads one document per file", number);
 
     const indent = stripped.length - stripped.trimStart().length;
     if (stripped.slice(0, indent).includes("\t")) {
@@ -183,7 +183,7 @@ function mapping(lines: Line[], at: number, indent: number): [Record<string, unk
       throw new YamlError(`"${line.text}" is not a mapping entry: a key is written "name: value"`, line.number);
     }
     const key = String(scalar(line.text.slice(0, colon).trim(), line.number));
-    if (key === "<<") throw new YamlError("s2cli does not read merge keys", line.number);
+    if (key === "<<") throw new YamlError("s2cmd does not read merge keys", line.number);
     if (Object.hasOwn(map, key)) throw new YamlError(`${key} is given twice`, line.number);
 
     const rest = line.text.slice(colon + 1).trim();
@@ -255,7 +255,7 @@ function scalar(text: string, line: number): unknown {
 
   for (const { start, what } of REFUSED) {
     if (text.startsWith(start)) {
-      throw new YamlError(`s2cli does not read ${what}; quote the value if it is text`, line);
+      throw new YamlError(`s2cmd does not read ${what}; quote the value if it is text`, line);
     }
   }
 
@@ -381,7 +381,7 @@ function quotedFrom(reader: Reader): string {
         reader.at += 4;
         continue;
       }
-      throw new YamlError(`\\${escape ?? ""} is not an escape s2cli reads`, reader.line);
+      throw new YamlError(`\\${escape ?? ""} is not an escape s2cmd reads`, reader.line);
     }
 
     out += char;

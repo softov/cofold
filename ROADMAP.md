@@ -12,7 +12,7 @@ What is built works: `npm run check` is green, and the five example programs run
 
 - **Renaming the built-in commands.** `builtins` is a boolean and the patterns are fixed, so a program can have `completion` or nothing, and would inherit the same for `doctor`. It should be a map: keep the built-in but call it `check`, or `verify`, or nothing at all. Small, and better decided before a second built-in exists than after.
 
-- **Extracting `s2cli` into a package.** The front end itself is built, as [`examples/s2cli`](examples/s2cli): a YAML or JSON document becomes actions, and gets validation, help, completion, `--json`, a generated reference, HTTP routes and MCP tools without anybody writing a handler. It stays an example until the executor interface has stopped moving, the way `open-cli` proves the OpenAPI seam without being a package. What would have to be decided first: whether third-party executors can be registered, and what a document is allowed to name if they can.
+- **Extracting `s2cmd` into a package.** The front end itself is built, as [`examples/s2cmd`](examples/s2cmd): a YAML or JSON document becomes actions, and gets validation, help, completion, `--json`, a generated reference, HTTP routes and MCP tools without anybody writing a handler. It stays an example until the executor interface has stopped moving, the way `open-cli` proves the OpenAPI seam without being a package. What would have to be decided first: whether third-party executors can be registered, and what a document is allowed to name if they can.
 
 - **An `object` field at a terminal.** `{ type: object, properties: { ... } }` is validated over HTTP and MCP, because those send objects, and cannot be typed at a command line at all: a schema of `type: object` has no text reading, so the string that arrived is refused by `check`. `coerce.json` is the shape of the answer - a coercer whose schema describes what *arrives* rather than what it becomes - but as something a field can ask for rather than only the raw form. Worth doing now that a document can write `{theme.mode}` and reach into one.
 
@@ -26,7 +26,7 @@ What is built works: `npm run check` is green, and the five example programs run
 
 - **i18n.** Not planned. Say so rather than half-doing it.
 
-## s2cli, in more detail
+## s2cmd, in more detail
 
 Everything a document-defined command needs already exists except one thing: `run`. Today `run` is a function, and remote commands get around it with one generic handler plus a `transport` capability. A document has to state execution as data, which means named executors and a step list:
 

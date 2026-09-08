@@ -301,12 +301,12 @@ Nobody writes a handler. The document states the schemas, the surfaces and the s
 # the pet commands in the document call this
 node examples/dist/petshop/cli.js serve --port 8799 &
 
-node examples/dist/s2cli/cli.js --document examples/samples/depot.yaml pet list
-node examples/dist/s2cli/cli.js --document examples/samples/depot.yaml release deploy -e staging --force
+node examples/dist/s2cmd/cli.js --document examples/samples/depot.yaml pet list
+node examples/dist/s2cmd/cli.js --document examples/samples/depot.yaml release deploy -e staging --force
 
 # the same file, as MCP tools and as an HTTP API of its own
-node examples/dist/s2cli/cli.js --document examples/samples/depot.yaml mcp tools
-node examples/dist/s2cli/cli.js --document examples/samples/depot.yaml serve --port 8801 &
+node examples/dist/s2cmd/cli.js --document examples/samples/depot.yaml mcp tools
+node examples/dist/s2cmd/cli.js --document examples/samples/depot.yaml serve --port 8801 &
 
 curl -X POST localhost:8801/pets -d '{"name":"Ada","age":99}'
 ```
@@ -321,7 +321,7 @@ The repository includes five working examples:
 | [`kitchen-sink`](examples/kitchen-sink) | The local CLI feature set                            |
 | [`clerver`](examples/clerver)           | Commands discovered from a remote server             |
 | [`open-cli`](examples/open-cli)         | Building a CLI from an existing OpenAPI document     |
-| [`s2cli`](examples/s2cli)               | Commands declared in a YAML or JSON document         |
+| [`s2cmd`](examples/s2cmd)               | Commands declared in a YAML or JSON document         |
 
 ## Commands from a document
 
@@ -331,7 +331,7 @@ Commands already arrive here from two documents this library did not write: a re
 document -> ActionDefinition -> registry -> CLI / HTTP / MCP
 ```
 
-[`examples/s2cli`](examples/s2cli) is that front end. The author of the document gets validation, help, completion, `--json`, a generated reference, HTTP routes and MCP tools without implementing any of those surfaces, and without writing a handler.
+[`examples/s2cmd`](examples/s2cmd) is that front end. The author of the document gets validation, help, completion, `--json`, a generated reference, HTTP routes and MCP tools without implementing any of those surfaces, and without writing a handler.
 
 Everything a document-defined command needs already exists except one thing. `run` is a function, and a file cannot hold one, so execution is stated as data: named executors and an ordered list of steps.
 
@@ -388,7 +388,7 @@ Separate from `surfaces`, refused loudly rather than dropped quietly, and it tra
 
 **`imports:` and `env:`.** A document may compose others and load environment files, both taking a bare path or `{ path: ..., optional: true }` for a file that may not be there. Later wins, and the importing document wins over everything it imported.
 
-**YAML, without a dependency.** `facio` has none and a command document is not worth one, so [`yaml.ts`](examples/s2cli/yaml.ts) reads the subset a document is written in and *refuses* the rest by name - anchors, aliases, tags, block scalars, merge keys, multiple documents. A hand-written YAML parser is a liability exactly to the extent that it accepts a document and reads it differently from a real one, and refusing is how that is bounded. Nothing downstream reads YAML: the reader takes parsed data, so a full parser is a one-line substitution for anybody who wants one.
+**YAML, without a dependency.** `facio` has none and a command document is not worth one, so [`yaml.ts`](examples/s2cmd/yaml.ts) reads the subset a document is written in and *refuses* the rest by name - anchors, aliases, tags, block scalars, merge keys, multiple documents. A hand-written YAML parser is a liability exactly to the extent that it accepts a document and reads it differently from a real one, and refusing is how that is bounded. Nothing downstream reads YAML: the reader takes parsed data, so a full parser is a one-line substitution for anybody who wants one.
 
 ## Documentation
 

@@ -230,7 +230,7 @@ describe("rest", () => {
             method: "POST",
             endpoint: "{$config.api}/pets",
             headers: { "x-trace": "{trace}" },
-            query: { source: "s2cli" },
+            query: { source: "s2cmd" },
             body: { name: "{name}", age: { when: "age", value: "{age}" } },
           },
         },
@@ -245,7 +245,7 @@ describe("rest", () => {
 
     expect(result?.data).toEqual({ ok: true });
     expect(seen[0]?.method).toBe("POST");
-    expect(seen[0]?.url).toBe("http://127.0.0.1:9/api/pets?source=s2cli");
+    expect(seen[0]?.url).toBe("http://127.0.0.1:9/api/pets?source=s2cmd");
     expect(JSON.parse(seen[0]!.body!)).toEqual({ name: "Ada", age: 4 });
     expect(seen[0]?.headers.get("x-trace")).toBe("on");
   });

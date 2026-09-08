@@ -10,7 +10,7 @@
 # repository already ships, so the whole document runs end to end:
 #
 #   node examples/dist/petshop/cli.js serve --port 8799 &
-#   node examples/dist/s2cli/cli.js --document examples/samples/depot.yaml pet list
+#   node examples/dist/s2cmd/cli.js --document examples/samples/depot.yaml pet list
 
 name: depot
 version: 1.0.0

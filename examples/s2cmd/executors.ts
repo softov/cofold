@@ -20,7 +20,7 @@ import {
 /**
  * Named execution, because a document cannot hold a function.
  *
- * This is the one thing `s2cli` adds to the model. Everything else a document
+ * This is the one thing `s2cmd` adds to the model. Everything else a document
  * declares - the input schemas, the surfaces, the summary - already exists;
  * `run` is where an action holds a closure, and a YAML file has to state that
  * as data instead. So execution is a *named* executor and an ordered list of

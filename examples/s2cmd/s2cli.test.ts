@@ -1,7 +1,7 @@
 /**
  * One YAML file, three surfaces, one rulebook.
  *
- * The claim `s2cli` exists to prove: a document this library did not author
+ * The claim `s2cmd` exists to prove: a document this library did not author
  * becomes actions, and everything downstream - the terminal, an HTTP route, an
  * MCP tool - is a rendering of that one declaration. The point is not that any
  * one of them validates, but that none of them can be made to disagree, exactly
