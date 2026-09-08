@@ -1,4 +1,4 @@
-import { ArgumentError } from "softcli";
+import { ArgumentError } from "facio";
 
 /**
  * What a document may put where a value goes, and how little that is.

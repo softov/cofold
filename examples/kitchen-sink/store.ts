@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { ConfigurationError } from "softcli";
+import { ConfigurationError } from "facio";
 
 /** A toy store, so the example is about the framework and not about a database. */
 
@@ -24,7 +24,7 @@ export interface Store {
 }
 
 export function defaultStorePath(): string {
-  return process.env["NOTES_STORE"] ?? join(homedir(), ".softcli", "notes.json");
+  return process.env["NOTES_STORE"] ?? join(homedir(), ".facio", "notes.json");
 }
 
 export function readNotes(path: string): Note[] {

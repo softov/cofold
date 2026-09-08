@@ -1,15 +1,15 @@
 # Getting started
 
 ```sh
-npm add softcli
+npm add facio
 ```
 
 ## A program
 
 ```ts
 #!/usr/bin/env node
-import { createRegistry, output } from "softcli";
-import { Program, runEntry } from "softcli/cli";
+import { createRegistry, output } from "facio";
+import { Program, runEntry } from "facio/cli";
 
 const registry = createRegistry();
 

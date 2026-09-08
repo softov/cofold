@@ -1,5 +1,5 @@
 /**
- * softcli/core - a command is data.
+ * facio/core - a command is data.
  *
  * Nothing in this package knows what a terminal is. It holds the declaration
  * (`command.ts`), the capabilities a command declares it needs (`registry.ts`),
@@ -55,7 +55,7 @@ export {
   ArgumentError,
   AuthorizationError,
   ConfigurationError,
-  SoftcliError,
+  FacioError,
   UnavailableError,
   exitCodeFor,
 } from "./core/errors.js";

@@ -198,7 +198,7 @@ export function assertSupported(schema: JsonSchema, where: string): void {
   const held = schema as Record<string, unknown>;
   for (const keyword of UNSUPPORTED) {
     if (held[keyword] !== undefined) {
-      throw new Error(`${where} uses ${keyword}, which softcli does not enforce and will not advertise`);
+      throw new Error(`${where} uses ${keyword}, which facio does not enforce and will not advertise`);
     }
   }
   if (schema.items !== undefined) assertSupported(schema.items, `${where}[]`);

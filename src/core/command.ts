@@ -108,7 +108,7 @@ export interface SurfaceFlags {
  * What an adapter attaches to a command that the core does not read.
  *
  * Empty here on purpose, and widened by whichever surface owns the key -
- * `softcli/remote` adds `http`. So the binding is checked at the declaration
+ * `facio/remote` adds `http`. So the binding is checked at the declaration
  * without the core learning a protocol, and a program that never imports a
  * surface is never offered its key.
  */
@@ -202,7 +202,7 @@ export type Field = JsonSchema & {
  * no pattern, which is what an MCP-only tool wants and could not say while
  * `pattern` was required of everything.
  *
- * Widened by whichever surface owns the key - `softcli/remote` adds `http` -
+ * Widened by whichever surface owns the key - `facio/remote` adds `http` -
  * so a protocol is declared where it is written without the core learning one.
  */
 export interface Surfaces {

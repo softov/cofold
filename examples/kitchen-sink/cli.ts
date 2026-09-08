@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
-import { coerce, createRegistry, output } from "softcli";
-import { globalOptions, Program, renderTable, runEntry } from "softcli/cli";
-import { agentSkill, reference } from "softcli/docs";
-import { listTools } from "softcli/mcp";
+import { coerce, createRegistry, output } from "facio";
+import { globalOptions, Program, renderTable, runEntry } from "facio/cli";
+import { agentSkill, reference } from "facio/docs";
+import { listTools } from "facio/mcp";
 import {
   defaultStorePath,
   nextId,
@@ -110,7 +110,7 @@ const add = registry.command({
     { name: "--status", value: "STATUS", description: "Where it starts", coerce: status, default: "open" },
   ],
   examples: [
-    { command: `notes note add "Ship softcli" -t work`, description: "A note with a tag" },
+    { command: `notes note add "Ship facio" -t work`, description: "A note with a tag" },
     { command: `git log -1 --format=%B | notes note add "Release"`, description: "The body from a pipe" },
   ],
   run: (context) => {
@@ -205,7 +205,7 @@ const docs = registry.command({
   run: () => output(reference(registry, {
     name: "notes",
     version: VERSION,
-    description: "A small note-taking CLI, built on softcli.",
+    description: "A small note-taking CLI, built on facio.",
     globals: globalOptions,
   })),
 });
@@ -236,7 +236,7 @@ registry.register(list, show, add, edit, remove, tags, where, docs, skill, toolL
 export const program = new Program({
   name: "notes",
   version: VERSION,
-  description: "A small note-taking CLI: the softcli playground.",
+  description: "A small note-taking CLI: the facio playground.",
   registry,
   globals: [
     { name: "--store", value: "PATH", description: "The notes file", env: "NOTES_STORE" },

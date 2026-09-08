@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { ConfigurationError } from "softcli";
+import { ConfigurationError } from "facio";
 import { parseYaml } from "./yaml.js";
 
 /**

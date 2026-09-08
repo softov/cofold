@@ -7,7 +7,7 @@ If a command is data, a command can arrive from somewhere else. That is the prop
 A service describes its own registry:
 
 ```ts
-import { manifestFrom } from "softcli/remote";
+import { manifestFrom } from "facio/remote";
 
 // GET /cli-manifest
 send(manifestFrom(registry, { name: "clerver", version: "0.1.0" }));
@@ -28,7 +28,7 @@ http: { method: "POST", path: "/pets", body: ["name", "species", "age"] }
 http: { method: "GET", path: "/pets", query: ["species", "limit"] }
 ```
 
-`surfaces.http` is `softcli/remote`'s own key, added to `Surfaces` by declaration merging: the binding is typed where it is written and the core still knows no protocol. `softcli/remote` reads it from **both** ends - the server routes with it, the client builds requests with it. Actions with no binding are simply not published: a local `doctor` command is nobody else's business.
+`surfaces.http` is `facio/remote`'s own key, added to `Surfaces` by declaration merging: the binding is typed where it is written and the core still knows no protocol. `facio/remote` reads it from **both** ends - the server routes with it, the client builds requests with it. Actions with no binding are simply not published: a local `doctor` command is nobody else's business.
 
 The rules are the same rules. A request is validated against the same schemas the terminal parses against, so `{"age": -5}` is refused with `400` for the reason `--age -5` is refused at a prompt. What differs is only the name in the message: a client that sent an object is told `age`, not `--age`, because it has no flag to correct.
 

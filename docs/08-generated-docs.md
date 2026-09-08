@@ -1,7 +1,7 @@
 # Generated documentation
 
 ```ts
-import { reference, agentSkill } from "softcli/docs";
+import { reference, agentSkill } from "facio/docs";
 
 reference(registry, { name: "notes", version, description, globals: globalOptions });
 agentSkill(registry, { name: "notes", description: "Read and write the notes on this machine." });

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
-import { createRegistry, output, SoftcliError, type Command, type Registry } from "softcli";
-import { Program, renderTable, runEntry } from "softcli/cli";
-import { configGlobal, resolveConfig, type ResolvedConfig } from "softcli/config";
-import { reference } from "softcli/docs";
-import { listTools } from "softcli/mcp";
+import { createRegistry, output, FacioError, type Command, type Registry } from "facio";
+import { Program, renderTable, runEntry } from "facio/cli";
+import { configGlobal, resolveConfig, type ResolvedConfig } from "facio/config";
+import { reference } from "facio/docs";
+import { listTools } from "facio/mcp";
 import { commandsFromDocument, configOf, programOf } from "./document.js";
 import { loadDocument, parseDocument } from "./load.js";
 import { createDocumentServer } from "./serve.js";
@@ -89,7 +89,7 @@ function attempt<T>(read: () => T): T {
     return read();
   } catch (error: unknown) {
     process.stderr.write(`s2cli: ${error instanceof Error ? error.message : "the document could not be read"}\n`);
-    process.exit(error instanceof SoftcliError ? error.exitCode : 3);
+    process.exit(error instanceof FacioError ? error.exitCode : 3);
   }
 }
 

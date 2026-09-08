@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
-import { canonicalFromObject, type Runner } from "softcli";
-import { manifestFrom, type ProgramManifest } from "softcli/remote";
+import { canonicalFromObject, type Runner } from "facio";
+import { manifestFrom, type ProgramManifest } from "facio/remote";
 
 /**
  * The registry, answered over HTTP.

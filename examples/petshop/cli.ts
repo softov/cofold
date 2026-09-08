@@ -10,11 +10,11 @@
  */
 
 import { createServer } from "node:http";
-import { createRegistry, output, ArgumentError } from "softcli";
-import { Program, renderTable, runEntry } from "softcli/cli";
-import { listTools } from "softcli/mcp";
-import { canonicalFromObject } from "softcli";
-import { manifestFrom } from "softcli/remote";
+import { createRegistry, output, ArgumentError } from "facio";
+import { Program, renderTable, runEntry } from "facio/cli";
+import { listTools } from "facio/mcp";
+import { canonicalFromObject } from "facio";
+import { manifestFrom } from "facio/remote";
 
 export interface Pet {
   id: string;

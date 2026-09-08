@@ -2,12 +2,12 @@ import { spawn } from "node:child_process";
 import {
   canonicalFromObject,
   compact,
-  SoftcliError,
+  FacioError,
   ConfigurationError,
   type Runner,
   type Surface,
-} from "softcli";
-import { httpTransport, type HttpBinding } from "softcli/remote";
+} from "facio";
+import { httpTransport, type HttpBinding } from "facio/remote";
 import {
   checkArgument,
   resolveEntry,
@@ -253,7 +253,7 @@ interface ExecStep {
 }
 
 /** A step whose process answered with something other than success. */
-export class StepError extends SoftcliError {
+export class StepError extends FacioError {
   public readonly code: number | null;
 
   public constructor(message: string, code: number | null) {

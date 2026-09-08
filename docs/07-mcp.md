@@ -1,7 +1,7 @@
 # MCP
 
 ```ts
-import { listTools, callTool, tools } from "softcli/mcp";
+import { listTools, callTool, tools } from "facio/mcp";
 
 listTools(registry);              // { tools: [{ name, description, inputSchema }] }
 await callTool(registry, "note_list", { limit: 5 });

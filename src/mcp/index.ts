@@ -9,7 +9,7 @@ import {
 } from "../index.js";
 
 /**
- * softcli/mcp - the same registry, read by an agent.
+ * facio/mcp - the same registry, read by an agent.
  *
  * This package is small on purpose, and its size is the argument for the whole
  * library: a tool is a name, a description, and an input schema, and a command

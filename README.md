@@ -1,16 +1,16 @@
-# softcli
+# facio
 
 **Declare a command once. Run it anywhere.**
 
-[![npm](https://img.shields.io/npm/v/softcli.svg)](https://www.npmjs.com/package/softcli)
-[![node](https://img.shields.io/node/v/softcli.svg)](https://www.npmjs.com/package/softcli)
-[![types](https://img.shields.io/npm/types/softcli.svg)](https://www.npmjs.com/package/softcli)
+[![npm](https://img.shields.io/npm/v/facio.svg)](https://www.npmjs.com/package/facio)
+[![node](https://img.shields.io/node/v/facio.svg)](https://www.npmjs.com/package/facio)
+[![types](https://img.shields.io/npm/types/facio.svg)](https://www.npmjs.com/package/facio)
 [![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#entry-points)
-[![license](https://img.shields.io/npm/l/softcli.svg)](LICENSE)
+[![license](https://img.shields.io/npm/l/facio.svg)](LICENSE)
 
 ## What it is
 
-`softcli` is a TypeScript command framework where commands are reusable definitions rather than CLI-only handlers. 
+`facio` is a TypeScript command framework where commands are reusable definitions rather than CLI-only handlers. 
 
 The same declaration can be exposed through CLI, HTTP endpoint, an MCP tool, generated documentation, shell completion, an agent-facing skill, or other adapters without redefining its inputs and behavior.
 
@@ -105,7 +105,7 @@ flowchart TD
   cli --> completion["completion"]
 ```
 
-The action remains a plain object. The different parts of `softcli` decide how to expose it.
+The action remains a plain object. The different parts of `facio` decide how to expose it.
 
 ## One schema
 
@@ -139,7 +139,7 @@ There is only one copy of the rules to keep correct.
 
 ## One action, several surfaces
 
-From the declaration above, `softcli` can provide:
+From the declaration above, `facio` can provide:
 
 | Surface                          | Result                                       |
 | -------------------------------- | -------------------------------------------- |
@@ -224,20 +224,20 @@ This keeps actions declarative without turning the registry into a global bag of
 
 ## Entry points
 
-`softcli` is one package with focused subpath exports.
+`facio` is one package with focused subpath exports.
 
 | Import                         | Purpose                                                          |
 | ------------------------------ | ---------------------------------------------------------------- |
-| [`softcli`](src/core)          | Actions, schemas, capabilities, registry. No terminal knowledge. |
-| [`softcli/cli`](src/cli)       | argv parsing, help, completion, output contracts and exit codes  |
-| [`softcli/mcp`](src/mcp)       | Expose actions as MCP tools without an MCP SDK dependency        |
-| [`softcli/docs`](src/docs)     | Generate Markdown references for people and agents               |
-| [`softcli/remote`](src/remote) | Materialise commands from remote manifests or OpenAPI            |
-| [`softcli/config`](src/config) | Find the configuration file, and say which one a value came from |
+| [`facio`](src/core)          | Actions, schemas, capabilities, registry. No terminal knowledge. |
+| [`facio/cli`](src/cli)       | argv parsing, help, completion, output contracts and exit codes  |
+| [`facio/mcp`](src/mcp)       | Expose actions as MCP tools without an MCP SDK dependency        |
+| [`facio/docs`](src/docs)     | Generate Markdown references for people and agents               |
+| [`facio/remote`](src/remote) | Materialise commands from remote manifests or OpenAPI            |
+| [`facio/config`](src/config) | Find the configuration file, and say which one a value came from |
 
 There are **zero runtime dependencies**.
 
-Validation is optional and uses [Standard Schema](https://standardschema.dev), so libraries such as Zod, Valibot and ArkType can be used without `softcli` depending on any of them.
+Validation is optional and uses [Standard Schema](https://standardschema.dev), so libraries such as Zod, Valibot and ArkType can be used without `facio` depending on any of them.
 
 ## Try it
 
@@ -264,7 +264,7 @@ curl -X POST localhost:8799/pets \
 ### A local CLI
 
 ```sh
-node examples/dist/kitchen-sink/cli.js note add "Ship softcli" -t work
+node examples/dist/kitchen-sink/cli.js note add "Ship facio" -t work
 node examples/dist/kitchen-sink/cli.js note list
 
 # generate the agent-facing reference
@@ -282,7 +282,7 @@ node examples/dist/clerver/cli.js pet add Rex --species dog --age 3
 
 ### Turn an OpenAPI document into a CLI
 
-The API does not need to know that `softcli` exists.
+The API does not need to know that `facio` exists.
 
 ```sh
 # any server that answers the document. clerver happens to be one
@@ -376,7 +376,7 @@ Steps run in order and stop at the first failure. A single step may be written u
 
 **Arguments are arrays, never a shell string.** Interpolating a value into a shell string is command injection the moment that value comes from anywhere but the author's own keyboard, and here it comes from whoever typed the command. `args` is a list and reaches the process as one, so `;` and `$(...)` in a value arrive as literal text. `shell: true` is how to ask for the other behaviour, and asking is the point.
 
-**No template language.** `{{#if force}}--force{{/if}}` means a dependency and an argument list that gets re-parsed. The input is already validated and typed, so the two things a template is used for are data instead: `{ when: force, value: "--force" }` drops a value, `{ each: tags, value: "--tag={$item}" }` repeats one. Interpolation is one rule with no exception: `$` means "not an input field". Everything without it is the input, all the way down, so `{env}` is the field a deploy command always has and `{theme.mode}` reaches into a structured one. `{$env.NAME}` is the environment, `{$config.theme.mode}` is the configuration that [`softcli/config`](src/config) resolved, and `{$item}` is the value of the surrounding `each`.
+**No template language.** `{{#if force}}--force{{/if}}` means a dependency and an argument list that gets re-parsed. The input is already validated and typed, so the two things a template is used for are data instead: `{ when: force, value: "--force" }` drops a value, `{ each: tags, value: "--tag={$item}" }` repeats one. Interpolation is one rule with no exception: `$` means "not an input field". Everything without it is the input, all the way down, so `{env}` is the field a deploy command always has and `{theme.mode}` reaches into a structured one. `{$env.NAME}` is the environment, `{$config.theme.mode}` is the configuration that [`facio/config`](src/config) resolved, and `{$item}` is the value of the surrounding `each`.
 
 **A shell step does not become an agent tool by accident.** If MCP came for free, a YAML file would be a set of tools an agent can call and `exec` is arbitrary shell. `surfaces.mcp` being off by default already prevents the worst of it; this front end goes further and refuses to publish a command holding an `exec` step as an MCP tool or an HTTP route unless that command says so:
 
@@ -388,7 +388,7 @@ Separate from `surfaces`, refused loudly rather than dropped quietly, and it tra
 
 **`imports:` and `env:`.** A document may compose others and load environment files, both taking a bare path or `{ path: ..., optional: true }` for a file that may not be there. Later wins, and the importing document wins over everything it imported.
 
-**YAML, without a dependency.** `softcli` has none and a command document is not worth one, so [`yaml.ts`](examples/s2cli/yaml.ts) reads the subset a document is written in and *refuses* the rest by name - anchors, aliases, tags, block scalars, merge keys, multiple documents. A hand-written YAML parser is a liability exactly to the extent that it accepts a document and reads it differently from a real one, and refusing is how that is bounded. Nothing downstream reads YAML: the reader takes parsed data, so a full parser is a one-line substitution for anybody who wants one.
+**YAML, without a dependency.** `facio` has none and a command document is not worth one, so [`yaml.ts`](examples/s2cli/yaml.ts) reads the subset a document is written in and *refuses* the rest by name - anchors, aliases, tags, block scalars, merge keys, multiple documents. A hand-written YAML parser is a liability exactly to the extent that it accepts a document and reads it differently from a real one, and refusing is how that is bounded. Nothing downstream reads YAML: the reader takes parsed data, so a full parser is a one-line substitution for anybody who wants one.
 
 ## Documentation
 
@@ -439,7 +439,7 @@ Declared per surface, that agreement is written several times and maintained sev
 
 The callers are no longer only people. An agent has to be told what a command accepts, as a schema, before it can call anything. The information that `.action(handler)` throws away is exactly the information the agent era needs kept.
 
-`softcli` keeps that information alive.
+`facio` keeps that information alive.
 
 ```ts
 const action = {
@@ -458,7 +458,7 @@ So is MCP.
 
 The cost is one constraint on handlers: a handler receives a canonical input object and returns a value, rather than reading `process.argv` and printing. That is the whole discipline, and everything else follows from it, because a handler that never touches the terminal can be run by something that is not a terminal.
 
-[`softcli/mcp`](src/mcp) is the test of that. A complete MCP surface, JSON Schema generation included, in 155 lines with no dependencies. It is that small because it had nothing to invent: the actions already knew.
+[`facio/mcp`](src/mcp) is the test of that. A complete MCP surface, JSON Schema generation included, in 155 lines with no dependencies. It is that small because it had nothing to invent: the actions already knew.
 
 **The command is the data. The interfaces are adapters.**
 

@@ -1,4 +1,4 @@
-import { coerce, createRegistry, output } from "softcli";
+import { coerce, createRegistry, output } from "facio";
 
 /**
  * One registry, two programs.
@@ -9,7 +9,7 @@ import { coerce, createRegistry, output } from "softcli";
  * property that makes this possible at all.
  *
  * `meta.http` is the one extra fact: how a command becomes a request. The core
- * ignores it; `softcli/remote` reads it from both ends.
+ * ignores it; `facio/remote` reads it from both ends.
  */
 
 export interface Pet {

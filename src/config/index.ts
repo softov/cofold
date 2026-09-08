@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { ConfigurationError, type CommandContext, type OptionSpec } from "../index.js";
 
 /**
- * softcli/config - finding the configuration, not parsing it.
+ * facio/config - finding the configuration, not parsing it.
  *
  * The boring resolution order everybody implements slightly differently and
  * slightly wrong: an explicit path over an environment variable over a project
@@ -16,7 +16,7 @@ import { ConfigurationError, type CommandContext, type OptionSpec } from "../ind
  * Reading a file is not parsing one. `parse` is injected and defaults to JSON,
  * which every runtime already has, so this package stays at zero dependencies
  * and a program that wants YAML or TOML brings its own reader. That is the same
- * seam `softcli/remote` uses for a manifest: the shape is ours, the syntax is
+ * seam `facio/remote` uses for a manifest: the shape is ours, the syntax is
  * somebody else's problem.
  */
 

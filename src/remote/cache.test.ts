@@ -18,7 +18,7 @@ const URL = "http://service.test/cli-manifest";
 
 function manifestOf(summary: string): ProgramManifest {
   return {
-    softcli: MANIFEST_VERSION,
+    facio: MANIFEST_VERSION,
     program: { name: "clerver", version: "0.1.0" },
     commands: [{
       id: "pet.list",
@@ -49,7 +49,7 @@ const warnings: string[] = [];
 const warn = (message: string): void => { warnings.push(message); };
 
 beforeEach(async () => {
-  directory = await mkdtemp(join(tmpdir(), "softcli-cache-"));
+  directory = await mkdtemp(join(tmpdir(), "facio-cache-"));
   warnings.length = 0;
 });
 
@@ -69,7 +69,7 @@ describe("the first time", () => {
 
   it("refuses a manifest it cannot read, rather than half a surface", async () => {
     const { fetch } = server({
-      softcli: MANIFEST_VERSION + 1,
+      facio: MANIFEST_VERSION + 1,
       program: { name: "x", version: "1" },
       commands: [],
     });

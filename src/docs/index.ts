@@ -16,7 +16,7 @@ import {
 } from "../index.js";
 
 /**
- * softcli/docs - the registry, written down.
+ * facio/docs - the registry, written down.
  *
  * Two readings, and the difference between them is the point. The reference is
  * for a person and lists everything. The skill is for an agent and lists only

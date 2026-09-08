@@ -10,9 +10,9 @@
 
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { canonicalFromCli, canonicalFromObject } from "softcli";
-import { listTools } from "softcli/mcp";
-import { manifestFrom } from "softcli/remote";
+import { canonicalFromCli, canonicalFromObject } from "facio";
+import { listTools } from "facio/mcp";
+import { manifestFrom } from "facio/remote";
 import { registryFor } from "./cli.js";
 import { loadDocument, parseEnvFile } from "./load.js";
 

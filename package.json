@@ -1,5 +1,5 @@
 {
-  "name": "softcli",
+  "name": "facio",
   "version": "0.1.0",
   "type": "module",
   "description": "One command declaration, many surfaces: CLI, MCP, docs, completion.",
@@ -7,10 +7,10 @@
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/softov/softcli.git"
+    "url": "git+https://github.com/softov/facio.git"
   },
-  "homepage": "https://github.com/softov/softcli#readme",
-  "bugs": "https://github.com/softov/softcli/issues",
+  "homepage": "https://github.com/softov/facio#readme",
+  "bugs": "https://github.com/softov/facio/issues",
   "keywords": [
     "cli",
     "command-line",

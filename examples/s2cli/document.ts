@@ -11,8 +11,8 @@ import {
   type JsonSchema,
   type Output,
   type Surfaces,
-} from "softcli";
-import type { HttpBinding } from "softcli/remote";
+} from "facio";
+import type { HttpBinding } from "facio/remote";
 import { defaultExecutors, type Executor, type ExecutorOptions, type StepResult } from "./executors.js";
 import type { Scope } from "./values.js";
 

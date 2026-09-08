@@ -18,7 +18,7 @@ import {
   type Io,
   type Output,
 } from "./context.js";
-import { ArgumentError, AuthorizationError, SoftcliError } from "./errors.js";
+import { ArgumentError, AuthorizationError, FacioError } from "./errors.js";
 
 /**
  * Capabilities, and the registry that resolves them.
@@ -436,4 +436,4 @@ export function validateCommand(command: Command, groups?: readonly CommandGroup
   }
 }
 
-export { ArgumentError, SoftcliError };
+export { ArgumentError, FacioError };

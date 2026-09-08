@@ -1,5 +1,5 @@
 import { stderr } from "node:process";
-import { exitCodeFor, SoftcliError } from "../index.js";
+import { exitCodeFor, FacioError } from "../index.js";
 import type { Program } from "./program.js";
 
 /**
@@ -44,9 +44,9 @@ export async function runEntry(
     process.exitCode = await program.run(argv);
   } catch (error: unknown) {
     options.onError?.(error);
-    const expected = error instanceof SoftcliError;
+    const expected = error instanceof FacioError;
     const raw = expected
-      ? (error as SoftcliError).message
+      ? (error as FacioError).message
       : `${error instanceof Error ? error.message : "Unexpected failure"}`;
     let secrets: readonly (string | undefined)[] = [];
     try {

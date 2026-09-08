@@ -24,7 +24,7 @@ const EXIT_CODES: Record<FaultKind, number> = {
   internal: 1,
 };
 
-export class SoftcliError extends Error {
+export class FacioError extends Error {
   public readonly kind: FaultKind;
   /**
    * Whether the message can be shown to whoever ran the command.
@@ -47,14 +47,14 @@ export class SoftcliError extends Error {
 }
 
 /** Something about the words typed. Never about the state of the machine. */
-export class ArgumentError extends SoftcliError {
+export class ArgumentError extends FacioError {
   public constructor(message: string) {
     super("argument", message);
   }
 }
 
 /** The program is not configured, or is configured wrongly. */
-export class ConfigurationError extends SoftcliError {
+export class ConfigurationError extends FacioError {
   public constructor(message: string) {
     super("configuration", message);
   }
@@ -66,7 +66,7 @@ export class ConfigurationError extends SoftcliError {
  * The scopes are on the error rather than in the message so a caller that is
  * not a terminal - an MCP client, a test - can act on them.
  */
-export class AuthorizationError extends SoftcliError {
+export class AuthorizationError extends FacioError {
   public readonly missing: readonly string[];
 
   public constructor(message: string, missing: readonly string[] = []) {
@@ -75,12 +75,12 @@ export class AuthorizationError extends SoftcliError {
   }
 }
 
-export class UnavailableError extends SoftcliError {
+export class UnavailableError extends FacioError {
   public constructor(message: string, options?: { cause?: unknown }) {
     super("unavailable", message, options);
   }
 }
 
 export function exitCodeFor(error: unknown): number {
-  return error instanceof SoftcliError ? error.exitCode : 1;
+  return error instanceof FacioError ? error.exitCode : 1;
 }

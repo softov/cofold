@@ -1,4 +1,4 @@
-import { compact, UnavailableError, SoftcliError } from "../index.js";
+import { compact, UnavailableError, FacioError } from "../index.js";
 import { bodyFields, expandPath, placementOf, type HttpBinding, type Transport } from "./manifest.js";
 
 /**
@@ -20,7 +20,7 @@ export interface HttpTransportOptions {
   onRequest?(request: { method: string; url: string }): void;
 }
 
-export class HttpError extends SoftcliError {
+export class HttpError extends FacioError {
   public readonly status: number;
 
   public constructor(status: number, message: string) {

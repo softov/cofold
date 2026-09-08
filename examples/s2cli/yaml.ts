@@ -1,7 +1,7 @@
 /**
  * A YAML subset, read without a dependency.
  *
- * `softcli` promises zero runtime dependencies, and a command document is
+ * `facio` promises zero runtime dependencies, and a command document is
  * useless if reading it costs one. So this reads the subset a command document
  * is written in - block mappings, block sequences, flow collections, quoted and
  * plain scalars - and *refuses* everything else by name rather than guessing at

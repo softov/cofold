@@ -59,7 +59,7 @@ declare module "../core/command.js" {
   }
 
   interface CommandMeta {
-    /** How this command becomes one request. Read by `softcli/remote` alone. */
+    /** How this command becomes one request. Read by `facio/remote` alone. */
     http?: HttpBinding;
     /** The program a command was built from, on the commands `commandsFrom` returns. */
     remote?: string;
@@ -93,7 +93,7 @@ export interface ManifestCommand {
 }
 
 export interface ProgramManifest {
-  softcli: number;
+  facio: number;
   program: { name: string; version: string; description?: string };
   groups?: readonly CommandGroup[];
   commands: readonly ManifestCommand[];
@@ -141,7 +141,7 @@ export function manifestFrom(
     });
   }
   return {
-    softcli: MANIFEST_VERSION,
+    facio: MANIFEST_VERSION,
     program,
     commands,
     ...compact({ groups: registry.groups.length === 0 ? undefined : registry.groups }),
@@ -167,10 +167,10 @@ function describeOption(option: OptionSpec): ManifestOption {
 export function parseManifest(value: unknown): ProgramManifest {
   if (typeof value !== "object" || value === null) throw new ManifestError("The manifest is not an object");
   const manifest = value as ProgramManifest;
-  if (typeof manifest.softcli !== "number") throw new ManifestError("The manifest has no version");
-  if (manifest.softcli > MANIFEST_VERSION) {
+  if (typeof manifest.facio !== "number") throw new ManifestError("The manifest has no version");
+  if (manifest.facio > MANIFEST_VERSION) {
     throw new ManifestError(
-      `This manifest is version ${manifest.softcli} and this client understands ${MANIFEST_VERSION}. Upgrade the client.`,
+      `This manifest is version ${manifest.facio} and this client understands ${MANIFEST_VERSION}. Upgrade the client.`,
     );
   }
   if (!Array.isArray(manifest.commands)) throw new ManifestError("The manifest lists no commands");
