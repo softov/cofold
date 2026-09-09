@@ -191,3 +191,18 @@ describe("what comes back", () => {
     await expect(failed).rejects.toMatchObject({ kind: "unavailable", cause });
   });
 });
+
+
+it("encodes form fields and Basic authentication on the transport", async () => {
+  let sent: RequestInit | undefined;
+  const transport = httpTransport({ baseUrl: 'https://api.test', auth: { type: 'basic', username: 'user', password: 'pass' },
+    fetch: (async (_url, init) => { sent = init; return new Response('{}'); }) as typeof fetch });
+  await transport.request({ method: 'POST', path: '/form', contentType: 'application/x-www-form-urlencoded', body: ['name', 'tags', 'enabled', 'count'] },
+    { name: 'a & b+', tags: ['one', 'two'], enabled: false, count: 0 });
+  const form = new URLSearchParams(String(sent?.body));
+  expect(form.get('name')).toBe('a & b+'); expect(form.getAll('tags')).toEqual(['one', 'two']);
+  expect(form.get('enabled')).toBe('false'); expect(form.get('count')).toBe('0');
+  expect(new Headers(sent?.headers).get('content-type')).toBe('application/x-www-form-urlencoded');
+  expect(new Headers(sent?.headers).get('authorization')).toBe('Basic dXNlcjpwYXNz');
+  expect(sent?.redirect).toBe('error');
+});

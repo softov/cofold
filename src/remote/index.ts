@@ -38,3 +38,6 @@ export type {
   OpenApiOptions,
   OpenApiParameter,
 } from "./openapi.js";
+
+export { CookieJar, basicAuthorization } from "./auth.js";
+export type { StoredCookie } from "./auth.js";

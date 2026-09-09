@@ -1,3 +1,4 @@
+import { basicAuthorization, type CookieJar } from "./auth.js";
 import { compact, UnavailableError, FacioError } from "../index.js";
 import { bodyFields, expandPath, placementOf, type HttpBinding, type Transport } from "./manifest.js";
 
@@ -17,6 +18,8 @@ export interface HttpTransportOptions {
   fetch?: typeof globalThis.fetch;
   timeoutMs?: number;
   signal?: AbortSignal;
+  auth?: { type: "basic"; username: string; password: string } | { type: "cookie"; jar: CookieJar };
+  onResponse?(response: Response, url: URL): void | Promise<void>;
   onRequest?(request: { method: string; url: string }): void;
 }
 
@@ -42,9 +45,22 @@ export function httpTransport(options: HttpTransportOptions): Transport {
         for (const one of Array.isArray(value) ? value : [value]) url.searchParams.append(name, String(one));
       }
 
-      const body = binding.method === "GET" || binding.method === "DELETE"
-        ? undefined
-        : JSON.stringify(bodyFields(binding, input));
+      const contentType = binding.contentType ?? "application/json";
+      const fields = bodyFields(binding, input);
+      const form = new URLSearchParams();
+      if (contentType === "application/x-www-form-urlencoded") {
+        for (const [name, value] of Object.entries(fields)) {
+          for (const one of Array.isArray(value) ? value : [value]) form.append(name, typeof one === "object" ? JSON.stringify(one) : String(one));
+        }
+      }
+      const body = binding.method === "GET" || binding.method === "DELETE" ? undefined
+        : contentType === "application/x-www-form-urlencoded" ? form.toString() : JSON.stringify(fields);
+      const headers = new Headers({ accept: "application/json", ...options.headers });
+      if (body !== undefined) headers.set("content-type", contentType);
+      if (options.auth?.type === "basic") headers.set("authorization", basicAuthorization(options.auth.username, options.auth.password));
+      if (options.auth?.type === "cookie" && !headers.has("cookie")) {
+        const cookie = options.auth.jar.header(url); if (cookie) headers.set("cookie", cookie);
+      }
 
       options.onRequest?.({ method: binding.method, url: url.toString() });
 
@@ -52,11 +68,8 @@ export function httpTransport(options: HttpTransportOptions): Transport {
       try {
         response = await call(url, {
           method: binding.method,
-          headers: {
-            accept: "application/json",
-            ...compact({ "content-type": body === undefined ? undefined : "application/json" }),
-            ...options.headers,
-          },
+          headers: Object.fromEntries(headers),
+          redirect: "error",
           ...compact({
             body,
             // An explicit signal wins: a caller that brought its own cancellation
@@ -71,6 +84,8 @@ export function httpTransport(options: HttpTransportOptions): Transport {
         throw new UnavailableError(`${binding.method} ${url.host} did not answer`, { cause: error });
       }
 
+      if (options.auth?.type === "cookie") options.auth.jar.receive(url, response.headers);
+      await options.onResponse?.(response, url);
       const text = await response.text();
       const parsed = text === "" ? null : safeJson(text);
       if (!response.ok) {

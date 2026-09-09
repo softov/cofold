@@ -68,6 +68,7 @@ declare module "../core/command.js" {
 
 export interface HttpBinding {
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  contentType?: "application/json" | "application/x-www-form-urlencoded";
   /** `/cases/{id}` - each `{name}` is filled from the canonical input. */
   path: string;
   /**
@@ -213,6 +214,7 @@ export function commandsFrom(manifest: ProgramManifest, options: CommandsFromOpt
         repeatable: option.repeatable === true ? true : undefined,
         required: option.required === true ? true : undefined,
         env: option.env,
+        default: option.schema.default,
         field: option.field,
         coerce: { schema: option.schema },
       }),

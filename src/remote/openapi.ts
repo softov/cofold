@@ -48,6 +48,8 @@ export interface OpenApiOptions {
   /** Only these tags. For the usual case: a large API, a small useful corner of it. */
   tags?: readonly string[];
   program?: { name: string; version: string; description?: string };
+  /** If supplied, unsupported operations are reported and omitted; otherwise they throw. */
+  onUnsupported?(operation: { id: string; method: string; path: string; reason: string }): void;
 }
 
 export interface OpenApiParameter {
@@ -68,6 +70,7 @@ export interface OpenApiOperation {
     required?: boolean;
     content?: Record<string, { schema?: { type?: string; properties?: Record<string, DescribedSchema>; required?: readonly string[] } }>;
   };
+  security?: readonly Record<string, readonly string[]>[];
   "x-cli"?: OpenApiOperationHint;
 }
 
@@ -79,44 +82,23 @@ export interface OpenApiDocument {
 
 const METHODS = ["get", "post", "put", "patch", "delete"] as const;
 
-function words(identifier: string): string[] {
-  return identifier
-    .replaceAll(/([a-z0-9])([A-Z])/gu, "$1 $2")
-    .replaceAll(/[_\-/]/gu, " ")
-    .toLowerCase()
-    .split(/\s+/u)
-    .filter((word) => word !== "");
-}
-
-function singular(word: string): string {
-  return word.endsWith("ies") ? `${word.slice(0, -3)}y` : word.endsWith("s") ? word.slice(0, -1) : word;
-}
-
-/**
- * The default naming, which is a guess and says so.
- *
- * `listPets` under the tag `pets` becomes `pet list`; `showPetById` becomes
- * `pet show <petId>`. Noun first, because that is how a person looks for a
- * command - by what they are working on, not by what they are doing to it.
- */
+/** Default command words follow the API path; tags are help headings only. */
 export function patternFor(
-  method: string,
+  _method: string,
   path: string,
   operation: OpenApiOperation,
-  parameters: readonly OpenApiParameter[],
+  _parameters: readonly OpenApiParameter[],
 ): string[] {
-  const hint = operation["x-cli"];
-  if (hint?.pattern !== undefined) return [...hint.pattern];
-
-  const tag = operation.tags?.[0];
-  const noun = singular(tag === undefined ? (words(path)[0] ?? "call") : words(tag)[0] ?? "call");
-  const identifier = operation.operationId ?? `${method} ${path}`;
-  const rest = words(identifier)
-    .filter((word) => word !== "by" && word !== "id")
-    .filter((word) => singular(word) !== noun);
-  const verb = rest.length === 0 ? method.toLowerCase() : rest.join("-");
-  const slots = parameters.filter((one) => one.in === "path").map((one) => `:${one.name}`);
-  return [noun, verb, ...slots];
+  if (operation["x-cli"]?.pattern !== undefined) return [...operation["x-cli"].pattern];
+  const pattern = path.split("/").filter(Boolean).map((part) => {
+    if (/^\{[^}]+\}$/u.test(part)) return `:${part.slice(1, -1)}`;
+    const word = part.normalize("NFKD").replace(/\p{M}/gu, "")
+      .replace(/[^A-Za-z0-9-]+/gu, "-").replace(/^-+|-+$/gu, "").toLowerCase();
+    if (!word) throw new Error(`Path segment ${part} needs an explicit CLI pattern`);
+    return word;
+  });
+  if (!pattern.length) throw new Error("A root-path operation needs an explicit CLI pattern");
+  return pattern;
 }
 
 /** The types this library checks. Anything else a document names travels as text. */
@@ -132,8 +114,24 @@ const TYPES = ["string", "number", "integer", "boolean", "array", "object"] as c
  */
 function schemaOf(described: DescribedSchema | undefined): JsonSchema {
   if (described === undefined) return { type: "string" };
-  const { type, ...rest } = described;
-  return { type: TYPES.find((one) => one === type) ?? "string", ...rest } as JsonSchema;
+  const held = described as unknown as Record<string, unknown>;
+  for (const key of ["$ref", "allOf", "anyOf", "oneOf", "not", "additionalProperties", "nullable", "exclusiveMinimum", "exclusiveMaximum", "multipleOf", "minItems", "maxItems", "uniqueItems"]) {
+    if (held[key] !== undefined && !(key === "nullable" && held[key] === false)) throw new Error(`Unsupported input schema keyword ${key}`);
+  }
+  const type = held["type"] ?? (held["properties"] ? "object" : "string");
+  if (typeof type !== "string" || !(TYPES as readonly string[]).includes(type)) throw new Error(`Unsupported input type ${JSON.stringify(type)}`);
+  const schema: JsonSchema = { type: type as NonNullable<JsonSchema["type"]> };
+  const out = schema as Record<string, unknown>;
+  for (const key of ["description", "enum", "const", "default", "minimum", "maximum", "minLength", "maxLength", "pattern"]) {
+    if (held[key] !== undefined) out[key] = held[key];
+  }
+  if (held["format"] === "binary" || held["format"] === "byte") throw new Error("Binary input requires a file upload transport");
+  if (held["format"] === "date-time") schema.format = "date-time";
+  if (held["items"]) schema.items = schemaOf(held["items"] as DescribedSchema);
+  if (held["properties"]) schema.properties = Object.fromEntries(Object.entries(held["properties"] as Record<string, DescribedSchema>)
+    .map(([name, property]) => [name, schemaOf(property)]));
+  if (Array.isArray(held["required"])) schema.required = held["required"] as string[];
+  return schema;
 }
 
 function optionFor(
@@ -142,15 +140,15 @@ function optionFor(
   schema: DescribedSchema | undefined,
   required: boolean,
 ): OptionSpec {
-  const flag = schema?.type === "boolean";
+  // OpenAPI optional booleans must remain absent unless supplied or defaulted.
   return {
     name: `--${name.replaceAll(/([a-z0-9])([A-Z])/gu, "$1-$2").toLowerCase()}`,
     description,
     field: name,
     ...compact({
-      value: flag ? undefined : (schema?.type ?? "value").toUpperCase(),
+      value: (schema?.type ?? "value").toUpperCase(),
       required: required ? true : undefined,
-      coerce: flag ? undefined : { schema: schemaOf(schema) },
+      coerce: { schema: schemaOf(schema) },
     }),
   };
 }
@@ -179,22 +177,40 @@ export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiO
   const commands: ManifestCommand[] = [];
 
   for (const [path, item] of Object.entries(document.paths ?? {})) {
+    if (typeof (item as unknown as Record<string, unknown>)["$ref"] === "string") {
+      const issue = { id: path, method: "*", path, reason: `Unresolved path reference ${(item as unknown as Record<string, unknown>)["$ref"]}` };
+      if (!options.onUnsupported) throw new Error(issue.reason);
+      options.onUnsupported(issue); continue;
+    }
     const shared = item.parameters ?? [];
     for (const method of METHODS) {
       const operation = item[method];
       if (operation === undefined) continue;
 
-      const hint = { ...operation["x-cli"], ...options.hints?.[operation.operationId ?? ""] };
+      const id = operation.operationId ?? `${method}${path.replaceAll("/", ".")}`;
+      const pathId = `${method}${path.replaceAll("/", ".")}`;
+      const hint = { ...operation["x-cli"], ...options.hints?.[pathId], ...options.hints?.[id] };
       if (hint.skip === true) continue;
       if (options.tags !== undefined && !(operation.tags ?? []).some((tag) => options.tags!.includes(tag))) continue;
 
-      const parameters = [...shared, ...(operation.parameters ?? [])];
+      try {
+      if ((operation as unknown as Record<string, unknown>)["$ref"] !== undefined) throw new Error("Unresolved operation reference");
+      const parameters = [...new Map([...shared, ...(operation.parameters ?? [])].map((one) => [`${one.in}:${one.name}`, one])).values()];
+      if (parameters.some((one) => !["query", "path"].includes(one.in))) throw new Error("Header/cookie parameters must be supplied by the configured transport");
       const pattern = patternFor(method, path, { ...operation, "x-cli": hint }, parameters);
 
       const query = parameters.filter((one) => one.in === "query");
-      const bodySchema = operation.requestBody?.content?.["application/json"]?.schema;
+      const content = operation.requestBody?.content;
+      const contentType = content && Object.hasOwn(content, "application/json") ? "application/json" : content && Object.hasOwn(content, "application/x-www-form-urlencoded") ? "application/x-www-form-urlencoded" : undefined;
+      if (content && contentType === undefined) throw new Error(`Unsupported request content type: ${Object.keys(content).join(", ")}`);
+      const bodySchema = contentType === undefined ? undefined : content?.[contentType]?.schema;
+      if (bodySchema && bodySchema.type !== "object" && !bodySchema.properties) throw new Error("Request body must have object properties");
       const bodyProperties = Object.entries(bodySchema?.properties ?? {});
-      const bodyRequired = new Set(bodySchema?.required ?? []);
+      const bodyRequired = new Set(Array.isArray(bodySchema?.required) ? bodySchema.required : []);
+      // Compatibility with the supplied Controllr schema's field-level required flags.
+      for (const [name, property] of bodyProperties) if ((property as unknown as Record<string, unknown>)["required"] === true) bodyRequired.add(name);
+      const names = [...query.map((one) => one.name), ...bodyProperties.map(([name]) => name), ...parameters.filter((one) => one.in === "path").map((one) => one.name)];
+      if (new Set(names).size !== names.length) throw new Error("Input names overlap between request locations");
 
       const optionSpecs: ManifestOption[] = [
         ...query.map((one) =>
@@ -205,6 +221,7 @@ export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiO
 
       const binding: HttpBinding = {
         method: method.toUpperCase() as HttpBinding["method"],
+        ...compact({ contentType }),
         path: path.replaceAll(/\{([^}]+)\}/gu, "{$1}"),
         ...compact({
           query: query.length === 0 ? undefined : query.map((one) => one.name),
@@ -220,7 +237,7 @@ export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiO
         }]));
 
       commands.push({
-        id: operation.operationId ?? `${method}${path.replaceAll("/", ".")}`,
+        id,
         pattern,
         summary: hint.summary ?? operation.summary ?? `${method.toUpperCase()} ${path}`,
         options: optionSpecs,
@@ -231,6 +248,28 @@ export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiO
           arguments: Object.keys(parameterDescriptions).length === 0 ? undefined : parameterDescriptions,
         }),
       });
+      } catch (error) {
+        const issue = { id, method: method.toUpperCase(), path, reason: error instanceof Error ? error.message : String(error) };
+        if (!options.onUnsupported) throw new Error(`${issue.method} ${path}: ${issue.reason}`);
+        options.onUnsupported(issue);
+      }
+    }
+  }
+
+  // Distinct methods or normalized paths must never silently share one CLI command.
+  const patterns = new Map<string, ManifestCommand[]>();
+  for (const command of commands) {
+    const key = command.pattern.map((word) => word.startsWith(":") ? ":" : word).join(" ");
+    patterns.set(key, [...(patterns.get(key) ?? []), command]);
+  }
+  const ambiguous = new Set<ManifestCommand>();
+  for (const matches of patterns.values()) {
+    if (matches.length < 2) continue;
+    const reason = `Ambiguous CLI pattern "${matches[0]!.pattern.join(" ")}" for ${matches.map((command) => `${command.http.method} ${command.http.path}`).join(", ")}; set explicit hints.pattern or x-cli.pattern`;
+    if (!options.onUnsupported) throw new Error(reason);
+    for (const command of matches) {
+      ambiguous.add(command);
+      options.onUnsupported({ id: command.id, method: command.http.method, path: command.http.path, reason });
     }
   }
 
@@ -241,6 +280,6 @@ export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiO
       version: document.info?.version ?? "0.0.0",
       ...compact({ description: document.info?.description }),
     },
-    commands,
+    commands: commands.filter((command) => !ambiguous.has(command)),
   };
 }

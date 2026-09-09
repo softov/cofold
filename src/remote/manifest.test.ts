@@ -89,10 +89,10 @@ describe("reading OpenAPI", () => {
     },
   };
 
-  it("names commands by the noun first, and takes path parameters as slots", () => {
+  it("names commands by path, and takes path parameters as slots", () => {
     const manifest = manifestFromOpenApi(document);
     expect(manifest.commands.map((command) => command.pattern.join(" ")))
-      .toEqual(["pet list", "pet show :id"]);
+      .toEqual(["pets", "pets :id"]);
   });
 
   it("leaves out what the document asked to leave out", () => {
