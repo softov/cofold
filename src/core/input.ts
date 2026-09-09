@@ -211,7 +211,8 @@ export async function canonicalFromObject(
      * spelling, and a client that sent `{"age": -5}` has no `--age` to correct.
      */
     const convert = (one: unknown): unknown => coerceOne(field.coerce, asText(one), field.name);
-    input[field.name] = Array.isArray(given) ? given.map(convert) : convert(given);
+    input[field.name] = Array.isArray(given) && !(field.coerce.schema.type === "array" && !field.repeated)
+      ? given.map(convert) : convert(given);
   }
   return await finish(command, input, (field) => field.name);
 }

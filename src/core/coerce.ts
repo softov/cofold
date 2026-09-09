@@ -101,6 +101,9 @@ export function expectationOf(schema: JsonSchema): string {
  * route as one that is out of range.
  */
 export function decode(raw: string, schema: JsonSchema): unknown {
+  if (schema.type === "array" || schema.type === "object") {
+    try { return JSON.parse(raw) as unknown; } catch { return raw; }
+  }
   if (schema.type === "integer" || schema.type === "number") {
     const parsed = Number(raw);
     return raw.trim() === "" || Number.isNaN(parsed) ? raw : parsed;
