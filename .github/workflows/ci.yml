@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# One run per branch. A push over a push is a run nobody is waiting for.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    # A hung test should fail the run rather than sit on a runner for six hours,
+    # which is the default.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      # This repository keeps `pnpm-lock.yaml` and no `package-lock.json`, so
+      # pnpm is what installs and runs here.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v7
+        with:
+          # The `engines` field, and the version the tests are written against.
+          node-version: 22
+          cache: pnpm
+
+      # `--frozen-lockfile`, so a lockfile that does not match package.json
+      # fails here rather than resolving to something nobody wrote down.
+      - run: pnpm install --frozen-lockfile
+
+      # Both configurations: the sources, and the test files, which import the
+      # package by its own name and so resolve through `dist`.
+      - run: pnpm run typecheck
+
+      # Bounded, because a job that runs into the runner's own timeout is
+      # cancelled rather than failed, and a cancelled job leaves no readable
+      # log at all.
+      - name: Tests
+        run: timeout 600 pnpm test
+
+      # Builds the package and then typechecks the four examples against what
+      # was built, which is what catches an export that no test imports.
+      - run: pnpm run examples
+
+      # What would actually be published, which is not what `files` says until
+      # something has packed it.
+      - name: Pack
+        run: pnpm pack --pack-destination ${{ runner.temp }}
+
+  # The README says zero runtime dependencies and the docs say this runs
+  # unmodified on Bun and Deno. Both are claims, so both are tested: the same
+  # built example, on each runtime, doing the thing the README shows.
+  runtimes:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run examples
+
+      - uses: oven-sh/setup-bun@v2
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: One declaration, three runtimes
+        run: |
+          set -eu
+          for run in "node" "bun" "deno run -A"; do
+            said=$($run examples/dist/petshop/cli.js pet add Rex -a 3 -b corgi)
+            printf '%s: %s\n' "$run" "$(printf '%s' "$said" | tr '\n' ' ')"
+            printf '%s' "$said" | grep -q Rex
+          done

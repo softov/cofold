@@ -53,7 +53,7 @@ export interface OptionSpec<T = unknown> {
   required?: boolean;
   /** Applied when the option is absent and no environment variable answers. */
   default?: T;
-  /** Consulted before the default. `SOFTCLI_URL`, and so on. */
+  /** Consulted before the default. `FACIO_URL`, and so on. */
   env?: string;
   /** How the word becomes a value, and what shape that value has. */
   coerce?: Coercer<T>;

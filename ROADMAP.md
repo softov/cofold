@@ -12,8 +12,6 @@ What is built works: `npm run check` is green, and the five example programs run
 
 - **Renaming the built-in commands.** `builtins` is a boolean and the patterns are fixed, so a program can have `completion` or nothing, and would inherit the same for `doctor`. It should be a map: keep the built-in but call it `check`, or `verify`, or nothing at all. Small, and better decided before a second built-in exists than after.
 
-- **Extracting `s2cmd` into a package.** The front end itself is built, as [`examples/s2cmd`](examples/s2cmd): a YAML or JSON document becomes actions, and gets validation, help, completion, `--json`, a generated reference, HTTP routes and MCP tools without anybody writing a handler. It stays an example until the executor interface has stopped moving, the way `open-cli` proves the OpenAPI seam without being a package. What would have to be decided first: whether third-party executors can be registered, and what a document is allowed to name if they can.
-
 - **An `object` field at a terminal.** `{ type: object, properties: { ... } }` is validated over HTTP and MCP, because those send objects, and cannot be typed at a command line at all: a schema of `type: object` has no text reading, so the string that arrived is refused by `check`. `coerce.json` is the shape of the answer - a coercer whose schema describes what *arrives* rather than what it becomes - but as something a field can ask for rather than only the raw form. Worth doing now that a document can write `{theme.mode}` and reach into one.
 
 - **A `serve` for MCP.** `facio/mcp` stops at descriptors; a program still writes the six lines that hand them to an SDK. Deliberate for now, so nothing depends on an SDK version.
@@ -26,49 +24,9 @@ What is built works: `npm run check` is green, and the five example programs run
 
 - **i18n.** Not planned. Say so rather than half-doing it.
 
-## s2cmd, in more detail
-
-Everything a document-defined command needs already exists except one thing: `run`. Today `run` is a function, and remote commands get around it with one generic handler plus a `transport` capability. A document has to state execution as data, which means named executors and a step list:
-
-```yaml
-name: myapp
-version: 1.0.0
-
-commands:
-  deploy:
-    summary: Deploy the application
-    input:
-      env:    { type: string, enum: [staging, production], default: production, cli: { short: -e } }
-      force:  { type: boolean, default: false, cli: { short: -f } }
-    surfaces:
-      cli: { pattern: [deploy] }
-    run:
-      - exec:
-          command: ./scripts/build.sh
-          args: ["{env}"]
-      - exec:
-          command: ./scripts/deploy.sh
-          args:
-            - "{env}"
-            - { when: force, value: "--force" }
-      - rest:
-          method: POST
-          endpoint: "{$config.hooks.deployed}"
-```
-
-`run` is a list, because a command is usually a batch. Its arguments belong to the step rather than the command, since each step has its own. A single step may be written unwrapped. Steps run in order and stop at the first failure, and an unknown executor is a registration error rather than a runtime surprise.
-
-The executors worth having: `exec` for a process, `rest` for an HTTP call, `internal` for another command in the same registry, and `noop` for a group that only exists to hold subcommands.
-
-**Arguments are arrays, never a shell string,** unless the step says `shell: true`. Interpolating a value into a shell string is command injection the moment that value comes from anywhere but somebody's own keyboard.
-
-**No template language.** `{{#if force}}--force{{/if}}` means a dependency and an argument list that gets re-parsed. Since the input is already validated and typed, conditionals and repetition can be data: `{ when: force, value: "--force" }`, `{ each: tag, value: "--tag={$item}" }`. Uglier for one case, inspectable for all of them, and `--help` can show what will actually run. Interpolation is one rule with no exception: `$` means "not an input field", so `{env}` and `{theme.mode}` are the input, and `{$env.NAME}`, `{$config.theme.mode}` and `{$item}` are not.
-
-**A shell step must not become an agent tool by accident.** If MCP comes for free then a YAML file becomes a set of tools an agent can call, and `exec` is arbitrary shell: a remote code execution surface handed over by a config file. `mcp` being opt-in already prevents the worst of it, but this front end should go further and refuse to publish an `exec` step as an MCP tool or an HTTP route without an explicit per-command opt-in that is separate from `surfaces`. `rest` and `internal` steps can default the normal way.
-
-Two conveniences worth taking: `env:` to load environment files, and `imports:` to compose several documents, with the ordering rule stated (later wins) and `optional: true` for a file that may not be there.
-
 ## Open questions
+
+**Can a document name a third-party executor?** `s2cmd` shipped as [a package of its own](https://github.com/softov/s2cmd) with four executors it defines itself - `noop`, `internal`, `exec` and `http` - and an unknown name is a registration error. Letting a program add one is easy; deciding what a document is then allowed to name is not, and the answer has to hold for a document somebody else wrote. Until it is answered, the closed set is the safe default rather than an oversight.
 
 **How much should `run` be allowed to do?** Today it returns one `Output`. Long-running commands want progress, and streaming commands want to yield rows. An async iterator return would cover both - `--json` becomes JSON Lines - but it doubles the contract every surface has to honour.
 

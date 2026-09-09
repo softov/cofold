@@ -42,4 +42,4 @@ await runEntry(program, process.argv.slice(2), {
 });
 ```
 
-Redaction happens at the last edge rather than at each place a message is built, because those messages are written by people thinking about something else. Set `SOFTCLI_TRACE` to see a stack for an *unexpected* error; expected ones print one sentence, because a stack trace for "the note does not exist" is noise.
+Redaction happens at the last edge rather than at each place a message is built, because those messages are written by people thinking about something else. Set `FACIO_TRACE` to see a stack for an *unexpected* error; expected ones print one sentence, because a stack trace for "the note does not exist" is noise.

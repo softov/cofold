@@ -293,27 +293,9 @@ node examples/dist/open-cli/cli.js \
   pet list --limit 2
 ```
 
-### A CLI defined in a YAML file
-
-Nobody writes a handler. The document states the schemas, the surfaces and the steps.
-
-```sh
-# the pet commands in the document call this
-node examples/dist/petshop/cli.js serve --port 8799 &
-
-node examples/dist/s2cmd/cli.js --document examples/samples/depot.yaml pet list
-node examples/dist/s2cmd/cli.js --document examples/samples/depot.yaml release deploy -e staging --force
-
-# the same file, as MCP tools and as an HTTP API of its own
-node examples/dist/s2cmd/cli.js --document examples/samples/depot.yaml mcp tools
-node examples/dist/s2cmd/cli.js --document examples/samples/depot.yaml serve --port 8801 &
-
-curl -X POST localhost:8801/pets -d '{"name":"Ada","age":99}'
-```
-
 ## Examples
 
-The repository includes five working examples:
+The repository includes four working examples:
 
 | Example                                 | Shows                                                |
 | --------------------------------------- | ---------------------------------------------------- |
@@ -321,7 +303,6 @@ The repository includes five working examples:
 | [`kitchen-sink`](examples/kitchen-sink) | The local CLI feature set                            |
 | [`clerver`](examples/clerver)           | Commands discovered from a remote server             |
 | [`open-cli`](examples/open-cli)         | Building a CLI from an existing OpenAPI document     |
-| [`s2cmd`](examples/s2cmd)               | Commands declared in a YAML or JSON document         |
 
 ## Commands from a document
 
@@ -331,8 +312,6 @@ Commands already arrive here from two documents this library did not write: a re
 document -> ActionDefinition -> registry -> CLI / HTTP / MCP
 ```
 
-[`examples/s2cmd`](examples/s2cmd) is that front end. The author of the document gets validation, help, completion, `--json`, a generated reference, HTTP routes and MCP tools without implementing any of those surfaces, and without writing a handler.
-
 Everything a document-defined command needs already exists except one thing. `run` is a function, and a file cannot hold one, so execution is stated as data: named executors and an ordered list of steps.
 
 ```yaml
@@ -341,54 +320,18 @@ commands:
     summary: Deploy the application
 
     input:
-      env:   { type: string, enum: [staging, production], default: production, cli: { short: -e } }
-      force: { type: boolean, default: false, cli: { short: -f } }
+      env: { type: string, enum: [staging, production], default: production, cli: { short: -e } }
 
     surfaces:
       cli: { pattern: [release, deploy] }
 
     run:
-      - exec:
-          command: ./scripts/build.sh
-          args: ["{env}"]
-
-      - exec:
-          command: ./scripts/deploy.sh
-          args:
-            - "{env}"
-            - { when: force, value: "--force" }
-
-      - rest:
-          method: POST
-          endpoint: "{$config.hooks.deployed}"
+      - exec: { command: ./scripts/deploy.sh, args: ["{env}"] }
 ```
 
-`input` is the same map of JSON Schema `registry.action` takes, and `surfaces` is the same declaration, so the terminal, an HTTP request and an MCP tool call are held to one rule exactly as they are in code.
+`input` is the same map of JSON Schema `registry.action` takes and `surfaces` is the same declaration, so the terminal, an HTTP request and an MCP tool call are held to one rule exactly as they are in code.
 
-| executor   | what it does                                            |
-| ---------- | ------------------------------------------------------- |
-| `noop`     | nothing: the word that only exists to hold subcommands  |
-| `internal` | another command of the same registry, through `execute` |
-| `exec`     | one process, given its arguments as argv                |
-| `rest`     | one HTTP call, over the transport remote commands use   |
-
-Steps run in order and stop at the first failure. A single step may be written unwrapped, and a bare name is a step with nothing to configure (`run: noop`). An executor the program does not have is a registration error, so it is a crash on the first run of the binary rather than a surprise on the one command nobody tested. So is a placeholder naming no field, an `internal` step calling a command the document does not declare, and two of them calling each other.
-
-**Arguments are arrays, never a shell string.** Interpolating a value into a shell string is command injection the moment that value comes from anywhere but the author's own keyboard, and here it comes from whoever typed the command. `args` is a list and reaches the process as one, so `;` and `$(...)` in a value arrive as literal text. `shell: true` is how to ask for the other behaviour, and asking is the point.
-
-**No template language.** `{{#if force}}--force{{/if}}` means a dependency and an argument list that gets re-parsed. The input is already validated and typed, so the two things a template is used for are data instead: `{ when: force, value: "--force" }` drops a value, `{ each: tags, value: "--tag={$item}" }` repeats one. Interpolation is one rule with no exception: `$` means "not an input field". Everything without it is the input, all the way down, so `{env}` is the field a deploy command always has and `{theme.mode}` reaches into a structured one. `{$env.NAME}` is the environment, `{$config.theme.mode}` is the configuration that [`facio/config`](src/config) resolved, and `{$item}` is the value of the surrounding `each`.
-
-**A shell step does not become an agent tool by accident.** If MCP came for free, a YAML file would be a set of tools an agent can call and `exec` is arbitrary shell. `surfaces.mcp` being off by default already prevents the worst of it; this front end goes further and refuses to publish a command holding an `exec` step as an MCP tool or an HTTP route unless that command says so:
-
-```yaml
-    allowRemoteExec: true
-```
-
-Separate from `surfaces`, refused loudly rather than dropped quietly, and it travels: a command whose only step calls another command that runs a process is a command that runs a process. `rest` and `internal` steps default the normal way.
-
-**`imports:` and `env:`.** A document may compose others and load environment files, both taking a bare path or `{ path: ..., optional: true }` for a file that may not be there. Later wins, and the importing document wins over everything it imported.
-
-**YAML, without a dependency.** `facio` has none and a command document is not worth one, so [`yaml.ts`](examples/s2cmd/yaml.ts) reads the subset a document is written in and *refuses* the rest by name - anchors, aliases, tags, block scalars, merge keys, multiple documents. A hand-written YAML parser is a liability exactly to the extent that it accepts a document and reads it differently from a real one, and refusing is how that is bounded. Nothing downstream reads YAML: the reader takes parsed data, so a full parser is a one-line substitution for anybody who wants one.
+The front end that reads these is **[`s2cmd`](https://github.com/softov/s2cmd)**, a package of its own. The author of the document gets validation, help, completion, `--json`, a generated reference, HTTP routes and MCP tools without implementing any of those surfaces, and without writing a handler. Its README documents the executors, the interpolation rules, and why a document that runs a process is not an agent tool by default.
 
 ## Documentation
 

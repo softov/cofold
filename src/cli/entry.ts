@@ -55,7 +55,7 @@ export async function runEntry(
       secrets = [];
     }
     stderr.write(`${program.name}: ${redact(raw, secrets)}\n`);
-    if (!expected && process.env["SOFTCLI_TRACE"] !== undefined && error instanceof Error) {
+    if (!expected && process.env["FACIO_TRACE"] !== undefined && error instanceof Error) {
       stderr.write(`${redact(error.stack ?? "", secrets)}\n`);
     }
     process.exitCode = exitCodeFor(error);
