@@ -233,6 +233,7 @@ This keeps actions declarative without turning the registry into a global bag of
 | [`facio/mcp`](src/mcp)       | Expose actions as MCP tools without an MCP SDK dependency        |
 | [`facio/docs`](src/docs)     | Generate Markdown references for people and agents               |
 | [`facio/remote`](src/remote) | Materialise commands from remote manifests or OpenAPI            |
+| [`facio/yaml`](src/yaml) | Parse a YAML subset into plain data, with source-aware errors |
 | [`facio/config`](src/config) | Find the configuration file, and say which one a value came from |
 
 There are **zero runtime dependencies**.
@@ -290,7 +291,7 @@ node examples/dist/clerver/cli.js serve --port 8793 &
 
 node examples/dist/open-cli/cli.js \
   --spec examples/samples/petstore.json \
-  pet list --limit 2
+  pets --limit 2
 ```
 
 ## Examples

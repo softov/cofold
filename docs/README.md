@@ -11,4 +11,6 @@
 9. [Remote commands](09-remote.md) - manifests, the clerver round trip, OpenAPI
 10. [Configuration](10-config.md) - finding the file, and saying which one it was
 
+11. [YAML](11-yaml.md) - text to plain data, with source-aware errors
+
 Why any of this exists is in the [README](../README.md), and what is not built yet is in the [roadmap](../ROADMAP.md).

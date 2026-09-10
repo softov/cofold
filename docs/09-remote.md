@@ -54,7 +54,7 @@ and they behave like any other command - help, completion, `--json`, coercion, e
 ## OpenAPI
 
 ```sh
-open-cli --spec ./petstore.json pet list --limit 2
+open-cli --spec ./petstore.json pets --limit 2
 ```
 
 `manifestFromOpenApi(document)` produces a *manifest*, not commands - so everything downstream is the code that already exists.
@@ -69,4 +69,14 @@ The honest caveat: four hundred endpoints are not four hundred commands. A CLI t
 "get": { "operationId": "internalMetrics", "x-cli": { "skip": true } }
 ```
 
-Without hints, the default is noun-first: `listPets` under the tag `pets` becomes `pet list`, `showPetById` becomes `pet show <id>`. Path parameters become slots, query parameters and flat JSON body properties become options with their types, bounds and enums. `hints` and `tags` on the import let you do the same for an API you do not own.
+Without hints, command words always follow the API path: `GET /pets` becomes `pets`, and `GET /pets/{id}` becomes `pets <id>`. Tags are help headings only; operation IDs identify commands and select hints but do not determine command words. Literal path segments use lowercase ASCII words with hyphens; the HTTP path itself stays unchanged. Path parameters become slots, query parameters and flat JSON body properties become options with their types, bounds and enums. `hints` and `tags` on the import let you do the same for an API you do not own.
+
+## Form bodies and authentication
+
+`HttpBinding.contentType` selects `application/json` (default) or `application/x-www-form-urlencoded`. Form bodies preserve false/zero, repeat array fields, and percent-encode text through `URLSearchParams`. JSON text supplied for an object field is sent as JSON in that form field. Requests do not follow redirects, preventing an authenticated call from forwarding credentials elsewhere.
+
+`httpTransport` accepts `auth: { type: "basic", username, password }` or `auth: { type: "cookie", jar }`. `CookieJar` receives Set-Cookie headers and applies host, path, secure, and expiry checks. It deliberately accepts cookies only for the exact request host, not parent-domain sharing. `snapshot()` returns serializable cookie data; persistence belongs to the application. Treat snapshots as credentials. `onResponse` allows an application to persist changed session cookies. Successful cookie login and logout workflows are application commands, not automatic transport retries.
+
+`manifestFromOpenApi` supports JSON and form object bodies. Pass `onUnsupported` to collect operation-level diagnostics and omit unsupported operations; without it, unsupported input fails import. Resolve external references before calling the adapter with `loadYaml`. Specification fetches and API transports are separate so reference servers never receive API credentials.
+
+HTTP methods remain request metadata, not default command words. Operations sharing the same generated path need explicit `hints.pattern` or `x-cli.pattern` names; ambiguous operations fail import or are reported together through `onUnsupported`.
