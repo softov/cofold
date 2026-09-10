@@ -52,6 +52,10 @@
       "types": "./dist/mcp/index.d.ts",
       "default": "./dist/mcp/index.js"
     },
+    "./mcp/stdio": {
+      "types": "./dist/mcp/stdio.d.ts",
+      "default": "./dist/mcp/stdio.js"
+    },
     "./docs": {
       "types": "./dist/docs/index.d.ts",
       "default": "./dist/docs/index.js"
@@ -67,6 +71,10 @@
     "./yaml": {
       "types": "./dist/yaml/index.d.ts",
       "default": "./dist/yaml/index.js"
+    },
+    "./mcp/server": {
+      "types": "./dist/mcp/server/index.d.ts",
+      "default": "./dist/mcp/server/index.js"
     }
   },
   "files": [
@@ -92,9 +100,19 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@types/node": "^22.15.3",
     "@vitest/coverage-v8": "2.1.9",
     "typescript": "^5.8.3",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "zod": "4.3.6"
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    }
   }
 }

@@ -66,3 +66,18 @@ describe("the MCP surface", () => {
     await expect(callTool(build(), "note_destroy", {})).rejects.toThrow(/No tool called/u);
   });
 });
+
+describe("tool identities", () => {
+  it("rejects names that collide after normalization", () => {
+    const registry = createRegistry();
+    for (const id of ["a.b", "a_b"]) registry.action({ id, summary: "", surfaces: { mcp: true }, run: () => output(null) });
+    expect(() => listTools(registry)).toThrow(/Two MCP tools/);
+  });
+  it("keeps explicit names and refuses unsupported output schemas", () => {
+    const registry = createRegistry();
+    registry.action({ id: "a", summary: "", surfaces: { mcp: true }, meta: { mcp: { name: "advisor_case_show" } }, run: () => output(null) });
+    expect(listTools(registry).tools[0]?.name).toBe("advisor_case_show");
+    registry.action({ id: "b", summary: "", surfaces: { mcp: true }, meta: { mcp: { outputSchema: { type: "object", ...{ anyOf: [] } } } }, run: () => output(null) });
+    expect(() => listTools(registry)).toThrow(/anyOf/);
+  });
+});

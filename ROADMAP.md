@@ -14,7 +14,7 @@ What is built works: `npm run check` is green, and the five example programs run
 
 - **An `object` field at a terminal.** `{ type: object, properties: { ... } }` is validated over HTTP and MCP, because those send objects, and cannot be typed at a command line at all: a schema of `type: object` has no text reading, so the string that arrived is refused by `check`. `coerce.json` is the shape of the answer - a coercer whose schema describes what *arrives* rather than what it becomes - but as something a field can ask for rather than only the raw form. Worth doing now that a document can write `{theme.mode}` and reach into one.
 
-- **A `serve` for MCP.** `facio/mcp` stops at descriptors; a program still writes the six lines that hand them to an SDK. Deliberate for now, so nothing depends on an SDK version.
+- **Extended MCP capabilities.** `facio/mcp/stdio` serves tools over stdio with no dependencies, and `facio/mcp/server` adds stateless Streamable HTTP through the official SDK, declared as an optional peer. Both carry explicit tool contracts, trusted request context, and progress and cancellation. Resources and prompts exist on the SDK path only and have no consumer yet, so treat them as provisional. Stateful sessions, resumability, subscriptions, completion, sampling and elicitation are not implemented and are not advertised. See `docs/07-mcp.md`.
 
 - **Interactive prompts.** A missing required option could ask, when stdin is a TTY and `--no-input` was not given. Needs care: it must never trigger in a script.
 
