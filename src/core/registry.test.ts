@@ -115,3 +115,30 @@ describe("registration", () => {
       .toThrow(/registered as x/u);
   });
 });
+
+describe("request lifecycle", () => {
+  it("refuses capability-only scopes without an authorizer", async () => {
+    let opened = false;
+    const registry = createRegistry().provide("protected", { scopes: ["write"], resolve: () => { opened = true; } });
+    const command = registry.action({ id: "x", summary: "", needs: ["protected"], surfaces: { mcp: true }, run: () => output(null) });
+    await expect(registry.execute(command, { surface: "mcp", input: {} })).rejects.toThrow(/nothing in this program checks/);
+    expect(opened).toBe(false);
+  });
+  it("attempts every disposer even if one fails", async () => {
+    const events: string[] = [];
+    const registry = createRegistry()
+      .provide("first", { resolve: () => 1, dispose: () => { events.push("first"); } })
+      .provide("second", { deps: ["first"], resolve: () => 2, dispose: () => { events.push("second"); throw new Error("failure"); } });
+    const command = registry.action({ id: "x", summary: "", needs: ["second"], surfaces: { mcp: true }, run: () => output(null) });
+    await expect(registry.execute(command, { surface: "mcp", input: {} })).rejects.toThrow(/disposal/);
+    expect(events).toEqual(["second", "first"]);
+  });
+  it("does not open capabilities for an already aborted invocation", async () => {
+    let opened = false;
+    const registry = createRegistry().provide("lease", { resolve: () => { opened = true; } });
+    const command = registry.action({ id: "x", summary: "", needs: ["lease"], surfaces: { mcp: true }, run: () => output(null) });
+    const controller = new AbortController(); controller.abort();
+    await expect(registry.execute(command, { surface: "mcp", input: {}, signal: controller.signal })).rejects.toThrow();
+    expect(opened).toBe(false);
+  });
+});

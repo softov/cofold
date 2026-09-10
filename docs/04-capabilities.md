@@ -66,16 +66,20 @@ Globals are deliberately *not* in `context.input`: an MCP call has no `--config`
 
 ## Scopes
 
-A command may declare what it requires, and a capability may declare what it requires; the registry's `authorize` hook sees both, plus the resolved capabilities:
+A command and each of its transitive capabilities may declare scopes. The registry calls `authorize` before resolving capabilities. The actor must come from trusted request context or an application closure:
 
 ```ts
 createRegistry({
-  authorize: ({ command, scopes, capabilities }) => {
-    const held = (capabilities["credentials"] as Credentials).scopes;
-    const missing = scopes.filter((scope) => !held.includes(scope));
+  authorize: ({ command, scopes, context }) => {
+    const actor = context.request?.actor as { scopes: string[] } | undefined;
+    const missing = scopes.filter((scope) => !actor?.scopes.includes(scope));
     if (missing.length > 0) throw new AuthorizationError(`${command.id} needs ${missing.join(", ")}`, missing);
   },
-})
+});
 ```
 
-Without an `authorize` hook, a command that declares `scopes` is refused rather than quietly allowed. A program that checks nothing should not be able to *look* as though it checks something.
+`registry.scopesFor(command)` computes the same union without opening anything, for discovery filters. Without an authorizer, any required scope is refused, including capability-only scopes.
+
+The former `authorize.capabilities` field is deprecated and always empty. Move credential lookup needed for authorization to trusted adapter context or a closure. Protected capability resolution must not happen before permission is checked.
+
+Adapters can pass `request` and `signal` through `registry.execute`. `request` is a reserved context name and must never be populated from ordinary action arguments. Cancellation is cooperative. Every disposer is attempted even if another fails; disposal errors are aggregated. MCP server execution routes cleanup errors after successful handlers to its diagnostic observer so they do not make completed mutations look retryable.

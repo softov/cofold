@@ -50,7 +50,7 @@ export {
   RESERVED_CONTEXT_KEYS,
   silentIo,
 } from "./core/context.js";
-export type { CommandContext, Io, Output } from "./core/context.js";
+export type { CommandContext, Io, Output, RequestContext } from "./core/context.js";
 export {
   ArgumentError,
   AuthorizationError,

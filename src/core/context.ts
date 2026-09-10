@@ -24,6 +24,14 @@ export function output(data: unknown, plain?: string | (() => string), quiet?: s
   return { data, ...compact({ plain, quiet }) };
 }
 
+/** Trusted adapter data, never populated from action input. */
+export interface RequestContext {
+  readonly actor?: unknown;
+  readonly id?: string | number;
+  readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly progress?: (value: { progress: number; total?: number; message?: string }) => Promise<void>;
+}
+
 export interface Io {
   out(text: string): void;
   err(text: string): void;
@@ -38,7 +46,7 @@ export interface Io {
  * mysteriously stops working.
  */
 export const RESERVED_CONTEXT_KEYS: readonly string[] = [
-  "command", "commands", "surface", "input", "globals", "signal",
+  "command", "commands", "surface", "input", "globals", "signal", "request",
   "value", "optional", "flag", "list", "pairs", "required",
   "stdin", "out", "write", "error",
 ];
@@ -64,6 +72,7 @@ export interface CommandContext {
    */
   readonly globals: Readonly<Record<string, unknown>>;
   readonly signal: AbortSignal | undefined;
+  readonly request: Readonly<RequestContext> | undefined;
 
   /** A field that is certainly present, because the parse said so. */
   value<T = string>(name: string): T;
@@ -93,6 +102,7 @@ export interface BaseContextOptions {
   globals?: Record<string, unknown>;
   io: Io;
   signal?: AbortSignal;
+  request?: Readonly<RequestContext>;
   readStdin?: () => Promise<string>;
   onOutput?: (value: Output) => void;
 }
@@ -104,6 +114,7 @@ export class BaseContext implements CommandContext {
   public readonly input: Record<string, unknown>;
   public readonly globals: Record<string, unknown>;
   public readonly signal: AbortSignal | undefined;
+  public readonly request: Readonly<RequestContext> | undefined;
   readonly #io: Io;
   readonly #readStdin: () => Promise<string>;
   readonly #onOutput: (value: Output) => void;
@@ -117,6 +128,7 @@ export class BaseContext implements CommandContext {
     this.input = options.input;
     this.globals = options.globals ?? {};
     this.signal = options.signal;
+    this.request = options.request;
     this.#io = options.io;
     this.#readStdin = options.readStdin ?? (async () => "");
     this.#onOutput = options.onOutput ?? ((value) => { this.#collected = value; });

@@ -17,6 +17,7 @@ import {
   type CommandContext,
   type Io,
   type Output,
+  type RequestContext,
 } from "./context.js";
 import { ArgumentError, AuthorizationError, FacioError } from "./errors.js";
 
@@ -102,6 +103,7 @@ export function sectionsOf(
 export interface AuthorizeRequest {
   command: Command;
   context: CommandContext;
+  /** @deprecated Authorization runs before resolution; this object is always empty. Use context.request. */
   capabilities: Readonly<Record<string, unknown>>;
   /** Everything the command or its capabilities asked for. */
   scopes: readonly string[];
@@ -126,6 +128,9 @@ export interface ExecuteOptions {
   globals?: Record<string, unknown>;
   io?: Io;
   signal?: AbortSignal;
+  request?: Readonly<RequestContext>;
+  /** Observe disposal failures after a successful handler without inviting mutation retries. */
+  onCleanupError?: (error: unknown) => void;
   readStdin?: () => Promise<string>;
 }
 
@@ -278,6 +283,17 @@ export class Registry<Ctx extends object = object> {
     return ordered;
   }
 
+  /** Includes scopes on every transitive capability, without resolving any. */
+  public scopesFor(command: Command): readonly string[] {
+    const scopes = new Set(command.scopes ?? []);
+    for (const need of command.needs ?? []) {
+      for (const name of this.#order(need, [])) {
+        for (const scope of this.#providers.get(name)!.scopes) scopes.add(scope);
+      }
+    }
+    return [...scopes];
+  }
+
   public async resolveNeeds(command: Command, context: CommandContext): Promise<Resolution> {
     const wanted: string[] = [];
     for (const need of command.needs ?? []) {
@@ -287,13 +303,16 @@ export class Registry<Ctx extends object = object> {
     const capabilities: Record<string, unknown> = {};
     const opened: StoredProvider[] = [];
     const dispose = async (): Promise<void> => {
+      const errors: unknown[] = [];
       for (const provider of [...opened].reverse()) {
-        await provider.dispose?.(capabilities[provider.name]);
+        try { await provider.dispose?.(capabilities[provider.name]); } catch (error: unknown) { errors.push(error); }
       }
+      if (errors.length > 0) throw new AggregateError(errors, "Capability disposal failed");
     };
 
     try {
       for (const name of wanted) {
+        context.signal?.throwIfAborted();
         const provider = this.#providers.get(name)!;
         const deps: Record<string, unknown> = {};
         for (const dep of provider.deps) deps[dep] = capabilities[dep];
@@ -312,7 +331,7 @@ export class Registry<Ctx extends object = object> {
    * Run a command, on whichever surface asked.
    *
    * Shared rather than written once per surface, because everything here is
-   * true of a command no matter who invoked it: resolve, authorise, run,
+   * true of a command no matter who invoked it: authorise, resolve, run,
    * dispose. The CLI adds argv and printing on top of this; the MCP adapter
    * adds a JSON envelope. Neither adds semantics.
    */
@@ -326,28 +345,33 @@ export class Registry<Ctx extends object = object> {
       ...compact({
         globals: options.globals,
         signal: options.signal,
+        request: options.request,
         readStdin: options.readStdin,
       }),
     });
 
+    options.signal?.throwIfAborted();
+    const scopes = this.scopesFor(command);
+    if (this.#options.authorize !== undefined) {
+      await this.#options.authorize({ command, context, capabilities: {}, scopes });
+    } else if (scopes.length > 0) {
+      throw new AuthorizationError(
+        `${command.id} requires ${scopes.join(", ")}, and nothing in this program checks scopes`, scopes,
+      );
+    }
+    options.signal?.throwIfAborted();
     const { capabilities, dispose } = await this.resolveNeeds(command, context);
+    let succeeded = false;
     try {
-      const scopes = [
-        ...(command.scopes ?? []),
-        ...(command.needs ?? []).flatMap((need) => this.#providers.get(need)?.scopes ?? []),
-      ];
-      if (this.#options.authorize !== undefined) {
-        await this.#options.authorize({ command, context, capabilities, scopes });
-      } else if (scopes.length > 0 && command.scopes !== undefined) {
-        throw new AuthorizationError(
-          `${command.id} requires ${scopes.join(", ")}, and nothing in this program checks scopes`,
-          scopes,
-        );
-      }
+      options.signal?.throwIfAborted();
       const answer = await command.run(withCapabilities(context, capabilities));
+      succeeded = true;
       return answer ?? context.collected;
     } finally {
-      await dispose();
+      try { await dispose(); } catch (error: unknown) {
+        if (succeeded && options.onCleanupError !== undefined) options.onCleanupError(error);
+        else throw error;
+      }
     }
   }
 }
@@ -366,6 +390,7 @@ export interface Runner {
   verify(): void;
   find(id: string): Command | undefined;
   execute(command: Command, options: ExecuteOptions): Promise<Output | null>;
+  scopesFor?(command: Command): readonly string[];
 }
 
 export function createRegistry(options: RegistryOptions = {}): Registry<object> {
