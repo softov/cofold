@@ -57,6 +57,16 @@ describe('createMemoryStore sessions', () => {
     expect(await codeOf(store.sessions.listMessages({ sessionId: 'missing' }))).toBe('not_found');
   });
 
+  it('refuses to create a session twice', async () => {
+    const store = createMemoryStore();
+    await store.sessions.create({ sessionId: 's', agentId: 'a' });
+    await store.sessions.claimWriter({ sessionId: 's', runId: 'r' });
+    await store.sessions.appendMessages({ sessionId: 's', runId: 'r', messages: [msg('x')] });
+    expect(await codeOf(store.sessions.create({ sessionId: 's', agentId: 'b' }))).toBe('already_exists');
+    expect(await store.sessions.listMessages({ sessionId: 's' })).toHaveLength(1);
+    expect((await store.sessions.get({ sessionId: 's' }))?.agentId).toBe('a');
+  });
+
   it('lists by workspace and agent, newest updatedAt first', async () => {
     const store = createMemoryStore();
     await store.sessions.create({ sessionId: 's1', agentId: 'a', workspace: 'a' });
@@ -101,6 +111,16 @@ describe('createMemoryStore runs', () => {
     expect(await codeOf(store.runs.appendEvent(event('other', 'r', 1)))).toBe('not_found');
     expect(await codeOf(store.runs.listSteps({ sessionId: 'other', runId: 'r' }))).toBe('not_found');
     expect(await codeOf(store.runs.create(runRecord('missing', 'r2')))).toBe('not_found');
+  });
+
+  it('refuses to create a run twice', async () => {
+    const store = createMemoryStore();
+    await store.sessions.create({ sessionId: 's', agentId: 'a' });
+    await store.runs.create(runRecord('s', 'r'));
+    await store.runs.appendEvent(event('s', 'r', 1));
+    expect(await codeOf(store.runs.create({ ...runRecord('s', 'r'), status: 'failed' }))).toBe('already_exists');
+    expect(await store.runs.listEvents({ sessionId: 's', runId: 'r' })).toHaveLength(1);
+    expect((await store.runs.get({ sessionId: 's', runId: 'r' }))?.status).toBe('running');
   });
 
   it('updates status and pendingRequestId, and steps by invocationId', async () => {

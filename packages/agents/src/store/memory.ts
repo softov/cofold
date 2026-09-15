@@ -39,6 +39,7 @@ export function createMemoryStore(): Store {
         return s ? stripSession(s) : undefined;
       },
       async create({ sessionId, agentId, workspace }) {
+        if (sessions.has(sessionId)) throw new StoreError({ code: 'already_exists', message: `session ${sessionId}` });
         const record: SessionRecord & { messages: Message[] } = {
           sessionId,
           agentId,
@@ -80,6 +81,7 @@ export function createMemoryStore(): Store {
     runs: {
       async create(record) {
         requireSession(record.sessionId);
+        if (runs.has(record.runId)) throw new StoreError({ code: 'already_exists', message: `run ${record.runId}` });
         runs.set(record.runId, { ...structuredClone(record), events: [], steps: [] });
       },
       async get(ref) {

@@ -5,6 +5,7 @@ export type AgentErrorCode =
   | 'seq_gap'
   | 'writer_mismatch'
   | 'not_found'
+  | 'already_exists'
   | 'unsupported_feature'
   | 'auth'
   | 'rate_limit'

@@ -97,6 +97,7 @@ export type KvScopeKey =
 export interface Store {
   sessions: {
     get(args: { sessionId: string }): Promise<SessionRecord | undefined>;
+    /** Fails with StoreError('already_exists') when the sessionId is taken; never overwrites. */
     create(args: { sessionId: string; agentId: string; workspace?: string }): Promise<SessionRecord>;
     /** Newest `updatedAt` first. `workspace` and `agentId` filter when given. */
     list(args: { workspace?: string; agentId?: string; limit?: number }): Promise<SessionRecord[]>;
@@ -108,6 +109,7 @@ export interface Store {
     releaseWriter(args: { sessionId: string; runId: string }): Promise<void>;
   };
   runs: {
+    /** Fails with StoreError('already_exists') when the runId is taken; never overwrites. */
     create(record: RunRecord): Promise<void>;
     get(args: RunRef): Promise<RunRecord | undefined>;
     update(args: RunRef & { status: RunStatus; pendingRequestId?: string }): Promise<void>;
