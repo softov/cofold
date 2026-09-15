@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { pathToFileURL } from "node:url";
-import { coerce, createRegistry, output } from "facio";
-import { globalOptions, Program, renderTable, runEntry } from "facio/cli";
-import { agentSkill, reference } from "facio/docs";
-import { listTools } from "facio/mcp";
+import { coerce, createRegistry, output } from "@facio/commands";
+import { globalOptions, Program, renderTable, runEntry } from "@facio/terminal";
+import { agentSkill, reference } from "@facio/docs";
+import { listTools } from "@facio/mcp";
 import {
   defaultStorePath,
   nextId,

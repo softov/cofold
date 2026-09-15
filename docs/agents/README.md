@@ -1,10 +1,11 @@
-# facio-agents
+# facio agents
 
 An agent harness in TypeScript: a model conducts a conversation, proposes tools, the runtime authorizes and executes them, one turn is a run.
 
 | Package | What |
 | --- | --- |
-| [`@facio/agents`](../../packages/agents) | Contracts, JSON Schema validation, `createTool`, in-memory store, fake model. The loop (`createAgent`, `run`, `resume`) lands in the next phase. |
+| [`@facio/agents`](../../packages/agents) | Contracts, JSON Schema validation, `createTool`, `createAgent`, `run`, `resume`, capabilities and skills, the step log, in-memory store, fake model. |
+| [`@facio/store-file`](../../packages/store-file) | The durable `Store` on the filesystem: sessions, runs, requests, a writer lease. |
 | [`@facio/model-openai-compat`](../../packages/model-openai-compat) | Non-streaming Chat Completions adapter (OpenRouter, LM Studio, any compatible server). |
 | [`examples/agents/`](../../examples/agents) | Hosts that use the harness. |
 

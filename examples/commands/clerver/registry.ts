@@ -1,4 +1,4 @@
-import { coerce, createRegistry, output } from "facio";
+import { coerce, createRegistry, output } from "@facio/commands";
 
 /**
  * One registry, two programs.
@@ -9,7 +9,7 @@ import { coerce, createRegistry, output } from "facio";
  * property that makes this possible at all.
  *
  * `meta.http` is the one extra fact: how a command becomes a request. The core
- * ignores it; `facio/remote` reads it from both ends.
+ * ignores it; `@facio/remote` reads it from both ends.
  */
 
 export interface Pet {

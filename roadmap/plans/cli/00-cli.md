@@ -13,4 +13,4 @@ The `cli` domain covers the programs a person runs against `@facio/agents`: the 
 | --- | --- |
 | [01-facio-chat.md](01-facio-chat.md) | `@facio/chat`: the harness as a `HostConnection`, and the `facio-chat` binary |
 
-Later: the `facio` CLI (commands, slash commands as commands, settings), once the chat has validated the harness end to end.
+Later: the `facio` program (`packages/facio`: the daemon and its CLI on `@facio/terminal`, slash commands as commands, settings), once the chat has validated the harness end to end.

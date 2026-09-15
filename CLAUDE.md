@@ -23,7 +23,9 @@ pnpm only (`packageManager` is pinned). Node >= 22. ESM only. No bundler. Tests 
 ## Layout
 
 ```
-packages/facio/             the command framework (until REPO-01 Task 3 splits it into @facio/commands, terminal, mcp, remote, config, yaml, docs)
+packages/commands/          @facio/commands - the declaration, registry, input, argv grammar, coercion, schema
+packages/{terminal,mcp,remote,config,yaml,docs}/   the surfaces; each depends on @facio/commands only (mcp: optional SDK peer)
+packages/facio/             later: the program (daemon + CLI), not yet created
 packages/agents/            @facio/agents  - contracts, loop, run handle, step log, memory store, fake model
   src/types/                contracts only: interfaces and type aliases, no runtime values
   src/{agent,message,model,schema,store,tool,run,capabilities,testing}/   runtime code by domain

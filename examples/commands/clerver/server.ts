@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { canonicalFromObject, type Command } from "facio";
-import { manifestFrom, type HttpBinding } from "facio/remote";
+import { canonicalFromObject, type Command } from "@facio/commands";
+import { manifestFrom, type HttpBinding } from "@facio/remote";
 import { registry, NotFound } from "./registry.js";
 
 /**

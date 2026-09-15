@@ -35,9 +35,21 @@ importers:
 
   examples/commands:
     dependencies:
-      facio:
+      '@facio/commands':
         specifier: workspace:*
-        version: link:../../packages/facio
+        version: link:../../packages/commands
+      '@facio/docs':
+        specifier: workspace:*
+        version: link:../../packages/docs
+      '@facio/mcp':
+        specifier: workspace:*
+        version: link:../../packages/mcp
+      '@facio/remote':
+        specifier: workspace:*
+        version: link:../../packages/remote
+      '@facio/terminal':
+        specifier: workspace:*
+        version: link:../../packages/terminal
     devDependencies:
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
@@ -48,7 +60,25 @@ importers:
 
   packages/agents: {}
 
-  packages/facio:
+  packages/commands: {}
+
+  packages/config:
+    dependencies:
+      '@facio/commands':
+        specifier: workspace:^
+        version: link:../commands
+
+  packages/docs:
+    dependencies:
+      '@facio/commands':
+        specifier: workspace:^
+        version: link:../commands
+
+  packages/mcp:
+    dependencies:
+      '@facio/commands':
+        specifier: workspace:^
+        version: link:../commands
     devDependencies:
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
@@ -63,11 +93,29 @@ importers:
         specifier: workspace:*
         version: link:../agents
 
+  packages/remote:
+    dependencies:
+      '@facio/commands':
+        specifier: workspace:^
+        version: link:../commands
+    devDependencies:
+      '@facio/terminal':
+        specifier: workspace:^
+        version: link:../terminal
+
   packages/store-file:
     devDependencies:
       '@facio/agents':
         specifier: workspace:*
         version: link:../agents
+
+  packages/terminal:
+    dependencies:
+      '@facio/commands':
+        specifier: workspace:^
+        version: link:../commands
+
+  packages/yaml: {}
 
 packages:
 

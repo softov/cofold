@@ -1,9 +1,9 @@
 # YAML
 
-`facio/yaml` exposes synchronous text parsing and an asynchronous document loader. Both return plain data; callers validate the application's schema.
+`@facio/yaml` exposes synchronous text parsing and an asynchronous document loader. Both return plain data; callers validate the application's schema.
 
 ```ts
-import { parseYaml, loadYaml, YamlError } from "facio/yaml";
+import { parseYaml, loadYaml, YamlError } from "@facio/yaml";
 
 const data = parseYaml(text, { source: "api.yaml", maxBytes: 16 * 1024 * 1024, maxDepth: 128 });
 const document = await loadYaml("api.yaml", {

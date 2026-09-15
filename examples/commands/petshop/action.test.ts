@@ -7,9 +7,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { canonicalFromCli, canonicalFromObject, check, expectationOf } from "facio";
-import { callTool, listTools } from "facio/mcp";
-import { manifestFrom } from "facio/remote";
+import { canonicalFromCli, canonicalFromObject, check, expectationOf } from "@facio/commands";
+import { callTool, listTools } from "@facio/mcp";
+import { manifestFrom } from "@facio/remote";
 import { registry } from "./cli.js";
 
 const add = registry.find("pet.add")!;

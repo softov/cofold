@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { createRegistry } from "facio";
-import { Program, runEntry } from "facio/cli";
-import { httpTransport, manifestFromOpenApi, commandsFrom } from "facio/remote";
+import { createRegistry } from "@facio/commands";
+import { Program, runEntry } from "@facio/terminal";
+import { httpTransport, manifestFromOpenApi, commandsFrom } from "@facio/remote";
 
 /**
  * `open-cli` - a command line for an API that never heard of this library.

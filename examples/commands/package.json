@@ -11,7 +11,11 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "facio": "workspace:*"
+    "@facio/commands": "workspace:*",
+    "@facio/docs": "workspace:*",
+    "@facio/mcp": "workspace:*",
+    "@facio/remote": "workspace:*",
+    "@facio/terminal": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

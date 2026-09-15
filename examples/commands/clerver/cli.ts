@@ -2,9 +2,9 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { coerce, compact, createRegistry, output, type Command } from "facio";
-import { Program, runEntry } from "facio/cli";
-import { httpTransport, loadManifest, commandsFrom } from "facio/remote";
+import { coerce, compact, createRegistry, output, type Command } from "@facio/commands";
+import { Program, runEntry } from "@facio/terminal";
+import { httpTransport, loadManifest, commandsFrom } from "@facio/remote";
 import { createPetServer } from "./server.js";
 
 /**

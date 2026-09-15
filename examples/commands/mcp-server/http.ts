@@ -1,5 +1,5 @@
-import { createRegistry, output } from "facio";
-import { listenMcpHttp } from "facio/mcp/server";
+import { createRegistry, output } from "@facio/commands";
+import { listenMcpHttp } from "@facio/mcp/server";
 
 const registry = createRegistry();
 registry.action({ id: "greet", summary: "Greet someone", surfaces: { mcp: true },

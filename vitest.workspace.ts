@@ -6,7 +6,13 @@ import { defineWorkspace } from 'vitest/config';
 const typecheck = { enabled: true, tsconfig: 'tsconfig.test.json' };
 
 export default defineWorkspace([
-  { test: { name: 'facio', root: 'packages/facio', typecheck } },
+  { test: { name: '@facio/commands', root: 'packages/commands', typecheck } },
+  { test: { name: '@facio/terminal', root: 'packages/terminal', typecheck } },
+  { test: { name: '@facio/mcp', root: 'packages/mcp', typecheck } },
+  { test: { name: '@facio/remote', root: 'packages/remote', typecheck } },
+  { test: { name: '@facio/config', root: 'packages/config', typecheck } },
+  { test: { name: '@facio/yaml', root: 'packages/yaml', typecheck } },
+  { test: { name: '@facio/docs', root: 'packages/docs', typecheck } },
   { test: { name: '@facio/agents', root: 'packages/agents', typecheck } },
   { test: { name: '@facio/model-openai-compat', root: 'packages/model-openai-compat', typecheck } },
   { test: { name: '@facio/store-file', root: 'packages/store-file', typecheck } },
