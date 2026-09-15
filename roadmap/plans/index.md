@@ -20,8 +20,9 @@ Reference: [00-agent.md](agent/00-agent.md)
 | --- | --- | --- | --- | --- |
 | [01 - Harness core](agent/01-harness-core.md) (parent) | High | In progress (p1-p3 shipped) | - | everything |
 | [01-p5 - Steering, hook stop, thinking levels, streaming, context, usage](agent/01-harness-core-p5-streaming-context-usage.md) | Medium | Planned in part | 01 (p3) | - |
+| [02 - Deferred tools: an index in the prompt, a definition on demand](agent/02-deferred-tools.md) | High | Not started | 01 (p3) | the MCP client |
 
-Next free number in `agent`: `02`.
+Next free number in `agent`: `03`.
 
 ## cli
 
