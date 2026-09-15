@@ -20,14 +20,15 @@ export type BeforeModelResult = { request: ModelRequest } | { abort: { reason: s
 export interface AfterModelArgs { reply: ModelReply; run: RunInfo }
 export type AfterModelResult = { reply: ModelReply } | { abort: { reason: string } };
 
-export interface BeforeToolArgs { call: ToolCallPart; tool: Tool; run: RunInfo }
+/** `tool` is `Tool<any, any>` (decision 67): execute's input is contravariant, so a typed tool would not be assignable. */
+export interface BeforeToolArgs { call: ToolCallPart; tool: Tool<any, any>; run: RunInfo }
 export type BeforeToolResult =
   | { decision: 'allow' }
   | { decision: 'modify'; input: unknown }
   | { decision: 'deny'; reason: string }
   | { decision: 'approval'; prompt?: string };
 
-export interface AfterToolArgs { call: ToolCallPart; tool: Tool; output: ToolOutput; isError: boolean; run: RunInfo }
+export interface AfterToolArgs { call: ToolCallPart; tool: Tool<any, any>; output: ToolOutput; isError: boolean; run: RunInfo }
 export type AfterToolResult = { output: ToolOutput; isError?: boolean };
 
 export type HookHandler<Args, Result> = (args: Args) => Result | Promise<Result>;

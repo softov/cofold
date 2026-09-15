@@ -12,9 +12,12 @@ export interface ContextOptions {
   estimateTokens?(text: string): number;
 }
 
-/** The run-level authorization floor (decision 46). A hook may escalate above it, never below. */
+/**
+ * The run-level authorization floor (decision 46). A hook may escalate above it, never below.
+ * `Tool<any, any>` (decision 67): execute's input is contravariant, so a typed `Tool<{ text: string }>` is not a `Tool`.
+ */
 export interface Policy {
-  requireApproval(args: { tool: Tool; input: unknown; run: RunInfo }): boolean | Promise<boolean>;
+  requireApproval(args: { tool: Tool<any, any>; input: unknown; run: RunInfo }): boolean | Promise<boolean>;
 }
 
 export interface AgentOptions<Resources = Record<string, unknown>> {

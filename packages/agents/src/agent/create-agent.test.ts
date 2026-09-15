@@ -8,12 +8,11 @@ import { createAgent } from './create-agent.js';
 import { DEFAULT_LIMITS } from './limits.js';
 
 const model = createFakeModel({ script: [] });
-// Untyped on purpose: a Tool<{ text }> is not assignable to the Tool that Policy.requireApproval takes.
-const echo = createTool({
+const echo = createTool<{ text: string }>({
   name: 'echo',
   description: 'echo',
   input: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
-  execute: (i) => (i as { text: string }).text,
+  execute: (i) => i.text,
 });
 const rm = createTool({ name: 'rm', description: 'remove', input: { type: 'object' }, effects: { destructive: true }, execute: () => '' });
 const store = createMemoryStore();

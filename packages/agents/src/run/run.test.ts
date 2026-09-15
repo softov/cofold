@@ -117,6 +117,21 @@ describe('run: limits', () => {
     expect(transcript.map((m) => m.role)).toEqual(['user', 'assistant', 'tool', 'tool']);
     expect(transcript[3]!.parts[0]).toMatchObject({ type: 'toolResult', isError: true, content: 'Tool call limit reached' });
   });
+
+  it('denied calls do not count toward maxToolCalls', async () => {
+    const execute = vi.fn(() => 'r');
+    const { agent } = build({
+      script: [{ toolCalls: [{ name: 'unknown-tool', input: {} }, { name: 'echo', input: { text: 'a' } }] }, { text: 'done' }],
+      tools: [echoTool(execute)],
+      limits: { maxToolCalls: 1 },
+    });
+    const handle = run({ agent, session: 's', input: 'x' });
+    const events = await collect(handle);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(types(events)).toEqual(['run.started', 'model.started', 'model.completed', 'tool.denied', 'tool.proposed', 'tool.started', 'tool.completed', 'model.started', 'model.completed', 'run.finished']);
+    expect(events[3]).toMatchObject({ type: 'tool.denied', reason: 'Unknown tool "unknown-tool"' });
+    expect(await handle.outcome).toMatchObject({ status: 'completed' });
+  });
 });
 
 describe('run: hooks and approvals', () => {
@@ -166,6 +181,17 @@ describe('run: hooks and approvals', () => {
     expect(model.requests).toHaveLength(0);
     const [step] = await store.runs.listSteps(ref(handle));
     expect(step).toMatchObject({ kind: 'model', status: 'completed', detail: { abortedBy: 'beforeModel', reason: 'blocked' } });
+  });
+
+  it('afterModel abort stops the run with reason policy and keeps the tokens the model consumed', async () => {
+    const usage = { inputTokens: 7, outputTokens: 3 };
+    const { agent, store } = build({ script: [{ text: 'blocked', usage }], hooks: { afterModel: () => ({ abort: { reason: 'unsafe' } }) } });
+    const handle = run({ agent, session: 's', input: 'x' });
+    await collect(handle);
+    expect(await handle.outcome).toMatchObject({ status: 'stopped', reason: 'policy', steps: 1, usage });
+    const [step] = await store.runs.listSteps(ref(handle));
+    expect(step).toMatchObject({ kind: 'model', status: 'completed', reply: { finish: 'stop', usage }, detail: { abortedBy: 'afterModel', reason: 'unsafe' } });
+    expect(step && 'reply' in step && step.reply && 'raw' in step.reply).toBe(false);
   });
 
   it('13. maps hook, adapter and capability failures to failed outcomes', async () => {

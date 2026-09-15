@@ -10,7 +10,7 @@ import type { Emitter } from './events.js';
 
 export type ToolCallResult =
   | { kind: 'result'; part: ToolResultPart; executed: boolean }
-  | { kind: 'approval'; tool: Tool; input: unknown; prompt?: string }
+  | { kind: 'approval'; tool: Tool<any, any>; input: unknown; prompt?: string }
   | { kind: 'aborted' };
 
 export interface ToolCallDeps {
@@ -66,7 +66,7 @@ export async function handleToolCall(deps: ToolCallDeps, call: ToolCallPart): Pr
   return execute(deps, call, tool, input);
 }
 
-export async function execute(deps: ToolCallDeps, call: ToolCallPart, tool: Tool, input: unknown): Promise<ToolCallResult> {
+export async function execute(deps: ToolCallDeps, call: ToolCallPart, tool: Tool<any, any>, input: unknown): Promise<ToolCallResult> {
   const { agent, run, abort, emit } = deps;
   const invocationId = newId();
   const startedAt = new Date().toISOString();

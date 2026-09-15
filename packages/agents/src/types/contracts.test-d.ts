@@ -7,6 +7,7 @@ import type { ModelAdapter } from './model.js';
 import type { ModelProvider } from './provider.js';
 import type { RunOutcome } from './outcome.js';
 import type { KvScope, Store } from './store.js';
+import type { Tool } from './tool.js';
 
 describe('contracts', () => {
   it('RunOutcome has exactly the five terminal statuses', () => {
@@ -43,5 +44,9 @@ describe('contracts', () => {
     const wrong = (args: AfterToolArgs): AfterToolResult => ({ output: args.output });
     expectTypeOf(good).toMatchTypeOf<Hooks['beforeTool']>();
     expectTypeOf(wrong).not.toMatchTypeOf<Hooks['beforeTool']>();
+  });
+
+  it('a typed Tool is assignable to the tool a hook receives (decision 67)', () => {
+    expectTypeOf<Tool<{ text: string }>>().toMatchTypeOf<BeforeToolArgs['tool']>();
   });
 });

@@ -86,7 +86,7 @@ async function executeRun<Resources>(args: RunArgs<Resources>, runId: string, ab
     const sections: string[] = [];
     const capArgs: CapabilityArgs = { agentId, sessionId, runId, ...(session.workspace !== undefined ? { workspace: session.workspace } : {}), kv, signal: abort.signal };
     for (const cap of agent.capabilities) {
-      let contributed: Tool[] = [];
+      let contributed: Tool<any, any>[] = [];
       let text: string | undefined;
       try {
         contributed = (await cap.tools?.(capArgs)) ?? [];
@@ -151,21 +151,21 @@ async function executeRun<Resources>(args: RunArgs<Resources>, runId: string, ab
         const code = e instanceof ModelError ? e.code : 'internal';
         return await finish(fail(code, (e as Error).message, summarize(e)));
       }
+      // The model consumed these tokens whatever afterModel decides.
+      usage = addUsage(usage, reply.usage);
 
       if (agent.hooks.afterModel) {
         let after;
         try { after = await agent.hooks.afterModel({ reply, run }); }
         catch (e) { await store.runs.updateStep({ ...stepRef, patch: { status: 'failed', endedAt: now() } }); return await finish(fail('hook_error', `afterModel: ${(e as Error).message}`)); }
         if ('abort' in after) {
-          await store.runs.updateStep({ ...stepRef, patch: { status: 'completed', reply, detail: { abortedBy: 'afterModel', reason: after.abort.reason }, endedAt: now() } });
+          await store.runs.updateStep({ ...stepRef, patch: { status: 'completed', reply: replyRecord(reply), detail: { abortedBy: 'afterModel', reason: after.abort.reason }, endedAt: now() } });
           return await finish({ status: 'stopped', reason: 'policy', usage, steps });
         }
         reply = after.reply;
       }
 
-      usage = addUsage(usage, reply.usage);
-      const { raw: _raw, ...replyRecord } = reply;
-      await store.runs.updateStep({ ...stepRef, patch: { status: 'completed', reply: replyRecord, endedAt: now() } });
+      await store.runs.updateStep({ ...stepRef, patch: { status: 'completed', reply: replyRecord(reply), endedAt: now() } });
       await store.sessions.appendMessages({ sessionId, runId, messages: [reply.message] });
       await emit({ type: 'model.completed', step: steps, message: reply.message, usage: reply.usage, finish: reply.finish });
 
@@ -183,10 +183,11 @@ async function executeRun<Resources>(args: RunArgs<Resources>, runId: string, ab
           await appendResult({ type: 'toolResult', callId: call.callId, name: call.name, content: 'Tool call limit reached', isError: true });
           continue;
         }
-        toolCalls += 1;
         let result;
         try { result = await handleToolCall(deps, call); }
         catch (e) { return await finish(fail('hook_error', `beforeTool/afterTool: ${(e as Error).message}`, summarize(e))); }
+        // Denied calls (unknown tool, invalid args, hook deny) never reached an executor and do not count (decision 56).
+        if (result.kind !== 'result' || result.executed) toolCalls += 1;
 
         if (result.kind === 'aborted') return await finish(abortOutcome(abort, usage, steps));
         if (result.kind === 'approval') {
@@ -222,6 +223,12 @@ async function executeRun<Resources>(args: RunArgs<Resources>, runId: string, ab
     const message: Message = { id: newId(), role: 'tool', source: 'tool', parts: [part], createdAt: now() };
     await store.sessions.appendMessages({ sessionId, runId, messages: [message] });
   }
+}
+
+/** The provider payload (`raw`) never reaches the step log. */
+function replyRecord(reply: ModelReply): Omit<ModelReply, 'raw'> {
+  const { raw: _raw, ...record } = reply;
+  return record;
 }
 
 function abortOutcome(abort: RunAbort, usage: Usage, steps: number): RunOutcome {

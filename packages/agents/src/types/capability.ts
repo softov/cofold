@@ -18,7 +18,8 @@ export interface CapabilityArgs {
 export interface Capability {
   /** Stable id; unique within an agent. Becomes Tool.source for its tools and the section label in the prompt. */
   id: string;
-  tools?(args: CapabilityArgs): Tool[] | Promise<Tool[]>;
+  /** `Tool<any, any>` (decision 67): a capability returns tools of mixed input types. */
+  tools?(args: CapabilityArgs): Tool<any, any>[] | Promise<Tool<any, any>[]>;
   /** Text appended to the agent instructions under a `## <id>` heading; undefined contributes nothing this run. */
   instructions?(args: CapabilityArgs): string | undefined | Promise<string | undefined>;
 }
