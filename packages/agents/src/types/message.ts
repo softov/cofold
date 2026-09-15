@@ -8,6 +8,8 @@ export interface ImagePart {
   data?: string;
   url?: string;
 }
+/** Model reasoning (thinking) text. Never sent back to a model; textOf() ignores it. */
+export interface ReasoningPart { type: 'reasoning'; text: string }
 export interface ToolCallPart {
   type: 'toolCall';
   /** Model-supplied id when present, otherwise newId(). Pairs with ToolResultPart.callId. */
@@ -26,7 +28,7 @@ export interface ToolResultPart {
   content: string;
   isError: boolean;
 }
-export type ContentPart = TextPart | ImagePart | ToolCallPart | ToolResultPart;
+export type ContentPart = TextPart | ImagePart | ReasoningPart | ToolCallPart | ToolResultPart;
 
 /** Where a message came from; kept so context assembly can tell instructions, input, tool output and summaries apart. */
 export type MessageSource = 'input' | 'model' | 'tool' | 'hook' | 'summary' | 'system';

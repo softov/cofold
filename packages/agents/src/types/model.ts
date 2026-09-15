@@ -6,6 +6,8 @@ export interface ModelFeatures {
   streaming: boolean;
   images: boolean;
   structuredOutput: boolean;
+  /** Accepts ModelParams.reasoning and may return ReasoningPart. */
+  reasoning: boolean;
 }
 
 export interface ModelParams {
@@ -14,6 +16,8 @@ export interface ModelParams {
   maxOutputTokens?: number;
   stop?: string[];
   seed?: number;
+  /** Ignored by an adapter whose features.reasoning is false. */
+  reasoning?: { effort?: 'low' | 'medium' | 'high'; maxTokens?: number };
 }
 
 export interface Usage {
@@ -21,6 +25,8 @@ export interface Usage {
   outputTokens: number;
   /** Provider-reported cache hits, when known. */
   cacheReadTokens?: number;
+  /** Provider-reported reasoning tokens, when known; included in outputTokens by most providers. */
+  reasoningTokens?: number;
 }
 
 export type FinishReason = 'stop' | 'tool_calls' | 'length' | 'content_filter' | 'other';
@@ -34,7 +40,7 @@ export interface ModelRequest {
 }
 
 export interface ModelReply {
-  /** role 'assistant', source 'model'; text and toolCall parts only. */
+  /** role 'assistant', source 'model'; reasoning, text and toolCall parts only. */
   message: Message;
   usage: Usage;
   finish: FinishReason;

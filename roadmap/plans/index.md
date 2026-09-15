@@ -1,0 +1,26 @@
+# Plans index
+
+Master index of development plans.
+One row per plan; children of a split plan are listed under their parent.
+
+Status markers: `Not started` · `In progress` · `Blocked` · `Partial` · `Shipped`.
+
+## agent
+
+Reference: [00-agent.md](agent/00-agent.md)
+
+| Plan | Priority | Status | Requires | Blocks |
+| --- | --- | --- | --- | --- |
+| [01 - Harness core](agent/01-harness-core.md) (parent) | High | In progress | - | everything |
+| [01-p1 - Contracts, fake model, chat-completions adapter](agent/01-harness-core-p1-contracts.md) | High | Partial | - | 01-p2 |
+| [01-p2 - Serial loop and run handle](agent/01-harness-core-p2-loop.md) | High | Not started | 01-p1 | 01-p3 |
+| [01-p3 - Durable sessions and paused approvals](agent/01-harness-core-p3-durable-hitl.md) | High | Not started | 01-p2 | 01-p4 |
+| [01-p4 - ahpd adapter](agent/01-harness-core-p4-ahpd-adapter.md) | High | Not started | 01-p3 | - |
+| [01-p5 - Streaming, context reduction, usage accounting](agent/01-harness-core-p5-streaming-context-usage.md) | Medium | Not started | 01-p3 | - |
+
+Next free number in `agent`: `02`.
+
+## Later domains (no plans yet)
+
+`model` · `store` · `tools` · `memory` · `transport` · `network` · `testing` · `documentation`.
+Candidates already named in the parent plan's *Out of scope* list: code mode, guardrail package, subagent tool, network, SQLite and Durable Object stores (pluggable behind the `Store` contract; file store ships first in p3), JSON-RPC / WS / HTTP / MCP-server transports, `fromFacioAction()`.

@@ -31,7 +31,7 @@ describe('createFakeModel', () => {
       ],
     });
     expect(model.id).toBe('fake:fake');
-    expect(model.features).toEqual({ tools: true, streaming: false, images: false, structuredOutput: false });
+    expect(model.features).toEqual({ tools: true, streaming: false, images: false, structuredOutput: false, reasoning: false });
     expect(model.remaining()).toBe(2);
 
     const first = await model.complete(request());

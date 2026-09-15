@@ -42,7 +42,7 @@ else result.issues;               // [{ path: '$.text', message: 'required' }]
 
 Supported keywords: `type` (single or array), `properties`, `required`, `additionalProperties` (boolean), `items` (single schema), `enum`, `const`, `default`, `description`, `minimum`, `maximum`, `minLength`, `maxLength`, `pattern`, `minItems`, `maxItems`, `anyOf`, `oneOf`, `nullable`.
 `title`, `examples` and `$schema` are accepted and ignored.
-Anything else (`$ref`, `patternProperties`, ...) throws `SchemaError('unsupported_keyword')` at `createTool` time, never at validation time.
+Anything else (`$ref`, `patternProperties`, ...) throws `SchemaError('unsupported_keyword')` at `createTool` time, never at validation time; a bad value (`pattern: '('`, `type: 'str'`, a non-array `required`) throws `SchemaError('invalid_schema')` there too.
 Types are never coerced: `"3"` is not an integer.
 
 ## The shape the whole family follows
@@ -72,7 +72,14 @@ const store = createMemoryStore();
 ```
 
 The fake model replays its script in order and records every request it received (`model.requests`).
-The memory store is the reference `Store`: it enforces the writer claim (`writer_mismatch`), contiguous event sequence numbers (`seq_gap`), and addresses runs only through their session (`RunRef { sessionId, runId }`).
+The memory store is the reference `Store`: it enforces the writer claim (`writer_mismatch`), contiguous event sequence numbers (`seq_gap`), refuses to overwrite an existing session or run (`already_exists`), and addresses runs only through their session (`RunRef { sessionId, runId }`).
+
+## Models and providers
+
+`ModelAdapter` is what an agent talks to: `{ id, modelId, features, complete(request) }`.
+`ModelProvider` is what a host lists models from: `{ id, listModels(), model({ id }) }`; it lives in `types/provider.ts` and the core never calls it.
+`ModelFeatures` says what a model actually supports (`tools`, `streaming`, `images`, `structuredOutput`, `reasoning`); an adapter refuses a request that needs more.
+Messages carry `text`, `image`, `reasoning`, `toolCall` and `toolResult` parts; `textOf()` returns the text parts only.
 
 ## Layout
 

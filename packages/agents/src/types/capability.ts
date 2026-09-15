@@ -13,7 +13,7 @@ export interface CapabilityArgs {
 /**
  * Contributes tools and/or an instructions section to every run (parent decision 31).
  * Resolved by run() at run start, in AgentOptions.capabilities order, before the first model step.
- * MCP servers and skill folders are capabilities provided by later packages; the core never learns their formats.
+ * Skills are a core capability over SkillSource (p3); MCP servers come from a separate client package. The core never learns their formats.
  */
 export interface Capability {
   /** Stable id; unique within an agent. Becomes Tool.source for its tools and the section label in the prompt. */

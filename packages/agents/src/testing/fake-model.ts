@@ -23,7 +23,7 @@ export function createFakeModel(options: { script: FakeStep[]; features?: Partia
   return {
     id: `fake:${options.modelId ?? 'fake'}`,
     modelId: options.modelId ?? 'fake',
-    features: { tools: true, streaming: false, images: false, structuredOutput: false, ...options.features },
+    features: { tools: true, streaming: false, images: false, structuredOutput: false, reasoning: false, ...options.features },
     requests,
     remaining: () => script.length,
     async complete(request) {

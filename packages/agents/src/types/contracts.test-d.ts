@@ -1,12 +1,23 @@
 import { describe, expectTypeOf, it } from 'vitest';
 import type { AfterToolArgs, AfterToolResult, BeforeToolArgs, BeforeToolResult, Hooks } from './hooks.js';
 import type { RunEvent } from './event.js';
+import type { ContentPart } from './message.js';
+import type { ModelAdapter } from './model.js';
+import type { ModelProvider } from './provider.js';
 import type { RunOutcome } from './outcome.js';
 import type { Store } from './store.js';
 
 describe('contracts', () => {
   it('RunOutcome has exactly the five terminal statuses', () => {
     expectTypeOf<RunOutcome['status']>().toEqualTypeOf<'completed' | 'awaiting' | 'stopped' | 'cancelled' | 'failed'>();
+  });
+
+  it('ContentPart has exactly the five part kinds', () => {
+    expectTypeOf<ContentPart['type']>().toEqualTypeOf<'text' | 'image' | 'reasoning' | 'toolCall' | 'toolResult'>();
+  });
+
+  it('ModelProvider.model returns a ModelAdapter', () => {
+    expectTypeOf<ModelProvider['model']>().returns.toEqualTypeOf<ModelAdapter>();
   });
 
   it('RunEvent carries a numeric seq', () => {

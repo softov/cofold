@@ -8,6 +8,7 @@ export type * from './limits.js';
 export type * from './message.js';
 export type * from './model.js';
 export type * from './outcome.js';
+export type * from './provider.js';
 export type * from './run.js';
 export type * from './schema.js';
 export type * from './store.js';

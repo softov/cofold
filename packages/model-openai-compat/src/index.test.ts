@@ -1,15 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ModelError, textOf, toolCallsOf } from '@facio/agents';
 import type { Message, ModelRequest } from '@facio/agents';
-import { openaiCompat } from './index.js';
-import type { WireResponse } from './wire.js';
+import { openaiCompat, openaiCompatProvider } from './index.js';
+import type { WireModelList, WireResponse } from './wire.js';
 
 type Call = { url: string; init: RequestInit; body: Record<string, unknown> };
 
 function stubFetch(responses: (Response | Error)[]) {
   const calls: Call[] = [];
   const fetchStub = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-    calls.push({ url: String(url), init: init ?? {}, body: JSON.parse(String(init?.body)) as Record<string, unknown> });
+    calls.push({ url: String(url), init: init ?? {}, body: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {} });
     const next = responses.shift();
     if (!next) throw new Error('no stubbed response left');
     if (next instanceof Error) throw next;
@@ -56,7 +56,7 @@ describe('openaiCompat request mapping', () => {
     const model = openaiCompat({ baseUrl: 'http://localhost:1234/v1/', model: 'm', apiKey: 'k', headers: { 'x-extra': '1' }, params: { temperature: 0.5 }, fetch });
     expect(model.id).toBe('openai-compat:m');
     expect(model.modelId).toBe('m');
-    expect(model.features).toEqual({ tools: true, streaming: false, images: false, structuredOutput: false });
+    expect(model.features).toEqual({ tools: true, streaming: false, images: false, structuredOutput: false, reasoning: false });
 
     const assistant: Message = {
       id: 'a1', role: 'assistant', source: 'model', createdAt: 'now',
@@ -116,6 +116,121 @@ describe('openaiCompat request mapping', () => {
   });
 });
 
+describe('openaiCompat reasoning', () => {
+  it('sends reasoning_effort for effort only, and the reasoning object when a budget is set', async () => {
+    const { calls, fetch } = stubFetch([json(okText), json(okText)]);
+    const model = openaiCompat({ baseUrl: 'http://x', model: 'm', features: { reasoning: true }, fetch });
+    await model.complete(request({ params: { reasoning: { effort: 'high' } } }));
+    expect(calls[0]!.body).toMatchObject({ reasoning_effort: 'high' });
+    expect(calls[0]!.body).not.toHaveProperty('reasoning');
+    await model.complete(request({ params: { reasoning: { effort: 'low', maxTokens: 512 } } }));
+    expect(calls[1]!.body).toMatchObject({ reasoning: { effort: 'low', max_tokens: 512 } });
+    expect(calls[1]!.body).not.toHaveProperty('reasoning_effort');
+  });
+
+  it('sends nothing for reasoning when the model does not support it', async () => {
+    const { calls, fetch } = stubFetch([json(okText)]);
+    await openaiCompat({ baseUrl: 'http://x', model: 'm', fetch }).complete(request({ params: { reasoning: { effort: 'high' } } }));
+    expect(calls[0]!.body).not.toHaveProperty('reasoning_effort');
+    expect(calls[0]!.body).not.toHaveProperty('reasoning');
+  });
+
+  it('never sends reasoning parts back to the model', async () => {
+    const { calls, fetch } = stubFetch([json(okText)]);
+    const assistant: Message = { id: 'a', role: 'assistant', source: 'model', createdAt: 'now', parts: [{ type: 'reasoning', text: 'hmm' }, { type: 'text', text: 'ok' }] };
+    await openaiCompat({ baseUrl: 'http://x', model: 'm', fetch }).complete(request({ messages: [assistant] }));
+    expect((calls[0]!.body.messages as unknown[])[1]).toEqual({ role: 'assistant', content: 'ok' });
+  });
+
+  it('maps message.reasoning (OpenRouter) and reasoning_content (DeepSeek) to a reasoning part first', async () => {
+    const mk = (message: Record<string, unknown>) => json({ choices: [{ message, finish_reason: 'stop' }] });
+    const { fetch } = stubFetch([mk({ role: 'assistant', content: 'answer', reasoning: 'because' }), mk({ role: 'assistant', content: 'answer', reasoning_content: 'since' })]);
+    const model = openaiCompat({ baseUrl: 'http://x', model: 'm', fetch });
+    expect((await model.complete(request())).message.parts).toEqual([{ type: 'reasoning', text: 'because' }, { type: 'text', text: 'answer' }]);
+    expect((await model.complete(request())).message.parts).toEqual([{ type: 'reasoning', text: 'since' }, { type: 'text', text: 'answer' }]);
+  });
+
+  it('moves a leading <think> block out of content into a reasoning part', async () => {
+    const { fetch } = stubFetch([json({ choices: [{ message: { role: 'assistant', content: '<think>\nlet me see\n</think>\n\nfinal' }, finish_reason: 'stop' }] })]);
+    const reply = await openaiCompat({ baseUrl: 'http://x', model: 'm', fetch }).complete(request());
+    expect(reply.message.parts).toEqual([{ type: 'reasoning', text: '\nlet me see\n' }, { type: 'text', text: 'final' }]);
+    expect(textOf(reply.message)).toBe('final');
+  });
+
+  it('maps reasoning tokens from completion_tokens_details', async () => {
+    const body: WireResponse = { choices: [{ message: { role: 'assistant', content: 'x' }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 9, completion_tokens_details: { reasoning_tokens: 7 } } };
+    const { fetch } = stubFetch([json(body)]);
+    const reply = await openaiCompat({ baseUrl: 'http://x', model: 'm', fetch }).complete(request());
+    expect(reply.usage).toEqual({ inputTokens: 1, outputTokens: 9, reasoningTokens: 7 });
+  });
+});
+
+describe('openaiCompatProvider', () => {
+  const list: WireModelList = {
+    data: [
+      { id: 'local/plain' },
+      {
+        id: 'openai/gpt-4o-mini',
+        name: 'GPT-4o mini',
+        context_length: 128000,
+        pricing: { prompt: '0.00000015', completion: '0.0000006' },
+        supported_parameters: ['tools', 'response_format', 'reasoning'],
+        architecture: { input_modalities: ['text', 'image'] },
+        top_provider: { max_completion_tokens: 16384 },
+      },
+      { id: 'x/no-tools', supported_parameters: ['temperature'], pricing: { prompt: 'n/a' }, top_provider: { max_completion_tokens: null } },
+    ],
+  };
+
+  it('derives its id from the name or the URL host', () => {
+    expect(openaiCompatProvider({ baseUrl: 'http://localhost:1234/v1' }).id).toBe('openai-compat:localhost:1234');
+    expect(openaiCompatProvider({ baseUrl: 'https://openrouter.ai/api/v1', name: 'openrouter' }).id).toBe('openai-compat:openrouter');
+  });
+
+  it('lists models from GET /models with best-effort features, limits and pricing', async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const getStub = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      return json(list);
+    }) as unknown as typeof fetch;
+    const provider = openaiCompatProvider({ baseUrl: 'https://openrouter.ai/api/v1/', apiKey: 'k', fetch: getStub });
+    const models = await provider.listModels();
+    expect(calls[0]!.url).toBe('https://openrouter.ai/api/v1/models');
+    expect(calls[0]!.init.method).toBe('GET');
+    expect(calls[0]!.init.headers).toMatchObject({ authorization: 'Bearer k' });
+    expect(models).toEqual([
+      { id: 'local/plain', name: 'local/plain', features: { tools: true, streaming: false, images: false, structuredOutput: false, reasoning: false } },
+      {
+        id: 'openai/gpt-4o-mini',
+        name: 'GPT-4o mini',
+        features: { tools: true, streaming: false, images: true, structuredOutput: true, reasoning: true },
+        contextTokens: 128000,
+        maxOutputTokens: 16384,
+        pricing: { inputPerMillion: 0.15, outputPerMillion: 0.6, currency: 'USD' },
+      },
+      { id: 'x/no-tools', name: 'x/no-tools', features: { tools: false, streaming: false, images: false, structuredOutput: false, reasoning: false } },
+    ]);
+  });
+
+  it('throws invalid_response when the list has no data[]', async () => {
+    const { fetch } = stubFetch([json({ object: 'list' })]);
+    const e = await codeOf(openaiCompatProvider({ baseUrl: 'http://x', fetch }).listModels());
+    expect(e.code).toBe('invalid_response');
+  });
+
+  it('builds adapters that share the endpoint, key and defaults', async () => {
+    const { calls, fetch } = stubFetch([json(okText)]);
+    const provider = openaiCompatProvider({ baseUrl: 'http://x', apiKey: 'k', fetch });
+    const model = provider.model({ id: 'm', features: { tools: false }, params: { temperature: 0.1 } });
+    expect(model.id).toBe('openai-compat:m');
+    expect(model.features.tools).toBe(false);
+    await model.complete(request({ tools: [] }));
+    expect(calls[0]!.url).toBe('http://x/chat/completions');
+    expect(calls[0]!.init.headers).toMatchObject({ authorization: 'Bearer k' });
+    expect(calls[0]!.body).toMatchObject({ model: 'm', temperature: 0.1 });
+  });
+});
+
 describe('openaiCompat response mapping', () => {
   it('maps text, usage and cached tokens', async () => {
     const { fetch } = stubFetch([json(okText)]);
@@ -151,6 +266,14 @@ describe('openaiCompat response mapping', () => {
     expect(call!.callId).toMatch(/^[0-9a-f-]{36}$/);
     expect(reply.finish).toBe('tool_calls');
     expect(reply.usage).toEqual({ inputTokens: 0, outputTokens: 0 });
+  });
+
+  it('joins array-shaped content text parts', async () => {
+    const body = { choices: [{ message: { role: 'assistant', content: [{ type: 'text', text: 'hel' }, { type: 'image_url', image_url: { url: 'x' } }, { type: 'text', text: 'lo' }] }, finish_reason: 'stop' }] };
+    const { fetch } = stubFetch([json(body)]);
+    const reply = await openaiCompat({ baseUrl: 'http://x', model: 'm', fetch }).complete(request());
+    expect(reply.message.parts).toEqual([{ type: 'text', text: 'hello' }]);
+    expect(reply.finish).toBe('stop');
   });
 
   it('maps length and content_filter, and unknown reasons to other', async () => {

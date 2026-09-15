@@ -52,6 +52,12 @@ describe('createTool', () => {
     expect(code(() => createTool({ name: 'ok', description: 'x', input: { type: 'string' }, execute: () => '' }))).toBe('invalid_options');
   });
 
+  it('rejects invalid schema values at creation time', () => {
+    const bad = (input: unknown) => code(() => createTool({ name: 'ok', description: 'x', input: input as JsonSchema, execute: () => '' }));
+    expect(bad({ type: 'object', properties: { a: { type: 'string', pattern: '(' } } })).toBe('invalid_schema');
+    expect(bad({ type: 'object', properties: { a: { type: 'str' } } })).toBe('invalid_schema');
+  });
+
   it('rejects unsupported schema keywords at creation time', () => {
     const withRef = { type: 'object', properties: { a: { $ref: '#/x' } } } as unknown as JsonSchema;
     expect(() => createTool({ name: 'ok', description: 'x', input: withRef, execute: () => '' })).toThrow(SchemaError);
