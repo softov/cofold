@@ -24,7 +24,7 @@ function echoTool(execute?: ToolDefinition['execute']): Tool {
 
 const callRm = (text = 'x'): FakeStep => ({ toolCalls: [{ name: 'rm', input: { text } }] });
 
-function build(opts: { script?: FakeStep[]; tools?: Tool[] } & Omit<Partial<AgentOptions>, 'tools'> = {}) {
+function build(opts: { script?: FakeStep[]; tools?: Tool<any, any>[] } & Omit<Partial<AgentOptions>, 'tools'> = {}) {
   const { script, tools, ...rest } = opts;
   const store = rest.store ?? createMemoryStore();
   const model = createFakeModel({ script: script ?? [callRm(), { text: 'done' }] });

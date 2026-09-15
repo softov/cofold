@@ -973,12 +973,12 @@ Single phase; seven tasks in dependency order.
 
 - **Layer:** examples, README
 - **Files:**
-  - `CREATE: examples/standalone.ts`
-  - `CREATE: examples/lmstudio-tools.ts`
+  - `CREATE: examples/agents/standalone.ts`
+  - `CREATE: examples/agents/lmstudio-tools.ts`
   - `UPDATE: examples/README.md`, `packages/agents/README.md` (replace "lands in the next phase" with the real usage)
 - **Code:**
 
-  `examples/standalone.ts`
+  `examples/agents/standalone.ts`
   ```ts
   import { createAgent, createTool, run, textOf } from '@facio/agents';
   import { createFakeModel, createMemoryStore } from '@facio/agents/testing';
@@ -999,7 +999,7 @@ Single phase; seven tasks in dependency order.
   console.log(outcome.status, outcome.status === 'completed' ? textOf(outcome.message) : outcome);
   ```
 
-  `examples/lmstudio-tools.ts`: same shape with `openaiCompat({ baseUrl: process.env.FACIO_BASE_URL ?? 'http://localhost:1234/v1', model: process.env.FACIO_MODEL ?? 'qwen/qwen3-8b', features: { tools: true } })`, the `now` tool from `adapter-smoke.ts`, input `'What time is it? Use the tool.'`, and a `hooks.onEvent` that prints `tool.*` events with their payloads. `examples/package.json` gains `"standalone": "node --experimental-strip-types standalone.ts"` and `"lmstudio-tools": "node --experimental-strip-types lmstudio-tools.ts"`.
+  `examples/agents/lmstudio-tools.ts`: same shape with `openaiCompat({ baseUrl: process.env.FACIO_BASE_URL ?? 'http://localhost:1234/v1', model: process.env.FACIO_MODEL ?? 'qwen/qwen3-8b', features: { tools: true } })`, the `now` tool from `adapter-smoke.ts`, input `'What time is it? Use the tool.'`, and a `hooks.onEvent` that prints `tool.*` events with their payloads. `examples/package.json` gains `"standalone": "node --experimental-strip-types standalone.ts"` and `"lmstudio-tools": "node --experimental-strip-types lmstudio-tools.ts"`.
 - **Validation:** `pnpm --filter facio-agents-examples standalone` prints seq 1..9 and `completed The tool said: hello` with no server. `lmstudio-tools` is manual (LM Studio running): prints a `tool.completed` for `now` and a `completed` outcome whose text contains a time.
 
 ## Cross-layer consistency
@@ -1038,5 +1038,5 @@ Single phase; seven tasks in dependency order.
 - [x] `run.test.ts` cases 1-16 pass against `createMemoryStore()`.
 - [x] Every `run.finished` is preceded by `runs.update` with the same status (grep the loop: no `emit({ type: 'run.finished'` without an `update` above it).
 - [x] `packages/agents/src/types/` still exports no runtime value.
-- [x] `examples/standalone.ts` prints seq 1..9 and `completed`.
+- [x] `examples/agents/standalone.ts` prints seq 1..9 and `completed`.
 - [x] `index.md` status for 01-p2 updated. `lmstudio-tools` verified 2026-09-15 against the `.env` server (`Qwen3.5-2B-Claude-4.6-Opus-Reasoning-Distilled-GGUF`): `tool.completed` for `now`, `completed` outcome with the time, seq 1..9.

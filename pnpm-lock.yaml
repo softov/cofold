@@ -21,6 +21,18 @@ importers:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@22.20.1)
 
+  examples/agents:
+    dependencies:
+      '@facio/agents':
+        specifier: workspace:*
+        version: link:../../packages/agents
+      '@facio/model-openai-compat':
+        specifier: workspace:*
+        version: link:../../packages/model-openai-compat
+      '@facio/store-file':
+        specifier: workspace:*
+        version: link:../../packages/store-file
+
   examples/commands:
     dependencies:
       facio:
@@ -34,6 +46,8 @@ importers:
         specifier: 4.3.6
         version: 4.3.6
 
+  packages/agents: {}
+
   packages/facio:
     devDependencies:
       '@modelcontextprotocol/sdk':
@@ -42,6 +56,18 @@ importers:
       zod:
         specifier: 4.3.6
         version: 4.3.6
+
+  packages/model-openai-compat:
+    devDependencies:
+      '@facio/agents':
+        specifier: workspace:*
+        version: link:../agents
+
+  packages/store-file:
+    devDependencies:
+      '@facio/agents':
+        specifier: workspace:*
+        version: link:../agents
 
 packages:
 

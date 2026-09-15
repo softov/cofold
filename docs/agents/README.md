@@ -4,9 +4,9 @@ An agent harness in TypeScript: a model conducts a conversation, proposes tools,
 
 | Package | What |
 | --- | --- |
-| [`@facio/agents`](packages/agents) | Contracts, JSON Schema validation, `createTool`, in-memory store, fake model. The loop (`createAgent`, `run`, `resume`) lands in the next phase. |
-| [`@facio/model-openai-compat`](packages/model-openai-compat) | Non-streaming Chat Completions adapter (OpenRouter, LM Studio, any compatible server). |
-| [`examples/`](examples) | Hosts that use the harness. |
+| [`@facio/agents`](../../packages/agents) | Contracts, JSON Schema validation, `createTool`, in-memory store, fake model. The loop (`createAgent`, `run`, `resume`) lands in the next phase. |
+| [`@facio/model-openai-compat`](../../packages/model-openai-compat) | Non-streaming Chat Completions adapter (OpenRouter, LM Studio, any compatible server). |
+| [`examples/agents/`](../../examples/agents) | Hosts that use the harness. |
 
 ## Develop
 

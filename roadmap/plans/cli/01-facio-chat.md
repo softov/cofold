@@ -53,7 +53,7 @@ facio-chat [--workspace <dir>] [--model <provider/model>] [--static ...]
 
 ### Existing patterns to reuse
 
-- `examples/pause-resume.ts` - the exact `run` → `awaiting` → `resume` → `submit` sequence the connection performs.
+- `examples/agents/pause-resume.ts` - the exact `run` → `awaiting` → `resume` → `submit` sequence the connection performs.
 - `packages/store-file/src/skills.ts` `fileSkillSource` - the skills source for the `skills()` capability.
 - `@textui/chat/fake` `describeHostConformance` (CHAT-01 decision 7) - run against `facioHost` with the fake model.
 

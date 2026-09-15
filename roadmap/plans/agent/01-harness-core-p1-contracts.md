@@ -1444,7 +1444,7 @@ Single phase; eight tasks in dependency order.
   - `CREATE: packages/model-openai-compat/src/wire.ts`
   - `CREATE: packages/model-openai-compat/src/index.test.ts`
 - **Reason:** spec build step 1; decisions 13, 31, 32, 33. Covers OpenRouter (`https://openrouter.ai/api/v1`, bearer key) and LM Studio (`http://localhost:1234/v1`, no key) by configuration only.
-- **Integration points:** implements `ModelAdapter` from `@facio/agents`; `examples/adapter-smoke.ts` uses it; p2 passes it as `model` to `createAgent`.
+- **Integration points:** implements `ModelAdapter` from `@facio/agents`; `examples/agents/adapter-smoke.ts` uses it; p2 passes it as `model` to `createAgent`.
 - **Data contracts:** `ModelAdapter`, `ModelRequest`, `ModelReply`, `Message`, `ToolCallPart` from `@facio/agents`.
 - **Code:**
 
@@ -1631,7 +1631,7 @@ Single phase; eight tasks in dependency order.
 
 - **Layer:** examples
 - **Files:**
-  - `CREATE: examples/adapter-smoke.ts`
+  - `CREATE: examples/agents/adapter-smoke.ts`
   - `CREATE: examples/README.md`
 - **Reason:** first "harness uses the agent" host, even before the loop exists; proves the adapter against a real local model and is the template every later example copies.
 - **Integration points:** `openaiCompat` + one `createTool`; no store, no loop.
@@ -1694,7 +1694,7 @@ Single phase; eight tasks in dependency order.
 ## Resume state
 
 - **Done so far (2026-09-15):** Tasks 1-8 built, then the review round applied (decisions 41-45: `already_exists`, `invalid_schema` value checks, array `content`, `ModelProvider` catalog + `openaiCompatProvider`, reasoning part/feature/params/usage); `pnpm check` from a dist-less tree: build, typecheck (3 workspaces), 77 tests (71 runtime + 6 type-level) green, 0 type errors.
-  Evidence: `packages/agents/src/{ids,errors,index,testing}.ts`, `types/*.ts` (16 files + `contracts.test-d.ts`), `agent/limits.ts`, `message/helpers.ts`, `model/usage.ts`, `schema/validate{,.test}.ts`, `tool/create-tool{,.test}.ts`, `store/memory{,.test}.ts`, `testing/fake-model{,.test}.ts`; `packages/model-openai-compat/src/{index,wire,index.test}.ts`; `examples/adapter-smoke.ts`; READMEs in root, both packages and `examples/`.
+  Evidence: `packages/agents/src/{ids,errors,index,testing}.ts`, `types/*.ts` (16 files + `contracts.test-d.ts`), `agent/limits.ts`, `message/helpers.ts`, `model/usage.ts`, `schema/validate{,.test}.ts`, `tool/create-tool{,.test}.ts`, `store/memory{,.test}.ts`, `testing/fake-model{,.test}.ts`; `packages/model-openai-compat/src/{index,wire,index.test}.ts`; `examples/agents/adapter-smoke.ts`; READMEs in root, both packages and `examples/`.
   Deviations from the plan's code blocks, each proven by a failing check: (a) `schema/validate.ts` `check()` returns early for an absent value (the plan's version type-checked `undefined` and rejected any absent optional property without a default, and doubled the `required` issue); (b) `store/memory.ts` `sessions.get` strips `messages` (the plan's validation demanded it, its code did not), `runs.create` / `updateStep` / `requests.resolve` clone their inputs; (c) `openaiCompat` `backoff()` checks `signal.aborted` up front and removes its listener on resolve; (d) root `build` filter is `"./packages/**"` in escaped double quotes (`'./packages/*'` matched nothing, and single quotes are literal under cmd.exe); (e) decisions 39-40 (build-first scripts, explicit vitest projects + `tsconfig.test.json`).
 - **Next action:** none; phase shipped 2026-09-15 (smoke run confirmed by the user). p2 starts at Task 1 of 01-harness-core-p2-loop.md.
 - **Open questions:** none.
@@ -1709,5 +1709,5 @@ Single phase; eight tasks in dependency order.
 - [x] Validator rejects unsupported keywords at `createTool` time and never coerces types.
 - [x] Memory store enforces `seq_gap` and `writer_mismatch`, rejects run-level calls whose `sessionId` does not own the run, and lists sessions by workspace.
 - [x] Fake model and `openaiCompat` both satisfy `ModelAdapter` (type test) and their unit tests pass.
-- [x] `examples/adapter-smoke.ts` runs against a real model (user-confirmed 2026-09-15).
+- [x] `examples/agents/adapter-smoke.ts` runs against a real model (user-confirmed 2026-09-15).
 - [x] `index.md` status for 01-p1 updated (`Shipped` 2026-09-15).

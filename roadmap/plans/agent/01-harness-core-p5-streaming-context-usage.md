@@ -177,7 +177,7 @@ packages/model-openai-compat/src/
 - `resume.ts:30-47`: same queue and `steer` on the handle; `validateCommand` first line: `if (command.type === 'steer') throw new AgentError({ code: 'invalid_options', message: 'steer needs a live handle; answer the pending request first' });` (the `Command` type in `resume.ts` becomes `Exclude<RunCommand, { type: 'cancel' | 'steer' }>` and `onCommand` narrows before `accept`).
 - `turn.ts`: in `runTurn`'s loop, after the abort check and before the `maxSteps` check: `await drainSteering(ctx);`. In `settle`: `rejectSteering(ctx.steering, ctx.runId)` before `ctx.handle.finish(outcome)`. Also in `finishDetached` paths of `resume.ts` (no ctx there; the queue is in scope).
 - `steering.test.ts` (memory store, fake model that calls a tool once then answers): (1) `submit(steer)` while the tool executes → resolves; the transcript is `user, assistant(toolCall), tool, user(steer), assistant`; `run.steered` appears between `tool.completed` and the second `model.started`. (2) Two steers before the drain → two messages, both promises resolve, order preserved. (3) steer after `run.finished` → throws `not_running`. (4) steer queued while the last model step is in flight and the reply has no tool calls → rejected `not_running`, transcript unchanged. (5) `resume({ command: { type: 'steer' } })` → handle finishes `failed { code: 'invalid_options' }` with no store writes (same shape as decision 92). (6) A resumed run accepts a steer after the approval is applied.
-- **Validation:** `pnpm check`; `examples/` gain `examples/steer.ts` (send, steer after the first `tool.started`, print the transcript order).
+- **Validation:** `pnpm check`; `examples/` gain `examples/agents/steer.ts` (send, steer after the first `tool.started`, print the transcript order).
 
 ### Task 3 - Stop from `beforeTool` / `afterTool`
 
@@ -219,7 +219,7 @@ packages/model-openai-compat/src/
   }
   ```
 - Tests: `wire.test.ts` covers the three branches and every effort value; `index.test.ts` with an injected `fetch`: the key function is called once per attempt (`auth` is not retried under decision 32, so a 401 means one call; a 500-then-200 sequence means two calls), `prompt_cache_key` equals the request's `cacheKey`.
-- **Validation:** `pnpm check`; `examples/adapter-smoke.ts` gains a `--effort xhigh` flag and prints the wire body against the injected fetch.
+- **Validation:** `pnpm check`; `examples/agents/adapter-smoke.ts` gains a `--effort xhigh` flag and prints the wire body against the injected fetch.
 
 ### Task 5 - Streaming (outline; `/dooplan` before `/dooit`)
 

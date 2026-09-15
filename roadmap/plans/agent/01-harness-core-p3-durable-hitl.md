@@ -768,7 +768,7 @@ Single phase; eight tasks in dependency order.
 
 ### Task 8 - Examples and docs
 
-- **Files:** `CREATE: examples/pause-resume.ts`, `CREATE: examples/ask-user.ts`, `UPDATE: examples/README.md`, `examples/package.json` scripts, `packages/agents/README.md` (resume, askUser, skills sections), `packages/store-file/README.md`.
+- **Files:** `CREATE: examples/agents/pause-resume.ts`, `CREATE: examples/agents/ask-user.ts`, `UPDATE: examples/README.md`, `examples/package.json` scripts, `packages/agents/README.md` (resume, askUser, skills sections), `packages/store-file/README.md`.
 - `pause-resume.ts`: temp root; agent with a destructive `delete_file` tool (fake executor) and the fake model scripted to call it; `run()` → prints `awaiting`; a **second** `createFileStore({ root })` instance + `resume()` → prints replayed events → `submit({ type: 'approve' })` → prints the rest and `completed`; asserts one `tool` step in `listSteps`.
 - `ask-user.ts`: `createAskUserTool()` + fake model asking two questions (one with options); the host reads answers from stdin (`node:readline`) and submits; prints the final text.
 - **Validation:** both examples run without a server; `pause-resume` exits 0 and prints `tool steps: 1`.
@@ -817,9 +817,9 @@ Single phase; eight tasks in dependency order.
 
 - [x] `pnpm check` clean; `run.test.ts` unchanged and green after the extraction (2026-09-16, 188 tests).
 - [x] Conformance suite runs against memory and file stores from one source file (`testing/store-conformance.ts`, 18 cases each).
-- [x] Pause → new store instance → `resume()` → `approve` → tool executed once → `completed` (`store.test.ts` end to end, `examples/pause-resume.ts` prints `tool steps: 1 (executions: 1)`).
+- [x] Pause → new store instance → `resume()` → `approve` → tool executed once → `completed` (`store.test.ts` end to end, `examples/agents/pause-resume.ts` prints `tool steps: 1 (executions: 1)`).
 - [x] Stale-lock takeover only for `running` holders; paused runs keep their claim (`store.test.ts` "takes over a stale lock only when its run is still running").
-- [x] askUser round trip with two questions, one multi-select (`resume.test.ts` case 7; `examples/ask-user.ts`).
+- [x] askUser round trip with two questions, one multi-select (`resume.test.ts` case 7; `examples/agents/ask-user.ts`).
 - [x] A `SKILL.md` under `<workspace>/.agents/skills/` is listed first, `read_skill` reads `references/`, path escape refused (`skills.test.ts` in both packages).
-- [x] `examples/pause-resume.ts` and `examples/ask-user.ts` run without a server (ask-user verified with piped and with closed stdin).
+- [x] `examples/agents/pause-resume.ts` and `examples/agents/ask-user.ts` run without a server (ask-user verified with piped and with closed stdin).
 - [x] `index.md` status for 01-p3 updated.

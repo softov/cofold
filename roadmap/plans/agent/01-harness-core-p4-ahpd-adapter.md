@@ -45,7 +45,7 @@ Run `/dooplan` against it when p3 is marked `Shipped`; that round must re-read `
 | `Start.credentials` | Placed into `agent.resources`, never into messages |
 
 - The adapter reconciles two identities and keeps both: the AHP session/channel URI and the harness `sessionId`.
-- `examples/ahpd-host.ts`: starts `ahpd` with this backend against LM Studio.
+- `examples/agents/ahpd-host.ts`: starts `ahpd` with this backend against LM Studio.
 
 ## Acceptance (driven from `ahpc`)
 
