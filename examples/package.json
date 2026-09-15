@@ -1,0 +1,14 @@
+{
+  "name": "facio-agents-examples",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "smoke": "node --experimental-strip-types adapter-smoke.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@facio/agents": "workspace:*",
+    "@facio/model-openai-compat": "workspace:*"
+  }
+}
