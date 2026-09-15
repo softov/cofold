@@ -6,14 +6,15 @@
  * the one object every surface turns its arguments into (`input.ts`), the
  * three readings of a result (`context.ts`), and the grammar a line of
  * arguments is read with (`argv.ts`) - a grammar rather than a device, which
- * is why it is here. The surfaces - the CLI, MCP, the generated reference -
+ * is why it is here. `types/` holds the contracts and nothing else; the file of
+ * the same name beside it is the runtime. The surfaces - the CLI, MCP, the generated reference -
  * are renderings of what is here, and each of them is small because all of
  * the meaning is in this package.
  */
-export { matchCommand, optionTable, tokenize } from "./core/argv.js";
-export type { Match, OptionTableEntry, Tokens } from "./core/argv.js";
-export * as coerce from "./core/coerce.js";
-export { assertSupported, check, coerceValue, decode, expectationOf } from "./core/coerce.js";
+export { matchCommand, optionTable, tokenize } from "./argv.js";
+export type { Match, OptionTableEntry, Tokens } from "./types/argv.js";
+export * as coerce from "./coerce.js";
+export { assertSupported, check, coerceValue, decode, expectationOf } from "./coerce.js";
 export {
   commandPattern,
   fieldNameOf,
@@ -26,7 +27,7 @@ export {
   surfaceEnabled,
   underPrefix,
   visible,
-} from "./core/command.js";
+} from "./command.js";
 export type {
   ActionDefinition,
   ArgumentSpec,
@@ -44,18 +45,18 @@ export type {
   PatternToken,
   Surface,
   SurfaceFlags,
-} from "./core/command.js";
-export { compact } from "./core/compact.js";
-export type { Compacted } from "./core/compact.js";
-export { displayValue } from "./core/display.js";
-export type { Coercer, JsonSchema } from "./core/coerce.js";
+} from "./types/command.js";
+export { compact } from "./compact.js";
+export type { Compacted } from "./types/compact.js";
+export { displayValue } from "./display.js";
+export type { Coercer, JsonSchema } from "./types/coerce.js";
 export {
   BaseContext,
   output,
   RESERVED_CONTEXT_KEYS,
   silentIo,
-} from "./core/context.js";
-export type { CommandContext, Io, Output, RequestContext } from "./core/context.js";
+} from "./context.js";
+export type { CommandContext, Io, Output, RequestContext } from "./types/context.js";
 export {
   ArgumentError,
   AuthorizationError,
@@ -63,12 +64,12 @@ export {
   FacioError,
   UnavailableError,
   exitCodeFor,
-} from "./core/errors.js";
-export type { FaultKind } from "./core/errors.js";
-export { argumentFields, canonicalFromCli, canonicalFromObject, fieldsOf } from "./core/input.js";
-export type { FieldDescriptor, RawCliInput } from "./core/input.js";
-export { commandFor } from "./core/command.js";
-export { createRegistry, Registry, sectionsOf, validateCommand } from "./core/registry.js";
+} from "./errors.js";
+export type { FaultKind } from "./types/errors.js";
+export { argumentFields, canonicalFromCli, canonicalFromObject, fieldsOf } from "./input.js";
+export type { FieldDescriptor, RawCliInput } from "./types/input.js";
+export { commandFor } from "./command.js";
+export { createRegistry, Registry, sectionsOf, validateCommand } from "./registry.js";
 export type {
   Runner,
   AuthorizeRequest,
@@ -78,7 +79,7 @@ export type {
   RegistryOptions,
   ProviderDefinition,
   Resolution,
-} from "./core/registry.js";
-export { isStandardSchema, validate } from "./core/schema.js";
-export { didYouMean, suggest } from "./core/suggest.js";
-export type { StandardIssue, StandardResult, StandardSchemaV1 } from "./core/schema.js";
+} from "./types/registry.js";
+export { isStandardSchema, validate } from "./schema.js";
+export { didYouMean, suggest } from "./suggest.js";
+export type { StandardIssue, StandardResult, StandardSchemaV1 } from "./types/schema.js";

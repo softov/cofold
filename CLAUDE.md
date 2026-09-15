@@ -24,6 +24,8 @@ pnpm only (`packageManager` is pinned). Node >= 22. ESM only. No bundler. Tests 
 
 ```
 packages/commands/          @facio/commands - the declaration, registry, input, argv grammar, coercion, schema
+  src/types/                contracts only (command, registry, context, input, coerce, schema, argv, errors, compact)
+  src/<name>.ts             the runtime beside the contract of the same name
 packages/{terminal,mcp,remote,config,yaml,docs}/   the surfaces; each depends on @facio/commands only (mcp: optional SDK peer)
 packages/facio/             later: the program (daemon + CLI), not yet created
 packages/agents/            @facio/agents  - contracts, loop, run handle, step log, memory store, fake model
@@ -42,7 +44,7 @@ Every package: `package.json` with `exports`, `tsconfig.json` extending `../../t
 ## Rules that are easy to get wrong
 
 - **Zero runtime dependencies per package.** Own JSON Schema subset, native `fetch`, `crypto.randomUUID`. The framework runs unmodified on Node, Bun and Deno. `@facio/mcp`'s SDK server is the one optional peer.
-- **`src/types/` holds contracts only** (agents). A file there never exports a `const` or `function`. Runtime files import from `../types/<name>.js`, never from the `types/index.ts` barrel.
+- **`src/types/` holds contracts only** (agents and commands). A file there never exports a `const` or `function`. Runtime files import from `../types/<name>.js`, never from the `types/index.ts` barrel.
 - **Factories, one options object, one return value.** `createTool({...})`, `createAgent({...})`, `run({...})`, `createRegistry()`. No classes except `Error` subclasses. Hooks take one named args object and return one result.
 - **The one positional exception:** `Tool.execute(input, ctx)`. Input first.
 - **Agent is a value, run is the harness.** `createAgent` returns a frozen `Agent` with no methods; `run({ agent, session, input })` executes one turn; `resume({ agent, sessionId, runId })` re-attaches.

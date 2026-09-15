@@ -17,7 +17,11 @@ Reference: none yet (this plan is the domain's first).
 
 Reference: [00-commands.md](commands/00-commands.md)
 
-No plans yet; the framework's open items live in [`/ROADMAP.md`](../../ROADMAP.md) until one is planned.
+| Plan | Priority | Status | Requires | Blocks |
+| --- | --- | --- | --- | --- |
+| [01 - Layout: contracts in `types/`](commands/01-commands-layout.md) | Medium | Shipped | repo/01 | - |
+
+Next free number in `commands`: `02`. The framework's open items live in [`/ROADMAP.md`](../../ROADMAP.md) until one is planned.
 
 ## agent
 

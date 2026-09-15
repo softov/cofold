@@ -9,4 +9,8 @@ The `commands` domain is the command framework: `@facio/commands` (the declarati
 
 ## Plans
 
-None yet. Next free number: `01`.
+| Plan | Objective |
+| --- | --- |
+| [01-commands-layout.md](01-commands-layout.md) | Contracts in `src/types/`, runtime beside them; `core/` removed (Shipped) |
+
+Next free number: `02`.
