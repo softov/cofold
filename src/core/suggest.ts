@@ -1,10 +1,10 @@
 /**
  * "did you mean".
  *
- * A CLI that answers a typo with nothing but "invalid command" makes somebody
- * open the help and read forty lines to find the word they nearly typed. The
- * distance is capped relative to the length so that short words do not suggest
- * each other: `rm` and `ls` are not a near miss.
+ * A program that answers a typo with nothing but "invalid command" makes
+ * somebody open the help and read forty lines to find the word they nearly
+ * typed. The distance is capped relative to the length so that short words do
+ * not suggest each other: `rm` and `ls` are not a near miss.
  */
 function distance(a: string, b: string): number {
   const rows = a.length + 1;

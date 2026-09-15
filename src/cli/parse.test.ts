@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { coerce, type Command } from "../index.js";
+import { coerce, matchCommand, type Command } from "../index.js";
 import { globalOptions } from "./globals.js";
-import { matchCommand, parse } from "./parse.js";
+import { parse } from "./parse.js";
 
 const commands: Command[] = [
   {

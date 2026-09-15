@@ -2,6 +2,7 @@ import {
   fullyNamed,
   isFlag,
   literalPrefix,
+  matchCommand,
   optionsOf,
   parsePattern,
   underPrefix,
@@ -10,7 +11,6 @@ import {
   type CompletionSource,
   type OptionSpec,
 } from "../index.js";
-import { matchCommand } from "./parse.js";
 
 /**
  * Tab completion, from the same declaration as everything else.

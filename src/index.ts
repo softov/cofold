@@ -3,11 +3,15 @@
  *
  * Nothing in this package knows what a terminal is. It holds the declaration
  * (`command.ts`), the capabilities a command declares it needs (`registry.ts`),
- * the one object every surface turns its arguments into (`input.ts`), and the
- * three readings of a result (`context.ts`). The surfaces - the CLI, MCP, the
- * generated reference - are renderings of what is here, and each of them is
- * small because all of the meaning is in this package.
+ * the one object every surface turns its arguments into (`input.ts`), the
+ * three readings of a result (`context.ts`), and the grammar a line of
+ * arguments is read with (`argv.ts`) - a grammar rather than a device, which
+ * is why it is here. The surfaces - the CLI, MCP, the generated reference -
+ * are renderings of what is here, and each of them is small because all of
+ * the meaning is in this package.
  */
+export { matchCommand, optionTable, tokenize } from "./core/argv.js";
+export type { Match, OptionTableEntry, Tokens } from "./core/argv.js";
 export * as coerce from "./core/coerce.js";
 export { assertSupported, check, coerceValue, decode, expectationOf } from "./core/coerce.js";
 export {
@@ -75,4 +79,5 @@ export type {
   Resolution,
 } from "./core/registry.js";
 export { isStandardSchema, validate } from "./core/schema.js";
+export { didYouMean, suggest } from "./core/suggest.js";
 export type { StandardIssue, StandardResult, StandardSchemaV1 } from "./core/schema.js";

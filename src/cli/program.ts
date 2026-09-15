@@ -3,6 +3,7 @@ import {
   ArgumentError,
   canonicalFromCli,
   compact,
+  didYouMean,
   literalPrefix,
   optionsOf,
   output,
@@ -20,7 +21,6 @@ import { help } from "./help.js";
 import { emit } from "./output.js";
 import { parse } from "./parse.js";
 import { styleFor } from "./render.js";
-import { didYouMean } from "./suggest.js";
 
 /**
  * The command line in front of a registry.
