@@ -1,6 +1,6 @@
 import type { CommandContext, Output } from "./context.js";
 import type { ArgumentSpec, Field, OptionSpec } from "./field.js";
-import type { StandardSchemaV1 } from "./standard-schema.js";
+import type { StandardSchema } from "@facio/sdk";
 
 /** Which rendering of the registry is running the command. */
 export type Surface = "cli" | "mcp" | "remote" | (string & {});
@@ -80,7 +80,7 @@ export interface CommandDefinition<Deps extends object = object, Needs extends r
    * "--limit only with --sort". Any Standard Schema library will do. Named for
    * what it adds rather than what it covers, because `input` is the fields.
    */
-  refine?: StandardSchemaV1;
+  refine?: StandardSchema;
   /** The canonical field piped stdin fills, when nothing was given for it. */
   stdin?: string;
   surfaces?: SurfaceFlags;
@@ -167,7 +167,7 @@ export interface ActionDefinition<
   surfaces: Surfaces;
   needs?: Needs;
   scopes?: readonly string[];
-  refine?: StandardSchemaV1;
+  refine?: StandardSchema;
   meta?: CommandMeta;
   examples?: readonly CommandExample[];
   hidden?: boolean;

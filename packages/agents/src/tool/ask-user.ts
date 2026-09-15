@@ -1,6 +1,6 @@
 import { pauseForInput } from '../run/pause.js';
 import type { AskAnswers, AskQuestion } from '../types/ask.js';
-import type { JsonSchema } from '../types/schema.js';
+import type { JsonSchema } from '@facio/sdk';
 import type { Tool } from '../types/tool.js';
 import { createTool } from './create-tool.js';
 

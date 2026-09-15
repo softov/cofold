@@ -1,4 +1,4 @@
-import type { JsonSchema } from './schema.js';
+import type { JsonSchema } from '@facio/sdk';
 import type { KvScope } from './store.js';
 
 export interface ToolEffects {

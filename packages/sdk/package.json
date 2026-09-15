@@ -1,35 +1,30 @@
 {
-  "name": "@facio/commands",
+  "name": "@facio/sdk",
   "version": "0.2.0",
   "type": "module",
-  "description": "A command is data: the declaration, the registry, input, the argv grammar, coercion and schema, rendered by every surface.",
+  "description": "The contracts the facio packages share: JSON Schema, its validation result, the Standard Schema interface. Types only.",
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "funding": "https://github.com/sponsors/softov",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/softov/facio.git",
+    "directory": "packages/sdk"
+  },
   "homepage": "https://github.com/softov/facio#readme",
   "bugs": {
     "url": "https://github.com/softov/facio/issues"
   },
+  "keywords": [
+    "json-schema",
+    "standard-schema",
+    "types",
+    "typescript"
+  ],
   "engines": {
     "node": ">=22"
   },
   "sideEffects": false,
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/softov/facio.git",
-    "directory": "packages/commands"
-  },
-  "keywords": [
-    "cli",
-    "command-line",
-    "framework",
-    "argv",
-    "parser",
-    "json-schema",
-    "validation",
-    "typescript",
-    "zero-dependency"
-  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -41,7 +36,6 @@
   "files": [
     "dist",
     "src",
-    "!src/**/*.test.ts",
     "LICENSE",
     "README.md"
   ],
@@ -50,13 +44,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "@facio/sdk": "workspace:^"
-  },
-  "devDependencies": {
-    "zod": "4.3.6"
   }
 }

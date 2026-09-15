@@ -1,11 +1,12 @@
 import { SchemaError } from '../errors.js';
-import type { JsonSchema, SchemaIssue, ValidationResult } from '../types/schema.js';
+import type { JsonSchema, SchemaIssue, SchemaResult } from '@facio/sdk';
 
 /** Keywords of the supported subset; `title`, `examples`, `$schema` are accepted and ignored. */
 export const SUPPORTED_KEYWORDS: ReadonlySet<string> = new Set(Object.keys({
   type: 0, description: 0, properties: 0, required: 0, additionalProperties: 0, items: 0, enum: 0, const: 0,
-  default: 0, minimum: 0, maximum: 0, minLength: 0, maxLength: 0, pattern: 0, minItems: 0, maxItems: 0,
-  anyOf: 0, oneOf: 0, nullable: 0, title: 0, examples: 0, $schema: 0,
+  default: 0, minimum: 0, maximum: 0, exclusiveMinimum: 0, exclusiveMaximum: 0, multipleOf: 0,
+  minLength: 0, maxLength: 0, pattern: 0, format: 0, minItems: 0, maxItems: 0, uniqueItems: 0, prefixItems: 0,
+  anyOf: 0, oneOf: 0, allOf: 0, nullable: 0, title: 0, examples: 0, $schema: 0,
 } satisfies Record<string, 0>));
 
 const TYPES: ReadonlySet<string> = new Set(['string', 'number', 'integer', 'boolean', 'null', 'object', 'array']);
@@ -46,12 +47,13 @@ export function assertSupportedSchema(args: { schema: JsonSchema; path?: string 
     }
   }
   if (items !== undefined) assertSupportedSchema({ schema: items as JsonSchema, path: `${path}[]` });
-  for (const alt of [...(args.schema.anyOf ?? []), ...(args.schema.oneOf ?? [])]) {
+  (args.schema.prefixItems ?? []).forEach((sub, i) => assertSupportedSchema({ schema: sub, path: `${path}[${i}]` }));
+  for (const alt of [...(args.schema.anyOf ?? []), ...(args.schema.oneOf ?? []), ...(args.schema.allOf ?? [])]) {
     assertSupportedSchema({ schema: alt, path });
   }
 }
 
-export function validateSchema<T = unknown>(args: { schema: JsonSchema; value: unknown }): ValidationResult<T> {
+export function validateSchema<T = unknown>(args: { schema: JsonSchema; value: unknown }): SchemaResult<T> {
   const issues: SchemaIssue[] = [];
   const value = check(args.schema, args.value, '$', issues);
   return issues.length === 0 ? { ok: true, value: value as T } : { ok: false, issues };
@@ -77,6 +79,10 @@ function check(schema: JsonSchema, value: unknown, path: string, issues: SchemaI
     if (hits !== 1) issues.push({ path, message: `matches ${hits} of oneOf, expected 1` });
     return value;
   }
+  if (schema.allOf) {
+    for (const alt of schema.allOf) check(alt, value, path, issues);
+    return value;
+  }
   if (schema.type && !typeOk(schema, value)) {
     issues.push({ path, message: `expected ${String(schema.type)}, got ${describe(value)}` }); return value;
   }
@@ -84,18 +90,25 @@ function check(schema: JsonSchema, value: unknown, path: string, issues: SchemaI
     if (schema.minLength !== undefined && value.length < schema.minLength) issues.push({ path, message: `shorter than ${schema.minLength}` });
     if (schema.maxLength !== undefined && value.length > schema.maxLength) issues.push({ path, message: `longer than ${schema.maxLength}` });
     if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) issues.push({ path, message: `does not match /${schema.pattern}/` });
+    if (schema.format === 'date-time' && Number.isNaN(Date.parse(value))) issues.push({ path, message: 'not an ISO-8601 timestamp' });
     return value;
   }
   if (typeof value === 'number') {
     if (schema.minimum !== undefined && value < schema.minimum) issues.push({ path, message: `less than ${schema.minimum}` });
     if (schema.maximum !== undefined && value > schema.maximum) issues.push({ path, message: `greater than ${schema.maximum}` });
+    if (schema.exclusiveMinimum !== undefined && value <= schema.exclusiveMinimum) issues.push({ path, message: `not greater than ${schema.exclusiveMinimum}` });
+    if (schema.exclusiveMaximum !== undefined && value >= schema.exclusiveMaximum) issues.push({ path, message: `not less than ${schema.exclusiveMaximum}` });
+    if (schema.multipleOf !== undefined && !isMultiple(value, schema.multipleOf)) issues.push({ path, message: `not a multiple of ${schema.multipleOf}` });
     return value;
   }
   if (Array.isArray(value)) {
     if (schema.minItems !== undefined && value.length < schema.minItems) issues.push({ path, message: `fewer than ${schema.minItems} items` });
     if (schema.maxItems !== undefined && value.length > schema.maxItems) issues.push({ path, message: `more than ${schema.maxItems} items` });
+    if (schema.uniqueItems === true && new Set(value.map((v) => JSON.stringify(v))).size !== value.length) issues.push({ path, message: 'items are not unique' });
+    const prefix = schema.prefixItems ?? [];
     const items = schema.items;
-    return items ? value.map((v, i) => check(items, v, `${path}[${i}]`, issues)) : value;
+    if (!items && prefix.length === 0) return value;
+    return value.map((v, i) => { const sub = prefix[i] ?? items; return sub ? check(sub, v, `${path}[${i}]`, issues) : v; });
   }
   if (isPlainObject(value)) {
     const out: Record<string, unknown> = {};
@@ -115,6 +128,12 @@ function check(schema: JsonSchema, value: unknown, path: string, issues: SchemaI
     return out;
   }
   return value;
+}
+
+/** `multipleOf` without the floating-point lie: 0.3 is a multiple of 0.1. */
+function isMultiple(value: number, step: number): boolean {
+  const quotient = value / step;
+  return Math.abs(quotient - Math.round(quotient)) < 1e-9;
 }
 
 function typeOk(schema: JsonSchema, value: unknown): boolean {

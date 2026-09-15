@@ -77,7 +77,7 @@ describe("tool identities", () => {
     const registry = createRegistry();
     registry.action({ id: "a", summary: "", surfaces: { mcp: true }, meta: { mcp: { name: "advisor_case_show" } }, run: () => output(null) });
     expect(listTools(registry).tools[0]?.name).toBe("advisor_case_show");
-    registry.action({ id: "b", summary: "", surfaces: { mcp: true }, meta: { mcp: { outputSchema: { type: "object", ...{ anyOf: [] } } } }, run: () => output(null) });
-    expect(() => listTools(registry)).toThrow(/anyOf/);
+    registry.action({ id: "b", summary: "", surfaces: { mcp: true }, meta: { mcp: { outputSchema: { type: "object", ...{ $ref: "#/x" } } } }, run: () => output(null) });
+    expect(() => listTools(registry)).toThrow(/\$ref/);
   });
 });

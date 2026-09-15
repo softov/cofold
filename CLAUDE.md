@@ -23,6 +23,7 @@ pnpm only (`packageManager` is pinned). Node >= 22. ESM only. No bundler. Tests 
 ## Layout
 
 ```
+packages/sdk/               @facio/sdk - contracts two packages share (JsonSchema, SchemaResult, StandardSchema); types only, one per file
 packages/commands/          @facio/commands - the declaration, registry, input, argv grammar, coercion, schema
   src/types/                contracts only, grouped by concept: json-schema, standard-schema, coerce, field, command, input, argv, context, registry, errors, compact
   src/<name>.ts             runtime by domain (command, registry, context, input, coerce, schema, argv, errors, compact, display, suggest)
@@ -43,6 +44,7 @@ Every package: `package.json` with `exports`, `tsconfig.json` extending `../../t
 
 ## Rules that are easy to get wrong
 
+- **One definition, declared once.** A shape two packages need lives in `@facio/sdk`; never keep two copies and bridge them, never add a wrapper or adapter between facio packages.
 - **Zero runtime dependencies per package.** Own JSON Schema subset, native `fetch`, `crypto.randomUUID`. The framework runs unmodified on Node, Bun and Deno. `@facio/mcp`'s SDK server is the one optional peer.
 - **`src/types/` holds contracts only** (agents and commands). A file there never exports a `const` or `function`. Runtime files import from `../types/<name>.js`, never from the `types/index.ts` barrel.
 - **Factories, one options object, one return value.** `createTool({...})`, `createAgent({...})`, `run({...})`, `createRegistry()`. No classes except `Error` subclasses. Hooks take one named args object and return one result.

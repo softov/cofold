@@ -1,7 +1,7 @@
 import type { Coercer } from "./types/coerce.js";
 import type { ActionDefinition, Command, CommandMeta, PatternToken, Surface, Surfaces } from "./types/command.js";
 import type { ArgumentSpec, Field, OptionNote, OptionSpec } from "./types/field.js";
-import type { JsonSchema } from "./types/json-schema.js";
+import type { JsonSchema } from "@facio/sdk";
 
 
 /**

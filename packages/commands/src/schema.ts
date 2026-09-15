@@ -8,10 +8,10 @@
  * library has made the choice for every program built on it.
  */
 
-import type { StandardIssue, StandardSchemaV1 } from "./types/standard-schema.js";
+import type { StandardIssue, StandardSchema } from "@facio/sdk";
 
 
-export function isStandardSchema(value: unknown): value is StandardSchemaV1 {
+export function isStandardSchema(value: unknown): value is StandardSchema {
   return typeof value === "object" && value !== null && "~standard" in value;
 }
 
@@ -30,7 +30,7 @@ function pathOf(issue: StandardIssue): string {
  * again to discover the second one.
  */
 export async function validate<T>(
-  schema: StandardSchemaV1<unknown, T>,
+  schema: StandardSchema<unknown, T>,
   value: unknown,
   onIssues: (message: string) => Error,
 ): Promise<T> {

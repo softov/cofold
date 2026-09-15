@@ -79,7 +79,15 @@ export type {
   OptionSpec,
 } from "./types/field.js";
 export type { RawCliInput } from "./types/input.js";
-export type { JsonSchema } from "./types/json-schema.js";
+export type {
+  JsonSchema,
+  JsonSchemaType,
+  SchemaIssue,
+  SchemaResult,
+  StandardIssue,
+  StandardResult,
+  StandardSchema,
+} from "@facio/sdk";
 export type {
   AuthorizeRequest,
   ExecuteOptions,
@@ -88,4 +96,3 @@ export type {
   Resolution,
   Runner,
 } from "./types/registry.js";
-export type { StandardIssue, StandardResult, StandardSchemaV1 } from "./types/standard-schema.js";

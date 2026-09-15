@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SchemaError } from '../errors.js';
-import type { JsonSchema } from '../types/schema.js';
+import type { JsonSchema } from '@facio/sdk';
 import { assertSupportedSchema, validateSchema } from './validate.js';
 
 const user: JsonSchema = {
@@ -133,5 +133,26 @@ describe('assertSupportedSchema', () => {
     expect(() => assertSupportedSchema({ schema: { type: 'array', items: bad } })).toThrow(/\$\[\]: unsupported keyword/);
     expect(() => assertSupportedSchema({ schema: { anyOf: [bad] } })).toThrow(SchemaError);
     expect(() => assertSupportedSchema({ schema: { oneOf: [bad] } })).toThrow(SchemaError);
+  });
+});
+
+describe('the keywords the shared JsonSchema carries', () => {
+  it('holds numbers to exclusive bounds and a step', () => {
+    expect(validateSchema({ schema: { type: 'number', exclusiveMaximum: 5 }, value: 5 }).ok).toBe(false);
+    expect(validateSchema({ schema: { type: 'number', multipleOf: 0.1 }, value: 0.3 }).ok).toBe(true);
+    expect(validateSchema({ schema: { type: 'number', multipleOf: 0.1 }, value: 0.35 }).ok).toBe(false);
+  });
+  it('holds lists to uniqueness and a prefix, and strings to date-time', () => {
+    expect(validateSchema({ schema: { type: 'array', uniqueItems: true }, value: [1, 1] }).ok).toBe(false);
+    const tuple = { type: 'array', prefixItems: [{ type: 'string' }, { type: 'integer' }] } as const;
+    expect(validateSchema({ schema: tuple, value: ['a', 1] }).ok).toBe(true);
+    expect(validateSchema({ schema: tuple, value: ['a', 'b'] }).ok).toBe(false);
+    expect(validateSchema({ schema: { type: 'string', format: 'date-time' }, value: 'yesterday' }).ok).toBe(false);
+  });
+  it('holds a value to allOf', () => {
+    const both = { allOf: [{ type: 'string', minLength: 2 }, { type: 'string', maxLength: 3 }] } as const;
+    expect(validateSchema({ schema: both, value: 'ab' }).ok).toBe(true);
+    expect(validateSchema({ schema: both, value: 'abcd' }).ok).toBe(false);
+    expect(() => assertSupportedSchema({ schema: both })).not.toThrow();
   });
 });

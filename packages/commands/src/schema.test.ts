@@ -7,7 +7,7 @@
  * anything that implements `~standard` works, which is the whole claim.
  */
 
-import type { StandardIssue, StandardSchemaV1 } from "./types/standard-schema.js";
+import type { StandardIssue, StandardSchema } from "@facio/sdk";
 import { describe, expect, it } from "vitest";
 import { canonicalFromCli, canonicalFromObject } from "./input.js";
 import { createRegistry } from "./registry.js";
@@ -16,7 +16,7 @@ import { ArgumentError } from "./errors.js";
 import { coerce } from "./index.js";
 
 /** A Standard Schema in nine lines, which is all the spec asks for. */
-function schemaOf<T>(check: (value: T) => readonly StandardIssue[]): StandardSchemaV1<unknown, T> {
+function schemaOf<T>(check: (value: T) => readonly StandardIssue[]): StandardSchema<unknown, T> {
   return {
     "~standard": {
       version: 1,
@@ -70,7 +70,7 @@ describe("what it reports", () => {
   });
 
   it("waits for a schema that answers asynchronously", async () => {
-    const schema: StandardSchemaV1<unknown, string> = {
+    const schema: StandardSchema<unknown, string> = {
       "~standard": {
         version: 1,
         vendor: "handwritten",

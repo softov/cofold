@@ -67,6 +67,45 @@ describe("one word, as the value the schema describes", () => {
 });
 
 describe("check", () => {
+  it("holds a value to a type list, and to null only when the schema allows it", () => {
+    expect(() => check(null, { type: ["string", "null"] }, "x")).not.toThrow();
+    expect(() => check(null, { type: "string", nullable: true }, "x")).not.toThrow();
+    expect(() => check(null, { type: "string" }, "x")).toThrow("x must be text");
+    expect(() => check(3, { type: ["string", "integer"] }, "x")).not.toThrow();
+    expect(() => check(true, { type: ["string", "integer"] }, "x")).toThrow();
+  });
+
+  it("holds numbers to exclusive bounds and a step", () => {
+    expect(() => check(5, { type: "number", exclusiveMaximum: 5 }, "x")).toThrow();
+    expect(() => check(0.3, { type: "number", multipleOf: 0.1 }, "x")).not.toThrow();
+    expect(() => check(0.35, { type: "number", multipleOf: 0.1 }, "x")).toThrow();
+  });
+
+  it("holds lists to a size, uniqueness and a prefix", () => {
+    expect(() => check([1], { type: "array", minItems: 2 }, "x")).toThrow();
+    expect(() => check([1, 1], { type: "array", uniqueItems: true }, "x")).toThrow();
+    expect(() => check(["a", 1], { type: "array", prefixItems: [{ type: "string" }, { type: "integer" }] }, "x")).not.toThrow();
+    expect(() => check(["a", "b"], { type: "array", prefixItems: [{ type: "string" }, { type: "integer" }] }, "x")).toThrow();
+  });
+
+  it("refuses a property the object does not declare, when asked to", () => {
+    const schema = { type: "object", properties: { a: { type: "string" } }, additionalProperties: false } as const;
+    expect(() => check({ a: "x" }, schema, "who")).not.toThrow();
+    expect(() => check({ a: "x", b: 1 }, schema, "who")).toThrow("who.b is not a field");
+    expect(() => check({ a: "x", b: 1 }, { ...schema, additionalProperties: true }, "who")).not.toThrow();
+  });
+
+  it("holds a value to anyOf, oneOf and allOf", () => {
+    const either = { anyOf: [{ type: "string" }, { type: "integer" }] } as const;
+    expect(() => check("a", either, "x")).not.toThrow();
+    expect(() => check(true, either, "x")).toThrow();
+    const exactlyOne = { oneOf: [{ type: "integer", minimum: 0 }, { type: "integer", maximum: 0 }] } as const;
+    expect(() => check(5, exactlyOne, "x")).not.toThrow();
+    expect(() => check(0, exactlyOne, "x")).toThrow();
+    expect(() => check("ab", { allOf: [{ type: "string", minLength: 2 }, { type: "string", maxLength: 3 }] }, "x")).not.toThrow();
+    expect(() => check("abcd", { allOf: [{ type: "string", minLength: 2 }, { type: "string", maxLength: 3 }] }, "x")).toThrow();
+  });
+
   it("walks the items of a list", () => {
     expect(() => check(["ok", "far too long"], { type: "array", items: { type: "string", maxLength: 4 } }, "--tag"))
       .toThrow("--tag must be at most 4 characters");
@@ -107,16 +146,19 @@ describe("what will not be carried", () => {
    * is refused where a mistake is cheapest: at registration.
    */
   it("refuses a keyword it does not enforce, and says where", () => {
-    expect(() => coerce.assertSupported({ anyOf: [{ type: "string" }] } as never, "note.add --tag"))
-      .toThrow("note.add --tag uses anyOf");
+    expect(() => coerce.assertSupported({ patternProperties: {} } as never, "note.add --tag"))
+      .toThrow("note.add --tag uses patternProperties");
     expect(() => coerce.assertSupported({ $ref: "#/x" } as never, "x")).toThrow("$ref");
+    expect(() => coerce.assertSupported({ type: "string", pattern: "(" }, "x")).toThrow("does not compile");
   });
 
-  it("looks inside a list and an object, not only at the top", () => {
-    expect(() => coerce.assertSupported({ type: "array", items: { allOf: [] } as never }, "x"))
-      .toThrow("x[] uses allOf");
+  it("looks inside a list, an object and a union, not only at the top", () => {
+    expect(() => coerce.assertSupported({ type: "array", items: { not: {} } as never }, "x"))
+      .toThrow("x[] uses not");
     expect(() => coerce.assertSupported({ type: "object", properties: { a: { not: {} } as never } }, "who"))
       .toThrow("who.a uses not");
+    expect(() => coerce.assertSupported({ anyOf: [{ type: "string" }, { $ref: "#" } as never] }, "u"))
+      .toThrow("u.anyOf[1] uses $ref");
   });
 
   it("says nothing about a schema it can hold to", () => {

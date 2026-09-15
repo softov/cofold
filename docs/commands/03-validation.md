@@ -28,17 +28,24 @@ So the rule is: the canonical input is built the same way from argv, from an MCP
 
 ## What a schema may say
 
+The schema type is `JsonSchema` from `@facio/sdk`, the one definition every facio package shares, and it is what `z.toJSONSchema()` writes for the ordinary shapes.
+
 ```ts
-type            string | number | integer | boolean | array | object
+type            string | number | integer | boolean | null | array | object, or a list of them
+nullable        the same as listing null
 enum, const     a fixed set, or one fixed value
 default         used when nothing was given, on every surface
-minimum         maximum
-minLength       maxLength      pattern      format: "date-time"
+minimum         maximum        exclusiveMinimum  exclusiveMaximum  multipleOf
+minLength       maxLength      pattern           format: "date-time"
 items           the schema every element of an array is held to
-description     the line help prints and the agent reads
+prefixItems     the schemas of the first elements, a tuple
+minItems        maxItems       uniqueItems
+properties      required       additionalProperties: false refuses a field nobody declared
+anyOf           oneOf          allOf
+title           description    examples          $schema
 ```
 
-Nothing is carried that is not checked. `$ref`, `anyOf`, `allOf` and `oneOf` are absent on purpose and refused rather than passed along: a keyword an agent is shown and a request is not held to reads as a promise, and is worse than one nobody wrote.
+Nothing is carried that is not checked. `$ref`, `not` and `patternProperties` are absent on purpose and refused at registration rather than passed along: a keyword an agent is shown and a request is not held to reads as a promise, and is worse than one nobody wrote.
 
 `coerce` builds the same schemas for the raw `registry.command` form, and adds the readings text cannot express on its own - `coerce.pair` for `KEY=VALUE`, `coerce.json`, `coerce.commaSeparated()`. A coercer with its own `parse` describes what *arrives*, so `KEY=VALUE` is a `pattern` a client is shown rather than only a message it is refused with.
 
