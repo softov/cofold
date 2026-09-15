@@ -9,7 +9,7 @@ Every script loads `../.env` when it exists (`node --env-file-if-exists`, Node >
 Calls a Chat Completions model once with one tool and prints the reply, usage and tool calls.
 
 ```bash
-pnpm --filter facio-agents-examples smoke
+pnpm --filter facio-examples-agents smoke
 ```
 
 | Variable | Default | Notes |
@@ -31,7 +31,7 @@ Fake model plus one tool through `createAgent` and `run`; prints every event and
 No server needed.
 
 ```bash
-pnpm --filter facio-agents-examples standalone
+pnpm --filter facio-examples-agents standalone
 ```
 
 Expected: seq 1..9 (`run.started` ... `run.finished`) and `completed The tool said: hello`.
@@ -42,7 +42,7 @@ The same loop against a real Chat Completions model with the `now` tool; `hooks.
 Same env vars as `adapter-smoke`.
 
 ```bash
-pnpm --filter facio-agents-examples lmstudio-tools
+pnpm --filter facio-examples-agents lmstudio-tools
 ```
 
 Expected with a tool-capable model: a `tool.completed` for `now` and a `completed` outcome whose text contains the time.
@@ -53,7 +53,7 @@ A destructive tool pauses the run for approval; a second `createFileStore({ root
 No server needed.
 
 ```bash
-pnpm --filter facio-agents-examples pause-resume
+pnpm --filter facio-examples-agents pause-resume
 ```
 
 Expected: seq 1..7 up to `run.finished` (`paused: approval request ...`), then seq 1..7 again marked `(replayed)`, seq 8..14 (`approval.resolved` ... `run.finished`), `completed notes.txt is gone.` and `tool steps: 1 (executions: 1)`.
@@ -65,8 +65,8 @@ The host reads the answers from stdin, submits them on the resumed handle and pr
 No server needed.
 
 ```bash
-pnpm --filter facio-agents-examples ask-user            # prompts in a terminal
-printf "Rust\nmy-app\n" | pnpm --filter facio-agents-examples ask-user   # one answer per line
+pnpm --filter facio-examples-agents ask-user            # prompts in a terminal
+printf "Rust\nmy-app\n" | pnpm --filter facio-examples-agents ask-user   # one answer per line
 ```
 
 A missing answer takes the first option (or `facio-demo` for the name).

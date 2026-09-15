@@ -1000,7 +1000,7 @@ Single phase; seven tasks in dependency order.
   ```
 
   `examples/agents/lmstudio-tools.ts`: same shape with `openaiCompat({ baseUrl: process.env.FACIO_BASE_URL ?? 'http://localhost:1234/v1', model: process.env.FACIO_MODEL ?? 'qwen/qwen3-8b', features: { tools: true } })`, the `now` tool from `adapter-smoke.ts`, input `'What time is it? Use the tool.'`, and a `hooks.onEvent` that prints `tool.*` events with their payloads. `examples/package.json` gains `"standalone": "node --experimental-strip-types standalone.ts"` and `"lmstudio-tools": "node --experimental-strip-types lmstudio-tools.ts"`.
-- **Validation:** `pnpm --filter facio-agents-examples standalone` prints seq 1..9 and `completed The tool said: hello` with no server. `lmstudio-tools` is manual (LM Studio running): prints a `tool.completed` for `now` and a `completed` outcome whose text contains a time.
+- **Validation:** `pnpm --filter facio-examples-agents standalone` prints seq 1..9 and `completed The tool said: hello` with no server. `lmstudio-tools` is manual (LM Studio running): prints a `tool.completed` for `now` and a `completed` outcome whose text contains a time.
 
 ## Cross-layer consistency
 

@@ -178,7 +178,7 @@ packages/agents/src/testing/store-conformance.ts  UPDATE: delete cases
 
 - **Blocked on CHAT-01.** Tasks 1-3 do not import `@textui/chat` types at runtime but do at type level; they can start against a local copy of ahpc's `types.ts` and switch imports when the package exists. Task 4 onward needs the package.
 - Whole-text `delta` until p5: the UI's streaming path is exercised only by the fake host until then.
-- `link:` dependencies make `pnpm install` in facio-agents depend on a sibling checkout; the README says so, and the switch to `^0.6.0` is one line.
+- `link:` dependencies make `pnpm install` in this workspace depend on a sibling checkout; the README says so, and the switch to `^0.6.0` is one line.
 - No `lastMessageId`: grouping by `inputMessageId` assumes the loop is the only appender, which the writer fence guarantees.
 
 ## Resume state

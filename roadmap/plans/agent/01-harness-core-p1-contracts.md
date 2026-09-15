@@ -84,7 +84,7 @@ Additional rows for this phase:
 Package layout after this phase:
 
 ```
-F:\github\facio-agents\
+<repo root> (facio-agents at the time; the facio workspace since REPO-01)
   package.json                 private, scripts: build / typecheck / test / check
   pnpm-workspace.yaml          packages/*, examples
   tsconfig.base.json           strict, ES2022, NodeNext, declaration
@@ -260,7 +260,7 @@ Single phase; eight tasks in dependency order.
   ```
   The root `test` script passes `--typecheck` so `*.test-d.ts` files run; without the flag vitest 2 skips `expectTypeOf` assertions silently.
 
-  `examples/package.json`: `"name": "facio-agents-examples"`, private, `"dependencies": { "@facio/agents": "workspace:*", "@facio/model-openai-compat": "workspace:*" }`, `"scripts": { "smoke": "node --experimental-strip-types adapter-smoke.ts" }`.
+  `examples/package.json`: `"name": "facio-examples-agents"`, private, `"dependencies": { "@facio/agents": "workspace:*", "@facio/model-openai-compat": "workspace:*" }`, `"scripts": { "smoke": "node --experimental-strip-types adapter-smoke.ts" }`.
 
 - **Validation:** `pnpm install` succeeds; `pnpm typecheck` and `pnpm test` run (zero tests) with exit 0.
 
@@ -1668,7 +1668,7 @@ Single phase; eight tasks in dependency order.
   console.log('tool calls:', toolCallsOf(reply.message).map((c) => `${c.name}(${c.raw})`));
   ```
   `examples/README.md` lists the env vars (`FACIO_BASE_URL`, `FACIO_MODEL`, `FACIO_API_KEY`) and the two known-good targets: LM Studio (no key) and OpenRouter (`https://openrouter.ai/api/v1`, key).
-- **Validation:** manual. With LM Studio running a tool-capable model, `pnpm --filter facio-agents-examples smoke` prints `finish: tool_calls` and one `now({})` call. With `FACIO_MODEL` set to a non-tool model, the same script prints `finish: stop` and a text answer; neither run throws.
+- **Validation:** manual. With LM Studio running a tool-capable model, `pnpm --filter facio-examples-agents smoke` prints `finish: tool_calls` and one `now({})` call. With `FACIO_MODEL` set to a non-tool model, the same script prints `finish: stop` and a text answer; neither run throws.
 
 ## Cross-layer consistency
 

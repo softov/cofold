@@ -1,6 +1,6 @@
 # roadmap/plans - development plans
 
-Long-lived development documentation for **facio-agents**.
+Long-lived development documentation for the **facio** workspace: the command framework, the agent harness, and the program that composes them.
 Every plan here is implementation-ready: enough for a developer or a fresh AI session to execute the work without re-deriving intent.
 
 Plans follow the same loop as opendoop, **scout → plan → do it** (`/dooscout`, `/dooplan`, `/dooit`), and the same shape (`_TEMPLATE.md`).

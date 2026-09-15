@@ -40,7 +40,7 @@ The agent is the heart; the harness (stores, transports, tools, memory, networks
 
 ### Searches performed
 
-- `ls F:\github\facio-agents` - repo does not exist beyond `roadmap/`; nothing to reuse in-tree.
+- `ls` of the agents repository - it did not exist beyond `roadmap/`; nothing to reuse in-tree.
 - `npm view @facio/core` - 404; the `@facio` scope is unused (the user owns `facio`).
 - `grep -n "export interface Agent\|export interface Session" ahpd/packages/sdk/src/types/*.ts` - located the two contracts above.
 - `grep -n "StandardSchemaV1\|export type Field" facio/src/core/*.ts` - facio validates JSON Schema fields itself and accepts an optional Standard Schema `refine`.
@@ -74,7 +74,7 @@ host (CLI / ahpd adapter / example)
 
 | # | Decision | Rationale / source |
 | --- | --- | --- |
-| 1 | Repo `F:\github\facio-agents`, packages published as `@facio/*`, core is `@facio/agents` | User. `facio` is the user's npm package; the command framework keeps that name |
+| 1 | Packages published as `@facio/*`, core is `@facio/agents`. (Started in its own repository; since 2026-09-16 part of the `facio` workspace, see `roadmap/plans/repo/01-workspace.md`) | User. The command framework is `@facio/commands`; `facio` is reserved for the program |
 | 2 | Functional API only: `createAgent`, `createTool`, `createMemoryStore`, `openaiCompat`, ... No classes except `Error` subclasses | User: "keep the functional calls for now". Subclassing can be added later by making `createAgent` return a class instance |
 | 3 | Every factory takes exactly one options object and returns one value; no positional parameters, no definition/deps split | User: "only one object, not multiple params" |
 | 4 | `createTool` (not `defineTool`) | User |

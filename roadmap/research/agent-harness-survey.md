@@ -357,7 +357,7 @@ Where harnesses actually differ:
 
 ## Sources
 
-Local: `f:/github/opendoop/pood/src/{runtime/agents,engine/tools,brain/knowledge,brain/skills,platform/hooks,platform/safety}`, `packages/sdk/src/{think,plugin,events,provider/*}.ts`, `packages/settings/src/agents`; `f:/github/claude-code/src/tools`, `src/memdir`, `src/hooks`; `f:/github/openclaw/docs/**` and `packages/agent-core/src/types.ts`; `f:/github/hermes-agent/agent`, `tools`; `f:/github/eliza/packages/core/src/types/plugin.ts`; `f:/github/ahpd/packages/sdk/src/types/{agent,session}.ts`.
+Local (opendoop checkout): `pood/src/{runtime/agents,engine/tools,brain/knowledge,brain/skills,platform/hooks,platform/safety}`, `packages/sdk/src/{think,plugin,events,provider/*}.ts`, `packages/settings/src/agents`; `f:/github/claude-code/src/tools`, `src/memdir`, `src/hooks`; `f:/github/openclaw/docs/**` and `packages/agent-core/src/types.ts`; `f:/github/hermes-agent/agent`, `tools`; `f:/github/eliza/packages/core/src/types/plugin.ts`; `f:/github/ahpd/packages/sdk/src/types/{agent,session}.ts`.
 
 Web:
 - pi: https://agentic-ai.readthedocs.io/en/latest/AgentHarness/pi-dev/ and https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md

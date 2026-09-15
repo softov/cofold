@@ -1,6 +1,6 @@
 <!--
 Domain: repo
-Status: In progress
+Status: Built
 Priority: High
 Created: 2026-09-16
 Revalidated: 2026-09-16
@@ -10,7 +10,7 @@ Reference: ../../../ROADMAP.md, facio-agents (softov/facio-agents)
 
 # REPO-01 - One workspace: facio becomes the family, the framework becomes packages
 
-_Status: In progress (Tasks 1-2 done) · Priority: High · Created: 2026-09-16_
+_Status: Built (Task 4 user steps pending) · Priority: High · Created: 2026-09-16_
 
 ## Goal
 
@@ -198,7 +198,9 @@ facio/
 
 - **Done so far:** plan written 2026-09-16. Task 1 done 2026-09-16 (commits `4e328a5`, `14e2524`): workspace root, `packages/facio`, `examples/commands`, `docs/commands`, CI; 292/292 tests, typecheck, examples, petshop smoke, pack contents verified. The 10 tests that failed on win32 before the move (POSIX fixture paths in `config` and `yaml` suites) were fixed on the way, test-side.
 - Task 2 done 2026-09-16 (commits `2797acb` subtree import of facio-agents `master`, `ac090ce` moves + merged `CLAUDE.md` + plans index + `commands` domain stub, `dd12935` `.npmrc` / `.env` ignore): 41 test files, 480 tests, no type errors; `pause-resume` and `ask-user` examples run; `git log --follow` reaches facio-agents' commits. Fallout of decision 8: none from the stricter base; one pre-existing type error surfaced in `packages/agents/src/run/{resume,run}.test.ts` (`build` helper typed `tools?: Tool[]`, refused `createAskUserTool()` per decision 67) and was fixed to `Tool<any, any>[]`.
-- **Next action:** Task 3.
+- Task 3 done 2026-09-16 (commit `49a55cd`): seven packages at `0.2.0`; `pnpm check` 41 files / 480 tests / no type errors; petshop smoke; ten tarballs, each `dist` + `src` (tests excluded) + `LICENSE` + `README.md` + `package.json`; no `"facio"` import left. Deviations: (a) `CommandMeta` is now exported from `@facio/commands` (the `declare module` augmentations in `@facio/mcp` and `@facio/remote` targeted the file path before and could only merge with an exported declaration); (b) `@facio/remote` has `@facio/terminal` as a devDependency (`manifest.test.ts` imports it); (c) `mcp/server/package.test.ts` rewritten: it stages `@facio/mcp` with `@facio/commands` under `node_modules` and checks the mcp entry points only, since the other packages' "no dependencies" is now their `dependencies` map; (d) `src/core/` kept as the folder inside `packages/commands/src` per the plan, source comments updated to the new names.
+- Task 4 dev side done 2026-09-16: `docs/agents/README.md`, `CLAUDE.md` layout, plans scrubbed of the old repository name and absolute paths (two historical mentions remain in the p1 plan's recon code block on purpose), the textui plan line, the `agents` git remote removed. User side pending: archive `softov/facio-agents`, `npm deprecate facio@"<1"` at first `@facio/commands` publish.
+- **Next action:** user runs the Task 4 steps; then CLI-01 (`@facio/chat`) and p5 Tasks 1-4.
 - **Open questions:** none.
 - **Watch out for:** `pnpm install` must run at the root after every task (the lockfile changes each time; commit it with the task). Do not edit `F:\github\facio-agents` during Task 2; it is the subtree source. `examples/commands` tests import the built package (`dist`), so `pnpm build` precedes `vitest` as in facio-agents' scripts. Keep LF line endings; the repository has no `.gitattributes` (add `* text=auto eol=lf` in Task 1 if a CRLF shows up in the diff).
 
@@ -206,5 +208,5 @@ facio/
 
 - [x] After Task 1: `pnpm check`, `pnpm examples`, petshop smoke, `pnpm --filter facio pack` contents.
 - [x] After Task 2: `pnpm check` runs both test suites; `git log` follows a moved agents file; `pause-resume` and `ask-user` examples run.
-- [ ] After Task 3: ten tarballs, each self-contained; no `"facio"` import remains; root README is the family page.
+- [x] After Task 3: ten tarballs, each self-contained; no `"facio"` import remains; root README is the family page.
 - [ ] After Task 4: facio-agents archived, `npm deprecate` run, no live reference to the old repository.

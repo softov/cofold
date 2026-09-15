@@ -11,7 +11,7 @@ Reference: none yet (this plan is the domain's first).
 
 | Plan | Priority | Status | Depends on | Unblocks |
 | --- | --- | --- | --- | --- |
-| [01 - One workspace](repo/01-workspace.md) | High | In progress (Tasks 1-2 done) | - | agent/01-p5, cli/01 |
+| [01 - One workspace](repo/01-workspace.md) | High | Built (archive + deprecate pending) | - | agent/01-p5, cli/01 |
 
 ## commands
 

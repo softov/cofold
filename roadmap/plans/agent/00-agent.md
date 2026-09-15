@@ -12,7 +12,7 @@ Update it when a plan ships.
 ## Code in this repo
 
 Nothing yet.
-`F:\github\facio-agents` holds only `roadmap/` as of 2026-09-13.
+The agents repository (since 2026-09-16 the `packages/agents` family of this workspace, REPO-01) held only `roadmap/` as of 2026-09-13.
 The first code lands with [01-p1](01-harness-core-p1-contracts.md).
 
 ## Inputs the domain is built from
