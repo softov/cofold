@@ -10,7 +10,7 @@ export type Reasoning = 'off' | 'low' | 'medium' | 'high';
  * two messages is honest because the agent is rebuilt for every turn.
  */
 export interface Settings {
-  /** `<providerId>/<modelId>`. */
+  /** `<providerId>/<modelId>`; empty means the first model the first provider lists, asked when a turn starts. */
   model: string;
   permissions: PermissionMode;
   reasoning: Reasoning;

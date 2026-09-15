@@ -40,6 +40,15 @@ describe('loadConfig', () => {
     expect(config.model).toBe('default/m');
   });
 
+  it('reads the family variables when papo has none of its own', () => {
+    const config = loadConfig({ cwd: join(root, 'work'), env: { ...env, FACIO_BASE_URL: 'http://lm/v1', FACIO_API_KEY: 'k', FACIO_MODEL: 'qwen3' } });
+    expect(config.providers).toEqual([{ id: 'default', baseUrl: 'http://lm/v1', apiKey: 'k' }]);
+    expect(config.model).toBe('default/qwen3');
+    const own = loadConfig({ cwd: join(root, 'work'), env: { ...env, FACIO_BASE_URL: 'http://lm/v1', PAPO_BASE_URL: 'http://mine/v1', PAPO_MODEL: 'default/x' } });
+    expect(own.providers[0]?.baseUrl).toBe('http://mine/v1');
+    expect(own.model).toBe('default/x');
+  });
+
   it('names the key that is wrong, and the file it read', async () => {
     const file = join(root, 'config', 'papo', 'config.json');
     await writeFile(file, JSON.stringify({ permissions: 'sometimes' }));

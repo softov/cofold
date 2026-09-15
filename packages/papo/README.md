@@ -21,7 +21,8 @@ Without a terminal (`papo | cat`, a CI log) the screen prints one frame and exit
 ## Configuration
 
 `~/.config/papo/config.json`, then the nearest `.papo.json` up from the workspace, then `$PAPO_CONFIG`, then `--config FILE`; later files win key by key.
-`PAPO_BASE_URL` and `PAPO_API_KEY` add or replace a provider called `default`; `PAPO_MODEL` chooses the default model.
+`PAPO_BASE_URL` and `PAPO_API_KEY` add or replace a provider called `default`; `PAPO_MODEL` chooses the default model (a bare model id means one of `default`).
+The family's `FACIO_BASE_URL`, `FACIO_API_KEY` and `FACIO_MODEL`, which the examples read, work too; `PAPO_*` wins where both are set.
 
 ```json
 {

@@ -21,7 +21,7 @@ function useComposerOptions(): ComposerOption[] {
   return useMemo(() => {
     if (settings === null) return [];
     return [
-      { id: 'model', icon: settingIcon(unicode, 'model'), label: settings.model, title: 'Model', commandId: 'compose.model' },
+      { id: 'model', icon: settingIcon(unicode, 'model'), label: settings.model || 'first listed model', title: 'Model', commandId: 'compose.model' },
       {
         id: 'permissions',
         icon: valueIcon(unicode, settings.permissions, PERMISSION_LABELS[settings.permissions].label) ?? settingIcon(unicode, 'permissions'),

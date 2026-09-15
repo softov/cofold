@@ -36,7 +36,10 @@ export function createChat(options: ChatOptions): Chat {
     for (const listener of listeners) listener(sessionId);
   };
 
-  /** The configured model, or the first the first provider lists; asked once. */
+  /** How long a provider gets to answer a listing before the screen is told it cannot be reached. */
+  const LISTING_MS = 15_000;
+
+  /** The configured model, or the first the first provider lists; asked once, and only when a turn needs it. */
   async function modelRef(): Promise<string> {
     if (defaultModel !== undefined) return defaultModel;
     const first = providers[0];
@@ -44,7 +47,7 @@ export function createChat(options: ChatOptions): Chat {
     if (first === undefined || id === undefined) {
       throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set PAPO_BASE_URL or add one to ~/.config/papo/config.json' });
     }
-    const listed = await first.listModels();
+    const listed = await first.listModels({ signal: AbortSignal.timeout(LISTING_MS) });
     const chosen = listed[0];
     if (chosen === undefined) throw new AgentError({ code: 'invalid_options', message: `provider "${id}" lists no models; set model in the configuration` });
     defaultModel = `${id}/${chosen.id}`;
@@ -71,17 +74,23 @@ export function createChat(options: ChatOptions): Chat {
     }
   }
 
+  /**
+   * Reads the store only: an empty `model` means "whatever the first provider lists first", which is
+   * asked of the provider when a turn starts, never when a screen opens.
+   */
   async function settingsOf(sessionId: string | undefined): Promise<Settings> {
     const own = sessionId === undefined ? undefined : await kv.get<Partial<Settings>>(settingsKey(sessionId));
     return {
-      model: own?.model ?? await modelRef(),
+      model: own?.model ?? defaultModel ?? '',
       permissions: own?.permissions ?? config.permissions,
       reasoning: own?.reasoning ?? config.reasoning,
     };
   }
 
   async function agentFor(settings: Settings): Promise<Agent> {
-    const { provider, modelId } = providerFor(providers, config, settings.model);
+    const model = settings.model === '' ? await modelRef() : settings.model;
+    const { provider, modelId } = providerFor(providers, config, model);
+    settings = { ...settings, model };
     return buildAgent({
       config, settings, provider, modelId, store, home, instructions: await instructions(), warn,
       ...(options.tools !== undefined ? { tools: options.tools } : {}),
@@ -160,7 +169,7 @@ export function createChat(options: ChatOptions): Chat {
       const rows: ModelRow[] = [];
       for (const [index, provider] of providers.entries()) {
         const id = config.providers[index]?.id ?? provider.id;
-        for (const model of await provider.listModels()) rows.push({ ...model, provider: id, ref: `${id}/${model.id}` });
+        for (const model of await provider.listModels({ signal: AbortSignal.timeout(LISTING_MS) })) rows.push({ ...model, provider: id, ref: `${id}/${model.id}` });
       }
       return rows;
     },

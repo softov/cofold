@@ -62,8 +62,9 @@ const BASE = { providers: [], permissions: 'destructive', reasoning: 'off', inst
  * The configuration, from every place it may be written.
  *
  * `@facio/config` walks the layers (`~/.config/papo/config.json`, the nearest `.papo.json`,
- * `$PAPO_CONFIG`, `--config`); on top of them `PAPO_BASE_URL`, `PAPO_API_KEY` and `PAPO_MODEL` add
- * or replace a provider called `default`, which is how a first run needs no file at all.
+ * `$PAPO_CONFIG`, `--config`); on top of them `PAPO_BASE_URL`, `PAPO_API_KEY` and `PAPO_MODEL` (or the
+ * family's `FACIO_*`, which the examples read too) add or replace a provider called `default`, which
+ * is how a first run needs no file at all. A `FACIO_MODEL` with no slash names a model of `default`.
  */
 export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: string }): PapoConfig {
   const env = args.env ?? process.env;
@@ -77,14 +78,20 @@ export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: 
   }
   const config = structuredClone(resolved.values) as unknown as PapoConfig;
 
-  const baseUrl = env['PAPO_BASE_URL'];
-  if (baseUrl !== undefined && baseUrl !== '') {
-    const apiKey = env['PAPO_API_KEY'];
-    const fromEnv: ProviderConfig = { id: 'default', baseUrl, ...(apiKey !== undefined && apiKey !== '' ? { apiKey } : {}) };
+  // `PAPO_*` over `FACIO_*`: the family's variables (what the examples read) reach papo too.
+  const variable = (name: string): string | undefined => {
+    const own = env[`PAPO_${name}`];
+    const family = env[`FACIO_${name}`];
+    return own !== undefined && own !== '' ? own : family !== undefined && family !== '' ? family : undefined;
+  };
+  const baseUrl = variable('BASE_URL');
+  if (baseUrl !== undefined) {
+    const apiKey = variable('API_KEY');
+    const fromEnv: ProviderConfig = { id: 'default', baseUrl, ...(apiKey !== undefined ? { apiKey } : {}) };
     config.providers = [fromEnv, ...config.providers.filter((provider) => provider.id !== 'default')];
   }
-  const model = env['PAPO_MODEL'];
-  if (model !== undefined && model !== '') config.model = model;
+  const model = variable('MODEL');
+  if (model !== undefined) config.model = model.includes('/') ? model : `default/${model}`;
   return config;
 }
 

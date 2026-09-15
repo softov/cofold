@@ -34,7 +34,9 @@ export function openaiCompatProvider(options: OpenAICompatProviderOptions): Mode
       } catch (e) {
         if (signal.aborted) throw new ModelError({ code: 'aborted', message: 'request aborted', cause: e });
         if (attempt < retries) { await backoff(attempt, signal); continue; }
-        throw new ModelError({ code: 'network', message: `fetch failed: ${(e as Error).message}`, cause: e, retryable: true });
+        // Node's fetch says "fetch failed" and keeps the reason on `cause`; the reason is what a person needs.
+        const reason = (e as { cause?: { code?: string; message?: string } }).cause;
+        throw new ModelError({ code: 'network', message: `cannot reach ${url}: ${reason?.code ?? reason?.message ?? (e as Error).message}`, cause: e, retryable: true });
       }
       if (res.ok) {
         try { return await res.json(); }

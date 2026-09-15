@@ -186,7 +186,7 @@ const Header = defineComponent<Record<string, never>>('PapoHeader', () => {
   const screen = useStoreValue<string | null>(SCREEN, null);
   const papo = app.services.require(PAPO);
   const settings = useStoreValue<Settings | null>(SETTINGS, null) ?? null;
-  const model = settings?.model ?? papo.config.model ?? 'first listed model';
+  const model = settings?.model || papo.config.model || 'first listed model';
   // The title belongs to the conversation on screen; the catalogue has no one thing to name.
   const title = screen !== 'chat' ? undefined : snapshot?.session.title ?? (open === null ? 'new conversation' : undefined);
   return (
@@ -408,10 +408,10 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
   ];
   for (const binding of keys) bag.add(app.keybindings.register(binding));
 
-  // The catalogue of models, once; a provider that cannot be reached says so in the status row.
+  // The catalogue of models, once, in the background; a provider that cannot be reached says so in the status row.
   void options.papo.chat.models()
     .then((rows) => app.store.set(MODELS, rows))
-    .catch((error: unknown) => app.store.set(ERROR, error instanceof Error ? error.message : String(error)));
+    .catch((error: unknown) => app.store.set(ERROR, `models: ${error instanceof Error ? error.message : String(error)}`));
   void controller.refresh().then(async () => {
     if (options.sessionId !== undefined) {
       await controller.open(options.sessionId);

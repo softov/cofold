@@ -156,8 +156,9 @@ describe('createChat', () => {
 
   it('starts from the configured defaults and keeps each session own choices', async () => {
     const { chat, provider } = testChat({ script: [{ text: 'a' }, { text: 'b' }, { text: 'c' }], config: { model: undefined } });
-    // No model configured: the first the first provider lists.
-    expect(await chat.settings()).toEqual({ model: 'fake/scripted', permissions: 'destructive', reasoning: 'off' });
+    // No model configured: nothing is asked of the provider until a turn needs it.
+    expect(await chat.settings()).toEqual({ model: '', permissions: 'destructive', reasoning: 'off' });
+    expect(provider.asked).toEqual([]);
 
     const started = await chat.say({ text: 'One', settings: { reasoning: 'high', model: 'fake/other' } });
     await chat.wait(started.sessionId);
@@ -170,10 +171,12 @@ describe('createChat', () => {
     await chat.wait(started.sessionId);
     expect(provider.asked.at(-1)).toEqual({ id: 'other', params: {} });
 
-    // Another session is untouched by the first one's choices.
+    // Another session is untouched by the first one's choices; its model is the first listed, asked once.
     const fresh = await chat.say({ text: 'Three' });
     await chat.wait(fresh.sessionId);
+    expect(provider.asked.at(-1)).toEqual({ id: 'scripted', params: {} });
     expect(await chat.settings(fresh.sessionId)).toEqual({ model: 'fake/scripted', permissions: 'destructive', reasoning: 'off' });
+    expect(await chat.settings()).toEqual({ model: 'fake/scripted', permissions: 'destructive', reasoning: 'off' });
 
     await expect(chat.configure(started.sessionId, { permissions: 'maybe' as never })).rejects.toMatchObject({ code: 'invalid_options' });
     await expect(chat.configure('missing', { reasoning: 'low' })).rejects.toMatchObject({ code: 'not_found' });
