@@ -53,6 +53,6 @@ That is a complete program. It already has `--help`, `--version`, `--json`, `--q
 - Want a reference document that cannot go stale? [Generated docs](08-generated-docs.md).
 - Wondering where a rule is actually enforced? [Validation](03-validation.md).
 
-One declaration on three surfaces at once is [`examples/petshop`](../examples/petshop/cli.ts): the same actions typed at a terminal, printed as MCP tools, and served over HTTP by `petshop serve`.
+One declaration on three surfaces at once is [`examples/petshop`](../../examples/commands/petshop/cli.ts): the same actions typed at a terminal, printed as MCP tools, and served over HTTP by `petshop serve`.
 
-The whole surface, exercised, is [`examples/kitchen-sink`](../examples/kitchen-sink/cli.ts) - about 250 lines for ten commands, two capabilities, dynamic completion, piped input and two generated documents.
+The whole surface, exercised, is [`examples/kitchen-sink`](../../examples/commands/kitchen-sink/cli.ts) - about 250 lines for ten commands, two capabilities, dynamic completion, piped input and two generated documents.

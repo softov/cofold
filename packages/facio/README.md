@@ -228,17 +228,17 @@ This keeps actions declarative without turning the registry into a global bag of
 
 | Import                         | Purpose                                                          |
 | ------------------------------ | ---------------------------------------------------------------- |
-| [`facio`](packages/facio/src/core)          | Actions, schemas, capabilities, registry. No terminal knowledge. |
-| [`facio/cli`](packages/facio/src/cli)       | argv parsing, help, completion, output contracts and exit codes  |
-| [`facio/mcp`](packages/facio/src/mcp)       | Expose actions as MCP tools without an MCP SDK dependency        |
-| [`facio/mcp/stdio`](packages/facio/src/mcp/stdio.ts) | Serve those tools over stdio. Still no SDK, still no dependencies |
-| [`facio/mcp/server`](packages/facio/src/mcp/server) | Optional SDK-backed Streamable HTTP, for mounting in an existing server |
-| [`facio/docs`](packages/facio/src/docs)     | Generate Markdown references for people and agents               |
-| [`facio/remote`](packages/facio/src/remote) | Materialise commands from remote manifests or OpenAPI            |
-| [`facio/yaml`](packages/facio/src/yaml) | Parse a YAML subset into plain data, with source-aware errors |
-| [`facio/config`](packages/facio/src/config) | Find the configuration file, and say which one a value came from |
+| [`facio`](src/core)          | Actions, schemas, capabilities, registry. No terminal knowledge. |
+| [`facio/cli`](src/cli)       | argv parsing, help, completion, output contracts and exit codes  |
+| [`facio/mcp`](src/mcp)       | Expose actions as MCP tools without an MCP SDK dependency        |
+| [`facio/mcp/stdio`](src/mcp/stdio.ts) | Serve those tools over stdio. Still no SDK, still no dependencies |
+| [`facio/mcp/server`](src/mcp/server) | Optional SDK-backed Streamable HTTP, for mounting in an existing server |
+| [`facio/docs`](src/docs)     | Generate Markdown references for people and agents               |
+| [`facio/remote`](src/remote) | Materialise commands from remote manifests or OpenAPI            |
+| [`facio/yaml`](src/yaml) | Parse a YAML subset into plain data, with source-aware errors |
+| [`facio/config`](src/config) | Find the configuration file, and say which one a value came from |
 
-There are **zero runtime dependencies**, including a working MCP server: `npm install facio` installs one package. [`facio/mcp/server`](docs/commands/07-mcp.md) is the single exception and is opt-in, because Streamable HTTP is worth an SDK where stdio is not. It declares the official MCP SDK as an optional peer, so nothing installs it unless you ask for it.
+There are **zero runtime dependencies**, including a working MCP server: `npm install facio` installs one package. [`facio/mcp/server`](../../docs/commands/07-mcp.md) is the single exception and is opt-in, because Streamable HTTP is worth an SDK where stdio is not. It declares the official MCP SDK as an optional peer, so nothing installs it unless you ask for it.
 
 Validation is optional and uses [Standard Schema](https://standardschema.dev), so libraries such as Zod, Valibot and ArkType can be used without `facio` depending on any of them.
 
@@ -338,13 +338,13 @@ The front end that reads these is **[`s2cmd`](https://github.com/softov/s2cmd)**
 
 ## Documentation
 
-The full manual lives in [`docs/`](docs/commands/) and ships with the package.
+The full manual lives in [`docs/`](../../docs/commands/) and ships with the package.
 
 Start with:
 
-* [`Getting started`](docs/commands/01-getting-started.md)
-* [`Actions`](docs/commands/02-actions.md)
-* [`Validation`](docs/commands/03-validation.md)
+* [`Getting started`](../../docs/commands/01-getting-started.md)
+* [`Actions`](../../docs/commands/02-actions.md)
+* [`Validation`](../../docs/commands/03-validation.md)
 
 What is not built yet, and the questions still open, are in [`ROADMAP.md`](ROADMAP.md).
 
@@ -404,7 +404,7 @@ So is MCP.
 
 The cost is one constraint on handlers: a handler receives a canonical input object and returns a value, rather than reading `process.argv` and printing. That is the whole discipline, and everything else follows from it, because a handler that never touches the terminal can be run by something that is not a terminal.
 
-[`facio/mcp`](packages/facio/src/mcp) is the test of that. A complete MCP surface, JSON Schema generation included, with no dependencies, because it had nothing to invent: the actions already knew. [`facio/mcp/stdio`](packages/facio/src/mcp/stdio.ts) is the read loop that speaks it, and it is hand-written for the same reason the YAML subset is - newline-delimited JSON-RPC over two pipes is not worth a web framework.
+[`facio/mcp`](src/mcp) is the test of that. A complete MCP surface, JSON Schema generation included, with no dependencies, because it had nothing to invent: the actions already knew. [`facio/mcp/stdio`](src/mcp/stdio.ts) is the read loop that speaks it, and it is hand-written for the same reason the YAML subset is - newline-delimited JSON-RPC over two pipes is not worth a web framework.
 
 **The command is the data. The interfaces are adapters.**
 

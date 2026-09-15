@@ -39,7 +39,7 @@ const manifest = await loadManifest(`${url}/cli-manifest`, { directory: cacheDir
 registry.register(...commandsFrom(manifest, { capability: "transport" }));
 ```
 
-and they behave like any other command - help, completion, `--json`, coercion, exit codes - because they *are* any other command. [`examples/clerver`](../examples/clerver) is the whole round trip in three small files.
+and they behave like any other command - help, completion, `--json`, coercion, exit codes - because they *are* any other command. [`examples/clerver`](../../examples/commands/clerver) is the whole round trip in three small files.
 
 ## What has to be got right
 

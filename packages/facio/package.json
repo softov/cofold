@@ -1,0 +1,108 @@
+{
+  "name": "facio",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "One command declaration, many surfaces: CLI, MCP, docs, completion.",
+  "license": "MIT",
+  "author": "Luiz Fernando Softov <lfs@softov.dev>",
+  "funding": "https://github.com/sponsors/softov",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/softov/facio.git",
+    "directory": "packages/facio"
+  },
+  "homepage": "https://github.com/softov/facio#readme",
+  "bugs": {
+    "url": "https://github.com/softov/facio/issues"
+  },
+  "keywords": [
+    "cli",
+    "command-line",
+    "framework",
+    "argv",
+    "parser",
+    "completion",
+    "mcp",
+    "model-context-protocol",
+    "agent",
+    "tools",
+    "http",
+    "rest",
+    "openapi",
+    "json-schema",
+    "validation",
+    "typescript",
+    "zero-dependency"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli/index.d.ts",
+      "default": "./dist/cli/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "default": "./dist/mcp/index.js"
+    },
+    "./mcp/stdio": {
+      "types": "./dist/mcp/stdio.d.ts",
+      "default": "./dist/mcp/stdio.js"
+    },
+    "./docs": {
+      "types": "./dist/docs/index.d.ts",
+      "default": "./dist/docs/index.js"
+    },
+    "./remote": {
+      "types": "./dist/remote/index.d.ts",
+      "default": "./dist/remote/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "default": "./dist/config/index.js"
+    },
+    "./yaml": {
+      "types": "./dist/yaml/index.d.ts",
+      "default": "./dist/yaml/index.js"
+    },
+    "./mcp/server": {
+      "types": "./dist/mcp/server/index.d.ts",
+      "default": "./dist/mcp/server/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.3.6"
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    }
+  }
+}

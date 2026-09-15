@@ -252,7 +252,7 @@ describe("conformance", () => {
     const client = new Client({ name: "conformance", version: "1" });
     const transport = new StdioClientTransport({
       command: process.execPath,
-      args: [fileURLToPath(new URL("../../examples/dist/mcp-server/stdio.js", import.meta.url))],
+      args: [fileURLToPath(new URL("../../../../examples/commands/dist/mcp-server/stdio.js", import.meta.url))],
       stderr: "pipe",
     });
     try {

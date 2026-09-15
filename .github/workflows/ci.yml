@@ -23,7 +23,7 @@ jobs:
       # pnpm is what installs and runs here.
       - uses: pnpm/action-setup@v4
         with:
-          version: 11
+          version: 10.28.0
 
       - uses: actions/setup-node@v7
         with:
@@ -35,9 +35,9 @@ jobs:
       # fails here rather than resolving to something nobody wrote down.
       - run: pnpm install --frozen-lockfile
 
-      # Both configurations: the sources, and the test files, which import the
+      # Every package: the sources, and the test files, which import the
       # package by its own name and so resolve through `dist`.
-      - run: pnpm run typecheck
+      - run: pnpm typecheck
 
       # Bounded, because a job that runs into the runner's own timeout is
       # cancelled rather than failed, and a cancelled job leaves no readable
@@ -45,14 +45,14 @@ jobs:
       - name: Tests
         run: timeout 600 pnpm test
 
-      # Builds the package and then typechecks the four examples against what
+      # Builds the packages and then typechecks the examples against what
       # was built, which is what catches an export that no test imports.
-      - run: pnpm run examples
+      - run: pnpm examples
 
       # What would actually be published, which is not what `files` says until
       # something has packed it.
       - name: Pack
-        run: pnpm pack --pack-destination ${{ runner.temp }}
+        run: pnpm -r --filter "./packages/**" pack --pack-destination ${{ runner.temp }}
 
   # The README says zero runtime dependencies and the docs say this runs
   # unmodified on Bun and Deno. Both are claims, so both are tested: the same
@@ -66,7 +66,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 11
+          version: 10.28.0
 
       - uses: actions/setup-node@v7
         with:
@@ -74,7 +74,7 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run examples
+      - run: pnpm examples
 
       - uses: oven-sh/setup-bun@v2
       - uses: denoland/setup-deno@v2
@@ -85,7 +85,7 @@ jobs:
         run: |
           set -eu
           for run in "node" "bun" "deno run -A"; do
-            said=$($run examples/dist/petshop/cli.js pet add Rex -a 3 -b corgi)
+            said=$($run examples/commands/dist/petshop/cli.js pet add Rex -a 3 -b corgi)
             printf '%s: %s\n' "$run" "$(printf '%s' "$said" | tr '\n' ' ')"
             printf '%s' "$said" | grep -q Rex
           done

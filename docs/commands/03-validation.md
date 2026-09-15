@@ -98,4 +98,4 @@ run: ({ input }) => {
 
 No cast, and no second statement of the type for the compiler to disagree with.
 
-[`examples/petshop`](../examples/petshop/cli.ts) is these rules on all three surfaces, and [`examples/petshop/action.test.ts`](../examples/petshop/action.test.ts) is the proof that none of them can be made to disagree.
+[`examples/petshop`](../../examples/commands/petshop/cli.ts) is these rules on all three surfaces, and [`examples/petshop/action.test.ts`](../../examples/commands/petshop/action.test.ts) is the proof that none of them can be made to disagree.

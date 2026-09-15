@@ -55,7 +55,7 @@ Facio installs no signal handlers and never calls `process.exit`. The process is
 
 Everything else is refused by name rather than half-answered. There is no pagination, because a registry is a declared set rather than a query result. There are no resources, prompts, sampling, elicitation or tasks. A `tools/call` carrying a task is rejected before the handler runs.
 
-The subset is fixed deliberately, and it is verified the only way that means anything: [`stdio.test.ts`](../src/mcp/stdio.test.ts) drives the example server as a subprocess using the official SDK client, so the hand-written protocol is checked against the reference implementation on every run. The SDK is a development dependency of Facio for that test and for the HTTP server. It is never a runtime dependency of yours unless you import `facio/mcp/server`.
+The subset is fixed deliberately, and it is verified the only way that means anything: [`stdio.test.ts`](../../packages/facio/src/mcp/stdio.test.ts) drives the example server as a subprocess using the official SDK client, so the hand-written protocol is checked against the reference implementation on every run. The SDK is a development dependency of Facio for that test and for the HTTP server. It is never a runtime dependency of yours unless you import `facio/mcp/server`.
 
 ### Registering it with a client
 
@@ -77,7 +77,7 @@ Only for Streamable HTTP:
 npm install facio @modelcontextprotocol/sdk@^1.30.0 zod
 ```
 
-The SDK is an optional peer, so it is never installed on your behalf. Core, CLI, remote, docs, config, YAML, the tool adapter and the stdio server all work without it, which [`package.test.ts`](../src/mcp/server/package.test.ts) checks by installing the package into an empty directory and importing every entry point.
+The SDK is an optional peer, so it is never installed on your behalf. Core, CLI, remote, docs, config, YAML, the tool adapter and the stdio server all work without it, which [`package.test.ts`](../../packages/facio/src/mcp/server/package.test.ts) checks by installing the package into an empty directory and importing every entry point.
 
 The HTTP server does require the SDK and everything the SDK requires, Zod included. That subpath is not dependency-free and the README does not claim it is. Facio still does not ask you to rewrite action schemas in Zod: it hands the SDK the JSON Schema the registry already produced.
 

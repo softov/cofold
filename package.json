@@ -1,118 +1,24 @@
 {
   "name": "facio",
-  "version": "0.1.0",
+  "private": true,
   "type": "module",
-  "description": "One command declaration, many surfaces: CLI, MCP, docs, completion.",
-  "license": "MIT",
-  "author": "Luiz Fernando Softov <lfs@softov.dev>",
-  "funding": "https://github.com/sponsors/softov",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/softov/facio.git"
-  },
-  "homepage": "https://github.com/softov/facio#readme",
-  "bugs": {
-    "url": "https://github.com/softov/facio/issues"
-  },
-  "keywords": [
-    "cli",
-    "command-line",
-    "framework",
-    "argv",
-    "parser",
-    "completion",
-    "mcp",
-    "model-context-protocol",
-    "agent",
-    "tools",
-    "http",
-    "rest",
-    "openapi",
-    "json-schema",
-    "validation",
-    "typescript",
-    "zero-dependency"
-  ],
+  "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=22"
   },
-  "sideEffects": false,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./cli": {
-      "types": "./dist/cli/index.d.ts",
-      "default": "./dist/cli/index.js"
-    },
-    "./mcp": {
-      "types": "./dist/mcp/index.d.ts",
-      "default": "./dist/mcp/index.js"
-    },
-    "./mcp/stdio": {
-      "types": "./dist/mcp/stdio.d.ts",
-      "default": "./dist/mcp/stdio.js"
-    },
-    "./docs": {
-      "types": "./dist/docs/index.d.ts",
-      "default": "./dist/docs/index.js"
-    },
-    "./remote": {
-      "types": "./dist/remote/index.d.ts",
-      "default": "./dist/remote/index.js"
-    },
-    "./config": {
-      "types": "./dist/config/index.d.ts",
-      "default": "./dist/config/index.js"
-    },
-    "./yaml": {
-      "types": "./dist/yaml/index.d.ts",
-      "default": "./dist/yaml/index.js"
-    },
-    "./mcp/server": {
-      "types": "./dist/mcp/server/index.d.ts",
-      "default": "./dist/mcp/server/index.js"
-    }
-  },
-  "files": [
-    "dist",
-    "src",
-    "!src/**/*.test.ts",
-    "docs",
-    "LICENSE",
-    "README.md",
-    "ROADMAP.md"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "check": "npm run examples && npm run typecheck && npm run test",
-    "clean": "rm -rf dist examples/dist",
-    "coverage": "vitest run src examples --coverage --coverage.include='src/**'",
-    "examples": "npm run build && tsc -p examples/tsconfig.json",
-    "prepublishOnly": "npm run clean && npm run check",
-    "test": "vitest run src examples",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json"
+    "build": "pnpm -r --filter \"./packages/**\" run build",
+    "typecheck": "pnpm build && pnpm -r run typecheck",
+    "test": "pnpm examples && vitest run --typecheck",
+    "check": "pnpm typecheck && pnpm test",
+    "examples": "pnpm build && pnpm -r --filter \"./examples/**\" run build",
+    "coverage": "pnpm build && vitest run --coverage --coverage.include='packages/*/src/**'",
+    "clean": "pnpm -r run clean"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "1.30.0",
     "@types/node": "^22.15.3",
     "@vitest/coverage-v8": "2.1.9",
     "typescript": "^5.8.3",
-    "vitest": "^2.1.9",
-    "zod": "4.3.6"
-  },
-  "peerDependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0"
-  },
-  "peerDependenciesMeta": {
-    "@modelcontextprotocol/sdk": {
-      "optional": true
-    }
+    "vitest": "^2.1.9"
   }
 }
