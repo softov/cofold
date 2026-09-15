@@ -14,7 +14,6 @@
 export { matchCommand, optionTable, tokenize } from "./argv.js";
 export * as coerce from "./coerce.js";
 export { check, coerceValue, decode, expectationOf } from "./coerce.js";
-export { assertSupportedSchema, validateSchema } from "./json-schema.js";
 export {
   commandPattern,
   fieldNameOf,

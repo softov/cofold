@@ -2,7 +2,7 @@ import { AgentError, ModelError } from '../errors.js';
 import { newId } from '../ids.js';
 import { toolCallsOf } from '../message/helpers.js';
 import { addUsage } from '../model/usage.js';
-import { validateSchema } from '@facio/commands';
+import { validateSchema } from '@facio/sdk';
 import { renderAnswers } from '../tool/ask-user.js';
 import type { Agent } from '../types/agent.js';
 import type { AskAnswers, AskQuestion } from '../types/ask.js';

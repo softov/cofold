@@ -40,7 +40,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@facio/commands": "workspace:^",
     "@facio/sdk": "workspace:^"
   }
 }

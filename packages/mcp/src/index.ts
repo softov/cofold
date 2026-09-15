@@ -1,6 +1,5 @@
 import {
   canonicalFromObject,
-  assertSupportedSchema,
   check,
   type RequestContext,
   compact,
@@ -10,6 +9,7 @@ import {
   type JsonSchema,
   type Runner,
 } from "@facio/commands";
+import { assertSupportedSchema } from "@facio/sdk";
 
 /**
  * @facio/mcp - the same registry, read by an agent.

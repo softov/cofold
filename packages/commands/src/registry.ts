@@ -3,7 +3,7 @@ import type { CommandContext, Output } from "./types/context.js";
 import type { Field } from "./types/field.js";
 import type { ExecuteOptions, RegistryOptions, Resolution } from "./types/registry.js";
 import { literalPrefix, parsePattern, commandFor } from "./command.js";
-import { assertSupportedSchema } from "./json-schema.js";
+import { assertSupportedSchema } from "@facio/sdk";
 import { compact } from "./compact.js";
 import { BaseContext, RESERVED_CONTEXT_KEYS, silentIo } from "./context.js";
 import { ArgumentError, AuthorizationError, FacioError } from "./errors.js";

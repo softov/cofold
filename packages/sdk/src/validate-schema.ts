@@ -10,7 +10,9 @@
  * does not compile is the declaration's mistake and is refused there.
  */
 
-import type { JsonSchema, SchemaIssue, SchemaResult } from "@facio/sdk";
+import type { JsonSchema } from "./json-schema.js";
+import type { SchemaIssue } from "./schema-issue.js";
+import type { SchemaResult } from "./schema-result.js";
 
 /** Every keyword `JsonSchema` carries; `title`, `examples`, `description`, `$schema` are accepted and not checked. */
 const SUPPORTED_KEYWORDS: ReadonlySet<string> = new Set(Object.keys({

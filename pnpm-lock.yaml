@@ -60,9 +60,6 @@ importers:
 
   packages/agents:
     dependencies:
-      '@facio/commands':
-        specifier: workspace:^
-        version: link:../commands
       '@facio/sdk':
         specifier: workspace:^
         version: link:../sdk
@@ -94,6 +91,9 @@ importers:
       '@facio/commands':
         specifier: workspace:^
         version: link:../commands
+      '@facio/sdk':
+        specifier: workspace:^
+        version: link:../sdk
     devDependencies:
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0

@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { assertSupportedSchema } from "./json-schema.js";
+import { assertSupportedSchema } from "@facio/sdk";
 import * as coerce from "./coerce.js";
 import { check, coerceValue, decode, expectationOf } from "./coerce.js";
 

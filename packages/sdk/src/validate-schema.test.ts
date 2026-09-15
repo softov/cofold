@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { JsonSchema } from '@facio/sdk';
-import { assertSupportedSchema, validateSchema } from './json-schema.js';
+import type { JsonSchema } from './json-schema.js';
+import { assertSupportedSchema, validateSchema } from './validate-schema.js';
 
 const user: JsonSchema = {
   type: 'object',

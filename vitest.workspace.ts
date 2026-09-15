@@ -6,6 +6,7 @@ import { defineWorkspace } from 'vitest/config';
 const typecheck = { enabled: true, tsconfig: 'tsconfig.test.json' };
 
 export default defineWorkspace([
+  { test: { name: '@facio/sdk', root: 'packages/sdk', typecheck } },
   { test: { name: '@facio/commands', root: 'packages/commands', typecheck } },
   { test: { name: '@facio/terminal', root: 'packages/terminal', typecheck } },
   { test: { name: '@facio/mcp', root: 'packages/mcp', typecheck } },

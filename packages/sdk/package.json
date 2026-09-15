@@ -2,7 +2,7 @@
   "name": "@facio/sdk",
   "version": "0.2.0",
   "type": "module",
-  "description": "The contracts the facio packages share: JSON Schema, its validation result, the Standard Schema interface. Types only.",
+  "description": "What the facio packages share: JSON Schema and the one validator that holds a value to it, the Standard Schema interface.",
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "funding": "https://github.com/sponsors/softov",
@@ -36,6 +36,7 @@
   "files": [
     "dist",
     "src",
+    "!src/**/*.test.ts",
     "LICENSE",
     "README.md"
   ],
@@ -44,7 +45,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
     "clean": "rm -rf dist"
   }
 }

@@ -1,5 +1,5 @@
 import { newId } from '../ids.js';
-import { validateSchema } from '@facio/commands';
+import { validateSchema } from '@facio/sdk';
 import type { Agent } from '../types/agent.js';
 import type { AskQuestion } from '../types/ask.js';
 import type { RunInfo } from '../types/hooks.js';

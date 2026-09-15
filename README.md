@@ -16,7 +16,7 @@ For an agent, the surface is a run: a model proposes, the harness authorizes and
 
 | Package | Purpose |
 | --- | --- |
-| [`@facio/sdk`](packages/sdk) | The contracts the packages share: `JsonSchema`, its validation result, the Standard Schema interface. Types only. |
+| [`@facio/sdk`](packages/sdk) | What the packages share: `JsonSchema` and the one validator that holds a value to it, its result, the Standard Schema interface. No dependencies. |
 | [`@facio/commands`](packages/commands) | A command is data: the declaration, the registry, input, the argv grammar, coercion and schema. The whole framework is described here. |
 | [`@facio/terminal`](packages/terminal) | The terminal rendering: argv parsing, help, completion, output modes, exit codes. |
 | [`@facio/mcp`](packages/mcp) | Actions as MCP tools; `./stdio` serves them with no dependencies, `./server` through the official SDK (optional peer). |
