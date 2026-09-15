@@ -128,7 +128,7 @@ export interface Store {
     /** Newest `createdAt` first (decision 71). */
     list(args: { sessionId: string; status?: RunStatus }): Promise<RunRecord[]>;
     /** Fields present are written; `pendingRequestId: undefined` passed explicitly clears it, absent leaves it. */
-    update(args: RunRef & { status: RunStatus; pendingRequestId?: string; usage?: Usage; steps?: number; lastMessageId?: string }): Promise<void>;
+    update(args: RunRef & { status: RunStatus; pendingRequestId?: string | undefined; usage?: Usage; steps?: number; lastMessageId?: string }): Promise<void>;
     /** Fails with StoreError('seq_gap') unless event.seq === last + 1 (first is 1). Located by event.sessionId + event.runId. */
     appendEvent(event: RunEvent): Promise<void>;
     listEvents(args: RunRef & { afterSeq?: number }): Promise<RunEvent[]>;

@@ -26,10 +26,19 @@ importers:
       '@facio/model-openai-compat':
         specifier: workspace:*
         version: link:../packages/model-openai-compat
+      '@facio/store-file':
+        specifier: workspace:*
+        version: link:../packages/store-file
 
   packages/agents: {}
 
   packages/model-openai-compat:
+    devDependencies:
+      '@facio/agents':
+        specifier: workspace:*
+        version: link:../agents
+
+  packages/store-file:
     devDependencies:
       '@facio/agents':
         specifier: workspace:*

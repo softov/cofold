@@ -46,3 +46,28 @@ pnpm --filter facio-agents-examples lmstudio-tools
 ```
 
 Expected with a tool-capable model: a `tool.completed` for `now` and a `completed` outcome whose text contains the time.
+
+## pause-resume
+
+A destructive tool pauses the run for approval; a second `createFileStore({ root })` instance on the same temp folder resumes it, the host approves, and the tool runs exactly once.
+No server needed.
+
+```bash
+pnpm --filter facio-agents-examples pause-resume
+```
+
+Expected: seq 1..7 up to `run.finished` (`paused: approval request ...`), then seq 1..7 again marked `(replayed)`, seq 8..14 (`approval.resolved` ... `run.finished`), `completed notes.txt is gone.` and `tool steps: 1 (executions: 1)`.
+
+## ask-user
+
+`createAskUserTool()` with a fake model that asks two questions (one with options, one free text).
+The host reads the answers from stdin, submits them on the resumed handle and prints the final text.
+No server needed.
+
+```bash
+pnpm --filter facio-agents-examples ask-user            # prompts in a terminal
+printf "Rust\nmy-app\n" | pnpm --filter facio-agents-examples ask-user   # one answer per line
+```
+
+A missing answer takes the first option (or `facio-demo` for the name).
+Expected: seq 9..14 and `completed Scaffolding the project now.`, then the answers as stored on the tool step.

@@ -8,5 +8,6 @@ const typecheck = { enabled: true, tsconfig: 'tsconfig.test.json' };
 export default defineWorkspace([
   { test: { name: '@facio/agents', root: 'packages/agents', typecheck } },
   { test: { name: '@facio/model-openai-compat', root: 'packages/model-openai-compat', typecheck } },
+  { test: { name: '@facio/store-file', root: 'packages/store-file', typecheck } },
   { test: { name: 'examples', root: 'examples' } },
 ]);

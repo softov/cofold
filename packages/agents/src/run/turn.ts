@@ -234,6 +234,11 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
       if ((await processCalls(ctx, calls)) === 'done') return;
     }
   } catch (e) {
+    // A seq gap or a lost claim means another process recovered this run while we were stuck (decision 78):
+    // the store is theirs now, so the outcome is delivered without another write.
+    if (e instanceof AgentError && (e.code === 'seq_gap' || e.code === 'writer_mismatch')) {
+      return settle(ctx, fail(ctx, 'superseded', `run ${runId} was recovered by another process: ${e.message}`, summarize(e)));
+    }
     // Store failures and programming errors end here; the outcome is still delivered.
     const outcome = fail(ctx, e instanceof AgentError ? e.code : 'internal', (e as Error).message, summarize(e));
     try { await finishRun(ctx, outcome); }

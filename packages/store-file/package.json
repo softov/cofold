@@ -1,7 +1,7 @@
 {
-  "name": "@facio/agents",
+  "name": "@facio/store-file",
   "version": "0.0.1",
-  "description": "Agent runtime: contracts, loop, run handle, step log.",
+  "description": "File-backed Store for @facio/agents: JSONL per session and run, writer.lock with a heartbeat, plus fileSkillSource.",
   "license": "MIT",
   "type": "module",
   "engines": { "node": ">=22" },
@@ -9,9 +9,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./testing": { "types": "./dist/testing.d.ts", "default": "./dist/testing.js" },
-    "./testing/store-conformance": { "types": "./dist/testing/store-conformance.d.ts", "default": "./dist/testing/store-conformance.js" }
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
   },
   "files": ["dist", "src", "!src/**/*.test.ts", "!src/**/*.test-d.ts", "README.md"],
   "scripts": {
@@ -19,5 +17,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist"
   },
+  "peerDependencies": { "@facio/agents": "workspace:*" },
+  "devDependencies": { "@facio/agents": "workspace:*" },
   "publishConfig": { "access": "public" }
 }
