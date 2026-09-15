@@ -1,3 +1,4 @@
+import type { AskAnswers, AskQuestion } from './ask.js';
 import type { Message } from './message.js';
 import type { FinishReason, Usage } from './model.js';
 import type { RunOutcome } from './outcome.js';
@@ -21,8 +22,8 @@ export type RunEventBody =
   | { type: 'tool.completed'; callId: string; name: string; invocationId: string; content: string; isError: boolean; durationMs: number }
   | { type: 'approval.requested'; requestId: string; callId: string; name: string; input: unknown; prompt?: string }
   | { type: 'approval.resolved'; requestId: string; decision: 'approve' | 'deny'; reason?: string }
-  | { type: 'input.requested'; requestId: string; prompt: string }
-  | { type: 'input.resolved'; requestId: string; text: string }
+  | { type: 'input.requested'; requestId: string; callId: string; questions: AskQuestion[] }
+  | { type: 'input.resolved'; requestId: string; answers: AskAnswers }
   | { type: 'run.paused'; requestId: string; kind: 'approval' | 'input' }
   | { type: 'run.resumed'; requestId: string }
   | { type: 'run.finished'; outcome: RunOutcome };

@@ -16,7 +16,10 @@ export type AgentErrorCode =
   | 'hook_error'
   | 'capability_error'
   | 'writer_busy'
-  | 'internal';
+  | 'internal'
+  | 'uncertain_invocation'
+  | 'interrupted'
+  | 'superseded';
 
 export class AgentError extends Error {
   readonly code: AgentErrorCode;

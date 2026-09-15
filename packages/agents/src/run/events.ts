@@ -15,8 +15,10 @@ export function createEmitter(args: {
   publish: (event: RunEvent) => void;
   onEvent?: ((event: RunEvent) => void) | undefined;
   warn: (message: string) => void;
+  /** Last persisted seq when reattaching to a stored run; default 0. */
+  startSeq?: number;
 }): Emitter {
-  let seq = 0;
+  let seq = args.startSeq ?? 0;
   return {
     seq: () => seq,
     async emit(body) {

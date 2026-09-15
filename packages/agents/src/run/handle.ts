@@ -16,7 +16,13 @@ export interface InternalRunHandle extends RunHandle {
  * Buffers every event for the life of the handle (decision 61): any in-process iterator replays
  * from seq 1 and then follows live. `outcome` never rejects; every failure is a `failed` outcome.
  */
-export function createRunHandle(args: { runId: string; sessionId: string; abort: RunAbort }): InternalRunHandle {
+export function createRunHandle(args: {
+  runId: string;
+  sessionId: string;
+  abort: RunAbort;
+  /** Receives approve | deny | answer; resume() installs it (decision 86). Absent on a run() handle. */
+  onCommand?: (command: RunCommand) => Promise<void>;
+}): InternalRunHandle {
   const buffer: RunEvent[] = [];
   const waiters: (() => void)[] = [];
   let closed = false;
@@ -48,7 +54,8 @@ export function createRunHandle(args: { runId: string; sessionId: string; abort:
         args.abort.abort({ kind: 'cancel', ...(command.reason !== undefined ? { reason: command.reason } : {}) });
         return;
       }
-      throw new AgentError({ code: 'not_found', message: `no live request for ${command.type}; resume() lands in p3` });
+      if (!args.onCommand) throw new AgentError({ code: 'not_found', message: `no live request for ${command.type}; use resume()` });
+      await args.onCommand(command);
     },
     publish: (event) => { buffer.push(event); wake(); },
     finish: (o) => { status = o.status; closed = true; resolveOutcome(o); wake(); },

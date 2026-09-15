@@ -1,16 +1,19 @@
 import { newId } from '../ids.js';
 import { validateSchema } from '../schema/validate.js';
 import type { Agent } from '../types/agent.js';
+import type { AskQuestion } from '../types/ask.js';
 import type { RunInfo } from '../types/hooks.js';
 import type { ToolCallPart, ToolResultPart } from '../types/message.js';
 import type { StepRecord } from '../types/store.js';
 import type { Tool, ToolContext, ToolOutput } from '../types/tool.js';
 import type { RunAbort } from './abort.js';
 import type { Emitter } from './events.js';
+import { PauseSignal } from './pause.js';
 
 export type ToolCallResult =
   | { kind: 'result'; part: ToolResultPart; executed: boolean }
   | { kind: 'approval'; tool: Tool<any, any>; input: unknown; prompt?: string }
+  | { kind: 'input'; tool: Tool<any, any>; input: unknown; invocationId: string; questions: AskQuestion[] }
   | { kind: 'aborted' };
 
 export interface ToolCallDeps {
@@ -86,6 +89,10 @@ export async function execute(deps: ToolCallDeps, call: ToolCallPart, tool: Tool
     const output = await Promise.race([Promise.resolve().then(() => tool.execute(input, ctx)), abort.aborted()]);
     original = { ...normalizeOutput(output), isError: false };
   } catch (e) {
+    if (e instanceof PauseSignal) {
+      // Step stays 'started'; it completes on resume with the answers (decision 77).
+      return { kind: 'input', tool, input, invocationId, questions: e.questions };
+    }
     if (abort.signal.aborted) {
       await agent.store.runs.updateStep({ sessionId: run.sessionId, runId: run.runId, invocationId, patch: { status: 'uncertain', endedAt: new Date().toISOString() } });
       return { kind: 'aborted' };

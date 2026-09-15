@@ -5,7 +5,8 @@ import type { KvScope, PendingRequest, RunRecord, RunRef, SessionRecord, StepRec
 
 export function createMemoryStore(): Store {
   const sessions = new Map<string, SessionRecord & { messages: Message[] }>();
-  const runs = new Map<string, RunRecord & { events: RunEvent[]; steps: StepRecord[] }>();
+  // `stepLog`, not `steps`: RunRecord.steps is the loop's counter (decision 73).
+  const runs = new Map<string, RunRecord & { events: RunEvent[]; stepLog: StepRecord[] }>();
   const requests = new Map<string, PendingRequest>();
   /** One entry map per kv scope, keyed "agent:<agentId>", "shared:<namespace>" or "workspace:<workspace>". */
   const scopes = new Map<string, Map<string, unknown>>();
@@ -77,23 +78,39 @@ export function createMemoryStore(): Store {
         const s = requireSession(sessionId);
         if (s.activeWriterRunId === runId) delete s.activeWriterRunId;
       },
+      async heartbeat({ sessionId, runId }) {
+        requireWriter(sessionId, runId).updatedAt = now();
+      },
     },
     runs: {
       async create(record) {
         requireSession(record.sessionId);
         if (runs.has(record.runId)) throw new StoreError({ code: 'already_exists', message: `run ${record.runId}` });
-        runs.set(record.runId, { ...structuredClone(record), events: [], steps: [] });
+        runs.set(record.runId, { ...structuredClone(record), events: [], stepLog: [] });
       },
       async get(ref) {
         const r = runs.get(ref.runId);
         return r && r.sessionId === ref.sessionId ? stripRun(r) : undefined;
       },
-      async update({ sessionId, runId, status, pendingRequestId }) {
+      async list({ sessionId, status }) {
+        requireSession(sessionId);
+        return [...runs.values()]
+          .filter((r) => r.sessionId === sessionId && (status === undefined || r.status === status))
+          .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
+          .map(stripRun);
+      },
+      async update({ sessionId, runId, status, usage, steps, lastMessageId, ...rest }) {
         const r = requireRun({ sessionId, runId });
         r.status = status;
         r.updatedAt = now();
-        if (pendingRequestId === undefined) delete r.pendingRequestId;
-        else r.pendingRequestId = pendingRequestId;
+        // Only an explicit `pendingRequestId: undefined` clears it; an absent key leaves it alone.
+        if ('pendingRequestId' in rest) {
+          if (rest.pendingRequestId === undefined) delete r.pendingRequestId;
+          else r.pendingRequestId = rest.pendingRequestId;
+        }
+        if (usage) r.usage = structuredClone(usage);
+        if (steps !== undefined) r.steps = steps;
+        if (lastMessageId !== undefined) r.lastMessageId = lastMessageId;
       },
       async appendEvent(event) {
         const r = requireRun(event);
@@ -107,16 +124,16 @@ export function createMemoryStore(): Store {
         return structuredClone(requireRun({ sessionId, runId }).events.filter((e) => e.seq > afterSeq));
       },
       async appendStep(step) {
-        requireRun(step).steps.push(structuredClone(step));
+        requireRun(step).stepLog.push(structuredClone(step));
       },
       async updateStep({ sessionId, runId, invocationId, patch }) {
         const r = requireRun({ sessionId, runId });
-        const i = r.steps.findIndex((s) => s.invocationId === invocationId);
+        const i = r.stepLog.findIndex((s) => s.invocationId === invocationId);
         if (i < 0) throw new StoreError({ code: 'not_found', message: `step ${invocationId}` });
-        r.steps[i] = { ...r.steps[i], ...structuredClone(patch) } as StepRecord;
+        r.stepLog[i] = { ...r.stepLog[i], ...structuredClone(patch) } as StepRecord;
       },
       async listSteps(ref) {
-        return structuredClone(requireRun(ref).steps);
+        return structuredClone(requireRun(ref).stepLog);
       },
     },
     requests: {
@@ -157,8 +174,8 @@ export function createMemoryStore(): Store {
     },
   };
 
-  function stripRun(r: RunRecord & { events: unknown; steps: unknown }): RunRecord {
-    const { events: _e, steps: _s, ...rest } = r;
+  function stripRun(r: RunRecord & { events: unknown; stepLog: unknown }): RunRecord {
+    const { events: _e, stepLog: _s, ...rest } = r;
     return structuredClone(rest);
   }
   function stripSession(s: SessionRecord & { messages: unknown }): SessionRecord {

@@ -9,7 +9,8 @@ import type { AgentOptions } from '../types/agent.js';
 import type { RunEvent } from '../types/event.js';
 import type { RunOutcome } from '../types/outcome.js';
 import type { Tool, ToolDefinition } from '../types/tool.js';
-import { run } from './run.js';
+import { pauseForInput } from './pause.js';
+import { HEARTBEAT_MS, run } from './run.js';
 
 const echoInput = { type: 'object' as const, properties: { text: { type: 'string' as const } }, required: ['text'], additionalProperties: false };
 
@@ -163,6 +164,24 @@ describe('run: hooks and approvals', () => {
     await expect(handle.submit({ type: 'approve', requestId })).rejects.toMatchObject({ code: 'not_found' });
   });
 
+  it('a tool that pauses for input leaves its step started and the run awaiting kind input', async () => {
+    const questions = [{ id: 'color', question: 'Which color?', options: [{ label: 'red' }, { label: 'blue' }] }];
+    const { agent, store } = build({ tools: [echoTool(() => pauseForInput({ questions }))] });
+    const handle = run({ agent, session: 's', input: 'x' });
+    const events = await collect(handle);
+    const outcome = await handle.outcome;
+    expect(types(events).slice(-5)).toEqual(['tool.proposed', 'tool.started', 'input.requested', 'run.paused', 'run.finished']);
+    expect(outcome).toMatchObject({ status: 'awaiting', kind: 'input', sessionId: 's', runId: handle.runId, steps: 1 });
+    const requestId = outcome.status === 'awaiting' ? outcome.requestId : '';
+    expect(events.find((e) => e.type === 'input.requested')).toMatchObject({ requestId, questions });
+    const request = await store.requests.get({ ...ref(handle), requestId });
+    expect(request).toMatchObject({ kind: 'input', payload: { name: 'echo', input: { text: 'hi' }, questions, invocationId: expect.any(String) } });
+    const steps = await store.runs.listSteps(ref(handle));
+    expect(steps[1]).toMatchObject({ kind: 'tool', status: 'started' });
+    expect(steps[1] && 'endedAt' in steps[1]).toBe(false);
+    expect(await store.runs.get(ref(handle))).toMatchObject({ status: 'awaiting', pendingRequestId: requestId, steps: 1, usage: { inputTokens: 1, outputTokens: 1 } });
+  });
+
   it('8. a remembered approval skips the pause', async () => {
     const store = createMemoryStore();
     await store.kv({ kind: 'agent', agentId: 'a' }).set('approvals/s/echo', true);
@@ -285,6 +304,28 @@ describe('run: cancellation and timeouts', () => {
       expect(vi.getTimerCount()).toBe(0);
       controller.abort();
       expect(handle.status()).toBe('completed');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('refreshes the writer lease every HEARTBEAT_MS while running and stops once settled', async () => {
+    vi.useFakeTimers();
+    try {
+      let started!: () => void;
+      const startedP = new Promise<void>((r) => { started = r; });
+      const store = createMemoryStore();
+      const heartbeat = vi.spyOn(store.sessions, 'heartbeat');
+      const { agent } = build({ store, tools: [echoTool(() => { started(); return new Promise(() => {}); })] });
+      const handle = run({ agent, session: 's', input: 'x' });
+      await startedP;
+      await vi.advanceTimersByTimeAsync(HEARTBEAT_MS + 1);
+      expect(heartbeat).toHaveBeenCalledTimes(1);
+      expect(heartbeat).toHaveBeenCalledWith({ sessionId: 's', runId: handle.runId });
+      handle.cancel();
+      expect((await handle.outcome).status).toBe('cancelled');
+      await vi.advanceTimersByTimeAsync(HEARTBEAT_MS * 3);
+      expect(heartbeat).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }

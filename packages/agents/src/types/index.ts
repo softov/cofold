@@ -1,4 +1,5 @@
 export type * from './agent.js';
+export type * from './ask.js';
 export type * from './capability.js';
 export type * from './skills.js';
 export type * from './command.js';

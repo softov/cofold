@@ -1,6 +1,6 @@
 import type { RunEvent } from './event.js';
 import type { Message } from './message.js';
-import type { ModelRequest, ModelReply } from './model.js';
+import type { ModelRequest, ModelReply, Usage } from './model.js';
 import type { RunStatus } from './outcome.js';
 
 export interface SessionRecord {
@@ -33,6 +33,12 @@ export interface RunRecord {
   updatedAt: string;
   /** Set when status is 'awaiting'. */
   pendingRequestId?: string;
+  /** Accumulated by the loop; resume continues from here (decision 73). */
+  usage: Usage;
+  steps: number;
+  /** Message ids of this turn's input and last appended message; p4 fork/rewind slots. */
+  inputMessageId?: string;
+  lastMessageId?: string;
 }
 
 export type StepStatus = 'started' | 'completed' | 'failed' | 'uncertain';
@@ -106,15 +112,23 @@ export interface Store {
     /** Fails with StoreError('writer_mismatch') unless runId holds the claim. */
     appendMessages(args: { sessionId: string; runId: string; messages: Message[] }): Promise<void>;
     listMessages(args: { sessionId: string; limit?: number }): Promise<Message[]>;
-    /** Returns false when another run holds the claim. */
+    /**
+     * Returns false when another run holds the claim. A durable store may take over a claim whose run is
+     * still 'running' but whose heartbeat is older than its stale threshold (decision 68).
+     */
     claimWriter(args: { sessionId: string; runId: string }): Promise<boolean>;
     releaseWriter(args: { sessionId: string; runId: string }): Promise<void>;
+    /** Refreshes the writer lease (decision 68); StoreError('writer_mismatch') unless runId holds the claim. */
+    heartbeat(args: { sessionId: string; runId: string }): Promise<void>;
   };
   runs: {
     /** Fails with StoreError('already_exists') when the runId is taken; never overwrites. */
     create(record: RunRecord): Promise<void>;
     get(args: RunRef): Promise<RunRecord | undefined>;
-    update(args: RunRef & { status: RunStatus; pendingRequestId?: string }): Promise<void>;
+    /** Newest `createdAt` first (decision 71). */
+    list(args: { sessionId: string; status?: RunStatus }): Promise<RunRecord[]>;
+    /** Fields present are written; `pendingRequestId: undefined` passed explicitly clears it, absent leaves it. */
+    update(args: RunRef & { status: RunStatus; pendingRequestId?: string; usage?: Usage; steps?: number; lastMessageId?: string }): Promise<void>;
     /** Fails with StoreError('seq_gap') unless event.seq === last + 1 (first is 1). Located by event.sessionId + event.runId. */
     appendEvent(event: RunEvent): Promise<void>;
     listEvents(args: RunRef & { afterSeq?: number }): Promise<RunEvent[]>;

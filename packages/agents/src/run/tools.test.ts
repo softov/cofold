@@ -31,7 +31,7 @@ async function setup(opts: {
     resources: { token: 't' },
   });
   await store.sessions.create({ sessionId: 's', agentId: 'a', workspace: 'w' });
-  await store.runs.create({ runId: 'r', sessionId: 's', agentId: 'a', status: 'running', createdAt: 'now', updatedAt: 'now' });
+  await store.runs.create({ runId: 'r', sessionId: 's', agentId: 'a', status: 'running', createdAt: 'now', updatedAt: 'now', usage: { inputTokens: 0, outputTokens: 0 }, steps: 0 });
   const kv = { agent: store.kv({ kind: 'agent', agentId: 'a' }), shared: store.kv({ kind: 'shared', namespace: 'default' }), workspace: store.kv({ kind: 'workspace', workspace: 'w' }) };
   const run: RunInfo = { runId: 'r', sessionId: 's', agentId: 'a', step: 1, kv };
   const events: RunEventBody[] = [];

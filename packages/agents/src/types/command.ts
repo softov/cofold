@@ -1,3 +1,5 @@
+import type { AskAnswers } from './ask.js';
+
 export type RunCommand =
   | {
       type: 'approve';
@@ -8,5 +10,5 @@ export type RunCommand =
       alwaysApprove?: boolean;
     }
   | { type: 'deny'; requestId: string; reason?: string }
-  | { type: 'answer'; requestId: string; text: string }
+  | { type: 'answer'; requestId: string; answers: AskAnswers }
   | { type: 'cancel'; reason?: string };
