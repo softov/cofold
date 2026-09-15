@@ -1,6 +1,6 @@
 <!--
 Domain: cli
-Status: Blocked
+Status: Not started
 Priority: High
 Created: 2026-09-16
 Revalidated: 2026-09-16
@@ -10,7 +10,7 @@ Reference: ./00-cli.md
 
 # CLI-01 - `@facio/chat`: the harness in a terminal
 
-_Status: Blocked on `@textui/chat` · Priority: High · Created: 2026-09-16_
+_Status: Not started (unblocked 2026-09-16: `@textui/chat` shipped) · Priority: High · Created: 2026-09-16_
 
 ## Goal
 
