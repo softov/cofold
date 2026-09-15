@@ -27,15 +27,15 @@ The agent is the heart; the harness (stores, transports, tools, memory, networks
 ### Files read
 
 - `roadmap/specs/agent-harness-spec.md` - the specification; every section maps to a phase below.
-- `F:\github\ahpd\packages\sdk\src\types\agent.ts:1-190` - `Agent` (provider, displayName, chats, multipleDirectories, protectedResources, schema(), defaults(), probe?, directories?, list?, transcript?, create(start)), `BoundTool { definition, run?, owner? }`, `Start { uri, chatUri, settings, tools?, emit, resume?, forkAt?, rewindAt?, credentials? }`.
-- `F:\github\ahpd\packages\sdk\src\types\session.ts:1-330` - `Session` (uri, chatUri, models(), agentId(), forkPoint?, endPoint?, begin(turnId, text, model?), steer?, resume?, cancel, queue, confirm(toolCallId, approved), setTools?, toolCallOwner?, completeToolCall?), `Emit(channel, action)`, `Chosen { id, config }`.
-- `F:\github\ahpd\packages\agent-claude\src\{claude,session,transcript}.ts` - the only existing backend; the p4 adapter mirrors its structure.
+- `ahpd/packages/sdk/src/types/agent.ts` (softov/ahpd) - `Agent` (provider, displayName, chats, multipleDirectories, protectedResources, schema(), defaults(), probe?, directories?, list?, transcript?, create(start)), `BoundTool { definition, run?, owner? }`, `Start { uri, chatUri, settings, tools?, emit, resume?, forkAt?, rewindAt?, credentials? }`.
+- `ahpd/packages/sdk/src/types/session.ts` (softov/ahpd) - `Session` (uri, chatUri, models(), agentId(), forkPoint?, endPoint?, begin(turnId, text, model?), steer?, resume?, cancel, queue, confirm(toolCallId, approved), setTools?, toolCallOwner?, completeToolCall?), `Emit(channel, action)`, `Chosen { id, config }`.
+- `ahpd/packages/agent-claude/src/{claude,session,transcript}.ts` - the only existing backend; the p4 adapter mirrors its structure.
 - `F:\github\facio\src\core\command.ts:192-270` - `Field = JsonSchema & { cli?, env? }`, `ActionDefinition { id, summary, input, required, surfaces, needs, refine?: StandardSchemaV1, run(context) }`.
 - `F:\github\facio\package.json` - tsc build, vitest, `engines.node >= 22`, zero runtime deps, `exports` map with sub-paths; the style to match.
-- `F:\github\openclaw\packages\agent-core\src\types.ts:205-260, 605-660` - `AgentLoopConfig.convertToLlm` / `transformContext` contract ("must not throw"), `AgentEvent` union with agent/turn/message/tool lifecycle.
-- `F:\github\openclaw\docs\concepts\agent-loop.md` - writer claim (`activeWriterRunId`) fence on transcript appends.
-- `F:\github\opendoop\pood\src\runtime\agents\agent-worker.runtime-types.v4.ts` - `IterationOutcome` closed union, `ToolEffects`, `LoopExitReason`.
-- `F:\github\opendoop\packages\sdk\src\provider\tool.ts:13-60` - `ToolManifest` fields (`accessClass`, `sandbox`, `sequential`, `requiresHumanApproval`, `availableWhen`, `surfaces`).
+- `roadmap/research/agent-harness-survey.md` (context and events sections) - the canonical-transcript vs derived-model-view split ("transform must not throw") and event unions with agent/turn/message/tool lifecycle, as seen across the surveyed harnesses.
+- Survey, persistence section - writer claim (`activeWriterRunId`) fence on transcript appends.
+- `opendoop/pood/src/runtime/agents/agent-worker.runtime-types.v4.ts` - `IterationOutcome` closed union, `ToolEffects`, `LoopExitReason`.
+- `opendoop/packages/sdk/src/provider/tool.ts` - `ToolManifest` fields (`accessClass`, `sandbox`, `sequential`, `requiresHumanApproval`, `availableWhen`, `surfaces`).
 - `roadmap/research/agent-harness-survey.md` - the survey; sections 1-12 list every feature considered in or out of scope.
 
 ### Searches performed
@@ -63,11 +63,11 @@ host (CLI / ahpd adapter / example)
 
 - `facio/src/core/command.ts` single-object definitions with JSON Schema input; `createRegistry()` factory style.
 - `ahpd/packages/agent-claude/src/session.ts` mapping of a backend's events to `emit('session' | 'chat', action)`.
-- OpenClaw `agent-core` split between canonical `AgentMessage[]` and the derived `Message[]` sent to the model.
+- The canonical-messages vs derived-model-messages split used by several surveyed harnesses.
 
 ### Gaps
 
-- `Not found: any existing TS harness with stable tool invocation IDs and uncertain-invocation recovery - searched "invocationId|idempotency" in openclaw, pood, pi docs.` Designed here from the spec.
+- `Not found: any existing TS harness with stable tool invocation IDs and uncertain-invocation recovery - searched "invocationId|idempotency" across the surveyed harnesses.` Designed here from the spec.
 - ahpd `Session.confirm(toolCallId, approved)` is boolean; the harness approval decision is richer (`approve | deny` with reason). p4 maps down.
 
 ## Decisions locked in
@@ -102,9 +102,9 @@ host (CLI / ahpd adapter / example)
 | 26 | Hook signatures take one object and return one object, same rule as factories | Decision 3 applied to hooks |
 | 27 | `run()` and `resume()` are standalone functions: `run({ agent, session, input, signal? })`, `resume({ agent, sessionId, runId, afterSeq? })`. `Agent` (the `createAgent` result) is a frozen value with `definition`, `model`, `tools`, `store`, `hooks`, `limits`, `context`, `params`, `resources` and no methods | User: "the run is separated from the agent"; the harness runs the agent, the agent is the heart |
 | 28 | First durable store is `@facio/store-file` (JSONL per session and run, `writer.lock` as the fence). SQLite and Durable Object stores are later packages behind the same `Store` contract | User: "files is first. sqlite is pluggable" |
-| 29 | **Workspace** is a host-supplied session partition key (`SessionRecord.workspace`, `RunArgs.workspace`): the CLI passes `process.cwd()`, the AHP transport passes `SessionOptions.cwd`, chat hosts pass nothing. The harness owns the concept, its kv scope (`{ kind: 'workspace' }`), `sessions.list({ workspace })`, and the on-disk slug; hosts own only the root and the key. Nothing in `@facio/agents` reads `os.homedir()` or `process.cwd()` | User (2026-09-14): mirror Claude Code's `~/.claude/projects/<cwd-slug>/`, but keep the harness host-agnostic so CLI and ahpd share one on-disk state |
+| 29 | **Workspace** is a host-supplied session partition key (`SessionRecord.workspace`, `RunArgs.workspace`): the CLI passes `process.cwd()`, the AHP transport passes `SessionOptions.cwd`, chat hosts pass nothing. The harness owns the concept, its kv scope (`{ kind: 'workspace' }`), `sessions.list({ workspace })`, and the on-disk slug; hosts own only the root and the key. Nothing in `@facio/agents` reads `os.homedir()` or `process.cwd()` | User (2026-09-14): mirror the `<home>/projects/<cwd-slug>/` layout coding harnesses use, but keep the harness host-agnostic so CLI and ahpd share one on-disk state |
 | 30 | Runs are stored under their session (`sessions/<sessionId>/runs/<runId>/`); every run-level `Store` call and `resume()` carry `RunRef { sessionId, runId }`; the `awaiting` outcome returns both. No run index, no scanning | User (2026-09-14): a copied session folder must carry its runs; p3 acceptance depends on it |
-| 31 | **Capabilities** are the one extension slot for tools-plus-instructions: `AgentOptions.capabilities: Capability[]`, each `{ id, tools?(args), instructions?(args) }`, resolved by `run()` at run start (not at `createAgent`) so an MCP server's tool list or a skills folder can change between runs. Contributed tools are re-stamped `source = capability.id`; agent tools are `source = 'agent'`. `request.instructions` = `definition.instructions` + one `## <id>` section per capability that returned text, recorded verbatim in the model step. Duplicate tool names across agent and capabilities → `invalid_options` at run start. Skills live in the core: `types/skills.ts` defines `SkillSource { list, read }` and `SkillIndexEntry`; `capabilities/skills.ts` ships `skills({ sources: SkillSource[] })` (p3), zero deps, no `node:` import, `sources` required and never defaulted from the store (skills are content, `Store` is runtime state; mounting them on `Store` would tax every store implementation with fs code). `@facio/store-file` exports `fileSkillSource({ root, workspace? })` next to `createFileStore`; a DB store or the AHP transport implement the same two methods. MCP stays a client package, `@facio/tools-mcp`, because it owns `@modelcontextprotocol/sdk` and the transports; it returns one capability per server (`id: 'mcp:<server>'`) and touches the store only through kv (tool-list cache, OAuth tokens) | User (2026-09-14). Mirrors openai-agents-js `Capability { tools(), instructions() }` (`sandbox/capabilities/base.ts`, `runtime/agentPreparation.ts:124-181`) |
+| 31 | **Capabilities** are the one extension slot for tools-plus-instructions: `AgentOptions.capabilities: Capability[]`, each `{ id, tools?(args), instructions?(args) }`, resolved by `run()` at run start (not at `createAgent`) so an MCP server's tool list or a skills folder can change between runs. Contributed tools are re-stamped `source = capability.id`; agent tools are `source = 'agent'`. `request.instructions` = `definition.instructions` + one `## <id>` section per capability that returned text, recorded verbatim in the model step. Duplicate tool names across agent and capabilities → `invalid_options` at run start. Skills live in the core: `types/skills.ts` defines `SkillSource { list, read }` and `SkillIndexEntry`; `capabilities/skills.ts` ships `skills({ sources: SkillSource[] })` (p3), zero deps, no `node:` import, `sources` required and never defaulted from the store (skills are content, `Store` is runtime state; mounting them on `Store` would tax every store implementation with fs code). `@facio/store-file` exports `fileSkillSource({ root, workspace? })` next to `createFileStore`; a DB store or the AHP transport implement the same two methods. MCP stays a client package, `@facio/tools-mcp`, because it owns `@modelcontextprotocol/sdk` and the transports; it returns one capability per server (`id: 'mcp:<server>'`) and touches the store only through kv (tool-list cache, OAuth tokens) | User (2026-09-14). Mirrors the capability pattern (`tools()` + `instructions()`) of the OpenAI Agents SDK |
 
 ## Proposed architecture
 
@@ -123,11 +123,11 @@ host (CLI / ahpd adapter / example)
 
 | Phase | Child | Objective | Status |
 | --- | --- | --- | --- |
-| p1 | [01-harness-core-p1-contracts.md](01-harness-core-p1-contracts.md) | Workspace scaffold, contracts, JSON Schema validator, `createTool`, memory store, fake model, chat-completions adapter, tests, adapter smoke example | Partial (code + automated checks done 2026-09-15; manual smoke pending) |
-| p2 | [01-harness-core-p2-loop.md](01-harness-core-p2-loop.md) | `createAgent()` + standalone `run()`: bounded serial loop, validation, cancellation, ordered events, run handle; prove tool → result → final answer | Not started |
-| p3 | [01-harness-core-p3-durable-hitl.md](01-harness-core-p3-durable-hitl.md) | `@facio/store-file`, paused approvals with durable `requestId`, `resume()`, writer fence; prove pause → lose observer → resume without double execution | Not started |
+| p1 | [01-harness-core-p1-contracts.md](01-harness-core-p1-contracts.md) | Workspace scaffold, contracts, JSON Schema validator, `createTool`, memory store, fake model, chat-completions adapter, tests, adapter smoke example | Shipped 2026-09-15 |
+| p2 | [01-harness-core-p2-loop.md](01-harness-core-p2-loop.md) | `createAgent()` + standalone `run()`: bounded serial loop, validation, cancellation, ordered events, run handle; prove tool → result → final answer | Shipped (2026-09-15) |
+| p3 | [01-harness-core-p3-durable-hitl.md](01-harness-core-p3-durable-hitl.md) | `@facio/store-file`, paused approvals with durable `requestId`, `resume()`, writer fence; prove pause → lose observer → resume without double execution | Shipped 2026-09-16 |
 | p4 | [01-harness-core-p4-ahpd-adapter.md](01-harness-core-p4-ahpd-adapter.md) | `@facio/transport-ahp` implementing `@ahpd/sdk` `Agent`/`Session`; verify with `ahpc` | Not started |
-| p5 | [01-harness-core-p5-streaming-context-usage.md](01-harness-core-p5-streaming-context-usage.md) | Streaming, context reduction, usage accounting, second adapter; partial streamed calls and uncertain-invocation recovery tests | Not started |
+| p5 | [01-harness-core-p5-streaming-context-usage.md](01-harness-core-p5-streaming-context-usage.md) | Steering, hook stop, thinking levels, dynamic keys, cache key (Tasks 1-4, planned in full); streaming, context reduction, usage accounting, second adapter (Tasks 5-8, outlined) | Planned in part (Tasks 1-4) |
 
 Children declare dependencies by filename.
 A later phase must not assume an earlier phase's infrastructure unless that phase is marked complete in `index.md`.
@@ -152,7 +152,7 @@ Adapters, stores, transports, and examples import `@facio/agents` types and neve
 ## Resume state
 
 - **Done so far:** roadmap tree written; p1 built 2026-09-15 (workspace, contracts, validator, `createTool`, memory store, fake model, `openaiCompat`, smoke example; 60 tests green). Decisions 39-45 added in p1 (build-first root scripts, explicit vitest projects, review fixes, model catalog, reasoning).
-- **Next action:** run the p1 smoke against LM Studio / OpenRouter (see p1 Resume state), then `/dooit` on [01-harness-core-p2-loop.md](01-harness-core-p2-loop.md).
+- **Next action:** run the p1 smoke against LM Studio / OpenRouter (see p1 Resume state), then `/dooit` on [01-harness-core-p3-durable-hitl.md](01-harness-core-p3-durable-hitl.md). p2 shipped 2026-09-15 (decision 66 added).
 - **Open questions:** none.
 - **Watch out for:** the `@facio` npm scope must be claimed by the user before the first publish; the package names in this plan assume it.
 

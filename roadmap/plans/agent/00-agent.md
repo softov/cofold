@@ -21,10 +21,10 @@ The first code lands with [01-p1](01-harness-core-p1-contracts.md).
 | --- | --- | --- |
 | Runtime specification | `roadmap/specs/agent-harness-spec.md` | Vocabulary (definition / session / turn / step / tool call / hook / event / command), public shape (run handle), turn lifecycle, model adapter rules, tool rules, context assembly, persistence and recovery, ahpd integration, build sequence |
 | Field survey | `roadmap/research/agent-harness-survey.md` | What 24 harnesses have; which features are table stakes and which are differentiators |
-| ahpd contracts | `F:\github\ahpd\packages\sdk\src\types\agent.ts`, `session.ts` | The `Agent` / `Session` / `BoundTool` / `Start` shapes the p4 adapter must implement |
+| ahpd contracts | `ahpd/packages/sdk/src/types/agent.ts`, `session.ts` (softov/ahpd) | The `Agent` / `Session` / `BoundTool` / `Start` shapes the p4 adapter must implement |
 | facio | `F:\github\facio\src\core\command.ts` | `ActionDefinition` (id, summary, `input` as JSON Schema fields, `surfaces`, `needs`, `run`) that `fromFacioAction()` will map onto `createTool()`; tooling style (tsc build, vitest, zero deps) |
-| opendoop / pood | `F:\github\opendoop\pood\src\runtime\agents\agent-worker.ts`, `packages/sdk/src/provider/tool.ts` | Reference for iteration outcomes, tool effects, loop guards, `ToolManifest` fields; not copied, read for shape |
-| OpenClaw agent-core | `F:\github\openclaw\packages\agent-core\src\types.ts`, `agent-loop.ts` | Reference for `AgentEvent` union, `transformContext` + `convertToLlm` split, writer fence idea |
+| opendoop / pood | `opendoop/pood/src/runtime/agents/agent-worker.ts`, `opendoop/packages/sdk/src/provider/tool.ts` | Reference for iteration outcomes, tool effects, loop guards, `ToolManifest` fields; not copied, read for shape |
+| Prior art (see `roadmap/research/agent-harness-survey.md`) | public harnesses surveyed there | Event union style, canonical-transcript vs derived-model-view split, writer fence idea |
 
 ## Vocabulary (from the spec, used verbatim in every plan)
 

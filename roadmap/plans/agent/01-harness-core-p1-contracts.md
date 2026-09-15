@@ -1,6 +1,6 @@
 <!--
 Domain: agent
-Status: Partial
+Status: Shipped
 Priority: High
 Created: 2026-09-13
 Revalidated: 2026-09-15
@@ -11,7 +11,7 @@ Reference: ./00-agent.md
 
 # AGENT-01-p1 - Contracts, fake model, chat-completions adapter
 
-_Status: Partial · Priority: High · Created: 2026-09-13_
+_Status: Shipped 2026-09-15 · Priority: High · Created: 2026-09-13_
 
 Child of [01-harness-core.md](01-harness-core.md).
 Spec build step 1: "Define message, event, command, outcome, model, tool, and store contracts. Implement one non-streaming Chat Completions adapter and a deterministic fake model for tests."
@@ -31,13 +31,13 @@ Inherited from the parent; the parts that matter for this phase:
 - `roadmap/specs/agent-harness-spec.md` sections "Vocabulary", "Public shape", "Model adapters", "Tools and execution", "Persistence and recovery" - the contract requirements below quote them.
 - `F:\github\facio\package.json:1-120` - `exports` sub-path map, `files`, `scripts` (`build: tsc -p`, `test: vitest run`, `typecheck: tsc --noEmit`), devDeps (`typescript ^5.8`, `vitest ^2.1`, `@types/node ^22`).
 - `F:\github\facio\src\core\command.ts:192-197` - `Field = JsonSchema & {...}`; facio's own `JsonSchema` type is the shape our validator subset must accept so `fromFacioAction()` stays trivial later.
-- `F:\github\ahpd\packages\sdk\src\types\agent.ts:1-40` - `BoundTool.definition` is an AHP `ToolDefinition` (name, description, JSON Schema params); confirms decision 5 (full JSON Schema object).
-- `F:\github\openclaw\packages\agent-core\src\types.ts:605-660` - event union style (discriminated `type`, flat payload); reused.
+- `ahpd/packages/sdk/src/types/agent.ts` (softov/ahpd) - `BoundTool.definition` is an AHP `ToolDefinition` (name, description, JSON Schema params); confirms decision 5 (full JSON Schema object).
+- Survey (`roadmap/research/agent-harness-survey.md`, events section) - event union style (discriminated `type`, flat payload); reused.
 
 ### Searches performed
 
-- `rg "tool_calls|function.arguments" F:\github\openclaw\src\llm\providers` - confirmed Chat Completions tool-call shape: `choices[0].message.tool_calls[].{id, type:'function', function:{name, arguments:string}}`, tool results sent as `{ role:'tool', tool_call_id, content }`.
-- `rg "finish_reason" F:\github\openclaw\src\llm` - values seen: `stop`, `tool_calls`, `length`, `content_filter`.
+- Chat Completions API reference (OpenAI docs, OpenRouter docs) - confirmed the tool-call shape: `choices[0].message.tool_calls[].{id, type:'function', function:{name, arguments:string}}`, tool results sent as `{ role:'tool', tool_call_id, content }`.
+- Chat Completions API reference - `finish_reason` values: `stop`, `tool_calls`, `length`, `content_filter`.
 
 ### Runtime path
 
@@ -67,10 +67,10 @@ Additional rows for this phase:
 | 32 | Adapter retries `429` and `5xx` with exponential backoff (`retries` default 2, base 500 ms); never retries `4xx` other than 429; `signal` aborts retries | Spec "Keep ... retries ... inside the adapter" |
 | 33 | Adapter parses `function.arguments` JSON; on parse failure the `toolCall` part carries `input: undefined` and `raw: string`; the loop (p2) turns that into a validation failure result. The adapter never throws on model-produced JSON | Spec "A model-supplied ... JSON object is never trusted"; stream interruption rule |
 | 34 | `ModelFeatures` defaults for `openaiCompat`: `{ tools: true, streaming: false, images: false, structuredOutput: false }`; the caller overrides per model with `features` | Spec "configuration should say which model actually supports ..." |
-| 35 | Memory store `appendEvent` rejects a seq that is not `last + 1` with `StoreError('seq_gap')`; `appendMessages` and `appendStep` require the caller's `runId` to equal the active writer claim or throw `StoreError('writer_mismatch')` | Decision 24; OpenClaw writer fence |
+| 35 | Memory store `appendEvent` rejects a seq that is not `last + 1` with `StoreError('seq_gap')`; `appendMessages` and `appendStep` require the caller's `runId` to equal the active writer claim or throw `StoreError('writer_mismatch')` | Decision 24; writer fence pattern from the survey |
 | 36 | Package sub-path exports: `@facio/agents` (everything), `@facio/agents/testing` (fake model, memory store helpers); no deep imports | (defaulted: facio pattern) |
 | 37 | `packages/agents/src/types/` holds contracts only: interfaces and type aliases, no runtime values. Runtime code lives in domain folders (`agent/`, `message/`, `model/`, `schema/`, `store/`, `tool/`, `testing/`) and imports contracts from the specific file `../types/<name>.js`, never from the barrel. `types/index.ts` is a barrel consumed by `index.ts` only. Later phases add new runtime code under those folders (p2 `agent/create-agent.ts`, `run/run.ts`; p3 `tool/ask-user.ts`) | User (2026-09-14) |
-| 38 | Public authoring surfaces take named argument types: `Hooks` handlers are `HookHandler<Args, Result>` over `BeforeModelArgs`, `AfterModelArgs`, `BeforeToolArgs`, `AfterToolArgs`; `ToolDefinition.execute` is the one positional exception: `execute(input, ctx)`, input first, context second, the same order as openai-agents-js `ToolExecuteFunction` and doop's `execute(args, context)`, so a tool body is `(input) => ...` when it needs no context. `Store` method arguments stay inline: implementers get them by contextual typing and twenty named one-field shapes is noise | User (2026-09-14) |
+| 38 | Public authoring surfaces take named argument types: `Hooks` handlers are `HookHandler<Args, Result>` over `BeforeModelArgs`, `AfterModelArgs`, `BeforeToolArgs`, `AfterToolArgs`; `ToolDefinition.execute` is the one positional exception: `execute(input, ctx)`, input first, context second, the same order as the OpenAI Agents SDK and most tool frameworks (`execute(args, context)`), so a tool body is `(input) => ...` when it needs no context. `Store` method arguments stay inline: implementers get them by contextual typing and twenty named one-field shapes is noise | User (2026-09-14) |
 | 39 | Sibling packages resolve `@facio/agents` through its `exports` map, which points at `dist/` only. Root `typecheck` and `test` therefore run `pnpm build` first (`"typecheck": "pnpm build && pnpm -r run typecheck"`, `"test": "pnpm build && vitest run --typecheck"`); no source-mapped exports, no project references | User (2026-09-15); facio pattern (`examples: npm run build && tsc`) |
 | 40 | `vitest.workspace.ts` lists explicit projects (`defineWorkspace([{ test: { name, root, typecheck } }])`) with `typecheck: { enabled: true, tsconfig: 'tsconfig.test.json' }`; each package has a `tsconfig.test.json` that extends its `tsconfig.json` with `exclude: []`. A directory-glob project gets an empty config and never runs `*.test-d.ts`; and vitest copies the package tsconfig verbatim, so the build tsconfig's `*.test-d.ts` exclude made tsc check nothing and report no errors | Found while building (2026-09-15): a deliberately false `expectTypeOf` passed until both were fixed |
 | 41 | `sessions.create` and `runs.create` throw `StoreError('already_exists')` (new `AgentErrorCode`) when the id exists; never overwrite. p3's file store creates `session.json` with the `wx` flag for the same reason | Review (2026-09-15) |
@@ -766,14 +766,14 @@ Single phase; eight tasks in dependency order.
   export interface AfterModelArgs { reply: ModelReply; run: RunInfo }
   export type AfterModelResult = { reply: ModelReply } | { abort: { reason: string } };
 
-  export interface BeforeToolArgs { call: ToolCallPart; tool: Tool; run: RunInfo }
+  export interface BeforeToolArgs { call: ToolCallPart; tool: Tool<any, any>; run: RunInfo }
   export type BeforeToolResult =
     | { decision: 'allow' }
     | { decision: 'modify'; input: unknown }
     | { decision: 'deny'; reason: string }
     | { decision: 'approval'; prompt?: string };
 
-  export interface AfterToolArgs { call: ToolCallPart; tool: Tool; output: ToolOutput; isError: boolean; run: RunInfo }
+  export interface AfterToolArgs { call: ToolCallPart; tool: Tool<any, any>; output: ToolOutput; isError: boolean; run: RunInfo }
   export type AfterToolResult = { output: ToolOutput; isError?: boolean };
 
   export type HookHandler<Args, Result> = (args: Args) => Result | Promise<Result>;
@@ -811,7 +811,7 @@ Single phase; eight tasks in dependency order.
   export interface Capability {
     /** Stable id; unique within an agent. Becomes Tool.source for its tools and the section label in the prompt. */
     id: string;
-    tools?(args: CapabilityArgs): Tool[] | Promise<Tool[]>;
+    tools?(args: CapabilityArgs): Tool<any, any>[] | Promise<Tool<any, any>[]>;
     /** Text appended to the agent instructions under a `## <id>` heading; undefined contributes nothing this run. */
     instructions?(args: CapabilityArgs): string | undefined | Promise<string | undefined>;
   }
@@ -1696,7 +1696,7 @@ Single phase; eight tasks in dependency order.
 - **Done so far (2026-09-15):** Tasks 1-8 built, then the review round applied (decisions 41-45: `already_exists`, `invalid_schema` value checks, array `content`, `ModelProvider` catalog + `openaiCompatProvider`, reasoning part/feature/params/usage); `pnpm check` from a dist-less tree: build, typecheck (3 workspaces), 77 tests (71 runtime + 6 type-level) green, 0 type errors.
   Evidence: `packages/agents/src/{ids,errors,index,testing}.ts`, `types/*.ts` (16 files + `contracts.test-d.ts`), `agent/limits.ts`, `message/helpers.ts`, `model/usage.ts`, `schema/validate{,.test}.ts`, `tool/create-tool{,.test}.ts`, `store/memory{,.test}.ts`, `testing/fake-model{,.test}.ts`; `packages/model-openai-compat/src/{index,wire,index.test}.ts`; `examples/adapter-smoke.ts`; READMEs in root, both packages and `examples/`.
   Deviations from the plan's code blocks, each proven by a failing check: (a) `schema/validate.ts` `check()` returns early for an absent value (the plan's version type-checked `undefined` and rejected any absent optional property without a default, and doubled the `required` issue); (b) `store/memory.ts` `sessions.get` strips `messages` (the plan's validation demanded it, its code did not), `runs.create` / `updateStep` / `requests.resolve` clone their inputs; (c) `openaiCompat` `backoff()` checks `signal.aborted` up front and removes its listener on resolve; (d) root `build` filter is `"./packages/**"` in escaped double quotes (`'./packages/*'` matched nothing, and single quotes are literal under cmd.exe); (e) decisions 39-40 (build-first scripts, explicit vitest projects + `tsconfig.test.json`).
-- **Next action:** manual Task 8 validation: start LM Studio with a tool-capable model and run `pnpm --filter facio-agents-examples smoke` (expect `finish: tool_calls` and one `now({})`), then the same with `FACIO_BASE_URL=https://openrouter.ai/api/v1 FACIO_API_KEY=...`. Without a server the script exits with `ModelError { code: 'network', retryable: true }` after 3 attempts, which is the correct failure. Then tick the checklist and set this phase to `Shipped`; p2 starts at `agent/create-agent.ts`.
+- **Next action:** none; phase shipped 2026-09-15 (smoke run confirmed by the user). p2 starts at Task 1 of 01-harness-core-p2-loop.md.
 - **Open questions:** none.
 - **Watch out for:** Node 22 `--experimental-strip-types` cannot run `.ts` files that use `enum` or parameter properties; the example uses neither. `structuredClone` of a `Message` containing `undefined` `input` keeps the key; the file store in p3 serializes with `JSON.stringify`, which drops it, so p3 re-runs this phase's store tests. `CLAUDE.md` still describes `pnpm typecheck` as plain `tsc --noEmit`; it builds first now (decision 39). vitest 2 workspace `typecheck` is experimental: pin `vitest` before upgrading and re-run the flipped-assertion check (`expectTypeOf(wrong).toMatchTypeOf` must fail) after any bump.
 
@@ -1709,5 +1709,5 @@ Single phase; eight tasks in dependency order.
 - [x] Validator rejects unsupported keywords at `createTool` time and never coerces types.
 - [x] Memory store enforces `seq_gap` and `writer_mismatch`, rejects run-level calls whose `sessionId` does not own the run, and lists sessions by workspace.
 - [x] Fake model and `openaiCompat` both satisfy `ModelAdapter` (type test) and their unit tests pass.
-- [ ] `examples/adapter-smoke.ts` runs against LM Studio and against OpenRouter (not run: no server on :1234, no OpenRouter key in this session; script verified to load and fail with `network` correctly).
-- [x] `index.md` status for 01-p1 updated (`Partial` until the smoke run).
+- [x] `examples/adapter-smoke.ts` runs against a real model (user-confirmed 2026-09-15).
+- [x] `index.md` status for 01-p1 updated (`Shipped` 2026-09-15).

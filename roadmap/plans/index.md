@@ -12,13 +12,23 @@ Reference: [00-agent.md](agent/00-agent.md)
 | Plan | Priority | Status | Requires | Blocks |
 | --- | --- | --- | --- | --- |
 | [01 - Harness core](agent/01-harness-core.md) (parent) | High | In progress | - | everything |
-| [01-p1 - Contracts, fake model, chat-completions adapter](agent/01-harness-core-p1-contracts.md) | High | Partial | - | 01-p2 |
-| [01-p2 - Serial loop and run handle](agent/01-harness-core-p2-loop.md) | High | Not started | 01-p1 | 01-p3 |
-| [01-p3 - Durable sessions and paused approvals](agent/01-harness-core-p3-durable-hitl.md) | High | Not started | 01-p2 | 01-p4 |
+| [01-p1 - Contracts, fake model, chat-completions adapter](agent/01-harness-core-p1-contracts.md) | High | Shipped | - | 01-p2 |
+| [01-p2 - Serial loop and run handle](agent/01-harness-core-p2-loop.md) | High | Shipped | 01-p1 | 01-p3 |
+| [01-p3 - Durable sessions and paused approvals](agent/01-harness-core-p3-durable-hitl.md) | High | Shipped | 01-p2 | 01-p4 |
 | [01-p4 - ahpd adapter](agent/01-harness-core-p4-ahpd-adapter.md) | High | Not started | 01-p3 | - |
-| [01-p5 - Streaming, context reduction, usage accounting](agent/01-harness-core-p5-streaming-context-usage.md) | Medium | Not started | 01-p3 | - |
+| [01-p5 - Steering, hook stop, thinking levels, streaming, context, usage](agent/01-harness-core-p5-streaming-context-usage.md) | Medium | Planned in part | 01-p3 | - |
 
 Next free number in `agent`: `02`.
+
+## cli
+
+Reference: [00-cli.md](cli/00-cli.md)
+
+| Plan | Priority | Status | Requires | Blocks |
+| --- | --- | --- | --- | --- |
+| [01 - @facio/chat: the harness in a terminal](cli/01-facio-chat.md) | High | Blocked (textui CHAT-01) | 01-p3, textui `@textui/chat` | facio CLI |
+
+Next free number in `cli`: `02`.
 
 ## Later domains (no plans yet)
 

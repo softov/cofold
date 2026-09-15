@@ -17,7 +17,7 @@ Child of [01-harness-core.md](01-harness-core.md).
 Spec build step 4: "Implement the `ahpd` adapter. Verify with `ahpc` that a turn, tool approval, cancellation, reconnect, and history all display correctly."
 
 This is a stub.
-Run `/dooplan` against it when p3 is marked `Shipped`; that round must re-read `F:\github\ahpd\packages\sdk\src\types\{agent,session}.ts` and `packages/agent-claude/src/*` at that date, since ahpd is moving.
+Run `/dooplan` against it when p3 is marked `Shipped`; that round must re-read `ahpd/packages/sdk/src/types/{agent,session}.ts` and `ahpd/packages/agent-claude/src/*` at that date, since ahpd is moving.
 
 ## Objective
 
@@ -26,7 +26,7 @@ Run `/dooplan` against it when p3 is marked `Shipped`; that round must re-read `
 ## Requires
 
 - p3 shipped: durable store, paused approvals, `resume()`.
-- `@ahpd/sdk` importable (workspace link to `F:\github\ahpd` or a published version; deferred question).
+- `@ahpd/sdk` importable (local workspace link to a checkout of softov/ahpd, or a published version; deferred question).
 
 ## Scope (mapped from the ahpd contracts read on 2026-09-13)
 
