@@ -1,4 +1,5 @@
-import type { Command, OptionSpec } from "./types/command.js";
+import type { Command } from "./types/command.js";
+import type { OptionSpec } from "./types/field.js";
 import { describe, expect, it } from "vitest";
 import { matchCommand, optionTable, tokenize } from "./argv.js";
 

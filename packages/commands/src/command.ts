@@ -1,16 +1,8 @@
-import type { Coercer, JsonSchema } from "./types/coerce.js";
-import type {
-  ActionDefinition,
-  ArgumentSpec,
-  Command,
-  CommandMeta,
-  Field,
-  OptionNote,
-  OptionSpec,
-  PatternToken,
-  Surface,
-  Surfaces,
-} from "./types/command.js";
+import type { Coercer } from "./types/coerce.js";
+import type { ActionDefinition, Command, CommandMeta, PatternToken, Surface, Surfaces } from "./types/command.js";
+import type { ArgumentSpec, Field, OptionNote, OptionSpec } from "./types/field.js";
+import type { JsonSchema } from "./types/json-schema.js";
+
 
 /**
  * What a command is.

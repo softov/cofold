@@ -14,6 +14,7 @@
 
 import type { Compacted } from "./types/compact.js";
 
+
 export function compact<T extends object>(value: T): Compacted<T> {
   const result: Record<string, unknown> = {};
   for (const [key, item] of Object.entries(value)) {

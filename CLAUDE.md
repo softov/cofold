@@ -24,8 +24,8 @@ pnpm only (`packageManager` is pinned). Node >= 22. ESM only. No bundler. Tests 
 
 ```
 packages/commands/          @facio/commands - the declaration, registry, input, argv grammar, coercion, schema
-  src/types/                contracts only (command, registry, context, input, coerce, schema, argv, errors, compact)
-  src/<name>.ts             the runtime beside the contract of the same name
+  src/types/                contracts only, grouped by concept: json-schema, standard-schema, coerce, field, command, input, argv, context, registry, errors, compact
+  src/<name>.ts             runtime by domain (command, registry, context, input, coerce, schema, argv, errors, compact, display, suggest)
 packages/{terminal,mcp,remote,config,yaml,docs}/   the surfaces; each depends on @facio/commands only (mcp: optional SDK peer)
 packages/facio/             later: the program (daemon + CLI), not yet created
 packages/agents/            @facio/agents  - contracts, loop, run handle, step log, memory store, fake model

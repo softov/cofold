@@ -8,7 +8,8 @@
  * be discovered through whichever example happened to exercise it.
  */
 
-import type { Command, Field, InputOf } from "./types/command.js";
+import type { Command, InputOf } from "./types/command.js";
+import type { Field } from "./types/field.js";
 import { describe, expect, it } from "vitest";
 import {
   commandFor,

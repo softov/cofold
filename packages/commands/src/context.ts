@@ -1,11 +1,5 @@
 import type { Command, Surface } from "./types/command.js";
-import type {
-  BaseContextOptions,
-  CommandContext,
-  Io,
-  Output,
-  RequestContext,
-} from "./types/context.js";
+import type { BaseContextOptions, CommandContext, Io, Output, RequestContext } from "./types/context.js";
 import { compact } from "./compact.js";
 import { ArgumentError } from "./errors.js";
 

@@ -1,12 +1,7 @@
-import type { ActionDefinition, Command, CommandDefinition, Field } from "./types/command.js";
+import type { ActionDefinition, Command, CommandDefinition, CommandGroup, CommandSection } from "./types/command.js";
 import type { CommandContext, Output } from "./types/context.js";
-import type {
-  CommandGroup,
-  CommandSection,
-  ExecuteOptions,
-  RegistryOptions,
-  Resolution,
-} from "./types/registry.js";
+import type { Field } from "./types/field.js";
+import type { ExecuteOptions, RegistryOptions, Resolution } from "./types/registry.js";
 import { literalPrefix, parsePattern, commandFor } from "./command.js";
 import { assertSupported } from "./coerce.js";
 import { compact } from "./compact.js";

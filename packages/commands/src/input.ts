@@ -1,6 +1,7 @@
 import type { Coercer } from "./types/coerce.js";
-import type { ArgumentSpec, Command } from "./types/command.js";
-import type { FieldDescriptor, RawCliInput } from "./types/input.js";
+import type { Command } from "./types/command.js";
+import type { ArgumentSpec, FieldDescriptor } from "./types/field.js";
+import type { RawCliInput } from "./types/input.js";
 import { fieldNameOf, isFlag, optionsOf, parsePattern } from "./command.js";
 import { coerceValue, text } from "./coerce.js";
 import { ArgumentError } from "./errors.js";

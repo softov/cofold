@@ -8,7 +8,8 @@
  * library has made the choice for every program built on it.
  */
 
-import type { StandardIssue, StandardSchemaV1 } from "./types/schema.js";
+import type { StandardIssue, StandardSchemaV1 } from "./types/standard-schema.js";
+
 
 export function isStandardSchema(value: unknown): value is StandardSchemaV1 {
   return typeof value === "object" && value !== null && "~standard" in value;

@@ -7,7 +7,7 @@
  * anything that implements `~standard` works, which is the whole claim.
  */
 
-import type { StandardIssue, StandardSchemaV1 } from "./types/schema.js";
+import type { StandardIssue, StandardSchemaV1 } from "./types/standard-schema.js";
 import { describe, expect, it } from "vitest";
 import { canonicalFromCli, canonicalFromObject } from "./input.js";
 import { createRegistry } from "./registry.js";

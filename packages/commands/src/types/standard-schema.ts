@@ -1,3 +1,4 @@
+import type { Output } from "./context.js";
 
 export interface StandardSchemaV1<Input = unknown, Output = Input> {
   readonly "~standard": {

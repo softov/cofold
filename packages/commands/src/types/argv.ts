@@ -1,4 +1,5 @@
-import type { Command, OptionSpec } from "./command.js";
+import type { Command } from "./command.js";
+import type { OptionSpec } from "./field.js";
 
 export interface OptionTableEntry {
   spec: OptionSpec;

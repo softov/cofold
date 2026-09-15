@@ -12,7 +12,8 @@
  * text. `check` does the rest, once, for everybody.
  */
 
-import type { Coercer, JsonSchema } from "./types/coerce.js";
+import type { Coercer } from "./types/coerce.js";
+import type { JsonSchema } from "./types/json-schema.js";
 import { compact } from "./compact.js";
 import { ArgumentError } from "./errors.js";
 

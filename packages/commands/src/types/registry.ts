@@ -1,4 +1,4 @@
-import type { Command, Surface } from "./command.js";
+import type { Command, CommandGroup, Surface } from "./command.js";
 import type { CommandContext, Io, Output, RequestContext } from "./context.js";
 
 export interface ProviderDefinition<Deps extends object, Value> {
@@ -10,27 +10,6 @@ export interface ProviderDefinition<Deps extends object, Value> {
   resolve(deps: Deps, context: CommandContext): Value | Promise<Value>;
   /** Run in reverse resolution order after the handler, whether it threw or not. */
   dispose?(value: Value): void | Promise<void>;
-}
-
-export interface CommandGroup {
-  name: string;
-  title: string;
-  /**
-   * Whether generated agent documentation lists the group at all.
-   *
-   * An agent does not rotate tokens or edit the configuration; printing those
-   * to something that cannot usefully act on them is an invitation rather than
-   * a reference. `--help` still shows everything - a person typing it asked.
-   */
-  agent?: boolean;
-}
-
-/** A titled run of commands, as help and the reference both lay them out. */
-export interface CommandSection {
-  /** The group's name, or undefined for the single section of an ungrouped program. */
-  name: string | undefined;
-  title: string;
-  commands: readonly Command[];
 }
 
 export interface AuthorizeRequest {

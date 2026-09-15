@@ -12,7 +12,6 @@
  * the meaning is in this package.
  */
 export { matchCommand, optionTable, tokenize } from "./argv.js";
-export type { Match, OptionTableEntry, Tokens } from "./types/argv.js";
 export * as coerce from "./coerce.js";
 export { assertSupported, check, coerceValue, decode, expectationOf } from "./coerce.js";
 export {
@@ -28,35 +27,14 @@ export {
   underPrefix,
   visible,
 } from "./command.js";
-export type {
-  ActionDefinition,
-  ArgumentSpec,
-  Command,
-  CommandDefinition,
-  CommandExample,
-  CompletionContext,
-  CompletionSource,
-  CommandMeta,
-  Field,
-  CliField,
-  Surfaces,
-  OptionNote,
-  OptionSpec,
-  PatternToken,
-  Surface,
-  SurfaceFlags,
-} from "./types/command.js";
 export { compact } from "./compact.js";
-export type { Compacted } from "./types/compact.js";
 export { displayValue } from "./display.js";
-export type { Coercer, JsonSchema } from "./types/coerce.js";
 export {
   BaseContext,
   output,
   RESERVED_CONTEXT_KEYS,
   silentIo,
 } from "./context.js";
-export type { CommandContext, Io, Output, RequestContext } from "./types/context.js";
 export {
   ArgumentError,
   AuthorizationError,
@@ -65,21 +43,49 @@ export {
   UnavailableError,
   exitCodeFor,
 } from "./errors.js";
-export type { FaultKind } from "./types/errors.js";
 export { argumentFields, canonicalFromCli, canonicalFromObject, fieldsOf } from "./input.js";
-export type { FieldDescriptor, RawCliInput } from "./types/input.js";
 export { commandFor } from "./command.js";
 export { createRegistry, Registry, sectionsOf, validateCommand } from "./registry.js";
-export type {
-  Runner,
-  AuthorizeRequest,
-  CommandGroup,
-  CommandSection,
-  ExecuteOptions,
-  RegistryOptions,
-  ProviderDefinition,
-  Resolution,
-} from "./types/registry.js";
 export { isStandardSchema, validate } from "./schema.js";
 export { didYouMean, suggest } from "./suggest.js";
-export type { StandardIssue, StandardResult, StandardSchemaV1 } from "./types/schema.js";
+
+// contracts
+export type { Match, OptionTableEntry, Tokens } from "./types/argv.js";
+export type { Coercer } from "./types/coerce.js";
+export type {
+  ActionDefinition,
+  Command,
+  CommandDefinition,
+  CommandExample,
+  CommandGroup,
+  CommandMeta,
+  CommandSection,
+  PatternToken,
+  Surface,
+  SurfaceFlags,
+  Surfaces,
+} from "./types/command.js";
+export type { Compacted } from "./types/compact.js";
+export type { CommandContext, Io, Output, RequestContext } from "./types/context.js";
+export type { FaultKind } from "./types/errors.js";
+export type {
+  ArgumentSpec,
+  CliField,
+  CompletionContext,
+  CompletionSource,
+  Field,
+  FieldDescriptor,
+  OptionNote,
+  OptionSpec,
+} from "./types/field.js";
+export type { RawCliInput } from "./types/input.js";
+export type { JsonSchema } from "./types/json-schema.js";
+export type {
+  AuthorizeRequest,
+  ExecuteOptions,
+  ProviderDefinition,
+  RegistryOptions,
+  Resolution,
+  Runner,
+} from "./types/registry.js";
+export type { StandardIssue, StandardResult, StandardSchemaV1 } from "./types/standard-schema.js";

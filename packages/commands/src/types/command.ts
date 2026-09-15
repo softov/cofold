@@ -1,67 +1,9 @@
-import type { Coercer, JsonSchema } from "./coerce.js";
 import type { CommandContext, Output } from "./context.js";
-import type { StandardSchemaV1 } from "./schema.js";
+import type { ArgumentSpec, Field, OptionSpec } from "./field.js";
+import type { StandardSchemaV1 } from "./standard-schema.js";
 
 /** Which rendering of the registry is running the command. */
 export type Surface = "cli" | "mcp" | "remote" | (string & {});
-
-export interface CompletionContext {
-  /** The words already typed, for a source that narrows on them. */
-  readonly words: readonly string[];
-  /** What is being completed, possibly a partial word. */
-  readonly current: string;
-  readonly command: Command | null;
-}
-
-/**
- * Where the shell gets its candidates.
- *
- * A function, not only a list, because the interesting values are never static:
- * the ids on this server, the profiles in this configuration. Completion that
- * only knows the words the author typed is completion nobody uses twice.
- */
-export type CompletionSource =
-  | readonly string[]
-  | ((context: CompletionContext) => readonly string[] | Promise<readonly string[]>);
-
-export interface OptionSpec<T = unknown> {
-  /** The long form, with its dashes: `--limit`. */
-  name: string;
-  /** The short form, with its dash: `-l`. Optional, and usually a mistake to invent. */
-  short?: string;
-  /**
-   * The placeholder shown in help - `N`, `PATH`, `KEY=VALUE`.
-   *
-   * Its absence is what makes an option a flag. One field decides both the help
-   * text and the parse, so a flag cannot be documented as taking a value.
-   */
-  value?: string;
-  description: string;
-  /** Giving it twice collects both rather than the last one winning. */
-  repeatable?: boolean;
-  required?: boolean;
-  /** Applied when the option is absent and no environment variable answers. */
-  default?: T;
-  /** Consulted before the default. `FACIO_URL`, and so on. */
-  env?: string;
-  /** How the word becomes a value, and what shape that value has. */
-  coerce?: Coercer<T>;
-  /** `--color` also accepting `--no-color`. */
-  negatable?: boolean;
-  /** Parsed and usable, but absent from help and completion. */
-  hidden?: boolean;
-  complete?: CompletionSource;
-  /** The canonical input key. Derived from the name when omitted: `--dry-run` -> `dryRun`. */
-  field?: string;
-}
-
-/** Extra about a `:slot` of the pattern; the slot itself declares the name. */
-export interface ArgumentSpec<T = unknown> {
-  description?: string;
-  coerce?: Coercer<T>;
-  complete?: CompletionSource;
-  field?: string;
-}
 
 export interface CommandExample {
   command: string;
@@ -162,29 +104,6 @@ export interface CommandDefinition<Deps extends object = object, Needs extends r
 export type Command = CommandDefinition<object, readonly string[]>;
 
 /**
- * How one field is typed at a terminal. Spelling, never shape.
- *
- * `flag` only where it is not the field's own name, and `value` only where the
- * placeholder should read as something other than the type. Absence of `value`
- * is what makes a field a flag, because arity is not derivable from a type:
- * `--color` and `--color=true` are both spellings of one boolean.
- */
-export interface CliField {
-  flag?: string;
-  short?: string;
-  value?: string;
-  complete?: CompletionSource;
-  hidden?: boolean;
-}
-
-/** One input field: what the value may be, and how a surface spells it. */
-export type Field = JsonSchema & {
-  cli?: CliField;
-  /** Consulted before the default, on any surface that has an environment. */
-  env?: string;
-};
-
-/**
  * Which surfaces render an action, and what each needs to do it.
  *
  * Presence is the switch: an action with no `cli` has no command line and needs
@@ -263,18 +182,23 @@ export type PatternToken =
   | { kind: "literal"; word: string }
   | { kind: "slot"; name: string; optional: boolean; variadic: boolean };
 
-/**
- * What help and the generated reference say about an option beyond its
- * description, as data rather than as a sentence.
- *
- * The list is the shared part - miss `repeatable` here and one surface silently
- * stops mentioning it - and the wording is not: a terminal writes `env URL` and
- * markdown writes ``env `URL` ``. So this returns the notes and each surface
- * spells them.
- */
-export type OptionNote =
-  | { kind: "required" }
-  | { kind: "repeatable" }
-  | { kind: "env"; name: string }
-  | { kind: "default"; value: unknown }
-  | { kind: "candidates"; values: readonly string[] };
+export interface CommandGroup {
+  name: string;
+  title: string;
+  /**
+   * Whether generated agent documentation lists the group at all.
+   *
+   * An agent does not rotate tokens or edit the configuration; printing those
+   * to something that cannot usefully act on them is an invitation rather than
+   * a reference. `--help` still shows everything - a person typing it asked.
+   */
+  agent?: boolean;
+}
+
+/** A titled run of commands, as help and the reference both lay them out. */
+export interface CommandSection {
+  /** The group's name, or undefined for the single section of an ungrouped program. */
+  name: string | undefined;
+  title: string;
+  commands: readonly Command[];
+}

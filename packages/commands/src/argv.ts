@@ -1,5 +1,6 @@
 import type { Match, OptionTableEntry, Tokens } from "./types/argv.js";
-import type { Command, OptionSpec } from "./types/command.js";
+import type { Command } from "./types/command.js";
+import type { OptionSpec } from "./types/field.js";
 import { ArgumentError } from "./errors.js";
 import { isFlag, parsePattern } from "./command.js";
 import { didYouMean } from "./suggest.js";

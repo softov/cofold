@@ -9,6 +9,7 @@
 
 import type { FaultKind } from "./types/errors.js";
 
+
 const EXIT_CODES: Record<FaultKind, number> = {
   argument: 2,
   configuration: 3,
