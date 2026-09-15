@@ -2,8 +2,17 @@ import type { ToolCallPart } from './message.js';
 import type { ModelReply, ModelRequest } from './model.js';
 import type { Tool, ToolOutput } from './tool.js';
 import type { RunEvent } from './event.js';
+import type { KvScope } from './store.js';
 
-export interface RunInfo { runId: string; sessionId: string; agentId: string; step: number }
+export interface RunInfo {
+  runId: string;
+  sessionId: string;
+  agentId: string;
+  /** 1-based index of the model step in progress; tool calls report the step that proposed them. */
+  step: number;
+  /** Same scopes as ToolContext.kv (decision 49). */
+  kv: { agent: KvScope; shared: KvScope; workspace?: KvScope };
+}
 
 export interface BeforeModelArgs { request: ModelRequest; run: RunInfo }
 export type BeforeModelResult = { request: ModelRequest } | { abort: { reason: string } };

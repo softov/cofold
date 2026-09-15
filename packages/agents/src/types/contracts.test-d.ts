@@ -1,11 +1,12 @@
 import { describe, expectTypeOf, it } from 'vitest';
-import type { AfterToolArgs, AfterToolResult, BeforeToolArgs, BeforeToolResult, Hooks } from './hooks.js';
+import type { RunCommand } from './command.js';
+import type { AfterToolArgs, AfterToolResult, BeforeToolArgs, BeforeToolResult, Hooks, RunInfo } from './hooks.js';
 import type { RunEvent } from './event.js';
 import type { ContentPart } from './message.js';
 import type { ModelAdapter } from './model.js';
 import type { ModelProvider } from './provider.js';
 import type { RunOutcome } from './outcome.js';
-import type { Store } from './store.js';
+import type { KvScope, Store } from './store.js';
 
 describe('contracts', () => {
   it('RunOutcome has exactly the five terminal statuses', () => {
@@ -18,6 +19,14 @@ describe('contracts', () => {
 
   it('ModelProvider.model returns a ModelAdapter', () => {
     expectTypeOf<ModelProvider['model']>().returns.toEqualTypeOf<ModelAdapter>();
+  });
+
+  it('RunInfo exposes kv scopes to every hook', () => {
+    expectTypeOf<RunInfo['kv']>().toEqualTypeOf<{ agent: KvScope; shared: KvScope; workspace?: KvScope }>();
+  });
+
+  it('approve accepts an optional edited input', () => {
+    expectTypeOf<Extract<RunCommand, { type: 'approve' }>>().toHaveProperty('input');
   });
 
   it('RunEvent carries a numeric seq', () => {

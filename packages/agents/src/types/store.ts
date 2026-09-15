@@ -47,6 +47,8 @@ export type StepRecord =
       status: StepStatus;
       request?: Omit<ModelRequest, 'signal'>;
       reply?: ModelReply;
+      /** Hook abort reason or adapter error summary; never model content. */
+      detail?: unknown;
       startedAt: string;
       endedAt?: string;
     }

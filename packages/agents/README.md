@@ -1,8 +1,8 @@
 # @facio/agents
 
-Agent runtime: contracts, JSON Schema validation, `createTool`, an in-memory `Store`, and a scripted fake model.
+Agent runtime: contracts, JSON Schema validation, `createTool`, `createAgent`, `run`, an in-memory `Store`, and a scripted fake model.
 Zero runtime dependencies.
-The loop (`createAgent`, `run`, `resume`) lands in the next phase; the contracts for it are already here.
+A model conducts a conversation, proposes tools, the runtime authorizes and executes them, one turn is a run.
 
 ## Install
 
@@ -45,17 +45,34 @@ Supported keywords: `type` (single or array), `properties`, `required`, `additio
 Anything else (`$ref`, `patternProperties`, ...) throws `SchemaError('unsupported_keyword')` at `createTool` time, never at validation time; a bad value (`pattern: '('`, `type: 'str'`, a non-array `required`) throws `SchemaError('invalid_schema')` there too.
 Types are never coerced: `"3"` is not an integer.
 
-## The shape the whole family follows
+## Run one turn
 
 ```ts
-const agent = createAgent({ id: 'support', instructions: '...', model, tools: [readFile], store });
-const handle = run({ agent, session: 'sess-1', input: 'Summarize README.md' });
-for await (const event of handle.events) { /* ... */ }
+import { createAgent, run, textOf } from '@facio/agents';
+
+const agent = createAgent({ id: 'support', instructions: 'Answer briefly.', model, tools: [echo], store });
+const handle = run({ agent, session: 'sess-1', input: 'Say hello' });
+for await (const event of handle.events) console.log(event.seq, event.type);
 const outcome = await handle.outcome;
+if (outcome.status === 'completed') console.log(textOf(outcome.message));
 ```
 
-`createAgent` returns a frozen value with no methods; `run` executes one turn and returns a `RunHandle` immediately.
-An outcome is always one of `completed | awaiting | stopped | cancelled | failed`.
+`createAgent` validates the options once and returns a frozen value with no methods: `definition`, `model`, `tools`, `capabilities`, `store`, `hooks`, `policy`, `limits`, `context`, `params`, `resources`.
+Without a `store` it uses an in-memory store and warns once; pass a real store for anything but tests.
+
+`run` returns a `RunHandle` synchronously and executes the turn in the background:
+
+- `events`: every `RunEvent` from `seq` 1, replayed to any iterator, ending after `run.finished`.
+- `outcome`: resolves to exactly one of `completed | awaiting | stopped | cancelled | failed`; it never rejects.
+- `cancel({ reason })` / `submit({ type: 'cancel' })`: aborts the run; a tool in flight is left `uncertain` in the step log.
+- `status()`: `running` until the outcome settles.
+
+Per step the loop assembles a bounded request from the session transcript (newest messages first, tool-call groups kept whole), calls `hooks.beforeModel`, the model, `hooks.afterModel`, then handles each proposed tool call in order: validate the arguments, `hooks.beforeTool`, the policy floor (`policy.requireApproval`, default: `effects.destructive`), execute, bound the output, `hooks.afterTool`.
+Every message, step and event is persisted through the `Store` before it is published.
+A call that needs approval pauses the run as `awaiting` with a durable `requestId`; resuming lands in the next phase.
+Limits: `maxSteps`, `maxToolCalls`, `timeoutMs`, `maxToolOutputChars`.
+
+Capabilities (`{ id, tools?(args), instructions?(args) }`) are resolved at the start of every run and contribute tools plus a `## <id>` section to the instructions.
 
 ## Testing helpers
 
@@ -85,7 +102,8 @@ Messages carry `text`, `image`, `reasoning`, `toolCall` and `toolResult` parts; 
 
 ```
 src/types/      contracts only: interfaces and type aliases, no runtime values
-src/agent/      DEFAULT_LIMITS (createAgent in the next phase)
+src/agent/      createAgent, DEFAULT_LIMITS
+src/run/        run, the loop, run handle, context assembly, tool handling
 src/message/    textOf, toolCallsOf
 src/model/      ZERO_USAGE, addUsage
 src/schema/     validateSchema, assertSupportedSchema

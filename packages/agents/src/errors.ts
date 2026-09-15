@@ -13,7 +13,10 @@ export type AgentErrorCode =
   | 'network'
   | 'invalid_response'
   | 'aborted'
-  | 'hook_error';
+  | 'hook_error'
+  | 'capability_error'
+  | 'writer_busy'
+  | 'internal';
 
 export class AgentError extends Error {
   readonly code: AgentErrorCode;

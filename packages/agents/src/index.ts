@@ -2,6 +2,8 @@ export type * from './types/index.js';
 export { AgentError, ModelError, SchemaError, StoreError, type AgentErrorCode } from './errors.js';
 export { newId } from './ids.js';
 export { DEFAULT_LIMITS } from './agent/limits.js';
+export { createAgent } from './agent/create-agent.js';
+export { run } from './run/run.js';
 export { textOf, toolCallsOf } from './message/helpers.js';
 export { ZERO_USAGE, addUsage } from './model/usage.js';
 export { assertSupportedSchema, validateSchema } from './schema/validate.js';
