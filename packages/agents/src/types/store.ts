@@ -1,3 +1,4 @@
+import type { AskQuestion } from './ask.js';
 import type { RunEvent } from './event.js';
 import type { Message } from './message.js';
 import type { ModelReply, ModelRequest, Usage } from './model.js';
@@ -77,6 +78,12 @@ export type StepRecord =
       endedAt?: string;
     };
 
+/** `PendingRequest.payload` of an 'approval' request. */
+export interface ApprovalPayload { name: string; input: unknown; prompt?: string }
+
+/** `PendingRequest.payload` of an 'input' request; invocationId lets resume complete the same tool step. */
+export interface InputPayload { name: string; input: unknown; questions: AskQuestion[]; invocationId: string }
+
 export interface PendingRequest {
   requestId: string;
   sessionId: string;
@@ -84,6 +91,7 @@ export interface PendingRequest {
   kind: 'approval' | 'input';
   /** For approvals: the tool call awaiting a decision. */
   callId?: string;
+  /** ApprovalPayload or InputPayload by `kind`. */
   payload: unknown;
   createdAt: string;
   resolvedAt?: string;
@@ -109,6 +117,11 @@ export interface Store {
     create(args: { sessionId: string; agentId: string; workspace?: string }): Promise<SessionRecord>;
     /** Newest `updatedAt` first. `workspace` and `agentId` filter when given. */
     list(args: { workspace?: string; agentId?: string; limit?: number }): Promise<SessionRecord[]>;
+    /**
+     * Removes the session with its messages, runs, events, steps and requests. StoreError('not_found')
+     * when absent; StoreError('writer_busy') while a run holds the writer claim.
+     */
+    delete(args: { sessionId: string }): Promise<void>;
     /** Fails with StoreError('writer_mismatch') unless runId holds the claim. */
     appendMessages(args: { sessionId: string; runId: string; messages: Message[] }): Promise<void>;
     listMessages(args: { sessionId: string; limit?: number }): Promise<Message[]>;

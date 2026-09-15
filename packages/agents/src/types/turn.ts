@@ -60,12 +60,6 @@ export type TurnEntry =
   | { kind: 'model' }
   | { kind: 'batch'; calls: ToolCallPart[]; resolved?: ResolvedRequest };
 
-/** Payload of an 'approval' PendingRequest. */
-export interface ApprovalPayload { name: string; input: unknown; prompt?: string }
-
-/** Payload of an 'input' PendingRequest; invocationId lets resume complete the same tool step. */
-export interface InputPayload { name: string; input: unknown; questions: AskQuestion[]; invocationId: string }
-
 export interface InternalRunHandle extends RunHandle {
   /** Called by the loop for every persisted event. */
   publish(event: RunEvent): void;

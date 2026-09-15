@@ -8,11 +8,9 @@ import type { RunInfo } from '../types/hooks.js';
 import type { Message, ToolCallPart, ToolResultPart } from '../types/message.js';
 import type { ModelReply, ModelRequest } from '../types/model.js';
 import type { RunOutcome } from '../types/outcome.js';
-import type { SessionRecord, Store } from '../types/store.js';
+import type { ApprovalPayload, InputPayload, SessionRecord, Store } from '../types/store.js';
 import type { Tool } from '../types/tool.js';
 import type {
-  ApprovalPayload,
-  InputPayload,
   InternalRunHandle,
   ResolvedRequest,
   ToolCallDeps,

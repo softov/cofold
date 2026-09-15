@@ -100,6 +100,14 @@ export function createFileStore(options: FileStoreOptions): Store {
         records.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
         return limit ? records.slice(0, limit) : records;
       },
+      async delete({ sessionId }) {
+        const dir = await requireSessionDir(sessionId);
+        const holder = await lock.readLock(dir);
+        if (holder) throw new StoreError({ code: 'writer_busy', message: `session ${sessionId} is being written by run ${holder.runId}` });
+        await rm(dir, { recursive: true, force: true });
+        sessionDirs.delete(sessionId);
+        for (const key of [...lastSeq.keys()]) if (key.startsWith(dir)) lastSeq.delete(key);
+      },
       async appendMessages({ sessionId, runId, messages }) {
         const dir = await requireSessionDir(sessionId);
         await lock.requireOwner(dir, runId);

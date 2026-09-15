@@ -106,6 +106,23 @@ export function describeStoreConformance(args: { name: string; create: () => Sto
         for (const s of await store.sessions.list({})) expect('messages' in s).toBe(false);
       });
 
+      it('deletes a session with everything under it, unless a run is writing', async () => {
+        await store.sessions.create({ sessionId: 's', agentId: 'a', workspace: 'w' });
+        await store.sessions.create({ sessionId: 'kept', agentId: 'a' });
+        await store.runs.create(runRecord('s', 'r'));
+        await store.requests.create({ requestId: 'q', sessionId: 's', runId: 'r', kind: 'approval', callId: 'c', payload: { name: 'rm' }, createdAt: 'now' });
+        await store.sessions.claimWriter({ sessionId: 's', runId: 'r' });
+        expect(await codeOf(store.sessions.delete({ sessionId: 's' }))).toBe('writer_busy');
+        await store.sessions.releaseWriter({ sessionId: 's', runId: 'r' });
+        await store.sessions.delete({ sessionId: 's' });
+        expect(await store.sessions.get({ sessionId: 's' })).toBeUndefined();
+        expect(await store.runs.get({ sessionId: 's', runId: 'r' })).toBeUndefined();
+        expect(await store.requests.get({ sessionId: 's', runId: 'r', requestId: 'q' })).toBeUndefined();
+        expect(await codeOf(store.sessions.delete({ sessionId: 's' }))).toBe('not_found');
+        expect(await codeOf(store.sessions.listMessages({ sessionId: 's' }))).toBe('not_found');
+        expect((await store.sessions.list({})).map((one) => one.sessionId)).toEqual(['kept']);
+      });
+
       it('heartbeat requires the writer claim', async () => {
         await store.sessions.create({ sessionId: 's', agentId: 'a' });
         expect(await codeOf(store.sessions.heartbeat({ sessionId: 's', runId: 'r' }))).toBe('writer_mismatch');

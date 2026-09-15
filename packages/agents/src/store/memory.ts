@@ -67,6 +67,15 @@ export function createMemoryStore(): Store {
           .map(stripSession);
         return limit ? all.slice(0, limit) : all;
       },
+      async delete({ sessionId }) {
+        const s = requireSession(sessionId);
+        if (s.activeWriterRunId !== undefined) {
+          throw new StoreError({ code: 'writer_busy', message: `session ${sessionId} is being written by run ${s.activeWriterRunId}` });
+        }
+        for (const [runId, run] of runs) if (run.sessionId === sessionId) runs.delete(runId);
+        for (const [requestId, request] of requests) if (request.sessionId === sessionId) requests.delete(requestId);
+        sessions.delete(sessionId);
+      },
       async appendMessages({ sessionId, runId, messages }) {
         const s = requireWriter(sessionId, runId);
         s.messages.push(...messages.map((m) => structuredClone(m)));
