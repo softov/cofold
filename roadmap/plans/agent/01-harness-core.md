@@ -14,7 +14,7 @@ _Status: In progress · Priority: High · Created: 2026-09-13_
 
 This is a split plan.
 It holds the goal, reconnaissance, locked decisions, architecture, and the phase map.
-Each phase is a child plan; only [p1](01-harness-core-p1-contracts.md) is written in full at this point.
+Each open phase is a child plan; shipped phases keep only their row below.
 
 ## Goal
 
@@ -74,7 +74,7 @@ host (CLI / ahpd adapter / example)
 
 | # | Decision | Rationale / source |
 | --- | --- | --- |
-| 1 | Packages published as `@facio/*`, core is `@facio/agents`. (Started in its own repository; since 2026-09-16 part of the `facio` workspace, see `roadmap/plans/repo/01-workspace.md`) | User. The command framework is `@facio/commands`; `facio` is reserved for the program |
+| 1 | Packages published as `@facio/*`, core is `@facio/agents`. (Started in its own repository; since 2026-09-16 part of the `facio` workspace) | User. The command framework is `@facio/commands`; `facio` is reserved for the program |
 | 2 | Functional API only: `createAgent`, `createTool`, `createMemoryStore`, `openaiCompat`, ... No classes except `Error` subclasses | User: "keep the functional calls for now". Subclassing can be added later by making `createAgent` return a class instance |
 | 3 | Every factory takes exactly one options object and returns one value; no positional parameters, no definition/deps split | User: "only one object, not multiple params" |
 | 4 | `createTool` (not `defineTool`) | User |
@@ -123,10 +123,10 @@ host (CLI / ahpd adapter / example)
 
 | Phase | Child | Objective | Status |
 | --- | --- | --- | --- |
-| p1 | [01-harness-core-p1-contracts.md](01-harness-core-p1-contracts.md) | Workspace scaffold, contracts, JSON Schema validator, `createTool`, memory store, fake model, chat-completions adapter, tests, adapter smoke example | Shipped 2026-09-15 |
-| p2 | [01-harness-core-p2-loop.md](01-harness-core-p2-loop.md) | `createAgent()` + standalone `run()`: bounded serial loop, validation, cancellation, ordered events, run handle; prove tool → result → final answer | Shipped (2026-09-15) |
-| p3 | [01-harness-core-p3-durable-hitl.md](01-harness-core-p3-durable-hitl.md) | `@facio/store-file`, paused approvals with durable `requestId`, `resume()`, writer fence; prove pause → lose observer → resume without double execution | Shipped 2026-09-16 |
-| p4 | [01-harness-core-p4-ahpd-adapter.md](01-harness-core-p4-ahpd-adapter.md) | `@facio/transport-ahp` implementing `@ahpd/sdk` `Agent`/`Session`; verify with `ahpc` | Not started |
+| p1 | (shipped, plan removed) | Workspace scaffold, contracts, JSON Schema validator, `createTool`, memory store, fake model, chat-completions adapter, tests, adapter smoke example | Shipped 2026-09-15 |
+| p2 | (shipped, plan removed) | `createAgent()` + standalone `run()`: bounded serial loop, validation, cancellation, ordered events, run handle; prove tool -> result -> final answer | Shipped 2026-09-15 |
+| p3 | (shipped, plan removed) | `@facio/store-file`, paused approvals with durable `requestId`, `resume()`, writer fence; prove pause -> lose observer -> resume without double execution | Shipped 2026-09-16 |
+| p4 | (dropped) | ahpd adapter; the first human consumer of the harness is papo (`cli` domain) instead. An adapter gets its own plan under `transport` when wanted | Dropped |
 | p5 | [01-harness-core-p5-streaming-context-usage.md](01-harness-core-p5-streaming-context-usage.md) | Steering, hook stop, thinking levels, dynamic keys, cache key (Tasks 1-4, planned in full); streaming, context reduction, usage accounting, second adapter (Tasks 5-8, outlined) | Planned in part (Tasks 1-4) |
 
 Children declare dependencies by filename.
@@ -151,8 +151,8 @@ Adapters, stores, transports, and examples import `@facio/agents` types and neve
 
 ## Resume state
 
-- **Done so far:** roadmap tree written; p1 built 2026-09-15 (workspace, contracts, validator, `createTool`, memory store, fake model, `openaiCompat`, smoke example; 60 tests green). Decisions 39-45 added in p1 (build-first root scripts, explicit vitest projects, review fixes, model catalog, reasoning).
-- **Next action:** run the p1 smoke against LM Studio / OpenRouter (see p1 Resume state), then `/dooit` on [01-harness-core-p3-durable-hitl.md](01-harness-core-p3-durable-hitl.md). p2 shipped 2026-09-15 (decision 66 added).
+- **Done so far:** p1-p3 shipped (contracts, validator now in `@facio/sdk`, loop, run handle, file store, durable approvals, resume, writer fence); every package's types in `src/types/`.
+- **Next action:** p5 Tasks 1-4 ([01-harness-core-p5-streaming-context-usage.md](01-harness-core-p5-streaming-context-usage.md)); papo (`cli` domain) validates the harness with a person.
 - **Open questions:** none.
 - **Watch out for:** the `@facio` npm scope must be claimed by the user before the first publish; the package names in this plan assume it.
 

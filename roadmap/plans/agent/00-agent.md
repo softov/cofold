@@ -11,9 +11,7 @@ Update it when a plan ships.
 
 ## Code in this repo
 
-Nothing yet.
-The agents repository (since 2026-09-16 the `packages/agents` family of this workspace, REPO-01) held only `roadmap/` as of 2026-09-13.
-The first code lands with [01-p1](01-harness-core-p1-contracts.md).
+`packages/agents` (`@facio/agents`), `packages/store-file`, `packages/model-openai-compat`, `examples/agents`, `docs/agents`: harness phases p1-p3 of [01-harness-core.md](01-harness-core.md) shipped; p5 is planned in part.
 
 ## Inputs the domain is built from
 

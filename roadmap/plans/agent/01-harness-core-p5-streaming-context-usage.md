@@ -4,7 +4,7 @@ Status: Planned in part
 Priority: Medium
 Created: 2026-09-13
 Revalidated: 2026-09-16
-Dependencies: ./01-harness-core-p3-durable-hitl.md
+Dependencies: ./01-harness-core.md (p3 shipped)
 Parent: ./01-harness-core.md
 Reference: ./00-agent.md
 -->
@@ -39,7 +39,7 @@ A running turn can be redirected by the person without cancelling it; a hook or 
 - `packages/agents/src/run/run.ts:21-32`, `packages/agents/src/run/resume.ts:30-47` - the two places a handle is created; `resume` gates commands behind `ready` / `accept`; `validateCommand` (line 213) rejects a command that does not answer the pending request.
 - `packages/model-openai-compat/src/index.ts` - `OpenAICompatProviderOptions.apiKey?: string` baked into `headers` once (line 43); `send` retries per decision 32.
 - `packages/model-openai-compat/src/wire.ts:66-71` - `toWireReasoning`: `maxTokens` → OpenRouter `reasoning: { effort?, max_tokens }`, else `reasoning_effort`.
-- `roadmap/plans/cli/01-facio-chat.md` decision 12 - `@facio/chat` queues a `say` that arrives while a run is attached and sends it after the run finishes. With steering that becomes the follow-up queue only; a `say` during a turn steers.
+- papo (`cli` domain, not yet planned): a message sent while a run is attached steers it; a follow-up queue, if any, is the program's.
 
 ### Searches performed
 
