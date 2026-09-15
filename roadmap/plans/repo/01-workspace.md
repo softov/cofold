@@ -1,6 +1,6 @@
 <!--
 Domain: repo
-Status: Not started
+Status: In progress
 Priority: High
 Created: 2026-09-16
 Revalidated: 2026-09-16
@@ -10,7 +10,7 @@ Reference: ../../../ROADMAP.md, facio-agents (softov/facio-agents)
 
 # REPO-01 - One workspace: facio becomes the family, the framework becomes packages
 
-_Status: Not started · Priority: High · Created: 2026-09-16_
+_Status: In progress (Task 1 done) · Priority: High · Created: 2026-09-16_
 
 ## Goal
 
@@ -196,14 +196,14 @@ facio/
 
 ## Resume state
 
-- **Done so far:** plan written 2026-09-16. Nothing moved.
-- **Next action:** user confirms decision 4 (`core` vs `sdk` / `base`), then Task 1 by the dev session (with the git moves handed to the user).
+- **Done so far:** plan written 2026-09-16. Task 1 done 2026-09-16 (commits `4e328a5`, `14e2524`): workspace root, `packages/facio`, `examples/commands`, `docs/commands`, CI; 292/292 tests, typecheck, examples, petshop smoke, pack contents verified. The 10 tests that failed on win32 before the move (POSIX fixture paths in `config` and `yaml` suites) were fixed on the way, test-side.
+- **Next action:** Task 2, after the textui CHAT-01 session finishes (user's sequencing); decision 4 (`core` vs `sdk` / `base`) still to confirm before Task 3.
 - **Open questions:** decision 4 only.
 - **Watch out for:** `pnpm install` must run at the root after every task (the lockfile changes each time; commit it with the task). Do not edit `F:\github\facio-agents` during Task 2; it is the subtree source. `examples/commands` tests import the built package (`dist`), so `pnpm build` precedes `vitest` as in facio-agents' scripts. Keep LF line endings; the repository has no `.gitattributes` (add `* text=auto eol=lf` in Task 1 if a CRLF shows up in the diff).
 
 ## Final verification checklist
 
-- [ ] After Task 1: `pnpm check`, `pnpm examples`, petshop smoke, `pnpm --filter facio pack` contents.
+- [x] After Task 1: `pnpm check`, `pnpm examples`, petshop smoke, `pnpm --filter facio pack` contents.
 - [ ] After Task 2: `pnpm check` runs both test suites; `git log` follows a moved agents file; `pause-resume` and `ask-user` examples run.
 - [ ] After Task 3: ten tarballs, each self-contained; no `"facio"` import remains; root README is the family page.
 - [ ] After Task 4: facio-agents archived, `npm deprecate` run, no live reference to the old repository.
