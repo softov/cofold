@@ -33,7 +33,17 @@ Reference: [00-cli.md](cli/00-cli.md)
 
 Next free number in `cli`: `02`.
 
+## tools
+
+Reference: none yet (this plan is the domain's first).
+
+| Plan | Priority | Status | Requires | Blocks |
+| --- | --- | --- | --- | --- |
+| [01 - @facio/tools: the tools every agent gets](tools/01-standard-tools.md) | High | Not started | agent/01 (p3), cli/01 | a useful papo |
+
+Next free number in `tools`: `02`.
+
 ## Later domains (no plans yet)
 
-`model` · `store` · `tools` · `memory` · `transport` · `network` · `testing` · `documentation`.
+`model` · `store` · `memory` · `transport` · `network` · `testing` · `documentation`.
 Candidates already named in the parent plan's *Out of scope* list: code mode, guardrail package, subagent tool, network, SQLite and Durable Object stores (pluggable behind the `Store` contract; file store ships first in p3), JSON-RPC / WS / HTTP / MCP-server transports, `fromFacioAction()`.
