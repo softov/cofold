@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PauseSignal } from '../run/pause.js';
-import { validateSchema } from '../schema/validate.js';
+import { validateSchema } from '@facio/commands';
 import type { AskQuestion } from '../types/ask.js';
 import type { ToolContext } from '../types/tool.js';
 import { createAskUserTool, renderAnswers, validateAnswers } from './ask-user.js';

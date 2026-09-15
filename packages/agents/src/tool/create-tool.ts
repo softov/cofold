@@ -1,5 +1,5 @@
 import { AgentError } from '../errors.js';
-import { assertSupportedSchema } from '../schema/validate.js';
+import { assertSupportedSchema } from '@facio/commands';
 import type { ModelToolDefinition, Tool, ToolDefinition, ToolEffects } from '../types/tool.js';
 
 const NAME_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;

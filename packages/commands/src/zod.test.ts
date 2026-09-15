@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import type { JsonSchema } from "@facio/sdk";
-import { assertSupported, check } from "./coerce.js";
+import { check } from "./coerce.js";
+import { assertSupportedSchema } from "./json-schema.js";
 
 /**
  * What Zod writes is what a command declares.
@@ -21,7 +22,7 @@ describe("a schema Zod wrote", () => {
   const schema = z.toJSONSchema(pet) as JsonSchema;
 
   it("is carried without a keyword being refused", () => {
-    expect(() => assertSupported(schema, "pet")).not.toThrow();
+    expect(() => assertSupportedSchema({ schema, path: "pet" })).not.toThrow();
   });
 
   it("is enforced the way Zod enforces it", () => {

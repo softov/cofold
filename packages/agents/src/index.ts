@@ -1,5 +1,5 @@
 export type * from './types/index.js';
-export { AgentError, ModelError, SchemaError, StoreError, type AgentErrorCode } from './errors.js';
+export { AgentError, ModelError, StoreError, type AgentErrorCode } from './errors.js';
 export { newId } from './ids.js';
 export { DEFAULT_LIMITS } from './agent/limits.js';
 export { createAgent } from './agent/create-agent.js';
@@ -8,7 +8,6 @@ export { resume } from './run/resume.js';
 export { pauseForInput, PauseSignal } from './run/pause.js';
 export { textOf, toolCallsOf } from './message/helpers.js';
 export { ZERO_USAGE, addUsage } from './model/usage.js';
-export { assertSupportedSchema, validateSchema } from './schema/validate.js';
 export { createTool } from './tool/create-tool.js';
 export { createAskUserTool, renderAnswers, validateAnswers } from './tool/ask-user.js';
 export { createMemoryStore } from './store/memory.js';

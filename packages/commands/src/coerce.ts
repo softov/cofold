@@ -16,11 +16,14 @@ import type { Coercer } from "./types/coerce.js";
 import type { JsonSchema } from "@facio/sdk";
 import { compact } from "./compact.js";
 import { ArgumentError } from "./errors.js";
+import { validateSchema } from "./json-schema.js";
 
 /** What a person is told the value must be, built from the schema alone. */
 export function expectationOf(schema: JsonSchema): string {
   if (schema.enum !== undefined) return `one of ${schema.enum.map(String).join(", ")}`;
   if (schema.const !== undefined) return String(schema.const);
+  const alternatives = schema.anyOf ?? schema.oneOf;
+  if (alternatives !== undefined) return alternatives.map(expectationOf).join(" or ");
   const type = primaryType(schema);
 
   if (type === "integer" || type === "number") {
@@ -78,109 +81,44 @@ export function decode(raw: string, schema: JsonSchema): unknown {
 }
 
 /**
- * Every rule the schema states, held against one value.
+ * Every rule the schema states, held against one value, as a sentence.
  *
- * The only place a constraint is enforced. A surface that reaches a value by a
- * different road - text at a terminal, a number in a JSON body, an argument
- * from an agent - arrives at this same function, so the three cannot disagree.
- * Every keyword `JsonSchema` carries is held here; `assertSupported` refuses
- * the rest at declaration time.
+ * `validateSchema` is the one place a constraint is enforced; this is what a
+ * terminal says about its first finding: `who.age must be an integer >= 0`,
+ * `--tag must be at most 4 characters`, `who.name is required`. An item is
+ * named for its list, because that is what a repeated option reads as.
  */
 export function check(value: unknown, schema: JsonSchema, label: string, expects?: string): void {
-  const fault = (): never => { throw new ArgumentError(`${label} must be ${expects ?? expectationOf(schema)}`); };
-
-  const types = typesOf(schema);
-  if (value === null && (schema.nullable === true || types.includes("null"))) return;
-  if (schema.enum !== undefined && !schema.enum.includes(value)) fault();
-  if (schema.const !== undefined && value !== schema.const) fault();
-  if (types.length > 0 && !types.some((type) => isOfType(value, type))) fault();
-
-  if (typeof value === "number") {
-    if (types.includes("integer") && !types.includes("number") && !Number.isSafeInteger(value)) fault();
-    if (schema.minimum !== undefined && value < schema.minimum) fault();
-    if (schema.maximum !== undefined && value > schema.maximum) fault();
-    if (schema.exclusiveMinimum !== undefined && value <= schema.exclusiveMinimum) fault();
-    if (schema.exclusiveMaximum !== undefined && value >= schema.exclusiveMaximum) fault();
-    if (schema.multipleOf !== undefined && !isMultiple(value, schema.multipleOf)) fault();
-  }
-
-  if (typeof value === "string") {
-    if (schema.minLength !== undefined && value.length < schema.minLength) fault();
-    if (schema.maxLength !== undefined && value.length > schema.maxLength) fault();
-    if (schema.pattern !== undefined && !new RegExp(schema.pattern, "u").test(value)) fault();
-    if (schema.format === "date-time" && Number.isNaN(Date.parse(value))) fault();
-  }
-
-  if (Array.isArray(value)) {
-    if (schema.minItems !== undefined && value.length < schema.minItems) fault();
-    if (schema.maxItems !== undefined && value.length > schema.maxItems) fault();
-    if (schema.uniqueItems === true && new Set(value.map((one) => JSON.stringify(one))).size !== value.length) fault();
-    // An item is named for its list: `--tag must be at most 4 characters` is what a repeated option reads as.
-    const prefix = schema.prefixItems ?? [];
-    value.forEach((one, index) => {
-      const itemSchema = prefix[index] ?? schema.items;
-      if (itemSchema !== undefined) check(one, itemSchema, label);
-    });
-  }
-
-  if (isPlainObject(value)) {
-    const held = value as Record<string, unknown>;
-    for (const name of schema.required ?? []) {
-      if (held[name] === undefined) throw new ArgumentError(`${label}.${name} is required`);
-    }
-    const properties = schema.properties ?? {};
-    for (const [name, property] of Object.entries(properties)) {
-      if (held[name] !== undefined) check(held[name], property, `${label}.${name}`);
-    }
-    if (schema.additionalProperties === false) {
-      for (const name of Object.keys(held)) {
-        if (!(name in properties)) throw new ArgumentError(`${label}.${name} is not a field`);
+  const result = validateSchema({ schema, value });
+  if (result.ok) return;
+  const first = result.issues[0]!;
+  const steps = first.path.slice(1).match(/\.[^.[]+|\[\d+\]/gu) ?? [];
+  let at = schema;
+  let name = label;
+  for (const step of steps) {
+    if (step.startsWith(".")) {
+      const key = step.slice(1);
+      const next = at.properties?.[key];
+      name = `${name}.${key}`;
+      if (next === undefined) {
+        // A property the schema does not describe: required and missing, or present and refused.
+        throw new ArgumentError(first.message === "required" ? `${name} is required` : `${name} is not a field`);
       }
+      at = next;
+    } else {
+      const index = Number(step.slice(1, -1));
+      at = at.prefixItems?.[index] ?? at.items ?? at;
     }
   }
-
-  if (schema.allOf !== undefined) for (const one of schema.allOf) check(value, one, label, expects);
-  if (schema.anyOf !== undefined && !schema.anyOf.some((one) => passes(value, one, label))) fault();
-  if (schema.oneOf !== undefined && schema.oneOf.filter((one) => passes(value, one, label)).length !== 1) fault();
+  if (first.message === "required") throw new ArgumentError(`${name} is required`);
+  if (first.message === "unexpected property") throw new ArgumentError(`${name} is not a field`);
+  throw new ArgumentError(`${name} must be ${at === schema && expects !== undefined ? expects : expectationOf(at)}`);
 }
 
-function passes(value: unknown, schema: JsonSchema, label: string): boolean {
-  try { check(value, schema, label); return true; }
-  catch (error) { if (error instanceof ArgumentError) return false; throw error; }
-}
-
-/** The `type` keyword as a list; `nullable` adds `null`; none means any. */
-function typesOf(schema: JsonSchema): readonly string[] {
-  const listed = schema.type === undefined ? [] : Array.isArray(schema.type) ? schema.type : [schema.type];
-  return schema.nullable === true && !listed.includes("null") ? [...listed, "null"] : listed;
-}
-
-/** The type a text reading and a sentence are built for: the first one that is not `null`. */
+/** The type a text reading and a sentence are built for: the first the schema names that is not `null`. */
 function primaryType(schema: JsonSchema): string | undefined {
-  return typesOf(schema).find((type) => type !== "null");
-}
-
-function isOfType(value: unknown, type: string): boolean {
-  switch (type) {
-    case "string": return typeof value === "string";
-    case "number": return typeof value === "number" && Number.isFinite(value);
-    case "integer": return typeof value === "number" && Number.isSafeInteger(value);
-    case "boolean": return typeof value === "boolean";
-    case "null": return value === null;
-    case "array": return Array.isArray(value);
-    case "object": return isPlainObject(value);
-    default: return false;
-  }
-}
-
-function isPlainObject(value: unknown): boolean {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** `multipleOf` without the floating-point lie: 0.3 is a multiple of 0.1. */
-function isMultiple(value: number, step: number): boolean {
-  const quotient = value / step;
-  return Math.abs(quotient - Math.round(quotient)) < 1e-9;
+  const listed = schema.type === undefined ? [] : Array.isArray(schema.type) ? schema.type : [schema.type];
+  return listed.find((type) => type !== "null");
 }
 
 /**
@@ -198,37 +136,6 @@ export function coerceValue<T>(coercer: Coercer<T>, raw: string, label: string):
   const value = decode(raw, coercer.schema);
   check(value, coercer.schema, label, coercer.expects);
   return value as T;
-}
-
-/**
- * The keywords this does not enforce, and so will not carry.
- *
- * Checked at registration rather than trusted to the type, because a schema
- * built at runtime or written in JavaScript reaches the MCP `inputSchema` and
- * the manifest verbatim. A keyword an agent is shown and a request is not held
- * to reads as a promise, which is worse than one nobody wrote.
- */
-const UNSUPPORTED = ["$ref", "not", "patternProperties"] as const;
-
-export function assertSupported(schema: JsonSchema, where: string): void {
-  const held = schema as Record<string, unknown>;
-  for (const keyword of UNSUPPORTED) {
-    if (held[keyword] !== undefined) {
-      throw new Error(`${where} uses ${keyword}, which facio does not enforce and will not advertise`);
-    }
-  }
-  if (schema.pattern !== undefined) {
-    try { new RegExp(schema.pattern, "u"); }
-    catch (error) { throw new Error(`${where} has a pattern that does not compile: ${(error as Error).message}`); }
-  }
-  if (schema.items !== undefined) assertSupported(schema.items, `${where}[]`);
-  (schema.prefixItems ?? []).forEach((one, index) => assertSupported(one, `${where}[${index}]`));
-  for (const [name, property] of Object.entries(schema.properties ?? {})) {
-    assertSupported(property, `${where}.${name}`);
-  }
-  for (const keyword of ["anyOf", "oneOf", "allOf"] as const) {
-    (schema[keyword] ?? []).forEach((one, index) => assertSupported(one, `${where}.${keyword}[${index}]`));
-  }
 }
 
 export const text: Coercer<string> = { schema: { type: "string" } };

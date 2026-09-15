@@ -1,7 +1,7 @@
 import { AgentError } from '../errors.js';
 import { toolCallsOf } from '../message/helpers.js';
 import { ZERO_USAGE, addUsage } from '../model/usage.js';
-import { validateSchema } from '../schema/validate.js';
+import { validateSchema } from '@facio/commands';
 import { validateAnswers } from '../tool/ask-user.js';
 import type { RunCommand } from '../types/command.js';
 import type { RunEvent } from '../types/event.js';

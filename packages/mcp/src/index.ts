@@ -1,6 +1,6 @@
 import {
   canonicalFromObject,
-  assertSupported,
+  assertSupportedSchema,
   check,
   type RequestContext,
   compact,
@@ -114,7 +114,7 @@ export function tools(registry: Runner, options: ToolOptions = {}): ToolDefiniti
     const schema = command.meta?.mcp?.outputSchema;
     if (schema !== undefined) {
       if (schema.type !== "object") throw new Error(`${name}: output schema must be an object`);
-      assertSupported(schema, `${name} output`);
+      assertSupportedSchema({ schema, path: `${name} output` });
     }
   }
   return exposed

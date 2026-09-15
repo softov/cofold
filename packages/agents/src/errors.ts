@@ -1,7 +1,5 @@
 export type AgentErrorCode =
   | 'invalid_options'
-  | 'unsupported_keyword'
-  | 'invalid_schema'
   | 'seq_gap'
   | 'writer_mismatch'
   | 'not_found'
@@ -31,7 +29,6 @@ export class AgentError extends Error {
     this.detail = options.detail;
   }
 }
-export class SchemaError extends AgentError {}
 export class StoreError extends AgentError {}
 export class ModelError extends AgentError {
   readonly status: number | undefined;

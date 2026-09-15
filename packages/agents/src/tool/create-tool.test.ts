@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AgentError, SchemaError } from '../errors.js';
+import { AgentError } from '../errors.js';
 import type { JsonSchema } from '@facio/sdk';
 import { createTool } from './create-tool.js';
 
@@ -52,15 +52,14 @@ describe('createTool', () => {
     expect(code(() => createTool({ name: 'ok', description: 'x', input: { type: 'string' }, execute: () => '' }))).toBe('invalid_options');
   });
 
-  it('rejects invalid schema values at creation time', () => {
-    const bad = (input: unknown) => code(() => createTool({ name: 'ok', description: 'x', input: input as JsonSchema, execute: () => '' }));
-    expect(bad({ type: 'object', properties: { a: { type: 'string', pattern: '(' } } })).toBe('invalid_schema');
-    expect(bad({ type: 'object', properties: { a: { type: 'str' } } })).toBe('invalid_schema');
+  it('rejects invalid schema values at creation time, naming the path', () => {
+    const bad = (input: unknown) => () => createTool({ name: 'ok', description: 'x', input: input as JsonSchema, execute: () => '' });
+    expect(bad({ type: 'object', properties: { a: { type: 'string', pattern: '(' } } })).toThrow('$.a: pattern does not compile');
+    expect(bad({ type: 'object', properties: { a: { type: 'str' } } })).toThrow('$.a: unknown type "str"');
   });
 
   it('rejects unsupported schema keywords at creation time', () => {
     const withRef = { type: 'object', properties: { a: { $ref: '#/x' } } } as unknown as JsonSchema;
-    expect(() => createTool({ name: 'ok', description: 'x', input: withRef, execute: () => '' })).toThrow(SchemaError);
-    expect(code(() => createTool({ name: 'ok', description: 'x', input: withRef, execute: () => '' }))).toBe('unsupported_keyword');
+    expect(() => createTool({ name: 'ok', description: 'x', input: withRef, execute: () => '' })).toThrow('$.a uses $ref');
   });
 });

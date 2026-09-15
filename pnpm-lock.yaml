@@ -60,6 +60,9 @@ importers:
 
   packages/agents:
     dependencies:
+      '@facio/commands':
+        specifier: workspace:^
+        version: link:../commands
       '@facio/sdk':
         specifier: workspace:^
         version: link:../sdk

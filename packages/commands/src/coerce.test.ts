@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { assertSupportedSchema } from "./json-schema.js";
 import * as coerce from "./coerce.js";
 import { check, coerceValue, decode, expectationOf } from "./coerce.js";
 
@@ -146,22 +147,22 @@ describe("what will not be carried", () => {
    * is refused where a mistake is cheapest: at registration.
    */
   it("refuses a keyword it does not enforce, and says where", () => {
-    expect(() => coerce.assertSupported({ patternProperties: {} } as never, "note.add --tag"))
+    expect(() => assertSupportedSchema({ schema: { patternProperties: {} } as never, path: "note.add --tag" }))
       .toThrow("note.add --tag uses patternProperties");
-    expect(() => coerce.assertSupported({ $ref: "#/x" } as never, "x")).toThrow("$ref");
-    expect(() => coerce.assertSupported({ type: "string", pattern: "(" }, "x")).toThrow("does not compile");
+    expect(() => assertSupportedSchema({ schema: { $ref: "#/x" } as never, path: "x" })).toThrow("$ref");
+    expect(() => assertSupportedSchema({ schema: { type: "string", pattern: "(" }, path: "x" })).toThrow("does not compile");
   });
 
   it("looks inside a list, an object and a union, not only at the top", () => {
-    expect(() => coerce.assertSupported({ type: "array", items: { not: {} } as never }, "x"))
+    expect(() => assertSupportedSchema({ schema: { type: "array", items: { not: {} } as never }, path: "x" }))
       .toThrow("x[] uses not");
-    expect(() => coerce.assertSupported({ type: "object", properties: { a: { not: {} } as never } }, "who"))
+    expect(() => assertSupportedSchema({ schema: { type: "object", properties: { a: { not: {} } as never } }, path: "who" }))
       .toThrow("who.a uses not");
-    expect(() => coerce.assertSupported({ anyOf: [{ type: "string" }, { $ref: "#" } as never] }, "u"))
+    expect(() => assertSupportedSchema({ schema: { anyOf: [{ type: "string" }, { $ref: "#" } as never] }, path: "u" }))
       .toThrow("u.anyOf[1] uses $ref");
   });
 
   it("says nothing about a schema it can hold to", () => {
-    expect(() => coerce.assertSupported(coerce.integer({ min: 1 }).schema, "x")).not.toThrow();
+    expect(() => assertSupportedSchema({ schema: coerce.integer({ min: 1 }).schema, path: "x" })).not.toThrow();
   });
 });

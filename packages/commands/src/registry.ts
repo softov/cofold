@@ -3,7 +3,7 @@ import type { CommandContext, Output } from "./types/context.js";
 import type { Field } from "./types/field.js";
 import type { ExecuteOptions, RegistryOptions, Resolution } from "./types/registry.js";
 import { literalPrefix, parsePattern, commandFor } from "./command.js";
-import { assertSupported } from "./coerce.js";
+import { assertSupportedSchema } from "./json-schema.js";
 import { compact } from "./compact.js";
 import { BaseContext, RESERVED_CONTEXT_KEYS, silentIo } from "./context.js";
 import { ArgumentError, AuthorizationError, FacioError } from "./errors.js";
@@ -336,11 +336,11 @@ export function validateCommand(command: Command, groups?: readonly CommandGroup
     }
   }
   for (const [name, spec] of Object.entries(command.arguments ?? {})) {
-    if (spec.coerce !== undefined) assertSupported(spec.coerce.schema, `${command.id} :${name}`);
+    if (spec.coerce !== undefined) assertSupportedSchema({ schema: spec.coerce.schema, path: `${command.id} :${name}` });
   }
   const names = new Set<string>();
   for (const option of command.options ?? []) {
-    if (option.coerce !== undefined) assertSupported(option.coerce.schema, `${command.id} ${option.name}`);
+    if (option.coerce !== undefined) assertSupportedSchema({ schema: option.coerce.schema, path: `${command.id} ${option.name}` });
     if (!option.name.startsWith("--")) {
       throw new Error(`${command.id} declares ${option.name}, which is not a long option`);
     }
