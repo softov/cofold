@@ -1,4 +1,4 @@
-import type { ModelInfo, ModelProvider, Store, Tool } from '@facio/agents';
+import type { ModelInfo, ModelParams, ModelProvider, Store, Tool } from '@facio/agents';
 import { createMemoryStore, createTool } from '@facio/agents';
 import { createFakeModel } from '@facio/agents/testing';
 import type { FakeStep } from '@facio/agents/testing';
@@ -14,13 +14,20 @@ import type { PapoConfig } from './types/config.js';
  * resume the way a real model's replies follow the conversation; a rebuilt agent asking a fresh
  * script would be asked the same question twice.
  */
-export function fakeProvider(script: FakeStep[], modelId = 'scripted'): ModelProvider {
+export interface FakeProvider extends ModelProvider {
+  /** Every `model()` call: which id and params each turn asked for. */
+  readonly asked: { id: string; params?: ModelParams }[];
+}
+
+export function fakeProvider(script: FakeStep[], modelId = 'scripted'): FakeProvider {
   const info: ModelInfo = { id: modelId, name: modelId, features: { tools: true, streaming: false, images: false, structuredOutput: false, reasoning: false } };
   const model = createFakeModel({ script: structuredClone(script), modelId });
+  const asked: { id: string; params?: ModelParams }[] = [];
   return {
     id: 'fake',
-    listModels: async () => [info],
-    model: () => model,
+    asked,
+    listModels: async () => [info, { ...info, id: 'other', name: 'The other one' }],
+    model: (args) => { asked.push({ id: args.id, ...(args.params !== undefined ? { params: args.params } : {}) }); return model; },
   };
 }
 
@@ -42,6 +49,7 @@ export function testConfig(overrides: Partial<PapoConfig> = {}): PapoConfig {
     providers: [{ id: 'fake', baseUrl: 'http://fake.invalid/v1' }],
     model: 'fake/scripted',
     permissions: 'destructive',
+    reasoning: 'off',
     instructions: DEFAULT_INSTRUCTIONS,
     theme: 'paper',
     shell: 'workbench',
@@ -50,16 +58,17 @@ export function testConfig(overrides: Partial<PapoConfig> = {}): PapoConfig {
 }
 
 /** A chat over the memory store and a scripted model. */
-export function testChat(args: { script: FakeStep[]; store?: Store; tools?: Tool<any, any>[]; config?: Partial<PapoConfig>; workspace?: string }): { chat: Chat; store: Store } {
+export function testChat(args: { script: FakeStep[]; store?: Store; tools?: Tool<any, any>[]; config?: Partial<PapoConfig>; workspace?: string }): { chat: Chat; store: Store; provider: FakeProvider } {
   const store = args.store ?? createMemoryStore();
+  const provider = fakeProvider(args.script);
   const chat = createChat({
     store,
     config: testConfig(args.config),
-    providers: [fakeProvider(args.script)],
+    providers: [provider],
     workspace: args.workspace ?? '/work',
     home: '/nowhere',
     ...(args.tools !== undefined ? { tools: args.tools } : {}),
     warn: () => {},
   });
-  return { chat, store };
+  return { chat, store, provider };
 }

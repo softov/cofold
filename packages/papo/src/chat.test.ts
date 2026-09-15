@@ -149,8 +149,48 @@ describe('createChat', () => {
 
   it('names a model that is not configured', async () => {
     const { chat } = testChat({ script: ECHO });
-    await expect(chat.say({ text: 'x', model: 'other/m' })).rejects.toMatchObject({ code: 'invalid_options' });
-    await expect(chat.say({ text: 'x', model: 'nomodel' })).rejects.toMatchObject({ code: 'invalid_options' });
-    expect((await chat.models()).map((row) => row.ref)).toEqual(['fake/scripted']);
+    await expect(chat.say({ text: 'x', settings: { model: 'other/m' } })).rejects.toMatchObject({ code: 'invalid_options' });
+    await expect(chat.say({ text: 'x', settings: { model: 'nomodel' } })).rejects.toMatchObject({ code: 'invalid_options' });
+    expect((await chat.models()).map((row) => row.ref)).toEqual(['fake/scripted', 'fake/other']);
+  });
+
+  it('starts from the configured defaults and keeps each session own choices', async () => {
+    const { chat, provider } = testChat({ script: [{ text: 'a' }, { text: 'b' }, { text: 'c' }], config: { model: undefined } });
+    // No model configured: the first the first provider lists.
+    expect(await chat.settings()).toEqual({ model: 'fake/scripted', permissions: 'destructive', reasoning: 'off' });
+
+    const started = await chat.say({ text: 'One', settings: { reasoning: 'high', model: 'fake/other' } });
+    await chat.wait(started.sessionId);
+    expect(provider.asked.at(-1)).toEqual({ id: 'other', params: { reasoning: { effort: 'high' } } });
+    expect((await chat.snapshot(started.sessionId)).settings).toEqual({ model: 'fake/other', permissions: 'destructive', reasoning: 'high' });
+
+    await chat.configure(started.sessionId, { reasoning: 'off', permissions: 'ask' });
+    expect(await chat.settings(started.sessionId)).toEqual({ model: 'fake/other', permissions: 'ask', reasoning: 'off' });
+    await chat.say({ sessionId: started.sessionId, text: 'Two' });
+    await chat.wait(started.sessionId);
+    expect(provider.asked.at(-1)).toEqual({ id: 'other', params: {} });
+
+    // Another session is untouched by the first one's choices.
+    const fresh = await chat.say({ text: 'Three' });
+    await chat.wait(fresh.sessionId);
+    expect(await chat.settings(fresh.sessionId)).toEqual({ model: 'fake/scripted', permissions: 'destructive', reasoning: 'off' });
+
+    await expect(chat.configure(started.sessionId, { permissions: 'maybe' as never })).rejects.toMatchObject({ code: 'invalid_options' });
+    await expect(chat.configure('missing', { reasoning: 'low' })).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('runs a destructive tool without asking on permissions auto, and asks for everything on ask', async () => {
+    const { tool, executions } = deleteFileTool();
+    const script = [{ toolCalls: [{ name: 'delete_file', input: { path: 'a' } }] }, { text: 'Done.' }];
+    const auto = testChat({ script, tools: [tool] });
+    const started = await auto.chat.say({ text: 'Delete a', settings: { permissions: 'auto' } });
+    expect((await auto.chat.wait(started.sessionId))?.status).toBe('completed');
+    expect(executions()).toBe(1);
+
+    const ask = testChat({ script: [{ toolCalls: [{ name: 'ask_user', input: { questions: [{ id: 'q', question: 'Why?' }] } }] }, { text: 'ok' }] });
+    const asking = await ask.chat.say({ text: 'Ask', settings: { permissions: 'ask' } });
+    expect((await ask.chat.wait(asking.sessionId))?.status).toBe('awaiting');
+    // ask_user itself now waits for approval before it may ask.
+    expect((await ask.chat.snapshot(asking.sessionId)).pending?.kind).toBe('toolConfirmation');
   });
 });

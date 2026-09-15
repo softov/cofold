@@ -8,12 +8,24 @@ import { createBag, defineComponent, serviceKey, useApp, useStoreValue, useTheme
 import { KeyHints, Row, registerBuiltins } from '@textui/widgets';
 import type { Papo } from '../commands.js';
 import { toAskAnswers } from '../questions.js';
+import type { ModelRow } from '../types/chat.js';
+import type { Settings } from '../types/settings.js';
+import { PERMISSION_MODES, REASONING_LEVELS } from '../types/settings.js';
 import type { Snapshot } from '../types/turn.js';
 import { ChatScreen } from './chat.js';
 import { SessionsScreen } from './sessions.js';
 import {
-  ANSWERS, CHAT_SCOPE, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, OPEN, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SNAPSHOT,
+  ANSWERS, CHAT_SCOPE, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS,
+  SNAPSHOT,
 } from './state.js';
+
+/** The words on the chips and in the picker, for the values the configuration spells. */
+export const PERMISSION_LABELS: Record<Settings['permissions'], { label: string; description: string }> = {
+  destructive: { label: 'Ask for destructive tools', description: 'A tool that declares it destroys something waits for you; the rest run.' },
+  ask: { label: 'Ask every tool', description: 'Every tool call waits for a yes.' },
+  auto: { label: 'Never ask', description: 'Every tool call runs; nothing stops.' },
+};
+export const REASONING_LABELS: Record<Settings['reasoning'], string> = { off: 'No thinking', low: 'Think a little', medium: 'Think', high: 'Think hard' };
 
 /**
  * What the screen can do, as the keys and the palette reach it.
@@ -32,6 +44,8 @@ export interface Controller extends Disposable {
   answer(answers: Record<string, ChatAnswer>, accepted: boolean): Promise<void>;
   stop(): Promise<void>;
   remove(sessionId: string): Promise<void>;
+  /** Change what the open conversation runs with; before it exists, what it will start with. */
+  configure(patch: Partial<Settings>): Promise<void>;
 }
 
 export const CONTROLLER: ServiceKey<Controller> = serviceKey<Controller>('papo.controller');
@@ -47,11 +61,17 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
   async function reload(sessionId: string): Promise<void> {
     try {
       const snapshot = await chat.snapshot(sessionId);
-      if (open() === sessionId) app.store.set(SNAPSHOT, snapshot);
+      if (open() === sessionId) {
+        app.store.set(SNAPSHOT, snapshot);
+        app.store.set(SETTINGS, snapshot.settings);
+      }
     } catch (error: unknown) {
       report(error);
     }
   }
+
+  /** What a conversation not yet started will run with: the defaults, then whatever was chosen on the chips. */
+  const draftSettings = (): Settings | null => app.store.get<Settings>(SETTINGS) ?? null;
 
   const controller: Controller = {
     async refresh() {
@@ -68,7 +88,8 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
       app.store.set(SNAPSHOT, null);
       app.store.set(DRAFT, '');
       app.store.set(INPUT_STATUS, null);
-      if (sessionId !== null) await reload(sessionId);
+      if (sessionId !== null) { await reload(sessionId); return; }
+      try { app.store.set(SETTINGS, await chat.settings()); } catch (error: unknown) { report(error); }
     },
 
     async send(text) {
@@ -76,7 +97,12 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
       if (trimmed === '') return;
       try {
         const current = open();
-        const started = await chat.say({ text: trimmed, ...(current !== null ? { sessionId: current } : {}) });
+        const chosen = current === null ? draftSettings() : null;
+        const started = await chat.say({
+          text: trimmed,
+          ...(current !== null ? { sessionId: current } : {}),
+          ...(chosen !== null ? { settings: chosen } : {}),
+        });
         app.store.set(DRAFT, '');
         app.store.set(ERROR, null);
         if (current === null) app.store.set(OPEN, started.sessionId);
@@ -102,6 +128,21 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
         await chat.remove(sessionId);
         if (open() === sessionId) await controller.open(null);
         await controller.refresh();
+      } catch (error: unknown) {
+        report(error);
+      }
+    },
+
+    async configure(patch) {
+      const current = open();
+      try {
+        if (current === null) {
+          const held = draftSettings() ?? await chat.settings();
+          app.store.set(SETTINGS, { ...held, ...patch });
+        } else {
+          app.store.set(SETTINGS, await chat.configure(current, patch));
+        }
+        app.store.set(ERROR, null);
       } catch (error: unknown) {
         report(error);
       }
@@ -144,7 +185,8 @@ const Header = defineComponent<Record<string, never>>('PapoHeader', () => {
   const open = useStoreValue<string | null>(OPEN, null) ?? null;
   const screen = useStoreValue<string | null>(SCREEN, null);
   const papo = app.services.require(PAPO);
-  const model = papo.chat.model() || papo.config.model || 'first listed model';
+  const settings = useStoreValue<Settings | null>(SETTINGS, null) ?? null;
+  const model = settings?.model ?? papo.config.model ?? 'first listed model';
   // The title belongs to the conversation on screen; the catalogue has no one thing to name.
   const title = screen !== 'chat' ? undefined : snapshot?.session.title ?? (open === null ? 'new conversation' : undefined);
   return (
@@ -177,9 +219,9 @@ const Hints = defineComponent<BoxProps>('PapoHints', (props) => {
               : [{ keys: 'tab', label: 'answer' }]
             : []),
           ...(snapshot?.running ? [{ keys: 'ctrl+c', label: 'stop' }] : [{ keys: 'ctrl+c', label: 'quit' }]),
-          composing
-            ? { keys: 'enter', label: 'send' }
-            : { keys: upDown, label: 'scroll' },
+          ...(composing
+            ? [{ keys: 'enter', label: 'send' }, { keys: 'tab', label: 'settings' }]
+            : [{ keys: upDown, label: 'scroll' }]),
           { keys: 'esc', label: composing ? 'transcript' : 'sessions' },
           { keys: 'ctrl+n', label: 'new' },
           { keys: 'ctrl+p', label: 'commands' },
@@ -257,7 +299,46 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
   bag.add(app.screens.register({ id: 'chat', component: 'ChatScreen', keepAlive: true }));
 
   const selected = (): string | null => app.store.get<string | null>(SELECTED) ?? null;
+  const settings = (): Settings | null => app.store.get<Settings>(SETTINGS) ?? null;
   const commands = [
+    /*
+     * The chips' questions, as commands with one argument each: the picker asks it, the palette
+     * lists it, and a key could be bound to it. The composer row knows only the command ids.
+     */
+    {
+      id: 'compose.model', title: 'Model', category: 'Compose', slots: ['palette'],
+      args: [{
+        name: 'value', type: 'string' as const, required: true, description: 'Which model answers',
+        get default(): string | undefined { return settings()?.model; },
+        descriptions: 'below' as const,
+        choices: () => (app.store.get<ModelRow[]>(MODELS) ?? []).map((row) => ({
+          value: row.ref,
+          label: row.ref,
+          description: [row.name !== row.id ? row.name : '', row.contextTokens !== undefined ? `${Math.round(row.contextTokens / 1000)}k context` : '', row.features.reasoning ? 'reasoning' : '']
+            .filter(Boolean).join(' · '),
+        })),
+      }],
+      run: (args: Record<string, unknown>) => { void controller.configure({ model: String(args['value']) }); },
+    },
+    {
+      id: 'compose.permissions', title: 'Permissions', category: 'Compose', slots: ['palette'],
+      args: [{
+        name: 'value', type: 'string' as const, required: true, description: 'When a tool call stops to ask',
+        get default(): string | undefined { return settings()?.permissions; },
+        descriptions: 'below' as const,
+        choices: () => PERMISSION_MODES.map((mode) => ({ value: mode, ...PERMISSION_LABELS[mode] })),
+      }],
+      run: (args: Record<string, unknown>) => { void controller.configure({ permissions: String(args['value']) as Settings['permissions'] }); },
+    },
+    {
+      id: 'compose.reasoning', title: 'Thinking', category: 'Compose', slots: ['palette'],
+      args: [{
+        name: 'value', type: 'string' as const, required: true, description: 'How much the model thinks first',
+        get default(): string | undefined { return settings()?.reasoning; },
+        choices: () => REASONING_LEVELS.map((level) => ({ value: level, label: REASONING_LABELS[level] })),
+      }],
+      run: (args: Record<string, unknown>) => { void controller.configure({ reasoning: String(args['value']) as Settings['reasoning'] }); },
+    },
     {
       id: 'app.palette', title: 'Command Palette', category: 'Navigation', slots: [] as string[],
       run: () => {
@@ -327,6 +408,10 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
   ];
   for (const binding of keys) bag.add(app.keybindings.register(binding));
 
+  // The catalogue of models, once; a provider that cannot be reached says so in the status row.
+  void options.papo.chat.models()
+    .then((rows) => app.store.set(MODELS, rows))
+    .catch((error: unknown) => app.store.set(ERROR, error instanceof Error ? error.message : String(error)));
   void controller.refresh().then(async () => {
     if (options.sessionId !== undefined) {
       await controller.open(options.sessionId);

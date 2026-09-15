@@ -19,7 +19,7 @@ function shell(args: { script: FakeStep[]; store?: Store; tools?: ReturnType<typ
     io,
     open: (globals) => {
       const { chat } = testChat({ script: args.script, store, ...(args.tools !== undefined ? { tools: args.tools } : {}), workspace: String(globals['workspace'] ?? '/work') });
-      return { chat, config: { providers: [], permissions: 'destructive', instructions: '', theme: 'paper', shell: 'workbench' }, workspace: '/work', home: '/nowhere' };
+      return { chat, config: { providers: [], permissions: 'destructive', reasoning: 'off', instructions: '', theme: 'paper', shell: 'workbench' }, workspace: '/work', home: '/nowhere' };
     },
   });
   // What `runEntry` does around the binary: a fault becomes a sentence on stderr and an exit code.
@@ -102,11 +102,34 @@ describe('the shell', () => {
     expect(answered.out).toContain('Thanks.');
   });
 
+  it('carries settings on say, changes them with session set, and shows them', async () => {
+    const { tool, executions } = deleteFileTool();
+    const { run } = shell({ script: [{ toolCalls: [{ name: 'delete_file', input: { path: 'a' } }] }, { text: 'Gone.' }, { text: 'Again.' }], tools: [tool] });
+    const said = await run('say', '-p', 'auto', '-t', 'high', 'Delete a');
+    expect(said.code).toBe(0);
+    expect(said.out).toContain('Gone.');
+    expect(executions()).toBe(1);
+    const sessionId = /session (\S+)\n$/.exec(said.out)?.[1] as string;
+
+    const shown = await run('session', 'show', sessionId);
+    expect(shown.out).toContain('model fake/scripted · permissions auto · reasoning high');
+
+    const set = await run('session', 'set', sessionId, '-m', 'fake/other', '-t', 'off');
+    expect(set.code).toBe(0);
+    expect(set.out).toBe('model fake/other · permissions auto · reasoning off\n');
+    const nothing = await run('session', 'set', sessionId);
+    expect(nothing.code).not.toBe(0);
+    expect(nothing.err).toContain('nothing to set');
+    const wrong = await run('say', '-s', sessionId, '-p', 'sometimes', 'x');
+    expect(wrong.code).not.toBe(0);
+    expect(wrong.err).toContain('permissions must be one of');
+  });
+
   it('opens the screen for a bare invocation and for chat, never for a command', () => {
     const { program } = shell({ script: [] });
     expect(argvFor(program, [])).toEqual(['chat']);
     expect(argvFor(program, ['--workspace', 'say'])).toEqual(['chat', '--workspace', 'say']);
-    expect(argvFor(program, ['-m', 'fake/x', '--json'])).toEqual(['chat', '-m', 'fake/x', '--json']);
+    expect(argvFor(program, ['--home', 'x', '--json'])).toEqual(['chat', '--home', 'x', '--json']);
     expect(argvFor(program, ['say', 'hi'])).toEqual(['say', 'hi']);
     expect(argvFor(program, ['--help'])).toEqual(['--help']);
     expect(argvFor(program, ['--version'])).toEqual(['--version']);

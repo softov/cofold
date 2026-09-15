@@ -9,5 +9,7 @@ export type { Papo, RegistryOptions } from './commands.js';
 export { createProgram, argvFor, VERSION } from './program.js';
 export type { ProgramArgs } from './program.js';
 export type { PapoConfig, ProviderConfig, PermissionMode } from './types/config.js';
+export type { Settings, Reasoning } from './types/settings.js';
+export { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 export type { Chat, ChatListener, ChatOptions, ModelRow, Started } from './types/chat.js';
 export type { SessionActivity, SessionRow, Snapshot, Turn, TurnPart, TurnState } from './types/turn.js';

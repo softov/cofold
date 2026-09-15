@@ -6,6 +6,8 @@ import { AGENT_ID, buildAgent } from './agent.js';
 import { providerFor } from './config.js';
 import { projectTurns, titleOf } from './turns.js';
 import type { Chat, ChatListener, ChatOptions, ModelRow, Started } from './types/chat.js';
+import type { Settings } from './types/settings.js';
+import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 import type { SessionActivity, SessionRow, Snapshot } from './types/turn.js';
 
 interface Attached {
@@ -26,6 +28,9 @@ export function createChat(options: ChatOptions): Chat {
   const attached = new Map<string, Attached>();
   const listeners = new Set<ChatListener>();
   let defaultModel = config.model;
+  /** Per-session choices, beside the session's other client state. */
+  const kv = store.kv({ kind: 'workspace', workspace });
+  const settingsKey = (sessionId: string): string => `papo/session/${sessionId}/settings`;
 
   const notify = (sessionId: string): void => {
     for (const listener of listeners) listener(sessionId);
@@ -55,10 +60,30 @@ export function createChat(options: ChatOptions): Chat {
     return text;
   }
 
-  async function agentFor(ref: string): Promise<Agent> {
-    const { provider, modelId } = providerFor(providers, config, ref);
+  /** A patch, checked word by word; the model must name a configured provider. */
+  function checkSettings(patch: Partial<Settings>): void {
+    if (patch.model !== undefined) providerFor(providers, config, patch.model);
+    if (patch.permissions !== undefined && !PERMISSION_MODES.includes(patch.permissions)) {
+      throw new AgentError({ code: 'invalid_options', message: `permissions must be one of ${PERMISSION_MODES.join(', ')}` });
+    }
+    if (patch.reasoning !== undefined && !REASONING_LEVELS.includes(patch.reasoning)) {
+      throw new AgentError({ code: 'invalid_options', message: `reasoning must be one of ${REASONING_LEVELS.join(', ')}` });
+    }
+  }
+
+  async function settingsOf(sessionId: string | undefined): Promise<Settings> {
+    const own = sessionId === undefined ? undefined : await kv.get<Partial<Settings>>(settingsKey(sessionId));
+    return {
+      model: own?.model ?? await modelRef(),
+      permissions: own?.permissions ?? config.permissions,
+      reasoning: own?.reasoning ?? config.reasoning,
+    };
+  }
+
+  async function agentFor(settings: Settings): Promise<Agent> {
+    const { provider, modelId } = providerFor(providers, config, settings.model);
     return buildAgent({
-      config, provider, modelId, store, home, instructions: await instructions(), warn,
+      config, settings, provider, modelId, store, home, instructions: await instructions(), warn,
       ...(options.tools !== undefined ? { tools: options.tools } : {}),
     });
   }
@@ -101,7 +126,7 @@ export function createChat(options: ChatOptions): Chat {
     if (run.status !== 'awaiting' && run.status !== 'running') {
       throw new AgentError({ code: 'not_found', message: `session ${sessionId} is not waiting on anything` });
     }
-    const agent = await agentFor(await modelRef());
+    const agent = await agentFor(await settingsOf(sessionId));
     const handle = resume({ agent, sessionId, runId: run.runId });
     attach(sessionId, { handle, agent });
     return { handle, run };
@@ -117,7 +142,16 @@ export function createChat(options: ChatOptions): Chat {
   }
 
   const chat: Chat = {
-    model: () => defaultModel ?? '',
+    settings: settingsOf,
+
+    async configure(sessionId, patch) {
+      await requireSession(sessionId);
+      checkSettings(patch);
+      const held = (await kv.get<Partial<Settings>>(settingsKey(sessionId))) ?? {};
+      await kv.set(settingsKey(sessionId), { ...held, ...patch });
+      notify(sessionId);
+      return settingsOf(sessionId);
+    },
 
     async models() {
       if (providers.length === 0) {
@@ -166,6 +200,7 @@ export function createChat(options: ChatOptions): Chat {
       }
       const projected = projectTurns({ messages, runs, pending, errors });
       return {
+        settings: await settingsOf(sessionId),
         session: {
           id: sessionId,
           title: titleOf(messages, sessionId),
@@ -180,7 +215,7 @@ export function createChat(options: ChatOptions): Chat {
       } satisfies Snapshot;
     },
 
-    async say({ sessionId, text, model }) {
+    async say({ sessionId, text, settings: patch }) {
       const id = sessionId ?? newId();
       if (sessionId !== undefined) {
         await requireSession(sessionId);
@@ -192,7 +227,12 @@ export function createChat(options: ChatOptions): Chat {
           throw new AgentError({ code: 'writer_busy', message: `session ${sessionId} is still answering; wait or cancel it` });
         }
       }
-      const agent = await agentFor(model ?? await modelRef());
+      if (patch !== undefined) {
+        checkSettings(patch);
+        const held = (await kv.get<Partial<Settings>>(settingsKey(id))) ?? {};
+        await kv.set(settingsKey(id), { ...held, ...patch });
+      }
+      const agent = await agentFor(await settingsOf(id));
       const handle = run({ agent, session: id, workspace, input: text });
       attach(id, { handle, agent });
       notify(id);
@@ -230,8 +270,8 @@ export function createChat(options: ChatOptions): Chat {
         held.handle.cancel({ reason: 'session removed' });
         await held.handle.outcome;
       }
-      // A run paused by a process that died still holds no writer claim; the folder can go.
       await store.sessions.delete({ sessionId });
+      await kv.delete(settingsKey(sessionId));
       notify(sessionId);
     },
 

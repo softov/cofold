@@ -25,6 +25,7 @@ const SCHEMA: JsonSchema = {
     providers: { type: 'array', items: PROVIDER },
     model: { type: 'string', minLength: 1 },
     permissions: { type: 'string', enum: ['ask', 'destructive', 'auto'] },
+    reasoning: { type: 'string', enum: ['off', 'low', 'medium', 'high'] },
     instructions: { type: 'string' },
     limits: {
       type: 'object',
@@ -44,11 +45,6 @@ const SCHEMA: JsonSchema = {
         maxOutputTokens: { type: 'integer', minimum: 1 },
         seed: { type: 'integer' },
         stop: { type: 'array', items: { type: 'string' } },
-        reasoning: {
-          type: 'object',
-          properties: { effort: { type: 'string', enum: ['low', 'medium', 'high'] }, maxTokens: { type: 'integer', minimum: 1 } },
-          additionalProperties: false,
-        },
       },
       additionalProperties: false,
     },
@@ -60,7 +56,7 @@ const SCHEMA: JsonSchema = {
 
 export const DEFAULT_INSTRUCTIONS = 'You are a careful assistant working in the user\'s project. Answer plainly; use the tools you are given when they help.';
 
-const BASE = { providers: [], permissions: 'destructive', instructions: DEFAULT_INSTRUCTIONS, theme: 'paper', shell: 'workbench' } as const;
+const BASE = { providers: [], permissions: 'destructive', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS, theme: 'paper', shell: 'workbench' } as const;
 
 /**
  * The configuration, from every place it may be written.

@@ -10,14 +10,29 @@ import { loadConfig, providersOf } from './config.js';
 import { parseAnswers } from './questions.js';
 import type { Chat } from './types/chat.js';
 import type { PapoConfig } from './types/config.js';
+import type { Settings } from './types/settings.js';
 import type { Snapshot, Turn } from './types/turn.js';
+
+/** The three choices a session carries, as `say` and `session set` spell them. */
+const SETTING_FIELDS = {
+  model: { type: 'string', description: 'The model, as provider/model (see `papo models`)', cli: { short: '-m', value: 'PROVIDER/MODEL' } },
+  permissions: { type: 'string', description: 'When a tool call stops to ask', enum: ['destructive', 'ask', 'auto'], cli: { short: '-p', value: 'MODE' } },
+  reasoning: { type: 'string', description: 'How much the model thinks first', enum: ['off', 'low', 'medium', 'high'], cli: { short: '-t', value: 'LEVEL' } },
+} as const;
+
+function settingsPatch(input: { model?: string; permissions?: string; reasoning?: string }): Partial<Settings> {
+  return {
+    ...(input.model !== undefined ? { model: input.model } : {}),
+    ...(input.permissions !== undefined ? { permissions: input.permissions as Settings['permissions'] } : {}),
+    ...(input.reasoning !== undefined ? { reasoning: input.reasoning as Settings['reasoning'] } : {}),
+  };
+}
 
 /** What every command shares: where the agent works, where sessions live, which file, which model. */
 export const GLOBALS: readonly OptionSpec[] = [
   { name: '--workspace', short: '-w', value: 'DIR', description: 'Where the agent works; sessions are kept per workspace', env: 'PAPO_WORKSPACE' },
   { name: '--home', value: 'DIR', description: 'Where sessions and skills are stored (default ~/.facio)', env: 'FACIO_HOME' },
   { name: '--config', short: '-c', value: 'FILE', description: 'Read this configuration file on top of the others' },
-  { name: '--model', short: '-m', value: 'PROVIDER/MODEL', description: 'The model new turns use', env: 'PAPO_MODEL' },
 ];
 
 /** Everything a front needs, built once from the program-wide options. */
@@ -32,7 +47,6 @@ export function openPapo(globals: Readonly<Record<string, unknown>>): Papo {
   const workspace = resolve(typeof globals['workspace'] === 'string' ? globals['workspace'] : process.cwd());
   const home = typeof globals['home'] === 'string' ? resolve(globals['home']) : resolveHome({ name: 'facio' });
   const config = loadConfig({ cwd: workspace, ...(typeof globals['config'] === 'string' ? { path: globals['config'] } : {}) });
-  if (typeof globals['model'] === 'string' && globals['model'] !== '') config.model = globals['model'];
   const store = createFileStore({ root: home });
   const chat = createChat({ store, config, providers: providersOf(config), workspace, home });
   return { chat, config, workspace, home };
@@ -76,15 +90,22 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     input: {
       text: { type: 'string', description: 'What to say', minLength: 1 },
       session: { type: 'string', description: 'Continue this session', cli: { short: '-s', value: 'ID' } },
+      ...SETTING_FIELDS,
     },
     required: ['text'],
     surfaces: { cli: { pattern: ['say', ':text'] }, mcp: true },
     examples: [
       { command: 'papo say "What does this repository build?"', description: 'A new session' },
       { command: 'papo say -s 01J... "And how is it tested?"', description: 'The next turn of it' },
+      { command: 'papo say -m or/qwen3 -t high "Plan the migration"', description: 'A new session on that model, thinking hard; the choices stay on the session' },
     ],
     run: async ({ input, papo }) => {
-      const started = await withAgentErrors(() => papo.chat.say({ text: input.text, ...(input.session !== undefined ? { sessionId: input.session } : {}) }));
+      const patch = settingsPatch(input);
+      const started = await withAgentErrors(() => papo.chat.say({
+        text: input.text,
+        ...(input.session !== undefined ? { sessionId: input.session } : {}),
+        ...(Object.keys(patch).length > 0 ? { settings: patch } : {}),
+      }));
       const outcome = await papo.chat.wait(started.sessionId);
       const snapshot = await papo.chat.snapshot(started.sessionId);
       return output({ sessionId: started.sessionId, runId: started.runId, outcome, pending: snapshot.pending }, () => renderOutcome(snapshot, outcome));
@@ -184,6 +205,25 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     run: async ({ input, papo }) => {
       const snapshot = await withAgentErrors(() => papo.chat.snapshot(input.session));
       return output(snapshot, () => renderTranscript(snapshot));
+    },
+  });
+
+  registry.action({
+    id: 'session.set',
+    group: 'sessions',
+    summary: 'Change what a session runs with',
+    description: 'The model, the permission mode and the thinking level; each stays until changed again.',
+    needs: ['papo'],
+    input: { session: { type: 'string', description: 'The session', minLength: 1 }, ...SETTING_FIELDS },
+    required: ['session'],
+    surfaces: { cli: { pattern: ['session', 'set', ':session'] }, mcp: true },
+    examples: [{ command: 'papo session set 01J... -p auto', description: 'Stop asking on this session' }],
+    run: async ({ input, papo }) => {
+      const patch = settingsPatch(input);
+      if (Object.keys(patch).length === 0) throw new ArgumentError('nothing to set: give --model, --permissions or --reasoning');
+      const settings = await withAgentErrors(() => papo.chat.configure(input.session, patch));
+      return output(settings, `${renderSettings(settings)}
+`);
     },
   });
 
@@ -313,8 +353,12 @@ function renderTurn(turn: Turn, options: { toolCalls: boolean }): string[] {
   return lines;
 }
 
+function renderSettings(settings: Settings): string {
+  return `model ${settings.model} · permissions ${settings.permissions} · reasoning ${settings.reasoning}`;
+}
+
 function renderTranscript(snapshot: Snapshot): string {
-  const lines: string[] = [`${snapshot.session.title}  (${snapshot.session.activity})`, ''];
+  const lines: string[] = [`${snapshot.session.title}  (${snapshot.session.activity})`, renderSettings(snapshot.settings), ''];
   for (const turn of snapshot.turns) {
     lines.push(`> ${turn.input}`);
     lines.push(...renderTurn(turn, { toolCalls: true }).map((line) => `  ${line.replace(/\n/g, '\n  ')}`));

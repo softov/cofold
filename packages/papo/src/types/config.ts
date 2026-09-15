@@ -1,4 +1,5 @@
 import type { Limits, ModelParams } from '@facio/agents';
+import type { Reasoning } from './settings.js';
 
 /** One Chat Completions endpoint papo may talk to. */
 export interface ProviderConfig {
@@ -24,10 +25,13 @@ export interface PapoConfig {
   /** `<providerId>/<modelId>`; the first listed model of the first provider when absent. */
   model?: string;
   permissions: PermissionMode;
+  /** The thinking level new sessions start with. */
+  reasoning: Reasoning;
   /** The system prompt. `<workspace>/AGENTS.md` is appended when present. */
   instructions: string;
   limits?: Partial<Limits>;
-  params?: ModelParams;
+  /** Sampling; `reasoning` is a setting, not a param, so it is not here. */
+  params?: Omit<ModelParams, 'reasoning'>;
   /** The textui theme and shell the screen opens with. */
   theme: string;
   shell: string;

@@ -19,7 +19,7 @@ afterEach(() => rm(root, { recursive: true, force: true }));
 describe('loadConfig', () => {
   it('has defaults and no provider until one is written', () => {
     const config = loadConfig({ cwd: join(root, 'work'), env });
-    expect(config).toMatchObject({ providers: [], permissions: 'destructive', theme: 'paper', shell: 'workbench' });
+    expect(config).toMatchObject({ providers: [], permissions: 'destructive', reasoning: 'off', theme: 'paper', shell: 'workbench' });
     expect(config.instructions.length).toBeGreaterThan(10);
   });
 
@@ -59,7 +59,7 @@ describe('model references', () => {
   });
 
   it('finds the provider by id and says which are configured when it is missing', () => {
-    const config = { providers: [{ id: 'a', baseUrl: 'http://a' }, { id: 'b', baseUrl: 'http://b' }], permissions: 'ask' as const, instructions: '', theme: 'paper', shell: 'workbench' };
+    const config = { providers: [{ id: 'a', baseUrl: 'http://a' }, { id: 'b', baseUrl: 'http://b' }], permissions: 'ask' as const, reasoning: 'off' as const, instructions: '', theme: 'paper', shell: 'workbench' };
     const providers = providersOf(config);
     expect(providers.map((provider) => provider.id)).toEqual(['openai-compat:a', 'openai-compat:b']);
     expect(providerFor(providers, config, 'b/m')).toEqual({ provider: providers[1], modelId: 'm' });

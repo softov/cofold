@@ -2,11 +2,13 @@ import type { Agent, ModelProvider, Policy, Store, Tool } from '@facio/agents';
 import { createAgent, createAskUserTool, skills } from '@facio/agents';
 import { fileSkillSource } from '@facio/store-file';
 import type { PapoConfig, PermissionMode } from './types/config.js';
+import type { Settings } from './types/settings.js';
 
 export const AGENT_ID = 'papo';
 
 export interface AgentArgs {
   config: PapoConfig;
+  settings: Settings;
   provider: ModelProvider;
   modelId: string;
   store: Store;
@@ -33,15 +35,19 @@ export function policyOf(mode: PermissionMode): Partial<Policy> {
  * change between two messages is honest without a session having to be reopened.
  */
 export function buildAgent(args: AgentArgs): Agent {
-  const { config } = args;
+  const { config, settings } = args;
+  const params = {
+    ...config.params,
+    ...(settings.reasoning === 'off' ? {} : { reasoning: { effort: settings.reasoning } }),
+  };
   return createAgent({
     id: AGENT_ID,
     instructions: args.instructions,
-    model: args.provider.model({ id: args.modelId, ...(config.params !== undefined ? { params: config.params } : {}) }),
+    model: args.provider.model({ id: args.modelId, params }),
     tools: [createAskUserTool(), ...(args.tools ?? [])],
     capabilities: [skills({ sources: [fileSkillSource({ root: args.home })], warn: args.warn })],
     store: args.store,
-    policy: policyOf(config.permissions),
+    policy: policyOf(settings.permissions),
     ...(config.limits !== undefined ? { limits: config.limits } : {}),
     warn: args.warn,
   });

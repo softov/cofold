@@ -67,6 +67,33 @@ describe('the screen', () => {
     await t.unmount();
   });
 
+  it('shows the settings as chips, changes one through its picker, and starts the session with it', async () => {
+    const { tool, executions } = deleteFileTool();
+    const { t } = await screen({ script: [{ toolCalls: [{ name: 'delete_file', input: { path: 'a' } }] }, { text: 'Gone.' }], tools: [tool] });
+    t.press('n');
+    await settle(t);
+    expect(t.hasText('fake/scripted')).toBe(true);
+    expect(t.hasText('Ask for destructive tools')).toBe(true);
+    expect(t.hasText('No thinking')).toBe(true);
+    // Tab to the permissions chip, open it, pick the last answer.
+    t.pressAll('tab', 'tab', 'enter');
+    await settle(t);
+    expect(t.hasText('Never ask')).toBe(true);
+    expect(t.hasText('Every tool call runs')).toBe(true);
+    t.pressAll('down', 'down', 'enter');
+    await settle(t);
+    expect(t.hasText('Never ask')).toBe(true);
+    expect(t.hasText('Ask for destructive tools')).toBe(false);
+    // The choice went with the first message: the destructive tool ran without asking.
+    t.app.focus.focus('chat.composer');
+    t.type('Delete a');
+    t.press('enter');
+    await settle(t, 30);
+    expect(executions()).toBe(1);
+    expect(t.hasText('Gone.')).toBe(true);
+    await t.unmount();
+  });
+
   it('quits on ctrl+c when nothing is running', async () => {
     const { t, quit } = await screen({ script: [] });
     t.press('ctrl+c');

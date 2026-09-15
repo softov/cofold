@@ -22,6 +22,10 @@ export const INPUT_STATUS = '$/papo/inputStatus' as BindingPath;
 /** Draft answers to the waiting question, keyed under the request id. */
 export const ANSWERS = '$/papo/answers' as BindingPath;
 export const MARKDOWN = '$/papo/markdown' as BindingPath;
+/** What the open conversation runs with; for a conversation not yet started, what it will start with. */
+export const SETTINGS = '$/papo/settings' as BindingPath;
+/** The catalogue of models, as `chat.models()` last answered. */
+export const MODELS = '$/papo/models' as BindingPath;
 
 /** textui's own: which screen is current, and which node holds the keyboard. */
 export const SCREEN = '$/layout/screen/current' as BindingPath;

@@ -1,4 +1,5 @@
 import type { ChatPendingInput, ChatToolCall } from '@textui/chat';
+import type { Settings } from './settings.js';
 
 export type TurnState = 'running' | 'complete' | 'cancelled' | 'failed';
 
@@ -29,6 +30,7 @@ export interface Turn {
 /** Everything a screen needs about one session, read at once. */
 export interface Snapshot {
   session: SessionRow;
+  settings: Settings;
   turns: Turn[];
   /** The block waiting on a person, when the newest run is `awaiting`. */
   pending: ChatPendingInput | null;

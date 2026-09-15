@@ -1,5 +1,6 @@
 import type { AskAnswers, ModelInfo, ModelProvider, RunOutcome, Store, Tool } from '@facio/agents';
 import type { PapoConfig } from './config.js';
+import type { Settings } from './settings.js';
 import type { SessionRow, Snapshot } from './turn.js';
 
 export interface ChatOptions {
@@ -39,17 +40,24 @@ export type ChatListener = (sessionId: string) => void;
  * command that needs it, which is also the crash recovery.
  */
 export interface Chat {
-  /** The model new turns use, as `<providerId>/<modelId>`. */
-  model(): string;
+  /**
+   * What a session runs with: its own choices over the configuration's defaults. Without a session
+   * id, the defaults a new conversation starts from. The model is resolved (the first listed one when
+   * none is configured), which may ask the provider once.
+   */
+  settings(sessionId?: string): Promise<Settings>;
+  /** Change a session's settings; validated (a model must be configured, the words must be known). */
+  configure(sessionId: string, patch: Partial<Settings>): Promise<Settings>;
   models(): Promise<ModelRow[]>;
   sessions(): Promise<SessionRow[]>;
   /** AgentError('not_found') when the session is not there. */
   snapshot(sessionId: string): Promise<Snapshot>;
   /**
-   * One turn. A missing `sessionId` starts a session. AgentError('writer_busy') while a run of the
-   * session is still going here; steering is the harness's p5.
+   * One turn. A missing `sessionId` starts a session; `settings` given here are stored on the session
+   * first. AgentError('writer_busy') while a run of the session is still going here; steering is the
+   * harness's p5.
    */
-  say(args: { sessionId?: string; text: string; model?: string }): Promise<Started>;
+  say(args: { sessionId?: string; text: string; settings?: Partial<Settings> }): Promise<Started>;
   /** The outcome of the run attached to the session, or undefined when none is. */
   wait(sessionId: string): Promise<RunOutcome | undefined>;
   approve(sessionId: string, args?: { always?: boolean }): Promise<void>;

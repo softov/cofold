@@ -13,6 +13,7 @@ papo models                                      # what it offers; the first is 
 papo                                             # the screen
 papo say "What does this repository build?"      # one turn, printed; the session id is on the last line
 papo say -s <id> "And how is it tested?"         # the next turn of it
+papo say -m default/qwen3 -t high "Plan it"      # on that model, thinking hard; both stay on the session
 ```
 
 Without a terminal (`papo | cat`, a CI log) the screen prints one frame and exits.
@@ -20,7 +21,7 @@ Without a terminal (`papo | cat`, a CI log) the screen prints one frame and exit
 ## Configuration
 
 `~/.config/papo/config.json`, then the nearest `.papo.json` up from the workspace, then `$PAPO_CONFIG`, then `--config FILE`; later files win key by key.
-`PAPO_BASE_URL` and `PAPO_API_KEY` add or replace a provider called `default`; `PAPO_MODEL` and `--model` choose the model.
+`PAPO_BASE_URL` and `PAPO_API_KEY` add or replace a provider called `default`; `PAPO_MODEL` chooses the default model.
 
 ```json
 {
@@ -30,6 +31,7 @@ Without a terminal (`papo | cat`, a CI log) the screen prints one frame and exit
   ],
   "model": "or/qwen/qwen3-8b",
   "permissions": "destructive",
+  "reasoning": "off",
   "instructions": "You are a careful assistant.",
   "limits": { "maxSteps": 20 },
   "params": { "temperature": 0.2 },
@@ -43,21 +45,28 @@ Without a terminal (`papo | cat`, a CI log) the screen prints one frame and exit
 | `providers[].id` | How a model is named: `<id>/<model>`. |
 | `model` | `<provider>/<model>`; the first the first provider lists when absent. |
 | `permissions` | `destructive` (the harness default: tools declaring `effects.destructive` stop to ask), `ask` (every tool asks), `auto` (nothing asks). |
+| `reasoning` | `off`, `low`, `medium`, `high`: the thinking level, sent as `params.reasoning.effort` to a model that has it. |
 | `instructions` | The system prompt; `<workspace>/AGENTS.md` is appended when present. |
-| `limits`, `params` | `@facio/agents` `Limits` and `ModelParams`. |
+| `limits`, `params` | `@facio/agents` `Limits` and `ModelParams` (without `reasoning`, which is the setting above). |
 | `theme`, `shell` | What the screen opens with. |
 
 A wrong key is named: `config.permissions must be one of ask, destructive, auto (read: ~/.config/papo/config.json)`.
 
+## Settings
+
+`model`, `permissions` and `reasoning` are the configuration's defaults for a new session and each session's own afterwards: `papo say -m -p -t` on the first message, `papo session set <id> -m -p -t` later, or the three chips under the composer on the screen (`tab` reaches them, `enter` opens the picker).
+They are kept beside the session in the store, and the agent is rebuilt from them for every turn, so a change between two messages takes effect on the next one.
+
 ## The shell
 
 ```
-say <text> [-s ID]              one turn; stops where the agent stops
+say <text> [-s ID] [-m -p -t]   one turn; stops where the agent stops
 approve <session> [--always]    let the waiting tool call run
 deny <session> [-r TEXT]        refuse it
 answer <session> id=value...    answer the agent's questions; repeat an id for a multi-select
 cancel <session>                abort a running turn, or deny a waiting approval
 session list | show | delete
+session set <session> [-m -p -t]   the model, the permission mode, the thinking level
 models                          every model the providers offer
 config                          what is in force, keys redacted
 chat [-s ID]                    the screen (what a bare `papo` does)
@@ -66,13 +75,13 @@ chat [-s ID]                    the screen (what a bare `papo` does)
 `--json` on any of them gives the record; `session show --json` is the whole projection the screen draws.
 Every command is a `@facio/commands` action, so the same declarations are an MCP tool set and an HTTP surface when a program wants them.
 
-Global options: `--workspace DIR` (`PAPO_WORKSPACE`, default the current directory), `--home DIR` (`FACIO_HOME`, default `~/.facio`), `--config FILE`, `--model PROVIDER/MODEL`.
+Global options: `--workspace DIR` (`PAPO_WORKSPACE`, default the current directory), `--home DIR` (`FACIO_HOME`, default `~/.facio`), `--config FILE`.
 
 ## The screen
 
 Two screens.
 The catalogue: `enter` opens, `n` starts a conversation, `d` deletes, `r` refreshes.
-The conversation: type and `enter`; `ctrl+c` stops a running turn (and quits when nothing runs); `a` and `d` answer a confirmation; a question is answered in its form; `esc` goes back; `ctrl+p` is the palette; `alt+m` toggles markdown.
+The conversation: type and `enter`; `tab` walks the three chips under the field (model, permissions, thinking) and `enter` opens one; `ctrl+c` stops a running turn (and quits when nothing runs); `a` and `d` answer a confirmation; a question is answered in its form; `esc` goes back; `ctrl+p` is the palette; `alt+m` toggles markdown.
 
 The components are `@textui/chat`; what this package adds is the projection from the store to their props and the wiring from a key to the harness.
 
@@ -87,7 +96,7 @@ Streaming: until the harness emits `model.delta` (its p5), a reply lands whole w
 
 ```
 src/
-  types/{config,turn,chat}.ts   the contracts
+  types/{config,settings,turn,chat}.ts   the contracts
   config.ts                     loadConfig, providersOf, providerFor
   agent.ts                      buildAgent, policyOf
   turns.ts  blocks.ts           store -> Turn[] -> Block[]
