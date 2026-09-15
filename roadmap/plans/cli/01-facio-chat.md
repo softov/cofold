@@ -1,6 +1,6 @@
 <!--
 Domain: cli
-Status: Not started
+Status: Blocked
 Priority: High
 Created: 2026-09-16
 Revalidated: 2026-09-16
@@ -10,7 +10,7 @@ Reference: ./00-cli.md
 
 # CLI-01 - `@facio/chat`: the harness in a terminal
 
-_Status: Not started (unblocked 2026-09-16: `@textui/chat` shipped) · Priority: High · Created: 2026-09-16_
+_Status: Blocked (2026-09-16: textui CHAT-01 reverted; `@textui/chat` does not exist) · Priority: High · Created: 2026-09-16_
 
 ## Goal
 
@@ -185,7 +185,7 @@ packages/agents/src/testing/store-conformance.ts  UPDATE: delete cases
 
 - **Done so far:** plan written 2026-09-16. Nothing built. Blocked until textui CHAT-01 ships `@textui/chat`.
 - **Next action:** Task 1 (`Store.sessions.delete`) can start now; Tasks 2-3 can start against ahpc's `types.ts` shapes; Task 4+ after CHAT-01.
-- **Open questions:** none.
+- **Open questions:** the chat UI this plan consumed (`@textui/chat`, an application package) was withdrawn from textui the same day it shipped; textui keeps UI components only. Which pieces textui keeps and where the chat application (host seam, controller, screens) lives instead is the user's call and reshapes decisions 1-2 and Tasks 4-6 here; do not start. none.
 - **Watch out for:** p5 decision 95 (steer) changes decision 12 once it ships: `say` during an attached run becomes `handle.submit({ type: 'steer', text })`, falling back to a new `say` on `not_running`; `queue` stays the follow-up queue. `@textui/*` are ESM with `jsx-runtime` sub-paths; `packages/chat/tsconfig.json` needs `"jsx": "react-jsx", "jsxImportSource": "@textui/core"` only if `main.ts` uses JSX (it should not; `registerChat` needs none). The `bin` must not import `vitest`-tainted paths (`@facio/agents/testing/store-conformance` is test-only).
 
 ## Final verification checklist

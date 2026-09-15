@@ -44,7 +44,7 @@ Reference: [00-cli.md](cli/00-cli.md)
 
 | Plan | Priority | Status | Requires | Blocks |
 | --- | --- | --- | --- | --- |
-| [01 - @facio/chat: the harness in a terminal](cli/01-facio-chat.md) | High | Not started (textui CHAT-01 shipped) | 01-p3, textui `@textui/chat` | facio CLI |
+| [01 - @facio/chat: the harness in a terminal](cli/01-facio-chat.md) | High | Blocked (textui CHAT-01 reverted) | 01-p3, textui `@textui/chat` | facio CLI |
 
 Next free number in `cli`: `02`.
 
