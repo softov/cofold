@@ -8,20 +8,44 @@ export const SUPPORTED_KEYWORDS: ReadonlySet<string> = new Set(Object.keys({
   anyOf: 0, oneOf: 0, nullable: 0, title: 0, examples: 0, $schema: 0,
 } satisfies Record<string, 0>));
 
-/** Throws SchemaError('unsupported_keyword' | 'invalid_schema'). Called at createTool time. */
+const TYPES: ReadonlySet<string> = new Set(['string', 'number', 'integer', 'boolean', 'null', 'object', 'array']);
+
+/**
+ * Throws SchemaError('unsupported_keyword' | 'invalid_schema'). Called at createTool time, so that
+ * validateSchema never throws on a model-supplied argument (a bad `pattern` would otherwise surface
+ * as a raw SyntaxError inside the loop).
+ */
 export function assertSupportedSchema(args: { schema: JsonSchema; path?: string }): void {
   const path = args.path ?? '$';
-  for (const key of Object.keys(args.schema)) {
+  const schema = args.schema as Record<string, unknown>;
+  const invalid = (message: string) => new SchemaError({ code: 'invalid_schema', message: `${path}: ${message}` });
+  if (!isPlainObject(schema)) throw invalid('schema must be an object');
+  for (const key of Object.keys(schema)) {
     if (!SUPPORTED_KEYWORDS.has(key)) {
       throw new SchemaError({ code: 'unsupported_keyword', message: `${path}: unsupported keyword "${key}"` });
     }
   }
-  if (args.schema.type === 'object' || args.schema.properties) {
-    for (const [name, sub] of Object.entries(args.schema.properties ?? {})) {
-      assertSupportedSchema({ schema: sub, path: `${path}.${name}` });
+  const { type, pattern, properties, items } = schema;
+  if (type !== undefined) {
+    const types = Array.isArray(type) ? type : [type];
+    for (const t of types) {
+      if (typeof t !== 'string' || !TYPES.has(t)) throw invalid(`unknown type ${JSON.stringify(t)}`);
     }
   }
-  if (args.schema.items) assertSupportedSchema({ schema: args.schema.items, path: `${path}[]` });
+  if (pattern !== undefined) {
+    if (typeof pattern !== 'string') throw invalid('pattern must be a string');
+    try { new RegExp(pattern); } catch (e) { throw invalid(`pattern does not compile: ${(e as Error).message}`); }
+  }
+  for (const key of ['required', 'enum', 'anyOf', 'oneOf'] as const) {
+    if (schema[key] !== undefined && !Array.isArray(schema[key])) throw invalid(`${key} must be an array`);
+  }
+  if (properties !== undefined) {
+    if (!isPlainObject(properties)) throw invalid('properties must be an object');
+    for (const [name, sub] of Object.entries(properties)) {
+      assertSupportedSchema({ schema: sub as JsonSchema, path: `${path}.${name}` });
+    }
+  }
+  if (items !== undefined) assertSupportedSchema({ schema: items as JsonSchema, path: `${path}[]` });
   for (const alt of [...(args.schema.anyOf ?? []), ...(args.schema.oneOf ?? [])]) {
     assertSupportedSchema({ schema: alt, path });
   }

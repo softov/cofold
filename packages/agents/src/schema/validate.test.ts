@@ -108,6 +108,26 @@ describe('assertSupportedSchema', () => {
     expect(() => assertSupportedSchema({ schema: withPattern })).toThrow(/unsupported keyword "patternProperties"/);
   });
 
+  it('throws invalid_schema for bad values so validateSchema never throws later', () => {
+    const invalid = (schema: unknown): string => {
+      try {
+        assertSupportedSchema({ schema: schema as JsonSchema });
+        return 'no error';
+      } catch (e) {
+        expect(e).toBeInstanceOf(SchemaError);
+        return `${(e as SchemaError).code}: ${(e as SchemaError).message}`;
+      }
+    };
+    expect(invalid({ type: 'string', pattern: '(' })).toMatch(/^invalid_schema: \$: pattern does not compile/);
+    expect(invalid({ type: 'str' })).toBe('invalid_schema: $: unknown type "str"');
+    expect(invalid({ type: ['string', 'nope'] })).toBe('invalid_schema: $: unknown type "nope"');
+    expect(invalid({ type: 'object', required: 'name' })).toBe('invalid_schema: $: required must be an array');
+    expect(invalid({ enum: 'a' })).toBe('invalid_schema: $: enum must be an array');
+    expect(invalid({ type: 'object', properties: [] })).toBe('invalid_schema: $: properties must be an object');
+    expect(invalid({ type: 'object', properties: { a: { type: 'string', pattern: '[' } } })).toMatch(/^invalid_schema: \$\.a: pattern/);
+    expect(invalid({ type: 'array', items: 'string' })).toBe('invalid_schema: $[]: schema must be an object');
+  });
+
   it('walks items, anyOf and oneOf', () => {
     const bad = { $comment: 'x' } as unknown as JsonSchema;
     expect(() => assertSupportedSchema({ schema: { type: 'array', items: bad } })).toThrow(/\$\[\]: unsupported keyword/);
