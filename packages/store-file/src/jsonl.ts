@@ -1,4 +1,4 @@
-import { appendFile, mkdir, open, readFile, rename, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, open, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 /** One JSON object per line. A torn tail left by a crash mid-append is closed off first so the new line stays intact. */
@@ -47,12 +47,29 @@ export async function readJson<T>(file: string): Promise<T | undefined> {
   catch { return undefined; }
 }
 
-/** tmp + rename, so a reader never sees a half-written file. */
+/**
+ * tmp + rename, so a reader never sees a half-written file.
+ *
+ * On Windows a rename over a file another handle has open fails with EPERM or EBUSY (a reader
+ * projecting the run while the loop updates it, an indexer, an antivirus), and the reader lets go
+ * within milliseconds; the rename is retried for up to a second before the error is the answer.
+ */
 export async function writeAtomic(file: string, value: unknown): Promise<void> {
   await mkdir(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
   await writeFile(tmp, JSON.stringify(value, null, 2), 'utf8');
-  await rename(tmp, file);
+  const deadline = Date.now() + 1_000;
+  for (let wait = 5; ; wait = Math.min(wait * 2, 100)) {
+    try { await rename(tmp, file); return; }
+    catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      if ((code !== 'EPERM' && code !== 'EBUSY' && code !== 'EACCES') || Date.now() >= deadline) {
+        await unlink(tmp).catch(() => {});
+        throw e;
+      }
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
 }
 
 export async function readText(file: string): Promise<string | undefined> {
