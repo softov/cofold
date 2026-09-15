@@ -53,7 +53,7 @@ This is the first end-to-end use of the harness by a human, the validation the s
 ## Resume state
 
 - **Done so far:** everything above, 2026-09-16.
-- **Next action:** a manual run against LM Studio or OpenRouter (`papo models`, `papo`, a destructive demo tool); then textui 0.6.0 on npm → `link:` becomes `^0.6.0`.
+- **Next action:** the screen against the real server (the shell is verified); a destructive demo tool; then textui 0.6.0 on npm → `link:` becomes `^0.6.0`.
 - **Open questions:** whether ahpc adopts `@facio/commands` + `@facio/terminal` for its shell (user's call, separate plan in ahpc).
 - **Watch out for:** p5 steering changes decision 6's `say` while running (`writer_busy` today) into a steer; `@textui/chat`'s `Block`/`ChatToolCall` shapes are 0.5.0's.
 
@@ -62,5 +62,5 @@ This is the first end-to-end use of the harness by a human, the validation the s
 - [x] `pnpm check` green with the new workspace.
 - [x] Destructive tool → confirmation → approve runs once (service, shell and screen tests).
 - [x] Cross-process approve: a second `createChat` on the same store approves what the first left waiting.
-- [ ] Manual run against a real model server, noted with date.
+- [x] Manual run against a real model server: 2026-09-16, LM Studio at 10.255.10.10:1235 (`papo models` lists seven; `papo say` answers; the adapter smoke passes).
 - [x] `index.md` updated.
