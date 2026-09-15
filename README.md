@@ -8,7 +8,8 @@
 facio is one family of TypeScript packages, zero runtime dependencies each, that share a rule: a thing is declared once and every surface is a rendering of that declaration.
 For a command, the surfaces are the terminal, MCP, HTTP and a generated reference.
 For an agent, the surface is a run: a model proposes, the harness authorizes and executes, a session remembers.
-`facio` itself, the program that composes the two, is not built yet; the name is reserved for it.
+`papo` is the first program on both: the harness in a terminal, as a screen and as a shell.
+`facio` itself, the daemon that composes everything, is not built yet; the name is reserved for it.
 
 ## Packages
 
@@ -33,6 +34,12 @@ For an agent, the surface is a run: a model proposes, the harness authorizes and
 | [`@facio/store-file`](packages/store-file) | The durable `Store` on the filesystem: sessions, runs, requests, a writer lease. |
 | [`@facio/model-openai-compat`](packages/model-openai-compat) | Chat Completions adapter (OpenRouter, LM Studio, any compatible server) with a model catalogue and reasoning. |
 
+### Programs
+
+| Package | Purpose |
+| --- | --- |
+| [`@facio/papo`](packages/papo) | `papo`: talk to an agent that runs in this process. A screen drawn with [`@textui/chat`](https://github.com/softov/textui) and a shell of `@facio/commands` actions over the same sessions on disk. |
+
 ## Try it
 
 ```sh
@@ -45,7 +52,12 @@ node examples/commands/dist/petshop/cli.js mcp tools
 
 # one turn of an agent, paused for approval, resumed from the store
 pnpm --filter facio-examples-agents run pause-resume
+
+# talk to a model server (LM Studio, Ollama, OpenRouter) from a terminal
+PAPO_BASE_URL=http://localhost:1234/v1 node packages/papo/dist/main.js
 ```
+
+`packages/papo` links `@textui/*` from a sibling `../textui` checkout until textui 0.6.0 is published; `pnpm install` needs it there.
 
 `pnpm check` builds every package, typechecks, and runs the tests.
 

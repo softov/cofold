@@ -118,6 +118,20 @@ describe("fields become slots and options", () => {
     });
     expect(optionNamed(command, "--tags")!.coerce?.schema).toEqual({ type: "string", maxLength: 4 });
   });
+
+  it("reads a variadic slot one word at a time, against the item's rules", () => {
+    const command = build({
+      input: { ids: { type: "array", items: { type: "string", minLength: 2 }, description: "" } },
+      required: ["ids"],
+      surfaces: { cli: { pattern: ["pet", "rm", ":ids..."] } },
+    });
+    expect(command.arguments?.["ids"]?.coerce?.schema).toEqual({ type: "string", minLength: 2 });
+    expect(() => build({
+      input: { ids: { type: "string", description: "" } },
+      required: ["ids"],
+      surfaces: { cli: { pattern: ["pet", "rm", ":ids..."] } },
+    })).toThrow("must be an array");
+  });
 });
 
 describe("what each surface is handed", () => {

@@ -108,6 +108,46 @@ importers:
         specifier: workspace:*
         version: link:../agents
 
+  packages/papo:
+    dependencies:
+      '@facio/agents':
+        specifier: workspace:^
+        version: link:../agents
+      '@facio/commands':
+        specifier: workspace:^
+        version: link:../commands
+      '@facio/config':
+        specifier: workspace:^
+        version: link:../config
+      '@facio/model-openai-compat':
+        specifier: workspace:^
+        version: link:../model-openai-compat
+      '@facio/sdk':
+        specifier: workspace:^
+        version: link:../sdk
+      '@facio/store-file':
+        specifier: workspace:^
+        version: link:../store-file
+      '@facio/terminal':
+        specifier: workspace:^
+        version: link:../terminal
+      '@textui/chat':
+        specifier: link:../../../textui/packages/chat
+        version: link:../../../textui/packages/chat
+      '@textui/core':
+        specifier: link:../../../textui/packages/core
+        version: link:../../../textui/packages/core
+      '@textui/terminal':
+        specifier: link:../../../textui/packages/terminal
+        version: link:../../../textui/packages/terminal
+      '@textui/widgets':
+        specifier: link:../../../textui/packages/widgets
+        version: link:../../../textui/packages/widgets
+    devDependencies:
+      '@textui/testing':
+        specifier: link:../../../textui/packages/testing
+        version: link:../../../textui/packages/testing
+
   packages/remote:
     dependencies:
       '@facio/commands':

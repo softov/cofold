@@ -113,7 +113,8 @@ export function describeStoreConformance(args: { name: string; create: () => Sto
         await store.requests.create({ requestId: 'q', sessionId: 's', runId: 'r', kind: 'approval', callId: 'c', payload: { name: 'rm' }, createdAt: 'now' });
         await store.sessions.claimWriter({ sessionId: 's', runId: 'r' });
         expect(await codeOf(store.sessions.delete({ sessionId: 's' }))).toBe('writer_busy');
-        await store.sessions.releaseWriter({ sessionId: 's', runId: 'r' });
+        // Paused: the claim is held, nothing is being written, the session may go.
+        await store.runs.update({ sessionId: 's', runId: 'r', status: 'awaiting', pendingRequestId: 'q' });
         await store.sessions.delete({ sessionId: 's' });
         expect(await store.sessions.get({ sessionId: 's' })).toBeUndefined();
         expect(await store.runs.get({ sessionId: 's', runId: 'r' })).toBeUndefined();

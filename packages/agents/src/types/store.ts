@@ -119,7 +119,8 @@ export interface Store {
     list(args: { workspace?: string; agentId?: string; limit?: number }): Promise<SessionRecord[]>;
     /**
      * Removes the session with its messages, runs, events, steps and requests. StoreError('not_found')
-     * when absent; StoreError('writer_busy') while a run holds the writer claim.
+     * when absent; StoreError('writer_busy') while the claim holder is a run whose status is 'running'.
+     * A paused run keeps its claim (it is still the writer) but writes nothing, so it does not block.
      */
     delete(args: { sessionId: string }): Promise<void>;
     /** Fails with StoreError('writer_mismatch') unless runId holds the claim. */

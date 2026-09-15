@@ -45,13 +45,16 @@ export function commandFor(definition: ActionDefinition<never, never, Record<str
   const input = definition.input ?? {};
   const cli = definition.surfaces.cli;
   const required = definition.required ?? [];
-  const slots = (cli?.pattern ?? [])
-    .filter((word) => word.startsWith(":"))
-    .map((word) => word.replace(/^:|\.{3}$|\?$/gu, ""));
+  const slotWords = (cli?.pattern ?? []).filter((word) => word.startsWith(":"));
+  const slots = slotWords.map((word) => word.replace(/^:|\.{3}$|\?$/gu, ""));
+  const variadic = new Set(slotWords.filter((word) => word.endsWith("...")).map((word) => word.replace(/^:|\.{3}$|\?$/gu, "")));
 
   for (const name of slots) {
     if (input[name] === undefined) {
       throw new Error(`${definition.id}: the pattern names :${name}, which is not an input field`);
+    }
+    if (variadic.has(name) && input[name]!.type !== "array") {
+      throw new Error(`${definition.id}: :${name}... takes several words, so the field must be an array`);
     }
   }
 
@@ -61,10 +64,12 @@ export function commandFor(definition: ActionDefinition<never, never, Record<str
   const args: Record<string, ArgumentSpec> = {};
   for (const name of slots) {
     const { cli: spelling, env: _env, ...schema } = input[name] as Field;
+    // A variadic slot arrives one word at a time; each word is one item of the array.
+    const each = variadic.has(name) ? schema.items ?? { type: "string" as const } : schema;
     args[name] = {
       ...(schema.description === undefined ? {} : { description: schema.description }),
       ...(spelling?.complete === undefined ? {} : { complete: spelling.complete }),
-      coerce: coercerFor(schema),
+      coerce: coercerFor(each),
     };
   }
 

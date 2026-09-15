@@ -69,7 +69,7 @@ export function createMemoryStore(): Store {
       },
       async delete({ sessionId }) {
         const s = requireSession(sessionId);
-        if (s.activeWriterRunId !== undefined) {
+        if (s.activeWriterRunId !== undefined && runs.get(s.activeWriterRunId)?.status === 'running') {
           throw new StoreError({ code: 'writer_busy', message: `session ${sessionId} is being written by run ${s.activeWriterRunId}` });
         }
         for (const [runId, run] of runs) if (run.sessionId === sessionId) runs.delete(runId);

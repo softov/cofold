@@ -27,8 +27,11 @@ Next free number in `agent`: `02`.
 
 Reference: [00-cli.md](cli/00-cli.md)
 
-No open plan; papo (the chat program) is next to be planned here.
-Next free number in `cli`: `01`.
+| Plan | Priority | Status | Requires | Blocks |
+| --- | --- | --- | --- | --- |
+| [01 - papo: the harness in a terminal](cli/01-papo.md) | High | Built (manual run against a model server pending) | agent/01 (p3), textui `@textui/chat` | the `facio` program |
+
+Next free number in `cli`: `02`.
 
 ## Later domains (no plans yet)
 

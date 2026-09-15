@@ -103,7 +103,9 @@ export function createFileStore(options: FileStoreOptions): Store {
       async delete({ sessionId }) {
         const dir = await requireSessionDir(sessionId);
         const holder = await lock.readLock(dir);
-        if (holder) throw new StoreError({ code: 'writer_busy', message: `session ${sessionId} is being written by run ${holder.runId}` });
+        if (holder && (await readRun(runDirOf(dir, holder.runId)))?.status === 'running') {
+          throw new StoreError({ code: 'writer_busy', message: `session ${sessionId} is being written by run ${holder.runId}` });
+        }
         await rm(dir, { recursive: true, force: true });
         sessionDirs.delete(sessionId);
         for (const key of [...lastSeq.keys()]) if (key.startsWith(dir)) lastSeq.delete(key);
