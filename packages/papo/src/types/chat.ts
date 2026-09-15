@@ -61,9 +61,10 @@ export interface Chat {
   /** The outcome of the run attached to the session, or undefined when none is. */
   wait(sessionId: string): Promise<RunOutcome | undefined>;
   approve(sessionId: string, args?: { always?: boolean }): Promise<void>;
+  /** Refuses a waiting approval, or declines a waiting question; the tool's result carries the reason. */
   deny(sessionId: string, args?: { reason?: string }): Promise<void>;
   answer(sessionId: string, answers: AskAnswers): Promise<void>;
-  /** Aborts a running turn, or denies a waiting approval; a waiting question can only be answered. */
+  /** Aborts a running turn, or denies whatever the session is waiting on. */
   cancel(sessionId: string): Promise<void>;
   remove(sessionId: string): Promise<void>;
   /** Called with the session whose state changed; returns the unsubscribe. */

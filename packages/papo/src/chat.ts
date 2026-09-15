@@ -255,20 +255,16 @@ export function createChat(options: ChatOptions): Chat {
     answer: (sessionId, answers) => submitTo(sessionId, (requestId) => ({ type: 'answer', requestId, answers })),
 
     /**
-     * Stop what the session is doing. A running turn is aborted; a waiting approval is denied, which
-     * is the only way the harness ends one (a `cancel` command on a paused run merely detaches, decision
-     * 86); a waiting question has no way out but its answer, and says so.
+     * Stop what the session is doing. A running turn is aborted; a waiting approval or question is
+     * denied, which is the only way the harness ends one (a `cancel` command on a paused run merely
+     * detaches, decision 86): the tool's result says the person declined, and the model goes on.
      */
     async cancel(sessionId) {
       await requireSession(sessionId);
       const held = attached.get(sessionId);
       if (held !== undefined && held.handle.status() === 'running') { held.handle.cancel({ reason: 'cancelled by the user' }); return; }
       const run = await newest(sessionId);
-      if (run?.status !== 'awaiting' || run.pendingRequestId === undefined) return;
-      const request = await store.requests.get({ sessionId, runId: run.runId, requestId: run.pendingRequestId });
-      if (request?.kind === 'input') {
-        throw new AgentError({ code: 'invalid_options', message: `session ${sessionId} is waiting on answers; answer it, or delete the session` });
-      }
+      if (run?.status !== 'awaiting') return;
       await chat.deny(sessionId, { reason: 'cancelled by the user' });
     },
 

@@ -115,7 +115,7 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
     approve: (optionId) => decide('approved', (id) => chat.approve(id, { always: optionId === 'always' })),
     deny: () => decide('denied', (id) => chat.deny(id)),
     answer: (answers, accepted) => decide(accepted ? 'answered' : 'declined', (id) =>
-      accepted ? chat.answer(id, toAskAnswers(answers) satisfies AskAnswers) : chat.cancel(id)),
+      accepted ? chat.answer(id, toAskAnswers(answers) satisfies AskAnswers) : chat.deny(id, { reason: 'The user declined to answer' })),
 
     async stop() {
       const current = open();

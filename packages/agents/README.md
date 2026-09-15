@@ -90,7 +90,8 @@ await handle.submit({ type: 'answer', requestId, answers: { lang: 'Rust', target
 const outcome = await handle.outcome;
 ```
 
-`submit` resolves once the command is persisted (`approval.resolved` / `input.resolved`, then `run.resumed`) and rejects with `not_found` for a wrong `requestId` or `invalid_options` for an edited input or answers that do not validate; the run stays `awaiting` in that case.
+`submit` resolves once the command is persisted (`approval.resolved` / `input.resolved` / `input.declined`, then `run.resumed`) and rejects with `not_found` for a wrong `requestId` or `invalid_options` for an edited input or answers that do not validate; the run stays `awaiting` in that case.
+A `deny` on an input request declines the questions: the asking tool's result carries the reason as an error and the model goes on without the answers.
 The approved call is executed exactly once, then the rest of its batch and the model loop continue as in `run`.
 `deny` appends an error result so the model can react.
 `cancel` while waiting detaches the handle and leaves the request open for a later `resume`.

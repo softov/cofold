@@ -204,6 +204,23 @@ describe('resume: askUser', () => {
     const toolMsg = model.requests[1]!.messages.find((m) => m.role === 'tool');
     expect(toolMsg?.parts[0]).toMatchObject({ type: 'toolResult', name: 'ask_user', content: rendered, isError: false });
   });
+
+  it('7b. deny declines the questions: the step fails with the reason and the model hears it', async () => {
+    const { agent, store, model } = build({ tools: [createAskUserTool()], script: [{ toolCalls: [{ name: 'ask_user', input: { questions } }] }, { text: 'fine' }] });
+    const { first, requestId } = await pauseRun(agent);
+    const handle = resume({ agent, ...ref(first) });
+    const eventsP = collect(handle);
+    await handle.submit({ type: 'deny', requestId, reason: 'not now' });
+    const events = await eventsP;
+    expect(types(events).slice(8)).toEqual(['input.declined', 'run.resumed', 'tool.completed', 'model.started', 'model.completed', 'run.finished']);
+    expect(events[8]).toMatchObject({ type: 'input.declined', requestId, reason: 'not now' });
+    expect(events[10]).toMatchObject({ type: 'tool.completed', name: 'ask_user', content: 'not now', isError: true });
+    expect((await handle.outcome).status).toBe('completed');
+    const steps = await store.runs.listSteps(ref(first));
+    expect(steps[1]).toMatchObject({ kind: 'tool', name: 'ask_user', status: 'failed', original: { content: 'not now', isError: true } });
+    const toolMsg = model.requests[1]!.messages.find((m) => m.role === 'tool');
+    expect(toolMsg?.parts[0]).toMatchObject({ type: 'toolResult', name: 'ask_user', content: 'not now', isError: true });
+  });
 });
 
 describe('resume: terminal, missing and crashed runs', () => {

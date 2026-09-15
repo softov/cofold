@@ -132,7 +132,7 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
   registry.action({
     id: 'deny',
     group: 'talk',
-    summary: 'Refuse the waiting tool call',
+    summary: 'Refuse the waiting tool call, or decline the waiting questions',
     needs: ['papo'],
     input: {
       session: { type: 'string', description: 'The session waiting on it', minLength: 1 },
@@ -169,7 +169,7 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
   registry.action({
     id: 'cancel',
     group: 'talk',
-    summary: 'Stop the turn a session is on',
+    summary: 'Stop the turn a session is on, or deny what it waits on',
     needs: ['papo'],
     input: { session: { type: 'string', description: 'The session', minLength: 1 } },
     required: ['session'],

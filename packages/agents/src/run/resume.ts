@@ -140,8 +140,10 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
         abort.signal.removeEventListener('abort', onAbort);
         try {
           await store.requests.resolve({ sessionId, runId, requestId: pending.requestId, resolution: command });
+          const reason = command.type === 'deny' && command.reason !== undefined ? { reason: command.reason } : {};
           if (command.type === 'answer') await ctx.emit({ type: 'input.resolved', requestId: pending.requestId, answers: command.answers });
-          else await ctx.emit({ type: 'approval.resolved', requestId: pending.requestId, decision: command.type, ...(command.type === 'deny' && command.reason !== undefined ? { reason: command.reason } : {}) });
+          else if (pending.kind === 'input') await ctx.emit({ type: 'input.declined', requestId: pending.requestId, ...reason });
+          else await ctx.emit({ type: 'approval.resolved', requestId: pending.requestId, decision: command.type, ...reason });
           await store.runs.update({ sessionId, runId, status: 'running', pendingRequestId: undefined });
           await ctx.emit({ type: 'run.resumed', requestId: pending.requestId });
         } catch (e) {
@@ -234,7 +236,8 @@ function validateCommand(ctx: TurnContext, pending: PendingRequest, command: Com
     }
     return;
   }
-  if (command.type !== 'answer') throw new AgentError({ code: 'invalid_options', message: `request ${pending.requestId} asks for input; use answer` });
+  if (command.type === 'deny') return;
+  if (command.type !== 'answer') throw new AgentError({ code: 'invalid_options', message: `request ${pending.requestId} asks for input; use answer or deny` });
   if (!command.answers || typeof command.answers !== 'object' || Array.isArray(command.answers)) {
     throw new AgentError({ code: 'invalid_options', message: 'answers must be an object keyed by question id' });
   }

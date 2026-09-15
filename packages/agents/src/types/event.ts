@@ -24,6 +24,8 @@ export type RunEventBody =
   | { type: 'approval.resolved'; requestId: string; decision: 'approve' | 'deny'; reason?: string }
   | { type: 'input.requested'; requestId: string; callId: string; questions: AskQuestion[] }
   | { type: 'input.resolved'; requestId: string; answers: AskAnswers }
+  /** The person would not answer: the asking tool's result says so and the model goes on. */
+  | { type: 'input.declined'; requestId: string; reason?: string }
   | { type: 'run.paused'; requestId: string; kind: 'approval' | 'input' }
   | { type: 'run.resumed'; requestId: string }
   | { type: 'run.finished'; outcome: RunOutcome };

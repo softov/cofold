@@ -272,19 +272,22 @@ async function applyResolved(ctx: TurnContext, deps: ToolCallDeps, call: ToolCal
     }
     return execute(deps, call, tool, input);
   }
-  if (command.type === 'deny') {
+  if (command.type === 'deny' && pending.kind === 'approval') {
     // No tool.denied event: approval.resolved { decision: 'deny' } already says it (decision 76).
     return { kind: 'result', executed: false, part: { type: 'toolResult', callId: call.callId, name: call.name, content: command.reason ?? 'Denied by the user', isError: true } };
   }
-  // answer: complete the tool step left 'started' at the pause (decision 77)
+  // answer, or a declined question: complete the tool step left 'started' at the pause (decision 77)
   const payload = pending.payload as InputPayload;
-  const answers: AskAnswers = command.answers;
-  const content = renderAnswers(payload.questions, answers);
+  const declined = command.type === 'deny';
+  const content = declined ? (command.reason ?? 'The user declined to answer') : renderAnswers(payload.questions, command.answers);
   const step = (await ctx.store.runs.listSteps({ sessionId: ctx.sessionId, runId: ctx.runId })).find((s) => s.invocationId === payload.invocationId);
   const durationMs = step ? Math.max(0, Date.now() - Date.parse(step.startedAt)) : 0;
-  await ctx.store.runs.updateStep({ sessionId: ctx.sessionId, runId: ctx.runId, invocationId: payload.invocationId, patch: { status: 'completed', original: { content, isError: false, detail: { answers } }, endedAt: now() } });
-  await ctx.emit({ type: 'tool.completed', callId: call.callId, name: payload.name, invocationId: payload.invocationId, content, isError: false, durationMs });
-  return { kind: 'result', executed: true, part: { type: 'toolResult', callId: call.callId, name: payload.name, content, isError: false } };
+  await ctx.store.runs.updateStep({
+    sessionId: ctx.sessionId, runId: ctx.runId, invocationId: payload.invocationId,
+    patch: { status: declined ? 'failed' : 'completed', original: { content, isError: declined, ...(declined ? {} : { detail: { answers: command.answers } }) }, endedAt: now() },
+  });
+  await ctx.emit({ type: 'tool.completed', callId: call.callId, name: payload.name, invocationId: payload.invocationId, content, isError: declined, durationMs });
+  return { kind: 'result', executed: true, part: { type: 'toolResult', callId: call.callId, name: payload.name, content, isError: declined } };
 }
 
 /** Persists the request, marks the run awaiting and closes the handle; the writer claim is kept (decision 62). */

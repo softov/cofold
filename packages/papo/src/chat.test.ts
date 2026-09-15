@@ -113,7 +113,7 @@ describe('createChat', () => {
     expect((await first.chat.snapshot(started.sessionId)).turns[0]?.state).toBe('complete');
   });
 
-  it('cancel denies a waiting approval, refuses to abandon a question, and remove takes the session away', async () => {
+  it('cancel denies a waiting approval, declines a waiting question, and remove takes the session away', async () => {
     const { executions, tool } = deleteFileTool();
     const { chat } = testChat({ script: [{ toolCalls: [{ name: 'delete_file', input: { path: 'a' } }] }, { text: 'x' }], tools: [tool] });
     const started = await chat.say({ text: 'Delete a' });
@@ -126,7 +126,11 @@ describe('createChat', () => {
     const asking = testChat({ script: [{ toolCalls: [{ name: 'ask_user', input: { questions: [{ id: 'q', question: 'Why?' }] } }] }, { text: 'ok' }] });
     const question = await asking.chat.say({ text: 'Ask' });
     await asking.chat.wait(question.sessionId);
-    await expect(asking.chat.cancel(question.sessionId)).rejects.toMatchObject({ code: 'invalid_options' });
+    await asking.chat.deny(question.sessionId);
+    expect((await asking.chat.wait(question.sessionId))?.status).toBe('completed');
+    const declined = await asking.chat.snapshot(question.sessionId);
+    expect(declined.pending).toBeNull();
+    expect(declined.turns[0]?.parts[0]).toMatchObject({ kind: 'tool', call: { name: 'ask_user', status: 'failed', output: 'The user declined to answer' } });
     await asking.chat.remove(question.sessionId);
     expect(await asking.chat.sessions()).toEqual([]);
 

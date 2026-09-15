@@ -9,6 +9,7 @@ export type RunCommand =
       /** Remember the decision for this tool name in this session (decision 63). */
       alwaysApprove?: boolean;
     }
+  /** Refuses an approval, or declines to answer an input request; the tool's result carries the reason. */
   | { type: 'deny'; requestId: string; reason?: string }
   | { type: 'answer'; requestId: string; answers: AskAnswers }
   | { type: 'cancel'; reason?: string };
