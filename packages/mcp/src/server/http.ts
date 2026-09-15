@@ -1,31 +1,10 @@
+import type { McpHttpHandler, McpHttpInvocation, McpHttpOptions } from "../types/server.js";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { type RequestContext, type Runner } from "@facio/commands";
-import { createMcpServer, diagnose, type McpServerOptions } from "./server.js";
-
-export interface McpHttpOptions extends Omit<McpServerOptions, "context" | "toolListChanged"> {
-  /** Return trusted context, or null to refuse. Omission requires middleware context. */
-  authenticate?(request: IncomingMessage): Readonly<RequestContext> | null | Promise<Readonly<RequestContext> | null>;
-  /** Exact Host header values; defaults to localhost/loopback at any port. */
-  allowedHosts?: readonly string[];
-  /** Exact origins; defaults to refusing browser Origin headers. */
-  allowedOrigins?: readonly string[];
-  maxBodyBytes?: number;
-  /** JSON mode cannot deliver progress notifications. Defaults to SSE responses. */
-  jsonResponse?: boolean;
-}
-export interface McpHttpInvocation {
-  /** Already parsed by middleware; middleware must also enforce its own body limit. */
-  body?: unknown;
-  /** Already authenticated by middleware; never populate this from request JSON. */
-  context?: Readonly<RequestContext>;
-}
-export interface McpHttpHandler {
-  (request: IncomingMessage, response: ServerResponse, invocation?: McpHttpInvocation): Promise<void>;
-  close(): Promise<void>;
-}
+import { createMcpServer, diagnose } from "./server.js";
 
 function answer(response: ServerResponse, status: number, message: string): void {
   if (response.destroyed || response.writableEnded) return;

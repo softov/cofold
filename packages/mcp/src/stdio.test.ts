@@ -1,10 +1,11 @@
+import type { StdioOptions } from "./types/stdio.js";
 import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { createRegistry, output, ArgumentError } from "@facio/commands";
-import { serveStdio, type StdioOptions } from "./stdio.js";
+import { serveStdio } from "./stdio.js";
 
 /**
  * Two kinds of test, because there are two kinds of mistake.

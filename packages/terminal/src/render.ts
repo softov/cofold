@@ -1,3 +1,4 @@
+import type { Style } from "./types/output.js";
 import { displayValue } from "@facio/commands";
 
 /**
@@ -7,12 +8,6 @@ import { displayValue } from "@facio/commands";
  * A renderer that reaches for the invocation starts deciding policy, and the
  * policy - plain, JSON, or a bare identifier - belongs to the program.
  */
-
-export interface Style {
-  bold(text: string): string;
-  dim(text: string): string;
-  heading(text: string): string;
-}
 
 /**
  * The control sequence introducer, built rather than typed.

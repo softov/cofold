@@ -1,3 +1,5 @@
+import type { OutputMode } from "./types/output.js";
+import type { ProgramOptions } from "./types/program.js";
 import { stdin as processStdin, stdout, stderr } from "node:process";
 import {
   ArgumentError,
@@ -16,7 +18,7 @@ import {
   type Runner,
 } from "@facio/commands";
 import { completeWords, completionScript, COMPLETION_SHELLS } from "./completion.js";
-import { GLOBAL_NAMES, globalOptions, type OutputMode } from "./globals.js";
+import { GLOBAL_NAMES, globalOptions } from "./globals.js";
 import { help } from "./help.js";
 import { emit } from "./output.js";
 import { parse } from "./parse.js";
@@ -35,24 +37,6 @@ import { styleFor } from "./render.js";
  * as it has domains, and a test can build a registry of two commands and drive
  * the same code path the binary does.
  */
-
-export interface ProgramOptions {
-  name: string;
-  version: string;
-  description?: string;
-  registry: Runner;
-  io?: Io;
-  /** Program-wide options beyond the standard set: `--url`, `--config`, `--profile`. */
-  globals?: readonly OptionSpec[];
-  /** `completion` and the hidden `__complete`. On unless a program says otherwise. */
-  builtins?: boolean;
-  /**
-   * Registered names appended under the static help - ids, profiles, whatever
-   * only the running program knows. Must not throw.
-   */
-  liveHelp?(command: Command | null, prefix: readonly string[]): Promise<string>;
-  readStdin?(): Promise<string>;
-}
 
 export const processIo: Io = {
   out: (text) => { stdout.write(text); },

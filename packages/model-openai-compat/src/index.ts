@@ -1,29 +1,12 @@
 import { ModelError } from '@facio/agents';
 import type { ModelAdapter, ModelFeatures, ModelInfo, ModelParams, ModelProvider, ModelRequest } from '@facio/agents';
 import { fromWireModel, fromWireResponse, toWireMessages, toWireReasoning, toWireTools } from './wire.js';
-import type { WireModelList, WireResponse } from './wire.js';
+import type { OpenAICompatOptions, OpenAICompatProviderOptions } from './types/options.js';
+import type { WireModelList, WireResponse } from './types/wire.js';
+
+export type { OpenAICompatOptions, OpenAICompatProviderOptions } from './types/options.js';
 
 const DEFAULT_FEATURES: ModelFeatures = { tools: true, streaming: false, images: false, structuredOutput: false, reasoning: false };
-
-export interface OpenAICompatProviderOptions {
-  /** e.g. 'http://localhost:1234/v1' or 'https://openrouter.ai/api/v1' */
-  baseUrl: string;
-  apiKey?: string;
-  headers?: Record<string, string>;
-  /** Provider id suffix; defaults to the URL host. */
-  name?: string;
-  /** Retries on 429, 5xx and network errors; default 2. */
-  retries?: number;
-  /** Injection for tests. */
-  fetch?: typeof fetch;
-}
-
-export interface OpenAICompatOptions extends OpenAICompatProviderOptions {
-  /** Provider model id. */
-  model: string;
-  features?: Partial<ModelFeatures>;
-  params?: ModelParams;
-}
 
 /** One-model shortcut over openaiCompatProvider(...).model(...). */
 export function openaiCompat(options: OpenAICompatOptions): ModelAdapter {

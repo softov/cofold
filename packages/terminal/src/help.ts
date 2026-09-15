@@ -1,3 +1,4 @@
+import type { HelpOptions } from "./types/help.js";
 import {
   argumentFields,
   commandPattern,
@@ -12,7 +13,7 @@ import {
   type OptionNote,
   type OptionSpec,
 } from "@facio/commands";
-import { renderDefinitions, styleFor, type Style } from "./render.js";
+import { renderDefinitions, styleFor } from "./render.js";
 
 /**
  * `--help`, derived from the registry.
@@ -21,16 +22,6 @@ import { renderDefinitions, styleFor, type Style } from "./render.js";
  * the only way help stays true of a surface that keeps changing - a hand-written
  * usage string is a comment, and comments rot.
  */
-
-export interface HelpOptions {
-  name: string;
-  version?: string;
-  description?: string;
-  commands: readonly Command[];
-  globals: readonly OptionSpec[];
-  groups?: readonly CommandGroup[];
-  style?: Style;
-}
 
 function noteText(note: OptionNote): string {
   if (note.kind === "env") return `env ${note.name}`;

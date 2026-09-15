@@ -1,6 +1,6 @@
 import type { RunEvent } from './event.js';
 import type { Message } from './message.js';
-import type { ModelRequest, ModelReply, Usage } from './model.js';
+import type { ModelReply, ModelRequest, Usage } from './model.js';
 import type { RunStatus } from './outcome.js';
 
 export interface SessionRecord {

@@ -9,15 +9,15 @@
  */
 export { completeWords, completionScript, COMPLETION_SHELLS } from "./completion.js";
 export { GLOBAL_NAMES, globalOptions } from "./globals.js";
-export type { OutputMode } from "./globals.js";
 export { help, helpForCommand, helpForProgram } from "./help.js";
-export type { HelpOptions } from "./help.js";
 export { emit, renderPlain } from "./output.js";
 export { parse } from "./parse.js";
-export type { Invocation } from "./parse.js";
 export { renderDefinitions, renderDocument, renderJson, renderTable, styleFor } from "./render.js";
-export type { Style } from "./render.js";
 export { Program, processIo } from "./program.js";
-export type { ProgramOptions } from "./program.js";
 export { redact, runEntry } from "./entry.js";
-export type { EntryOptions } from "./entry.js";
+
+export type { EntryOptions } from "./types/entry.js";
+export type { HelpOptions } from "./types/help.js";
+export type { Invocation } from "./types/invocation.js";
+export type { OutputMode, Style } from "./types/output.js";
+export type { ProgramOptions } from "./types/program.js";

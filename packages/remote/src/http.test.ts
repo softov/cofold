@@ -8,9 +8,9 @@
  * options is worth pinning exactly.
  */
 
+import type { HttpBinding } from "./types/manifest.js";
 import { describe, expect, it } from "vitest";
 import { httpTransport, HttpError } from "./http.js";
-import type { HttpBinding } from "./manifest.js";
 
 interface Seen {
   url: string;
@@ -191,7 +191,6 @@ describe("what comes back", () => {
     await expect(failed).rejects.toMatchObject({ kind: "unavailable", cause });
   });
 });
-
 
 it("encodes form fields and Basic authentication on the transport", async () => {
   let sent: RequestInit | undefined;

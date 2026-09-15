@@ -1,23 +1,4 @@
-export type AgentErrorCode =
-  | 'invalid_options'
-  | 'seq_gap'
-  | 'writer_mismatch'
-  | 'not_found'
-  | 'already_exists'
-  | 'unsupported_feature'
-  | 'auth'
-  | 'rate_limit'
-  | 'server'
-  | 'network'
-  | 'invalid_response'
-  | 'aborted'
-  | 'hook_error'
-  | 'capability_error'
-  | 'writer_busy'
-  | 'internal'
-  | 'uncertain_invocation'
-  | 'interrupted'
-  | 'superseded';
+import type { AgentErrorCode } from './types/error.js';
 
 export class AgentError extends Error {
   readonly code: AgentErrorCode;

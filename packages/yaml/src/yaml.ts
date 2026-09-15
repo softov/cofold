@@ -1,17 +1,10 @@
+import type { YamlParseOptions } from "./types/parse.js";
+
 /**
  * @facio/yaml reads a documented YAML subset as plain data, without I/O or dependencies.
  * Unsupported syntax is rejected rather than interpreted approximately.
  * File loading, document composition, and reference resolution belong to callers.
  */
-
-export interface YamlParseOptions {
-  /** A filename or URL used in diagnostics; the parser does not read it. */
-  source?: string;
-  /** Bound input size before parsing. Default: 16 MiB. */
-  maxBytes?: number;
-  /** Bound nesting before recursive parsing. Default: 128. */
-  maxDepth?: number;
-}
 
 export class YamlError extends Error {
   public readonly line: number;

@@ -1,14 +1,15 @@
+import type { AgentOptions } from '../types/agent.js';
+import type { RunEvent } from '../types/event.js';
+import type { RunOutcome } from '../types/outcome.js';
+import type { FakeStep } from '../types/testing.js';
+import type { Tool, ToolDefinition } from '../types/tool.js';
 import { describe, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent/create-agent.js';
 import { AgentError, ModelError } from '../errors.js';
 import { textOf } from '../message/helpers.js';
 import { createMemoryStore } from '../store/memory.js';
-import { createFakeModel, type FakeStep } from '../testing/fake-model.js';
+import { createFakeModel } from '../testing/fake-model.js';
 import { createTool } from '../tool/create-tool.js';
-import type { AgentOptions } from '../types/agent.js';
-import type { RunEvent } from '../types/event.js';
-import type { RunOutcome } from '../types/outcome.js';
-import type { Tool, ToolDefinition } from '../types/tool.js';
 import { pauseForInput } from './pause.js';
 import { HEARTBEAT_MS, run } from './run.js';
 

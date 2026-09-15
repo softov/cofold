@@ -1,6 +1,8 @@
+import type { HttpTransportOptions } from "./types/http.js";
+import type { HttpBinding, Transport } from "./types/manifest.js";
 import { basicAuthorization, type CookieJar } from "./auth.js";
 import { compact, UnavailableError, FacioError } from "@facio/commands";
-import { bodyFields, expandPath, placementOf, type HttpBinding, type Transport } from "./manifest.js";
+import { bodyFields, expandPath, placementOf } from "./manifest.js";
 
 /**
  * The transport a command built from a manifest uses, and where the credentials are.
@@ -10,18 +12,6 @@ import { bodyFields, expandPath, placementOf, type HttpBinding, type Transport }
  * that could name the host and the header would be a server that could point a
  * client's token somewhere else.
  */
-
-export interface HttpTransportOptions {
-  baseUrl: string;
-  headers?: Readonly<Record<string, string>>;
-  /** Injectable, so a test never opens a socket. */
-  fetch?: typeof globalThis.fetch;
-  timeoutMs?: number;
-  signal?: AbortSignal;
-  auth?: { type: "basic"; username: string; password: string } | { type: "cookie"; jar: CookieJar };
-  onResponse?(response: Response, url: URL): void | Promise<void>;
-  onRequest?(request: { method: string; url: string }): void;
-}
 
 export class HttpError extends FacioError {
   public readonly status: number;

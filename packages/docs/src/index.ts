@@ -1,3 +1,4 @@
+import type { DocumentOptions } from "./types/document.js";
 import {
   argumentFields,
   commandPattern,
@@ -15,6 +16,8 @@ import {
   type Runner,
 } from "@facio/commands";
 
+export type { DocumentOptions } from "./types/document.js";
+
 /**
  * @facio/docs - the registry, written down.
  *
@@ -27,16 +30,6 @@ import {
  * Both are generated, so documentation cannot describe a surface that no longer
  * exists - which is what a hand-maintained README always ends up doing.
  */
-
-export interface DocumentOptions {
-  name: string;
-  version?: string;
-  description?: string;
-  /** Included in the option tables, because they are part of every command. */
-  globals?: readonly OptionSpec[];
-  /** Prepended verbatim: the paragraph only a human can write. */
-  preamble?: string;
-}
 
 export function mdTable(headers: readonly string[], rows: readonly (readonly unknown[])[]): string {
   // The escaping is the only markdown-specific part: a pipe would end the cell

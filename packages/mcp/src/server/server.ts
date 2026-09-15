@@ -1,3 +1,5 @@
+import type { McpRequestContext, McpRequestExtra, McpServerOptions } from "../types/server.js";
+import type { ToolDefinition } from "../types/tool.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema, CallToolResultSchema, ListToolsRequestSchema, ToolSchema,
@@ -6,38 +8,8 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { FacioError, compact, type Command, type RequestContext, type Runner } from "@facio/commands";
-import { tools, validateToolOutput, type ToolDefinition } from "../index.js";
-import { registerResourcesAndPrompts, type ResourceDefinition, type ResourceTemplateDefinition, type PromptDefinition } from "./resources.js";
-
-export type McpRequestExtra = RequestHandlerExtra<ServerRequest, ServerNotification>;
-export type McpRequestContext = Readonly<RequestContext> & { readonly signal: AbortSignal };
-export interface ToolEvent {
-  tool: ToolDefinition;
-  context: McpRequestContext;
-  data: unknown;
-}
-
-export interface McpServerOptions {
-  name: string;
-  version: string;
-  instructions?: string;
-  /** Trusted adapter data. Never copy tool arguments into this context. */
-  context?(extra: McpRequestExtra): Readonly<RequestContext> | Promise<Readonly<RequestContext>>;
-  /** Applied to discovery AND invocation. Registry authorization still runs. */
-  visible?(command: Command, context: McpRequestContext, scopes: readonly string[]): boolean | Promise<boolean>;
-  encodeResult?(event: ToolEvent): CallToolResult | Promise<CallToolResult>;
-  /** Undefined selects the default mapping. Return only public messages. */
-  mapError?(error: unknown): CallToolResult | undefined;
-  onSuccess?(event: ToolEvent): void | Promise<void>;
-  onFailure?(error: unknown, context: McpRequestContext): void | Promise<void>;
-  /** Application-owned diagnostics; never written to stdout by Facio. */
-  onDiagnostic?(error: unknown): void;
-  /** Enable explicit tools/list_changed notifications on this connection. */
-  toolListChanged?: boolean;
-  resources?: readonly ResourceDefinition[];
-  resourceTemplates?: readonly ResourceTemplateDefinition[];
-  prompts?: readonly PromptDefinition[];
-}
+import { tools, validateToolOutput } from "../index.js";
+import { registerResourcesAndPrompts } from "./resources.js";
 
 /** Observer failures must never change an already completed action's result. */
 export function diagnose(options: Pick<McpServerOptions, "onDiagnostic">, error: unknown): void {

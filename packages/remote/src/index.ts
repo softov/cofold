@@ -9,9 +9,7 @@
  * library, which is most of them.
  */
 export { loadManifest } from "./cache.js";
-export type { CacheOptions } from "./cache.js";
 export { HttpError, httpTransport } from "./http.js";
-export type { HttpTransportOptions } from "./http.js";
 export {
   bodyFields,
   manifestFrom,
@@ -21,15 +19,21 @@ export {
   commandsFrom,
   parseManifest,
 } from "./manifest.js";
+export { manifestFromOpenApi, patternFor } from "./openapi.js";
+
+export { CookieJar, basicAuthorization } from "./auth.js";
+
+export type { StoredCookie } from "./types/auth.js";
+export type { CacheOptions } from "./types/cache.js";
+export type { HttpTransportOptions } from "./types/http.js";
 export type {
+  CommandsFromOptions,
   HttpBinding,
-  ProgramManifest,
   ManifestCommand,
   ManifestOption,
-  CommandsFromOptions,
+  ProgramManifest,
   Transport,
-} from "./manifest.js";
-export { manifestFromOpenApi, patternFor } from "./openapi.js";
+} from "./types/manifest.js";
 export type {
   DescribedSchema,
   OpenApiDocument,
@@ -37,7 +41,4 @@ export type {
   OpenApiOperationHint,
   OpenApiOptions,
   OpenApiParameter,
-} from "./openapi.js";
-
-export { CookieJar, basicAuthorization } from "./auth.js";
-export type { StoredCookie } from "./auth.js";
+} from "./types/openapi.js";

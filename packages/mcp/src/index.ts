@@ -1,3 +1,5 @@
+import type { McpBinding } from "./types/binding.js";
+import type { ToolDefinition, ToolOptions } from "./types/tool.js";
 import {
   canonicalFromObject,
   check,
@@ -10,6 +12,9 @@ import {
   type Runner,
 } from "@facio/commands";
 import { assertSupportedSchema } from "@facio/sdk";
+
+export type { McpBinding } from "./types/binding.js";
+export type { ToolDefinition, ToolOptions } from "./types/tool.js";
 
 /**
  * @facio/mcp - the same registry, read by an agent.
@@ -26,27 +31,8 @@ import { assertSupportedSchema } from "@facio/sdk";
  * program's choice.
  */
 
-/** Optional tool metadata, independent of SDK types. */
-export interface McpBinding {
-  name?: string;
-  description?: string;
-  annotations?: { title?: string; readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean };
-  outputSchema?: JsonSchema & { type: "object" };
-}
-
 declare module "@facio/commands" {
   interface CommandMeta { mcp?: McpBinding }
-}
-
-export interface ToolDefinition {
-  name: string;
-  description: string;
-  inputSchema: JsonSchema & { type: "object"; properties: Record<string, JsonSchema>; required?: string[] };
-  annotations?: McpBinding["annotations"];
-  outputSchema?: JsonSchema & { type: "object" };
-  /** The command behind it, for a caller that wants to annotate or filter. */
-  command: Command;
-  invoke(input: Record<string, unknown>): Promise<unknown>;
 }
 
 /** MCP tool names are not dotted; command ids are. */
@@ -86,14 +72,6 @@ export function descriptionFor(command: Command): string {
     parts.push(`Examples:\n${command.examples.map((example) => `  ${example.command}`).join("\n")}`);
   }
   return parts.join("\n\n");
-}
-
-export interface ToolOptions {
-  /** Exposed only when the command opted in; this widens nothing by accident. */
-  filter?(command: Command): boolean;
-  signal?: AbortSignal;
-  request?: Readonly<RequestContext>;
-  onCleanupError?: (error: unknown) => void;
 }
 
 /**

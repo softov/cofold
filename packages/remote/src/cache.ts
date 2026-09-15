@@ -1,8 +1,10 @@
+import type { CacheOptions } from "./types/cache.js";
+import type { ProgramManifest } from "./types/manifest.js";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { UnavailableError } from "@facio/commands";
-import { parseManifest, type ProgramManifest } from "./manifest.js";
+import { parseManifest } from "./manifest.js";
 
 /**
  * The manifest on disk, and why it has to be.
@@ -13,17 +15,6 @@ import { parseManifest, type ProgramManifest } from "./manifest.js";
  * and a stale answer is preferred to no answer - with a line on stderr, because
  * silently serving yesterday's surface is its own kind of wrong.
  */
-
-export interface CacheOptions {
-  directory: string;
-  /** How long before a refresh is attempted. A day suits a surface that changes on deploys. */
-  ttlMs?: number;
-  /** `--refresh`: ignore what is cached, but still fall back to it if the fetch fails. */
-  refresh?: boolean;
-  fetch?: typeof globalThis.fetch;
-  headers?: Readonly<Record<string, string>>;
-  warn?(message: string): void;
-}
 
 interface CacheEntry {
   fetchedAt: number;

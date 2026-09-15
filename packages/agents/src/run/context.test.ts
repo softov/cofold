@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import type { ContentPart, Message } from '../types/message.js';
+import { describe, expect, it } from 'vitest';
 import { assembleRequest, estimateMessageTokens, groupUnits } from './context.js';
 
 const len = (t: string) => t.length;

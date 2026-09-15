@@ -1,7 +1,7 @@
+import type { ModelRequest } from '../types/model.js';
 import { describe, expect, it } from 'vitest';
 import { ModelError } from '../errors.js';
 import { textOf, toolCallsOf } from '../message/helpers.js';
-import type { ModelRequest } from '../types/model.js';
 import { createFakeModel } from './fake-model.js';
 
 const request = (signal: AbortSignal = new AbortController().signal): ModelRequest => ({

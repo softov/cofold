@@ -1,20 +1,6 @@
+import type { WireImagePart, WireMessage, WireModel, WireResponse, WireTextPart } from './types/wire.js';
 import { newId } from '@facio/agents';
 import type { ContentPart, FinishReason, ImagePart, Message, ModelInfo, ModelFeatures, ModelReply, ModelRequest, TextPart, ToolCallPart } from '@facio/agents';
-
-type WireTextPart = { type: 'text'; text: string };
-type WireImagePart = { type: 'image_url'; image_url: { url: string } };
-
-export interface WireMessage {
-  role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string | (WireTextPart | WireImagePart)[] | null;
-  tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[];
-  tool_call_id?: string;
-  name?: string;
-  /** OpenRouter. */
-  reasoning?: string | null;
-  /** DeepSeek, LM Studio and vLLM style. */
-  reasoning_content?: string | null;
-}
 
 export function toWireMessages(request: ModelRequest, features: { images: boolean }): WireMessage[] {
   const out: WireMessage[] = [{ role: 'system', content: request.instructions }];
@@ -68,16 +54,6 @@ export function toWireReasoning(reasoning: NonNullable<ModelRequest['params']['r
     return { reasoning: { ...(reasoning.effort !== undefined ? { effort: reasoning.effort } : {}), max_tokens: reasoning.maxTokens } };
   }
   return reasoning.effort !== undefined ? { reasoning_effort: reasoning.effort } : {};
-}
-
-export interface WireResponse {
-  choices?: { message?: WireMessage; finish_reason?: string }[];
-  usage?: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-    prompt_tokens_details?: { cached_tokens?: number };
-    completion_tokens_details?: { reasoning_tokens?: number };
-  };
 }
 
 const THINK_BLOCK = /^\s*<think>([\s\S]*?)<\/think>\s*/;
@@ -136,22 +112,6 @@ function mapFinish(reason: string | undefined, hasToolCalls: boolean): FinishRea
     case 'tool_calls': return 'tool_calls';
     default: return 'other';
   }
-}
-
-/** `GET /models`; the OpenAI shape plus OpenRouter's extra fields when present. */
-export interface WireModelList {
-  data?: WireModel[];
-}
-export interface WireModel {
-  id: string;
-  name?: string;
-  context_length?: number;
-  /** OpenRouter: USD per token as decimal strings. */
-  pricing?: { prompt?: string; completion?: string };
-  /** OpenRouter: request parameters the model accepts. */
-  supported_parameters?: string[];
-  architecture?: { input_modalities?: string[] };
-  top_provider?: { max_completion_tokens?: number | null };
 }
 
 export function fromWireModel(model: WireModel, defaults: ModelFeatures): ModelInfo {

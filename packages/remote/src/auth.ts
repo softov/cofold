@@ -1,10 +1,9 @@
+import type { StoredCookie } from "./types/auth.js";
+
 /** Basic authentication and a small RFC-style cookie jar for server-side clients. */
 export function basicAuthorization(username: string, password: string): string {
   if (username.includes(":")) throw new Error("Basic authentication usernames cannot contain a colon");
   return `Basic ${Buffer.from(`${username}:${password}`, "utf8").toString("base64")}`;
-}
-export interface StoredCookie {
-  name: string; value: string; domain: string; path: string; hostOnly: boolean; secure: boolean; expires?: number;
 }
 export class CookieJar {
   private cookies: StoredCookie[];

@@ -1,3 +1,4 @@
+import type { Invocation } from "./types/invocation.js";
 import {
   ArgumentError,
   didYouMean,
@@ -28,15 +29,6 @@ import {
  * here is the policy on top - the standard globals, which are parsed even when
  * no command matched, and a required option that was never given.
  */
-
-export interface Invocation {
-  command: Command | null;
-  slots: Record<string, string | string[]>;
-  options: Record<string, string | string[] | boolean>;
-  /** The words typed, for help on a command that is only half written. */
-  words: string[];
-  passthrough: string[];
-}
 
 export function parse(
   commands: readonly Command[],

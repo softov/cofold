@@ -1,10 +1,11 @@
+import type { McpServerOptions } from "../types/server.js";
 import { CallToolResultSchema, ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { createRegistry, output, AuthorizationError } from "@facio/commands";
-import { createMcpServer, type McpServerOptions } from "./server.js";
+import { createMcpServer } from "./server.js";
 
 const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => { await Promise.all(cleanup.splice(0).map((close) => close())); });
@@ -111,7 +112,6 @@ describe("SDK server", () => {
     expect((await client.getPrompt({ name: "review", arguments: { subject: "hello" } })).messages[0]?.content).toMatchObject({ text: "hello" });
   });
 });
-
 
 describe("protocol boundaries", () => {
   it("rejects task execution before a mutation starts", async () => {

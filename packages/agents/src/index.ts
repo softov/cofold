@@ -1,5 +1,6 @@
 export type * from './types/index.js';
-export { AgentError, ModelError, StoreError, type AgentErrorCode } from './errors.js';
+export { AgentError, ModelError, StoreError } from './errors.js';
+export type { AgentErrorCode } from './types/error.js';
 export { newId } from './ids.js';
 export { DEFAULT_LIMITS } from './agent/limits.js';
 export { createAgent } from './agent/create-agent.js';

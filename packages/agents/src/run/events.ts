@@ -1,10 +1,6 @@
-import type { RunEvent, RunEventBody } from '../types/event.js';
+import type { Emitter } from '../types/emitter.js';
+import type { RunEvent } from '../types/event.js';
 import type { Store } from '../types/store.js';
-
-export interface Emitter {
-  emit(body: RunEventBody): Promise<RunEvent>;
-  seq(): number;
-}
 
 /** Persist first, publish second (spec "Persist state transitions before publishing them"). */
 export function createEmitter(args: {

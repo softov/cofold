@@ -1,8 +1,8 @@
+import type { WireModelList, WireResponse } from './types/wire.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ModelError, textOf, toolCallsOf } from '@facio/agents';
 import type { Message, ModelRequest } from '@facio/agents';
 import { openaiCompat, openaiCompatProvider } from './index.js';
-import type { WireModelList, WireResponse } from './wire.js';
 
 type Call = { url: string; init: RequestInit; body: Record<string, unknown> };
 

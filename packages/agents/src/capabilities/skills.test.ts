@@ -1,12 +1,12 @@
+import type { CapabilityArgs } from '../types/capability.js';
+import type { SkillSource } from '../types/skills.js';
+import type { ToolContext } from '../types/tool.js';
 import { describe, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent/create-agent.js';
 import { AgentError } from '../errors.js';
 import { run } from '../run/run.js';
 import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
-import type { CapabilityArgs } from '../types/capability.js';
-import type { SkillSource } from '../types/skills.js';
-import type { ToolContext } from '../types/tool.js';
 import { skills } from './skills.js';
 
 function memorySource(entries: Record<string, { description: string; body: string; files?: Record<string, string> }>): SkillSource {

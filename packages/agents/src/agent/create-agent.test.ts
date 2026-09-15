@@ -1,9 +1,9 @@
+import type { RunInfo } from '../types/hooks.js';
 import { describe, expect, it, vi } from 'vitest';
 import { AgentError } from '../errors.js';
 import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
 import { createTool } from '../tool/create-tool.js';
-import type { RunInfo } from '../types/hooks.js';
 import { createAgent } from './create-agent.js';
 import { DEFAULT_LIMITS } from './limits.js';
 

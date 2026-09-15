@@ -1,3 +1,4 @@
+import type { FileStoreOptions } from './types/store.js';
 import { readdir, rm, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { StoreError } from '@facio/agents';
@@ -9,12 +10,6 @@ import { workspaceSlug } from './slug.js';
 
 /** Serialized step detail above this is replaced by `{ truncated: true, bytes }` (decision 70). */
 export const DETAIL_CAP_BYTES = 262_144;
-
-export interface FileStoreOptions {
-  root: string;
-  /** A `running` holder whose heartbeat is older than this loses its writer.lock to a new claim (decision 68). Default 60 s. */
-  staleAfterMs?: number;
-}
 
 /**
  * Layout (decision 81):

@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { StoreError } from '../errors.js';
 import type { RunEvent } from '../types/event.js';
 import type { Message } from '../types/message.js';
 import type { RunRecord, Store } from '../types/store.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { StoreError } from '../errors.js';
 
 const msg = (text: string): Message => ({ id: text, role: 'user', source: 'input', createdAt: '2026-01-01T00:00:00.000Z', parts: [{ type: 'text', text }] });
 const runRecord = (sessionId: string, runId: string, over: Partial<RunRecord> = {}): RunRecord => ({

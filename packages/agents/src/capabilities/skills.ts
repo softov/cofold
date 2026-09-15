@@ -1,7 +1,7 @@
-import { AgentError } from '../errors.js';
-import { createTool } from '../tool/create-tool.js';
 import type { Capability, CapabilityArgs } from '../types/capability.js';
 import type { SkillIndexEntry, SkillSource } from '../types/skills.js';
+import { AgentError } from '../errors.js';
+import { createTool } from '../tool/create-tool.js';
 
 const RULES = [
   'A skill is a set of instructions stored in a SKILL.md file. The list below has the skills available in this session (name and description).',

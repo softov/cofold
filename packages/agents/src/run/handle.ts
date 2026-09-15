@@ -1,16 +1,9 @@
-import { AgentError } from '../errors.js';
+import type { RunAbort } from '../types/abort.js';
 import type { RunCommand } from '../types/command.js';
 import type { RunEvent } from '../types/event.js';
 import type { RunOutcome, RunStatus } from '../types/outcome.js';
-import type { RunHandle } from '../types/run.js';
-import type { RunAbort } from './abort.js';
-
-export interface InternalRunHandle extends RunHandle {
-  /** Called by the loop for every persisted event. */
-  publish(event: RunEvent): void;
-  /** Called once by the loop with the final outcome; closes the event stream. */
-  finish(outcome: RunOutcome): void;
-}
+import type { InternalRunHandle } from '../types/turn.js';
+import { AgentError } from '../errors.js';
 
 /**
  * Buffers every event for the life of the handle (decision 61): any in-process iterator replays

@@ -1,7 +1,15 @@
-import { StoreError } from '../errors.js';
 import type { RunEvent } from '../types/event.js';
 import type { Message } from '../types/message.js';
-import type { KvScope, PendingRequest, RunRecord, RunRef, SessionRecord, StepRecord, Store } from '../types/store.js';
+import type {
+  KvScope,
+  PendingRequest,
+  RunRecord,
+  RunRef,
+  SessionRecord,
+  StepRecord,
+  Store,
+} from '../types/store.js';
+import { StoreError } from '../errors.js';
 
 export function createMemoryStore(): Store {
   const sessions = new Map<string, SessionRecord & { messages: Message[] }>();

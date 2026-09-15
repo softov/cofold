@@ -1,8 +1,8 @@
+import type { RunEvent } from './event.js';
 import type { ToolCallPart } from './message.js';
 import type { ModelReply, ModelRequest } from './model.js';
-import type { Tool, ToolOutput } from './tool.js';
-import type { RunEvent } from './event.js';
 import type { KvScope } from './store.js';
+import type { Tool, ToolOutput } from './tool.js';
 
 export interface RunInfo {
   runId: string;

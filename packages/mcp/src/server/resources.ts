@@ -1,3 +1,4 @@
+import type { McpRequestContext, McpServerOptions } from "../types/server.js";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { UriTemplate, type Variables } from "@modelcontextprotocol/sdk/shared/uriTemplate.js";
 import {
@@ -7,23 +8,7 @@ import {
   McpError, ErrorCode, type Resource, type ResourceTemplate, type Prompt,
   type ReadResourceResult, type GetPromptResult,
 } from "@modelcontextprotocol/sdk/types.js";
-import { diagnose, requestContext, type McpServerOptions, type McpRequestContext } from "./server.js";
-
-export interface ResourceDefinition {
-  resource: Resource;
-  visible?(context: McpRequestContext): boolean | Promise<boolean>;
-  read(context: McpRequestContext): ReadResourceResult | Promise<ReadResourceResult>;
-}
-export interface ResourceTemplateDefinition {
-  resource: ResourceTemplate;
-  visible?(context: McpRequestContext): boolean | Promise<boolean>;
-  read(uri: string, variables: Variables, context: McpRequestContext): ReadResourceResult | Promise<ReadResourceResult>;
-}
-export interface PromptDefinition {
-  prompt: Prompt;
-  visible?(context: McpRequestContext): boolean | Promise<boolean>;
-  get(args: Readonly<Record<string, string>>, context: McpRequestContext): GetPromptResult | Promise<GetPromptResult>;
-}
+import { diagnose, requestContext } from "./server.js";
 
 export function registerResourcesAndPrompts(server: Server, options: McpServerOptions): void {
   const resources = (options.resources ?? []).map((item) => ({ ...item, resource: ResourceSchema.parse(item.resource) }));

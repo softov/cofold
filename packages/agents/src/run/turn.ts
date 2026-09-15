@@ -1,63 +1,33 @@
+import type { RunAbort } from '../types/abort.js';
+import type { Agent } from '../types/agent.js';
+import type { AskAnswers } from '../types/ask.js';
+import type { CapabilityArgs } from '../types/capability.js';
+import type { Emitter } from '../types/emitter.js';
+import type { RunEventBody } from '../types/event.js';
+import type { RunInfo } from '../types/hooks.js';
+import type { Message, ToolCallPart, ToolResultPart } from '../types/message.js';
+import type { ModelReply, ModelRequest } from '../types/model.js';
+import type { RunOutcome } from '../types/outcome.js';
+import type { SessionRecord, Store } from '../types/store.js';
+import type { Tool } from '../types/tool.js';
+import type {
+  ApprovalPayload,
+  InputPayload,
+  InternalRunHandle,
+  ResolvedRequest,
+  ToolCallDeps,
+  ToolCallResult,
+  TurnContext,
+  TurnEntry,
+} from '../types/turn.js';
 import { AgentError, ModelError } from '../errors.js';
 import { newId } from '../ids.js';
 import { toolCallsOf } from '../message/helpers.js';
 import { addUsage } from '../model/usage.js';
 import { validateSchema } from '@facio/sdk';
 import { renderAnswers } from '../tool/ask-user.js';
-import type { Agent } from '../types/agent.js';
-import type { AskAnswers, AskQuestion } from '../types/ask.js';
-import type { CapabilityArgs } from '../types/capability.js';
-import type { RunCommand } from '../types/command.js';
-import type { RunEventBody } from '../types/event.js';
-import type { RunInfo } from '../types/hooks.js';
-import type { Message, ToolCallPart, ToolResultPart } from '../types/message.js';
-import type { ModelReply, ModelRequest, Usage } from '../types/model.js';
-import type { RunOutcome } from '../types/outcome.js';
-import type { PendingRequest, SessionRecord, Store } from '../types/store.js';
-import type { ModelToolDefinition, Tool } from '../types/tool.js';
-import type { RunAbort } from './abort.js';
 import { assembleRequest } from './context.js';
-import type { Emitter } from './events.js';
-import type { InternalRunHandle } from './handle.js';
 import { execute, handleToolCall } from './tools.js';
-import type { ToolCallDeps, ToolCallResult } from './tools.js';
-
-/** Everything the loop needs; built by run() for a fresh turn and by resume() from a stored run. */
-export interface TurnContext {
-  agent: Agent<any>;
-  store: Store;
-  sessionId: string;
-  runId: string;
-  agentId: string;
-  workspace?: string;
-  run: RunInfo;
-  tools: Map<string, Tool<any, any>>;
-  toolDefinitions: ModelToolDefinition[];
-  instructions: string;
-  abort: RunAbort;
-  emit: Emitter['emit'];
-  handle: InternalRunHandle;
-  counters: { usage: Usage; steps: number; stepIndex: number; toolCalls: number };
-  claimed: boolean;
-  /** Writer lease timer (decision 68); cleared when the run settles, before the outcome is published. */
-  heartbeat?: ReturnType<typeof setInterval>;
-}
-
-/** The pending request a command answered, applied to the first call of a resumed batch (decisions 74-77). */
-export interface ResolvedRequest {
-  pending: PendingRequest;
-  command: Exclude<RunCommand, { type: 'cancel' }>;
-}
-
-/** Where to enter the loop: a fresh turn, or the rest of a paused batch. */
-export type TurnEntry =
-  | { kind: 'model' }
-  | { kind: 'batch'; calls: ToolCallPart[]; resolved?: ResolvedRequest };
-
-/** Payload of an 'approval' PendingRequest. */
-export interface ApprovalPayload { name: string; input: unknown; prompt?: string }
-/** Payload of an 'input' PendingRequest; invocationId lets resume complete the same tool step. */
-export interface InputPayload { name: string; input: unknown; questions: AskQuestion[]; invocationId: string }
 
 const now = () => new Date().toISOString();
 

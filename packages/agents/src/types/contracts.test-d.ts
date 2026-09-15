@@ -1,14 +1,21 @@
-import { describe, expectTypeOf, it } from 'vitest';
 import type { AskAnswers } from './ask.js';
 import type { RunCommand } from './command.js';
-import type { AfterToolArgs, AfterToolResult, BeforeToolArgs, BeforeToolResult, Hooks, RunInfo } from './hooks.js';
 import type { RunEvent } from './event.js';
+import type {
+  AfterToolArgs,
+  AfterToolResult,
+  BeforeToolArgs,
+  BeforeToolResult,
+  Hooks,
+  RunInfo,
+} from './hooks.js';
 import type { ContentPart } from './message.js';
 import type { ModelAdapter, Usage } from './model.js';
-import type { ModelProvider } from './provider.js';
 import type { RunOutcome } from './outcome.js';
+import type { ModelProvider } from './provider.js';
 import type { KvScope, RunRecord, Store } from './store.js';
 import type { Tool } from './tool.js';
+import { describe, expectTypeOf, it } from 'vitest';
 
 describe('contracts', () => {
   it('RunOutcome has exactly the five terminal statuses', () => {

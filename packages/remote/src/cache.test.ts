@@ -7,11 +7,12 @@
  * behaviour a person only notices when it is missing, so both are pinned here.
  */
 
+import type { ProgramManifest } from "./types/manifest.js";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { MANIFEST_VERSION, type ProgramManifest } from "./manifest.js";
+import { MANIFEST_VERSION } from "./manifest.js";
 import { loadManifest } from "./cache.js";
 
 const URL = "http://service.test/cli-manifest";

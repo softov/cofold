@@ -1,15 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
-import { createAgent } from '../agent/create-agent.js';
-import { textOf } from '../message/helpers.js';
-import { createMemoryStore } from '../store/memory.js';
-import { createFakeModel, type FakeStep } from '../testing/fake-model.js';
-import { createAskUserTool, renderAnswers } from '../tool/ask-user.js';
-import { createTool } from '../tool/create-tool.js';
 import type { AgentOptions } from '../types/agent.js';
 import type { AskQuestion } from '../types/ask.js';
 import type { RunEvent } from '../types/event.js';
 import type { RunHandle } from '../types/run.js';
+import type { FakeStep } from '../types/testing.js';
 import type { Tool, ToolDefinition } from '../types/tool.js';
+import { describe, expect, it, vi } from 'vitest';
+import { createAgent } from '../agent/create-agent.js';
+import { textOf } from '../message/helpers.js';
+import { createMemoryStore } from '../store/memory.js';
+import { createFakeModel } from '../testing/fake-model.js';
+import { createAskUserTool, renderAnswers } from '../tool/ask-user.js';
+import { createTool } from '../tool/create-tool.js';
 import { resume } from './resume.js';
 import { run } from './run.js';
 

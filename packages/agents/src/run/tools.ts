@@ -1,30 +1,10 @@
-import { newId } from '../ids.js';
-import { validateSchema } from '@facio/sdk';
-import type { Agent } from '../types/agent.js';
-import type { AskQuestion } from '../types/ask.js';
-import type { RunInfo } from '../types/hooks.js';
-import type { ToolCallPart, ToolResultPart } from '../types/message.js';
+import type { ToolCallPart } from '../types/message.js';
 import type { StepRecord } from '../types/store.js';
 import type { Tool, ToolContext, ToolOutput } from '../types/tool.js';
-import type { RunAbort } from './abort.js';
-import type { Emitter } from './events.js';
+import type { ToolCallDeps, ToolCallResult } from '../types/turn.js';
+import { newId } from '../ids.js';
+import { validateSchema } from '@facio/sdk';
 import { PauseSignal } from './pause.js';
-
-export type ToolCallResult =
-  | { kind: 'result'; part: ToolResultPart; executed: boolean }
-  | { kind: 'approval'; tool: Tool<any, any>; input: unknown; prompt?: string }
-  | { kind: 'input'; tool: Tool<any, any>; input: unknown; invocationId: string; questions: AskQuestion[] }
-  | { kind: 'aborted' };
-
-export interface ToolCallDeps {
-  agent: Agent<any>;
-  tools: ReadonlyMap<string, Tool<any, any>>;
-  run: RunInfo;
-  abort: RunAbort;
-  emit: Emitter['emit'];
-  /** Next StepRecord.index; the caller increments after a step is appended. */
-  nextStepIndex: () => number;
-}
 
 /**
  * Validate → beforeTool hook → policy floor → remembered approval → execute (decisions 46, 55, 63).

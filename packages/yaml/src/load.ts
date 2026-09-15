@@ -1,16 +1,8 @@
+import type { LoadedYaml, YamlLoadOptions } from "./types/load.js";
 import { readFile as readLocal } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { parseYaml, type YamlParseOptions } from "./yaml.js";
-
-export interface YamlLoadOptions extends YamlParseOptions {
-  refs?: { local?: boolean; remote?: boolean; circular?: "error" | "preserve"; unresolved?: "error" | "preserve" };
-  readFile?(path: string): Promise<string> | string;
-  fetch?: typeof globalThis.fetch;
-  timeoutMs?: number;
-  maxDocuments?: number;
-}
-export interface LoadedYaml { data: unknown; sources: string[]; diagnostics: { reference: string; message: string }[] }
+import { parseYaml } from "./yaml.js";
 
 /** Parse YAML or JSON and optionally resolve references relative to each containing document. */
 export async function loadYaml(source: string, options: YamlLoadOptions = {}): Promise<LoadedYaml> {

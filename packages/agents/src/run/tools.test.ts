@@ -1,16 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
-import { createAgent } from '../agent/create-agent.js';
-import { createMemoryStore } from '../store/memory.js';
-import { createFakeModel } from '../testing/fake-model.js';
-import { createTool } from '../tool/create-tool.js';
 import type { AgentOptions } from '../types/agent.js';
 import type { RunEventBody } from '../types/event.js';
 import type { RunInfo } from '../types/hooks.js';
 import type { ToolCallPart } from '../types/message.js';
 import type { Store } from '../types/store.js';
 import type { Tool, ToolDefinition } from '../types/tool.js';
+import type { ToolCallDeps } from '../types/turn.js';
+import { describe, expect, it, vi } from 'vitest';
+import { createAgent } from '../agent/create-agent.js';
+import { createMemoryStore } from '../store/memory.js';
+import { createFakeModel } from '../testing/fake-model.js';
+import { createTool } from '../tool/create-tool.js';
 import { createRunAbort } from './abort.js';
-import { boundOutput, handleToolCall, type ToolCallDeps } from './tools.js';
+import { boundOutput, handleToolCall } from './tools.js';
 
 const input = { type: 'object' as const, properties: { text: { type: 'string' as const }, loud: { type: 'boolean' as const, default: false } }, required: ['text'], additionalProperties: false };
 

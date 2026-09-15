@@ -1,8 +1,10 @@
+import type { HttpBinding, Transport } from "./types/manifest.js";
+import type { OpenApiDocument } from "./types/openapi.js";
 import { describe, expect, it } from "vitest";
 import { coerce, createRegistry, output } from "@facio/commands";
 import { Program } from "@facio/terminal";
-import { manifestFrom, commandsFrom, type HttpBinding, type Transport } from "./manifest.js";
-import { manifestFromOpenApi, type OpenApiDocument } from "./openapi.js";
+import { manifestFrom, commandsFrom } from "./manifest.js";
+import { manifestFromOpenApi } from "./openapi.js";
 
 function service() {
   const registry = createRegistry({ groups: [{ name: "pets", title: "Pets" }] })

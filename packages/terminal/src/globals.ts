@@ -19,5 +19,3 @@ export const globalOptions: readonly OptionSpec[] = [
 ];
 
 export const GLOBAL_NAMES: readonly string[] = globalOptions.map((option) => option.name);
-
-export type OutputMode = "plain" | "json" | "quiet";
