@@ -9,29 +9,33 @@
 import { describe, expect, it } from "vitest";
 import { configProvider, environmentNameOf, resolveConfig } from "./index.js";
 import type { CommandContext } from "../index.js";
+import { resolve } from "node:path";
+
+/** The fixtures are POSIX in the source; the resolver speaks the platform's paths, so the test does too. */
+const at = (path: string): string => resolve(path);
 
 const files: Record<string, string> = {
-  "/home/me/.config/depot/config.json": JSON.stringify({
+  [at("/home/me/.config/depot/config.json")]: JSON.stringify({
     api: "https://user",
     theme: { mode: "dark", color: "blue" },
     retries: 1,
   }),
-  "/work/project/.depot.json": JSON.stringify({
+  [at("/work/project/.depot.json")]: JSON.stringify({
     api: "https://project",
     theme: { mode: "light" },
   }),
-  "/work/project/deep/nowhere.json": JSON.stringify({}),
-  "/elsewhere/named.json": JSON.stringify({ api: "https://named" }),
-  "/bad/broken.json": "{ not json",
-  "/bad/list.json": "[1, 2]",
+  [at("/work/project/deep/nowhere.json")]: JSON.stringify({}),
+  [at("/elsewhere/named.json")]: JSON.stringify({ api: "https://named" }),
+  [at("/bad/broken.json")]: "{ not json",
+  [at("/bad/list.json")]: "[1, 2]",
 };
 
 const read = (path: string): string | undefined => files[path];
 
 const base = {
   name: "depot",
-  cwd: "/work/project/deep",
-  home: "/home/me",
+  cwd: at("/work/project/deep"),
+  home: at("/home/me"),
   env: {} as Record<string, string | undefined>,
   readFile: read,
 };
@@ -48,7 +52,7 @@ describe("the layers", () => {
 
   it("finds the project file at or above the working directory", () => {
     expect(resolveConfig(base).layers.map((one) => one.kind)).toEqual(["user", "project"]);
-    expect(resolveConfig({ ...base, cwd: "/somewhere/else" }).layers.map((one) => one.kind))
+    expect(resolveConfig({ ...base, cwd: at("/somewhere/else") }).layers.map((one) => one.kind))
       .toEqual(["user"]);
   });
 
@@ -60,14 +64,14 @@ describe("the layers", () => {
   });
 
   it("lets the environment beat the files, and an explicit path beat the environment", () => {
-    const env = { DEPOT_CONFIG: "/elsewhere/named.json" };
+    const env = { DEPOT_CONFIG: at("/elsewhere/named.json") };
     expect(resolveConfig({ ...base, env }).get("api")).toBe("https://named");
-    expect(resolveConfig({ ...base, env, path: "/home/me/.config/depot/config.json" }).get("api"))
+    expect(resolveConfig({ ...base, env, path: at("/home/me/.config/depot/config.json") }).get("api"))
       .toBe("https://user");
   });
 
   it("reads a relative explicit path against the working directory", () => {
-    expect(resolveConfig({ ...base, cwd: "/elsewhere", path: "named.json" }).get("api"))
+    expect(resolveConfig({ ...base, cwd: at("/elsewhere"), path: "named.json" }).get("api"))
       .toBe("https://named");
   });
 
@@ -80,10 +84,10 @@ describe("the layers", () => {
 describe("saying where a value came from", () => {
   it("names the file that last set a path", () => {
     const config = resolveConfig(base);
-    expect(config.sourceOf("api")).toBe("/work/project/.depot.json");
-    expect(config.sourceOf("theme.mode")).toBe("/work/project/.depot.json");
-    expect(config.sourceOf("theme.color")).toBe("/home/me/.config/depot/config.json");
-    expect(config.sourceOf("retries")).toBe("/home/me/.config/depot/config.json");
+    expect(config.sourceOf("api")).toBe(at("/work/project/.depot.json"));
+    expect(config.sourceOf("theme.mode")).toBe(at("/work/project/.depot.json"));
+    expect(config.sourceOf("theme.color")).toBe(at("/home/me/.config/depot/config.json"));
+    expect(config.sourceOf("retries")).toBe(at("/home/me/.config/depot/config.json"));
   });
 
   it("has nothing to say about a path nobody set", () => {
@@ -101,15 +105,15 @@ describe("saying where a value came from", () => {
  */
 describe("what it refuses", () => {
   it("refuses a named file that is not there", () => {
-    expect(() => resolveConfig({ ...base, path: "/elsewhere/missing.json" }))
+    expect(() => resolveConfig({ ...base, path: at("/elsewhere/missing.json") }))
       .toThrow("was asked for and is not there");
-    expect(() => resolveConfig({ ...base, env: { DEPOT_CONFIG: "/elsewhere/missing.json" } }))
+    expect(() => resolveConfig({ ...base, env: { DEPOT_CONFIG: at("/elsewhere/missing.json") } }))
       .toThrow("was asked for and is not there");
   });
 
   it("refuses a file it cannot read as data, naming the file", () => {
-    expect(() => resolveConfig({ ...base, path: "/bad/broken.json" })).toThrow("/bad/broken.json is not valid JSON");
-    expect(() => resolveConfig({ ...base, path: "/bad/list.json" })).toThrow("is not an object");
+    expect(() => resolveConfig({ ...base, path: at("/bad/broken.json") })).toThrow(`${at("/bad/broken.json")} is not valid JSON`);
+    expect(() => resolveConfig({ ...base, path: at("/bad/list.json") })).toThrow("is not an object");
   });
 });
 
@@ -118,7 +122,7 @@ describe("bringing a parser", () => {
     const config = resolveConfig({
       ...base,
       extensions: [".conf"],
-      readFile: (path) => (path === "/work/project/.depot.conf" ? "api = https://ini" : undefined),
+      readFile: (path) => (path === at("/work/project/.depot.conf") ? "api = https://ini" : undefined),
       parse: (text) => Object.fromEntries([text.split(" = ")]) as Record<string, unknown>,
     });
     expect(config.get("api")).toBe("https://ini");
@@ -128,7 +132,7 @@ describe("bringing a parser", () => {
 describe("as a capability", () => {
   it("reads the explicit path from the program's globals, not from the input", () => {
     const provider = configProvider({ ...base });
-    const context = { globals: { config: "/elsewhere/named.json" } } as unknown as CommandContext;
+    const context = { globals: { config: at("/elsewhere/named.json") } } as unknown as CommandContext;
     expect(provider.resolve({}, context).get("api")).toBe("https://named");
   });
 
