@@ -1,0 +1,23 @@
+{
+  "name": "@facio/model-openai-compat",
+  "version": "0.0.1",
+  "description": "Chat Completions model adapter for @facio/agents (OpenRouter, LM Studio, any compatible server).",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "files": ["dist", "src", "!src/**/*.test.ts", "!src/**/*.test-d.ts", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": { "@facio/agents": "workspace:*" },
+  "devDependencies": { "@facio/agents": "workspace:*" },
+  "publishConfig": { "access": "public" }
+}
