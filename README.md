@@ -65,8 +65,8 @@ PAPO_BASE_URL=http://localhost:1234/v1 node packages/papo/dist/main.js
 ## Documentation
 
 * [`docs/commands/`](docs/commands/) is the framework manual; start with [Getting started](docs/commands/01-getting-started.md).
-* [`docs/agents/`](docs/agents/) is the harness; the spec is [`roadmap/specs/agent-harness-spec.md`](roadmap/specs/agent-harness-spec.md).
-* [`roadmap/plans/`](roadmap/plans/index.md) is what is being built and in which order; [`ROADMAP.md`](ROADMAP.md) holds the framework's open questions.
+* [`docs/agents/`](docs/agents/) is the harness; the spec is [`.project/specs/agent-harness-spec.md`](.project/specs/agent-harness-spec.md).
+* [`.project/plans/`](.project/plans/index.md) is what is being built and in which order; [`ROADMAP.md`](ROADMAP.md) holds the framework's open questions.
 
 ## License
 

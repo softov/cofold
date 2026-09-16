@@ -2,9 +2,9 @@
 
 facio is a TypeScript (pnpm) workspace for one family of packages: the command framework (`@facio/commands` and its surfaces), the agent harness (`@facio/agents` and its adapters and stores), papo (`@facio/papo`, the harness in a terminal), and later the program that composes them (`facio`, the daemon and its CLI).
 
-Plans live in `roadmap/plans/` and are the source of truth for what to build; `roadmap/plans/index.md` is the status index.
-Read a domain's `00-<domain>.md` and the plan's *Decisions locked in* table before touching code.
-The agent harness spec is `roadmap/specs/agent-harness-spec.md`; the framework's open items are in `ROADMAP.md`.
+`.project/` is the project's own documentation in the specai format (the `do-spec` skill in `.agents/skills/do-spec/` says how to write it): `plans/` is the source of truth for what to build (one folder per plan, one file per task; `plans/index.md` is the entry and the status index), `specs/` holds the runtime specification, `research/` what was studied.
+Read a domain's `plans/<domain>/00-<domain>.md` and the plan's *Decisions locked in* table before touching code.
+The framework's open items are in `ROADMAP.md`.
 
 ## Commands
 
@@ -41,7 +41,8 @@ packages/facio/             later: the program (daemon + CLI), not yet created
 examples/commands/          the framework's example programs (petshop, kitchen-sink, clerver, open-cli, mcp-server)
 examples/agents/            hosts that use the harness
 docs/commands/  docs/agents/
-roadmap/plans/{agent,cli,commands}/
+.project/                   plans/<domain>/<NN>-<slug>/{plan.md,task-NN-*.md}, plans/index.md, specs/, research/
+.agents/skills/             the skills; nothing else lives under .agents
 ```
 
 Every package: `package.json` with `exports`, `tsconfig.json` extending `../../tsconfig.base.json`, `tsc -p` build, its own `README.md` and `LICENSE`; `files` never reaches outside the package folder.
@@ -67,7 +68,7 @@ Every package: `package.json` with `exports`, `tsconfig.json` extending `../../t
 
 - Execute one task at a time, in the plan's order. The plan's code blocks are the intended implementation; deviate only when the code proves the plan wrong, and then say so in the report.
 - A plan's *Decisions* table is locked. On a fork the plan does not cover, stop and ask; do not pick.
-- Update the plan's *Resume state* and `roadmap/plans/index.md` status when a phase moves.
+- A task's status moves in its own file and in the plan's *Tasks* table; the plan's *Resume state* and `.project/plans/index.md` move with it.
 
 ## Git
 
