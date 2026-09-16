@@ -10,7 +10,7 @@ Reference: none yet (this plan is the domain's first)
 
 # TOOLS-01 - `@facio/tools`: the tools every agent gets
 
-_Status: In progress (Task 1 built 2026-09-16) · Priority: High · Created: 2026-09-16_
+_Status: In progress (Tasks 1-2 built 2026-09-16) · Priority: High · Created: 2026-09-16_
 
 ## Goal
 
@@ -123,8 +123,8 @@ packages/papo/src/config.ts         UPDATE: schema for tools
 
 ## Resume state
 
-- **Done so far:** plan written 2026-09-16; Task 1 built 2026-09-16 (`packages/tools`: `files()`, `resolveWithin`, `displayPath`; 7 tests). `search_files` also takes `ignoreCase`; `read_file` cuts lines at 2000 characters.
-- **Next action:** AGENT-02 Task 1, then Task 2 here.
+- **Done so far:** plan written 2026-09-16; Task 1 built 2026-09-16 (`packages/tools`: `files()`, `resolveWithin`, `displayPath`; 7 tests). `search_files` also takes `ignoreCase`; `read_file` cuts lines at 2000 characters. Task 2 built 2026-09-16 (`shell()`, `execShell`, `DEFAULT_SHELL`; the kill reaches the process tree: a process group on POSIX, `taskkill /t` on Windows; `shell.shell` option chooses another shell; 5 tests).
+- **Next action:** Task 3 (web), then 4, 5; AGENT-02 after.
 - **Open questions:** none.
 - **Watch out for:** Node 22's `fs.glob` is stable from 22.17; the package's `engines` says `>=22`, so the glob is written against `fs/promises` `glob` with a fallback walk if the runtime lacks it.
 

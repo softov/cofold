@@ -40,7 +40,7 @@ Reference: none yet (this plan is the domain's first).
 
 | Plan | Priority | Status | Requires | Blocks |
 | --- | --- | --- | --- | --- |
-| [01 - @facio/tools: the tools every agent gets](tools/01-standard-tools.md) | High | In progress (Task 1) | agent/01 (p3), cli/01 | a useful papo |
+| [01 - @facio/tools: the tools every agent gets](tools/01-standard-tools.md) | High | In progress (Tasks 1-2) | agent/01 (p3), cli/01 | a useful papo |
 
 Next free number in `tools`: `02`.
 
