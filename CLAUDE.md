@@ -33,6 +33,7 @@ packages/agents/            @facio/agents  - contracts, loop, run handle, step l
   src/{agent,message,model,store,tool,run,capabilities,testing}/   runtime code by domain
 packages/model-openai-compat/   Chat Completions adapter (OpenRouter, LM Studio)
 packages/store-file/        durable Store on the filesystem
+packages/tools/            @facio/tools: files, shell, web and memory as capabilities; what papo turns on
 packages/papo/              @facio/papo, binary `papo`: the harness in this process as a screen (@textui/chat) and a shell (@facio/commands actions on @facio/terminal)
   src/{chat,turns,blocks,questions,config,agent,commands,program,main}.ts   the service, the projection, the shell
   src/screen/               the textui application (state paths, controller, two screens, terminal boot)
