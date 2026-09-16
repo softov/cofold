@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { RunOutcome } from '@facio/agents';
 import { AgentError } from '@facio/agents';
@@ -7,6 +8,7 @@ import { createFileStore, resolveHome } from '@facio/store-file';
 import { renderTable } from '@facio/terminal';
 import { createChat } from './chat.js';
 import { loadConfig, providersOf } from './config.js';
+import { exportPath, toMarkdown } from './export.js';
 import { parseAnswers } from './questions.js';
 import type { Chat } from './types/chat.js';
 import type { PapoConfig } from './types/config.js';
@@ -205,6 +207,25 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     run: async ({ input, papo }) => {
       const snapshot = await withAgentErrors(() => papo.chat.snapshot(input.session));
       return output(snapshot, () => renderTranscript(snapshot));
+    },
+  });
+
+  registry.action({
+    id: 'session.export',
+    group: 'sessions',
+    summary: 'Write the conversation as Markdown',
+    needs: ['papo'],
+    input: {
+      session: { type: 'string', description: 'The session', minLength: 1 },
+      out: { type: 'string', description: 'The file; default <workspace>/papo-<session>.md', cli: { short: '-o', value: 'FILE' } },
+    },
+    required: ['session'],
+    surfaces: { cli: { pattern: ['session', 'export', ':session'] } },
+    run: async ({ input, papo }) => {
+      const snapshot = await withAgentErrors(() => papo.chat.snapshot(input.session));
+      const path = resolve(papo.workspace, input.out ?? exportPath(papo.workspace, input.session));
+      await writeFile(path, toMarkdown(snapshot), 'utf8');
+      return output({ path }, `${path}\n`);
     },
   });
 

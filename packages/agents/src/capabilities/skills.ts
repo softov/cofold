@@ -10,6 +10,18 @@ const RULES = [
   'If a skill cannot be applied (missing files, unclear steps), say so and continue with the next-best approach.',
 ].join('\n');
 
+/** The skills of every source, by name; on a duplicate the first source wins and `warn` hears of it once per call. */
+export async function listSkills(args: { sources: SkillSource[]; workspace?: string; warn?: (message: string) => void }): Promise<Map<string, { entry: SkillIndexEntry; source: SkillSource }>> {
+  const seen = new Map<string, { entry: SkillIndexEntry; source: SkillSource }>();
+  for (const source of args.sources) {
+    for (const entry of await source.list({ ...(args.workspace !== undefined ? { workspace: args.workspace } : {}) })) {
+      if (seen.has(entry.name)) { args.warn?.(`skills: duplicate skill "${entry.name}"; first source wins`); continue; }
+      seen.set(entry.name, { entry, source });
+    }
+  }
+  return seen;
+}
+
 /**
  * The first core capability (decision 85): an index of the available skills in the instructions and one
  * `read_skill` tool. Sources are content providers; `@facio/store-file` ships `fileSkillSource`.
@@ -17,19 +29,11 @@ const RULES = [
 export function skills(options: { sources: SkillSource[]; warn?: (message: string) => void }): Capability {
   if (options.sources.length === 0) throw new AgentError({ code: 'invalid_options', message: 'skills(): at least one source' });
   let warned = false;
-  const index = async (args: CapabilityArgs) => {
-    const seen = new Map<string, { entry: SkillIndexEntry; source: SkillSource }>();
-    for (const source of options.sources) {
-      for (const entry of await source.list({ ...(args.workspace !== undefined ? { workspace: args.workspace } : {}) })) {
-        if (seen.has(entry.name)) {
-          if (!warned) { warned = true; options.warn?.(`skills: duplicate skill "${entry.name}"; first source wins`); }
-          continue;
-        }
-        seen.set(entry.name, { entry, source });
-      }
-    }
-    return seen;
-  };
+  const index = (args: CapabilityArgs) => listSkills({
+    sources: options.sources,
+    ...(args.workspace !== undefined ? { workspace: args.workspace } : {}),
+    warn: (message) => { if (!warned) { warned = true; options.warn?.(message); } },
+  });
   return {
     id: 'skills',
     async instructions(args) {

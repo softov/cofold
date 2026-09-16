@@ -12,4 +12,4 @@ export { ZERO_USAGE, addUsage } from './model/usage.js';
 export { createTool } from './tool/create-tool.js';
 export { createAskUserTool, renderAnswers, validateAnswers } from './tool/ask-user.js';
 export { createMemoryStore } from './store/memory.js';
-export { skills } from './capabilities/skills.js';
+export { skills, listSkills } from './capabilities/skills.js';

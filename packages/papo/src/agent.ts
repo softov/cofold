@@ -18,8 +18,8 @@ export interface AgentArgs {
   /** `<root>` of the file store: memory lives under `<root>/memory/<slug>`. */
   home: string;
   workspace: string;
-  /** The skills the agent may read; the service lists the same source for the slash menu. */
-  skills: SkillSource;
+  /** The skills the agent may read, in order of precedence; the service lists the same sources for the slash menu. */
+  skills: SkillSource[];
   /** The system prompt, already joined with the workspace's AGENTS.md. */
   instructions: string;
   /** Beyond `ask_user`; a `--demo-tools` flag or a later plugin adds them. */
@@ -70,7 +70,7 @@ export function buildAgent(args: AgentArgs): Agent {
     tools: [createAskUserTool(), ...(args.tools ?? [])],
     capabilities: [
       ...capabilitiesOf(config.tools, { home: args.home, workspace: args.workspace }),
-      skills({ sources: [args.skills], warn: args.warn }),
+      skills({ sources: args.skills, warn: args.warn }),
     ],
     store: args.store,
     policy: policyOf(settings.permissions),

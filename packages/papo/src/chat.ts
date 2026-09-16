@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Agent, PendingRequest, RunHandle, RunRecord } from '@facio/agents';
-import { AgentError, newId, resume, run } from '@facio/agents';
+import { AgentError, listSkills, newId, resume, run } from '@facio/agents';
 import { fileSkillSource } from '@facio/store-file';
 import { AGENT_ID, buildAgent } from './agent.js';
 import { providerFor } from './config.js';
@@ -16,6 +17,9 @@ interface Attached {
   agent: Agent;
 }
 
+/** The package folder: `<here>/skills/<name>/SKILL.md` are the prompts papo ships. */
+const SHIPPED_ROOT = fileURLToPath(new URL('..', import.meta.url));
+
 /**
  * The harness in this process, for both fronts.
  *
@@ -25,7 +29,8 @@ interface Attached {
  */
 export function createChat(options: ChatOptions): Chat {
   const { store, config, providers, workspace, home } = options;
-  const skillSource = fileSkillSource({ root: home });
+  // The person's skills first, then the ones papo ships (`/init`, `/review`), so a home skill of the same name wins.
+  const skillSources = [fileSkillSource({ root: home }), fileSkillSource({ root: SHIPPED_ROOT })];
   const warn = options.warn ?? ((message: string) => process.stderr.write(`papo: ${message}\n`));
   const attached = new Map<string, Attached>();
   const listeners = new Set<ChatListener>();
@@ -94,7 +99,7 @@ export function createChat(options: ChatOptions): Chat {
     const { provider, modelId } = providerFor(providers, config, model);
     settings = { ...settings, model };
     return buildAgent({
-      config, settings, provider, modelId, store, home, workspace, skills: skillSource, instructions: await instructions(), warn,
+      config, settings, provider, modelId, store, home, workspace, skills: skillSources, instructions: await instructions(), warn,
       ...(options.tools !== undefined ? { tools: options.tools } : {}),
     });
   }
@@ -176,7 +181,7 @@ export function createChat(options: ChatOptions): Chat {
       return rows;
     },
 
-    skills: () => skillSource.list({ workspace }),
+    skills: async () => [...(await listSkills({ sources: skillSources, workspace })).values()].map(({ entry }) => entry),
 
     async sessions() {
       const rows: SessionRow[] = [];

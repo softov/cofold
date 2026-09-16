@@ -20,6 +20,7 @@
   },
   "files": [
     "dist",
+    "skills",
     "src",
     "!src/**/*.test.ts",
     "README.md"

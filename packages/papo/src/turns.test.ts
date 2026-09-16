@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { Message, RunRecord } from '@facio/agents';
 import { toBlocks } from './blocks.js';
 import { parseAnswers, toAskAnswers, toChatQuestion } from './questions.js';
+import { toMarkdown } from './export.js';
 import { inputLine, projectTurns, titleOf } from './turns.js';
+import type { Turn } from './types/turn.js';
 
 const at = '2026-09-16T10:00:00.000Z';
 const user = (id: string, text: string): Message => ({ id, role: 'user', source: 'input', parts: [{ type: 'text', text }], createdAt: at });
@@ -76,6 +78,29 @@ describe('projectTurns', () => {
   });
 });
 
+describe('toMarkdown', () => {
+  it('writes the turns with tool calls as lines and a failure as a quote', () => {
+    const usage = { inputTokens: 3, outputTokens: 4 };
+    const turns: Turn[] = [
+      { id: 'r1', input: 'Read it', state: 'complete', startedAt: at, endedAt: at, usage, steps: 2, parts: [
+        { kind: 'tool', id: 'c1', call: { id: 'c1', name: 'read_file', input: '{"path":"a"}', status: 'completed', output: '1|x' } },
+        { kind: 'text', id: 't', text: 'It says x.' },
+      ] },
+      { id: 'r2', input: 'Again', state: 'failed', startedAt: at, endedAt: at, usage, steps: 1, parts: [{ kind: 'error', id: 'e', message: 'boom' }] },
+    ];
+    const snapshot = {
+      session: { id: 's1', title: 'Read it', activity: 'idle' as const, workspace: '/w', updatedAt: at, createdAt: at },
+      settings: { model: 'p/m', permissions: 'destructive' as const, reasoning: 'off' as const },
+      turns, pending: null, running: false,
+    };
+    expect(toMarkdown(snapshot)).toBe([
+      '# Read it', '', 'Session `s1` · model `p/m` · permissions destructive · thinking off', '',
+      '## You', '', 'Read it', '', '## papo', '', '- `read_file({"path":"a"})` → completed', '', 'It says x.', '', '',
+      '## You', '', 'Again', '', '## papo', '', '> Failed: boom', '',
+    ].join('\n'));
+  });
+});
+
 describe('the small helpers', () => {
   it('writes the arguments on one line, falling back to the raw text', () => {
     expect(inputLine({ input: { a: 1 }, raw: '' })).toBe('{"a":1}');
@@ -90,7 +115,7 @@ describe('the small helpers', () => {
   });
 
   it('flattens turns into blocks in transcript order', () => {
-    const blocks = toBlocks([{ id: 'r1', input: 'hi', state: 'running', startedAt: at, parts: [{ kind: 'text', id: 'p', text: 'yo' }] }], 'm');
+    const blocks = toBlocks([{ id: 'r1', input: 'hi', state: 'running', startedAt: at, usage: { inputTokens: 0, outputTokens: 0 }, steps: 1, parts: [{ kind: 'text', id: 'p', text: 'yo' }] }], 'm');
     expect(blocks.map((block) => block.kind)).toEqual(['said', 'header', 'prose']);
     expect(blocks[1]).toMatchObject({ model: 'm', meta: 'running', state: 'running' });
     expect(blocks[2]).toMatchObject({ streaming: true });

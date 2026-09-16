@@ -70,6 +70,8 @@ export function projectTurns(input: ProjectionInput): { turns: Turn[]; pending: 
       state,
       startedAt: run.createdAt,
       ...(state === 'running' ? {} : { endedAt: run.updatedAt }),
+      usage: run.usage,
+      steps: run.steps,
     });
 
     if (waiting !== undefined && run.status === 'awaiting') pending = pendingOf(waiting, calls);

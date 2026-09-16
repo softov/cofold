@@ -1,3 +1,6 @@
+import { readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Io } from '@facio/commands';
 import { exitCodeFor } from '@facio/commands';
@@ -59,6 +62,12 @@ describe('the shell', () => {
     expect(shown.out).toContain('> Hello there');
     expect(shown.out).toContain('Hello back.');
     expect(shown.out).toContain('> And again');
+
+    const exported = await run('session', 'export', sessionId, '-o', join(tmpdir(), `papo-export-${sessionId}.md`));
+    expect(exported.code).toBe(0);
+    const file = exported.out.trim();
+    expect(await readFile(file, 'utf8')).toContain('## You\n\nHello there\n\n## papo\n\nHello back.');
+    await rm(file);
 
     const removed = await run('session', 'delete', sessionId);
     expect(removed.code).toBe(0);

@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -202,6 +202,22 @@ describe('createChat', () => {
     expect((await ask.chat.wait(asking.sessionId))?.status).toBe('awaiting');
     // ask_user itself now waits for approval before it may ask.
     expect((await ask.chat.snapshot(asking.sessionId)).pending?.kind).toBe('toolConfirmation');
+  });
+
+  it('lists the shipped skills after the home ones, a home skill of the same name winning', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'papo-home-'));
+    await mkdir(join(home, 'skills', 'review'), { recursive: true });
+    await writeFile(join(home, 'skills', 'review', 'SKILL.md'), ['---', 'name: review', 'description: Mine', '---', 'x', ''].join('\n'));
+    try {
+      const { chat } = testChat({ script: [], home });
+      const skills = await chat.skills();
+      expect(skills.map((skill) => [skill.name, skill.description])).toEqual([
+        ['review', 'Mine'],
+        ['init', 'Write or refresh AGENTS.md, the notes an agent needs to work in this repository'],
+      ]);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
   });
 
   it('gives the agent the standard tools the configuration turns on: read_file answers, shell_exec asks under destructive and runs under auto', async () => {

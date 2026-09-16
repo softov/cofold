@@ -1,3 +1,4 @@
+import type { Usage } from '@facio/agents';
 import type { ChatPendingInput, ChatToolCall } from '@textui/chat';
 import type { Settings } from './settings.js';
 
@@ -25,6 +26,9 @@ export interface Turn {
   model?: string;
   startedAt: string;
   endedAt?: string;
+  /** What the run's model steps cost, as the provider reported it. */
+  usage: Usage;
+  steps: number;
 }
 
 /** Everything a screen needs about one session, read at once. */
