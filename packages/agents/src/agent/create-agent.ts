@@ -68,6 +68,7 @@ export function createAgent<Resources = Record<string, unknown>>(options: AgentO
     instructions: options.instructions,
     model: { id: options.model.id, modelId: options.model.modelId },
     tools: [...tools.keys()],
+    deferred: [...tools.values()].filter((tool) => tool.deferred === true).map((tool) => tool.name),
     capabilities: [...capabilityIds],
     limits,
     context: { maxTokens: context.maxTokens },

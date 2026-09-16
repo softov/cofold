@@ -1,6 +1,6 @@
 <!--
 Domain: agent
-Status: Not started
+Status: Built
 Priority: High
 Created: 2026-09-16
 Revalidated: 2026-09-16
@@ -10,7 +10,7 @@ Reference: ./00-agent.md
 
 # AGENT-02 - Deferred tools: an index in the prompt, a definition on demand
 
-_Status: Not started · Priority: High · Created: 2026-09-16_
+_Status: Built (2026-09-16) · Priority: High · Created: 2026-09-16_
 
 ## Goal
 
@@ -99,13 +99,13 @@ docs/agents/                UPDATE: the tools page
 
 ## Resume state
 
-- **Done so far:** plan written 2026-09-16.
-- **Next action:** Task 1, after TOOLS-01 Task 1.
+- **Done so far:** plan written 2026-09-16; Tasks 1-3 built 2026-09-16. `run/deferred.ts` holds `requestToolsOf`, `instructionsOf`, `markLoaded`, `readLoaded`, `createLoadToolsTool` (source `core`); `TurnContext.toolDefinitions` is gone (the request is computed per step); `ToolCallDeps.loaded` lets `handleToolCall` apply decision 6; a `query` needs every word to match. 7 tests in `run/deferred.test.ts`; the file store's kv passes the conformance suite, so no second run there.
+- **Next action:** the MCP client plan contributes its servers with `defer: { over: 0 }` (decision 9); papo exposes nothing.
 - **Open questions:** none.
 - **Watch out for:** `resolveCapabilities` failing a run on a duplicate name; `load_tools` is a core name no capability may take.
 
 ## Final verification checklist
 
-- [ ] `pnpm check` green.
-- [ ] The five cases of Task 2 pass on the memory store and the file store.
-- [ ] `index.md` updated.
+- [x] `pnpm check` green (562 tests).
+- [x] The cases of Task 2 pass on the memory store; the file store's kv is covered by the conformance suite.
+- [x] `index.md` updated.

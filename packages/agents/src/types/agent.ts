@@ -48,6 +48,8 @@ export interface AgentDefinition {
   model: { id: string; modelId: string };
   /** Names of AgentOptions.tools only; capability tools are per run and appear in the model step's request. */
   tools: string[];
+  /** The deferred ones among `tools`. */
+  deferred: string[];
   capabilities: string[];
   limits: Limits;
   context: { maxTokens: number };

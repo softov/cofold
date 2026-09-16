@@ -33,6 +33,11 @@ export interface ToolDefinition<Input = unknown, Resources = Record<string, unkn
   description: string;
   input: JsonSchema;
   effects?: ToolEffects;
+  /**
+   * Known to the model by name and one line only, until it loads the definition with `load_tools`
+   * or a run's session has loaded it before (AGENT-02). A capability's `defer` sets it wholesale.
+   */
+  deferred?: boolean;
   execute: ToolExecute<Input, Resources>;
 }
 

@@ -130,6 +130,23 @@ import { fileSkillSource } from '@facio/store-file';
 const agent = createAgent({ ..., capabilities: [skills({ sources: [fileSkillSource({ root })] })] });
 ```
 
+## Deferred tools
+
+An agent with fifty tools sends the model a handful of definitions and one index line for the rest.
+`createTool({ ..., deferred: true })` marks one; a capability marks its own wholesale with `defer: true` or `defer: { over: N }` (every tool past the first N it returns).
+While any tool is deferred the run adds one core tool, `load_tools`, and the instructions end with a `## tools` section: the rule, then `- name: first sentence of the description` for every deferred tool the session has not loaded.
+
+`load_tools({ names })` returns the full definitions and loads them; `load_tools({ query })` matches the words against names and descriptions (ten at most); `load_tools({})` returns the index.
+A loaded tool is in every later request of the session: the names live in `kv.agent` at `loaded-tools/<sessionId>`, beside `approvals/`, so the next turn and a resumed run start with them; a new session starts clean.
+A valid call to a deferred tool that was never loaded runs anyway (the model may remember the schema) and loads it; what is refused is what was refused before: unknown names and invalid arguments.
+`AgentDefinition.deferred` names the agent's own deferred tools.
+
+```ts
+const agent = createAgent({ ..., capabilities: [mcpServer({ ..., defer: { over: 0 } })] });
+// request 1: tools = [load_tools], instructions end with "## tools\n...\n- list_issues: List the issues of a repository.\n- ..."
+// the model calls load_tools({ names: ['list_issues'] }) → request 2 carries list_issues; the line is gone from the index
+```
+
 ## Testing helpers
 
 ```ts

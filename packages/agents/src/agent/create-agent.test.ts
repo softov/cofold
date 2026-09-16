@@ -60,6 +60,7 @@ describe('createAgent', () => {
       instructions: 'be brief',
       model: { id: 'fake:fake', modelId: 'fake' },
       tools: ['echo', 'rm'],
+      deferred: [],
       capabilities: [],
       limits: DEFAULT_LIMITS,
       context: { maxTokens: 32_000 },

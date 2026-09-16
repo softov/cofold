@@ -10,7 +10,7 @@ import type { Usage } from './model.js';
 import type { RunOutcome } from './outcome.js';
 import type { RunHandle } from './run.js';
 import type { PendingRequest, Store } from './store.js';
-import type { ModelToolDefinition, Tool } from './tool.js';
+import type { Tool } from './tool.js';
 
 export type ToolCallResult =
   | { kind: 'result'; part: ToolResultPart; executed: boolean }
@@ -26,6 +26,8 @@ export interface ToolCallDeps {
   emit: Emitter['emit'];
   /** Next StepRecord.index; the caller increments after a step is appended. */
   nextStepIndex: () => number;
+  /** Names of the deferred tools whose definitions the model has this session (AGENT-02); shared with the context. */
+  loaded: Set<string>;
 }
 
 /** Everything the loop needs; built by run() for a fresh turn and by resume() from a stored run. */
@@ -38,7 +40,9 @@ export interface TurnContext {
   workspace?: string;
   run: RunInfo;
   tools: Map<string, Tool<any, any>>;
-  toolDefinitions: ModelToolDefinition[];
+  /** Deferred tools loaded this session, from `kv.agent` `loaded-tools/<sessionId>`; `requestToolsOf` reads it. */
+  loaded: Set<string>;
+  /** The agent's instructions with the capability sections; the `## tools` index is added per step (`instructionsOf`). */
   instructions: string;
   abort: RunAbort;
   emit: Emitter['emit'];

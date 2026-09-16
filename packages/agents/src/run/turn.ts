@@ -25,6 +25,7 @@ import { addUsage } from '../model/usage.js';
 import { validateSchema } from '@facio/sdk';
 import { renderAnswers } from '../tool/ask-user.js';
 import { assembleRequest } from './context.js';
+import { LOAD_TOOLS, createLoadToolsTool, instructionsOf, readLoaded, requestToolsOf } from './deferred.js';
 import { execute, handleToolCall } from './tools.js';
 
 const now = () => new Date().toISOString();
@@ -54,7 +55,7 @@ export function createTurnContext(args: {
     ...(session.workspace !== undefined ? { workspace: session.workspace } : {}),
     run: { runId, sessionId: session.sessionId, agentId, step: args.counters.steps, kv },
     tools,
-    toolDefinitions: [...tools.values()].map((t) => t.toModelDefinition()),
+    loaded: new Set(),
     instructions: agent.definition.instructions,
     abort: args.abort,
     emit: args.emit,
@@ -65,7 +66,8 @@ export function createTurnContext(args: {
 }
 
 /**
- * Resolves the agent's capabilities into ctx.tools / ctx.instructions (parent decision 31).
+ * Resolves the agent's capabilities into ctx.tools / ctx.instructions (parent decision 31), applies their
+ * `defer`, reads what this session has loaded, and adds `load_tools` when anything is deferred (AGENT-02).
  * Returns false after finishing the run as failed when a capability throws or clashes.
  */
 export async function resolveCapabilities(ctx: TurnContext): Promise<boolean> {
@@ -86,17 +88,21 @@ export async function resolveCapabilities(ctx: TurnContext): Promise<boolean> {
       await finishRun(ctx, fail(ctx, 'capability_error', `capability "${cap.id}": ${(e as Error).message}`, { capability: cap.id }));
       return false;
     }
-    for (const tool of contributed) {
-      if (ctx.tools.has(tool.name)) {
+    for (const [index, tool] of contributed.entries()) {
+      if (ctx.tools.has(tool.name) || tool.name === LOAD_TOOLS) {
         await finishRun(ctx, fail(ctx, 'invalid_options', `capability "${cap.id}" contributes a duplicate tool "${tool.name}"`));
         return false;
       }
-      ctx.tools.set(tool.name, Object.freeze({ ...tool, source: cap.id }));
+      const deferred = cap.defer === true || (typeof cap.defer === 'object' && index >= cap.defer.over);
+      ctx.tools.set(tool.name, Object.freeze({ ...tool, source: cap.id, ...(deferred ? { deferred: true } : {}) }));
     }
     if (text && text.trim()) sections.push(`## ${cap.id}\n${text.trim()}`);
   }
   ctx.instructions = [agent.definition.instructions, ...sections].join('\n\n');
-  ctx.toolDefinitions = [...ctx.tools.values()].map((t) => t.toModelDefinition());
+  if ([...ctx.tools.values()].some((tool) => tool.deferred === true)) {
+    ctx.loaded = await readLoaded({ tools: ctx.tools, kv: ctx.run.kv.agent, sessionId: ctx.sessionId });
+    ctx.tools.set(LOAD_TOOLS, createLoadToolsTool(ctx));
+  }
   return true;
 }
 
@@ -146,7 +152,7 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
 
       const history = await store.sessions.listMessages({ sessionId });
       let request: ModelRequest = assembleRequest({
-        instructions: ctx.instructions, history, tools: ctx.toolDefinitions, params: agent.params,
+        instructions: instructionsOf(ctx), history, tools: requestToolsOf(ctx), params: agent.params,
         maxTokens: agent.context.maxTokens, estimateTokens: agent.context.estimateTokens, signal: abort.signal,
       });
 
@@ -220,7 +226,7 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
  */
 async function processCalls(ctx: TurnContext, calls: ToolCallPart[], resolved?: ResolvedRequest): Promise<'continue' | 'done'> {
   const { agent, abort, emit, counters } = ctx;
-  const deps: ToolCallDeps = { agent, tools: ctx.tools, run: ctx.run, abort, emit, nextStepIndex: () => counters.stepIndex++ };
+  const deps: ToolCallDeps = { agent, tools: ctx.tools, run: ctx.run, abort, emit, nextStepIndex: () => counters.stepIndex++, loaded: ctx.loaded };
   let limitHit = false;
   for (let i = 0; i < calls.length; i += 1) {
     const call = calls[i]!;

@@ -18,6 +18,11 @@ export interface CapabilityArgs {
 export interface Capability {
   /** Stable id; unique within an agent. Becomes Tool.source for its tools and the section label in the prompt. */
   id: string;
+  /**
+   * Marks the contributed tools deferred (AGENT-02): `true` every one, `{ over: N }` those past the
+   * first N in the order `tools()` returns them. A tool's own `deferred` is left as it is when unset here.
+   */
+  defer?: boolean | { over: number };
   /** `Tool<any, any>` (decision 67): a capability returns tools of mixed input types. */
   tools?(args: CapabilityArgs): Tool<any, any>[] | Promise<Tool<any, any>[]>;
   /** Text appended to the agent instructions under a `## <id>` heading; undefined contributes nothing this run. */

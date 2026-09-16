@@ -4,6 +4,7 @@ import type { Tool, ToolContext, ToolOutput } from '../types/tool.js';
 import type { ToolCallDeps, ToolCallResult } from '../types/turn.js';
 import { newId } from '../ids.js';
 import { validateSchema } from '@facio/sdk';
+import { markLoaded } from './deferred.js';
 import { PauseSignal } from './pause.js';
 
 /**
@@ -26,6 +27,8 @@ export async function handleToolCall(deps: ToolCallDeps, call: ToolCallPart): Pr
   const validated = validateSchema({ schema: tool.input, value: call.input });
   if (!validated.ok) return deny(`Invalid arguments: ${formatIssues(validated.issues)}`);
   let input: unknown = validated.value;
+  // A valid call to a deferred tool the model never loaded runs anyway (AGENT-02 decision 6) and loads it.
+  if (tool.deferred === true) await markLoaded({ loaded: deps.loaded, kv: run.kv.agent, sessionId: run.sessionId }, [tool.name]);
 
   // Hook first: it may deny, modify, or ask for approval. It cannot lower the policy floor.
   let hookWantsApproval = false;

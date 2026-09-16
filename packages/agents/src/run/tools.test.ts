@@ -42,6 +42,7 @@ async function setup(opts: {
     agent, tools: agent.tools, run, abort,
     emit: async (body) => { events.push(body); return { ...body, seq: events.length, runId: 'r', sessionId: 's', agentId: 'a', at: 'now' }; },
     nextStepIndex: () => index++,
+    loaded: new Set(),
   };
   const steps = () => store.runs.listSteps({ sessionId: 's', runId: 'r' });
   return { deps, events, execute, store, abort, kv, steps, types: () => events.map((e) => e.type) };
