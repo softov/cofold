@@ -49,6 +49,10 @@ export interface TurnContext {
   handle: InternalRunHandle;
   counters: { usage: Usage; steps: number; stepIndex: number; toolCalls: number };
   claimed: boolean;
+  /** A `compact()` run: one summary step, no tools, then done. */
+  compact: boolean;
+  /** The run's input message; an auto-compaction leaves it out of the summary. */
+  inputMessageId?: string;
   /** Writer lease timer (decision 68); cleared when the run settles, before the outcome is published. */
   heartbeat?: ReturnType<typeof setInterval>;
 }

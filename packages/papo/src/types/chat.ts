@@ -68,6 +68,8 @@ export interface Chat {
   answer(sessionId: string, answers: AskAnswers): Promise<void>;
   /** Aborts a running turn, or denies whatever the session is waiting on. */
   cancel(sessionId: string): Promise<void>;
+  /** Fold the conversation so far into a summary, as a run of its own; `wait` sees it end. Refused while a turn runs or waits. */
+  compact(sessionId: string): Promise<Started>;
   remove(sessionId: string): Promise<void>;
   /** Called with the session whose state changed; returns the unsubscribe. */
   subscribe(listener: ChatListener): () => void;

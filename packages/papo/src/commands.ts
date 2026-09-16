@@ -20,13 +20,15 @@ const SETTING_FIELDS = {
   model: { type: 'string', description: 'The model, as provider/model (see `papo models`)', cli: { short: '-m', value: 'PROVIDER/MODEL' } },
   permissions: { type: 'string', description: 'When a tool call stops to ask', enum: ['destructive', 'ask', 'auto'], cli: { short: '-p', value: 'MODE' } },
   reasoning: { type: 'string', description: 'How much the model thinks first', enum: ['off', 'low', 'medium', 'high'], cli: { short: '-t', value: 'LEVEL' } },
+  autocompact: { type: 'string', description: 'Fold the conversation into a summary before it outgrows the context', enum: ['on', 'off'], cli: { short: '-a', value: 'on|off' } },
 } as const;
 
-function settingsPatch(input: { model?: string; permissions?: string; reasoning?: string }): Partial<Settings> {
+function settingsPatch(input: { model?: string; permissions?: string; reasoning?: string; autocompact?: string }): Partial<Settings> {
   return {
     ...(input.model !== undefined ? { model: input.model } : {}),
     ...(input.permissions !== undefined ? { permissions: input.permissions as Settings['permissions'] } : {}),
     ...(input.reasoning !== undefined ? { reasoning: input.reasoning as Settings['reasoning'] } : {}),
+    ...(input.autocompact !== undefined ? { autoCompact: input.autocompact === 'on' } : {}),
   };
 }
 
@@ -189,6 +191,22 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     run: async ({ input, papo }) => {
       await withAgentErrors(() => papo.chat.cancel(input.session));
       return output({ sessionId: input.session }, `Cancelled ${input.session}\n`);
+    },
+  });
+
+  registry.action({
+    id: 'compact',
+    group: 'talk',
+    summary: 'Fold the conversation so far into a summary the model continues from',
+    needs: ['papo'],
+    input: { session: { type: 'string', description: 'The session', minLength: 1 } },
+    required: ['session'],
+    surfaces: { cli: { pattern: ['compact', ':session'] }, mcp: true },
+    run: async ({ input, papo }) => {
+      const started = await withAgentErrors(() => papo.chat.compact(input.session));
+      const outcome = await papo.chat.wait(started.sessionId);
+      const snapshot = await papo.chat.snapshot(started.sessionId);
+      return output({ sessionId: started.sessionId, runId: started.runId, outcome }, () => renderOutcome(snapshot, outcome));
     },
   });
 
@@ -392,7 +410,7 @@ function renderTurn(turn: Turn, options: { toolCalls: boolean }): string[] {
 }
 
 function renderSettings(settings: Settings): string {
-  return `model ${settings.model} · permissions ${settings.permissions} · reasoning ${settings.reasoning}`;
+  return `model ${settings.model} · permissions ${settings.permissions} · reasoning ${settings.reasoning} · autocompact ${settings.autoCompact ? 'on' : 'off'}`;
 }
 
 function renderTranscript(snapshot: Snapshot): string {

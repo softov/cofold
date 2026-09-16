@@ -95,7 +95,7 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
       const emitter = createEmitter({ store, runId, sessionId, agentId: record.agentId, publish: handle.publish, onEvent: agent.hooks.onEvent?.bind(agent.hooks), warn: agent.warn, startSeq: lastSeq });
       const steps = await store.runs.listSteps({ sessionId, runId });
       const counters = countersOf(record, steps);
-      const ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, counters, claimed: true });
+      const ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, counters, claimed: true, ...(record.inputMessageId !== undefined ? { inputMessageId: record.inputMessageId } : {}) });
       if (!(await resolveCapabilities(ctx))) return;
 
       if (record.status === 'running') return await recover(ctx, steps);

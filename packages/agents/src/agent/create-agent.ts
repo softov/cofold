@@ -1,4 +1,4 @@
-import type { Agent, AgentDefinition, AgentOptions, ContextOptions, Policy } from '../types/agent.js';
+import type { Agent, AgentDefinition, AgentOptions, Policy, ResolvedContext } from '../types/agent.js';
 import type { Capability } from '../types/capability.js';
 import type { Limits } from '../types/limits.js';
 import type { Tool } from '../types/tool.js';
@@ -8,7 +8,7 @@ import { DEFAULT_LIMITS } from './limits.js';
 
 const ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 // Function property, not a method: Required<ContextOptions> demands a value for estimateTokens.
-const DEFAULT_CONTEXT: Required<ContextOptions> = {
+const DEFAULT_CONTEXT: ResolvedContext = {
   maxTokens: 32_000,
   estimateTokens: (text) => Math.ceil(text.length / 4),
 };
@@ -61,7 +61,10 @@ export function createAgent<Resources = Record<string, unknown>>(options: AgentO
   }
 
   const limits: Limits = { ...DEFAULT_LIMITS, ...options.limits };
-  const context: Required<ContextOptions> = { ...DEFAULT_CONTEXT, ...options.context };
+  const context: ResolvedContext = { ...DEFAULT_CONTEXT, ...options.context };
+  if (context.autoCompactTokens !== undefined && context.autoCompactTokens <= 0) {
+    throw new AgentError({ code: 'invalid_options', message: `agent "${options.id}": context.autoCompactTokens must be positive` });
+  }
   const policy: Policy = { ...DEFAULT_POLICY, ...options.policy };
   const definition: AgentDefinition = {
     id: options.id,

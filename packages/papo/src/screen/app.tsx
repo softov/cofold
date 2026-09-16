@@ -11,6 +11,7 @@ import type { BoxProps, Disposable, ServiceKey, TextUIApp } from '@textui/core';
 import { createBag, defineComponent, serviceKey, useApp, useStoreValue, useTheme } from '@textui/core';
 import { KeyHints, Row, registerBuiltins } from '@textui/widgets';
 import type { Papo } from '../commands.js';
+import { AUTO_COMPACT_AT } from '../agent.js';
 import { redactedConfig } from '../commands.js';
 import { exportPath, toMarkdown } from '../export.js';
 import { toAskAnswers } from '../questions.js';
@@ -53,6 +54,8 @@ export interface Controller extends Disposable {
   remove(sessionId: string): Promise<void>;
   /** Change what the open conversation runs with; before it exists, what it will start with. */
   configure(patch: Partial<Settings>): Promise<void>;
+  /** Fold the open conversation into a summary; a run of its own, watched like a turn. */
+  compact(): Promise<void>;
 }
 
 export const CONTROLLER: ServiceKey<Controller> = serviceKey<Controller>('papo.controller');
@@ -128,6 +131,18 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
       const current = open();
       if (current === null) return;
       try { await chat.cancel(current); } catch (error: unknown) { report(error); }
+    },
+
+    async compact() {
+      const current = open();
+      if (current === null) { report(new Error('compact: nothing said yet')); return; }
+      try {
+        await chat.compact(current);
+        app.store.set(ERROR, null);
+        await reload(current);
+      } catch (error: unknown) {
+        report(error);
+      }
     },
 
     async remove(sessionId) {
@@ -401,6 +416,16 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
       run: () => { app.store.set(MARKDOWN, !(app.store.get<boolean>(MARKDOWN) ?? true)); },
     },
     {
+      id: 'chat.compact', title: 'Compact', category: 'Chat', slots: ['palette'], description: 'Fold the conversation so far into a summary the model continues from',
+      run: () => void controller.compact(),
+    },
+    {
+      id: 'chat.autocompact', title: 'Auto-compact', category: 'Chat', slots: ['palette'], keepOpen: true,
+      description: 'Fold the conversation before a turn once it nears the context budget',
+      get badge(): string { return settings()?.autoCompact === false ? 'off' : 'on'; },
+      run: () => { void controller.configure({ autoCompact: !(settings()?.autoCompact ?? true) }); },
+    },
+    {
       id: 'chat.status', title: 'Status', category: 'Chat', slots: ['palette'], description: 'Session, model, mode, folders, tokens',
       run: () => showInfo(app, { title: 'Status', lines: statusLines() }),
     },
@@ -492,6 +517,7 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
       `model        ${chosen?.model || 'first listed model'}`,
       `permissions  ${chosen === null ? '' : PERMISSION_LABELS[chosen.permissions].label}`,
       `thinking     ${chosen === null ? '' : REASONING_LABELS[chosen.reasoning]}`,
+      `auto-compact ${chosen === null ? '' : chosen.autoCompact ? `on, at ${Math.floor(papo.config.context.maxTokens * AUTO_COMPACT_AT)} of ${papo.config.context.maxTokens} tokens` : 'off'}`,
       `workspace    ${papo.workspace}`,
       `home         ${papo.home}`,
       `turns        ${current?.turns.length ?? 0}${current?.running ? '  (one running)' : ''}`,

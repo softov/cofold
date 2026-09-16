@@ -48,6 +48,14 @@ const SCHEMA: JsonSchema = {
       },
       additionalProperties: false,
     },
+    context: {
+      type: 'object',
+      properties: {
+        maxTokens: { type: 'integer', minimum: 1000 },
+        autoCompact: { type: 'boolean' },
+      },
+      additionalProperties: false,
+    },
     tools: {
       type: 'object',
       properties: {
@@ -88,6 +96,7 @@ export const DEFAULT_INSTRUCTIONS = 'You are a careful assistant working in the 
 const BASE = {
   providers: [], permissions: 'destructive', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS,
   tools: { files: true, shell: true, web: true, memory: true },
+  context: { maxTokens: 32_000, autoCompact: true },
   theme: 'paper', shell: 'workbench',
 } as const;
 

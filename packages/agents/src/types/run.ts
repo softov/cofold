@@ -13,6 +13,13 @@ export interface RunArgs<Resources = Record<string, unknown>> {
   signal?: AbortSignal;
 }
 
+/** `compact()`: a run whose only step writes the summary of the session so far. */
+export interface CompactArgs<Resources = Record<string, unknown>> {
+  agent: Agent<Resources>;
+  session: string;
+  signal?: AbortSignal;
+}
+
 export interface ResumeArgs<Resources = Record<string, unknown>> {
   agent: Agent<Resources>;
   /** Both come from the `awaiting` outcome (or RunHandle.sessionId / runId). */

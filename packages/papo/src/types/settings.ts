@@ -14,6 +14,8 @@ export interface Settings {
   model: string;
   permissions: PermissionMode;
   reasoning: Reasoning;
+  /** Fold the conversation into a summary before a turn once it nears the context budget (`/compact` does it by hand). */
+  autoCompact: boolean;
 }
 
 export const PERMISSION_MODES: readonly PermissionMode[] = ['destructive', 'ask', 'auto'];

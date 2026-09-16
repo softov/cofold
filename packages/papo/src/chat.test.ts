@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AgentError } from '@facio/agents';
+import type { FakeModel } from '@facio/agents/testing';
 import { deleteFileTool, testChat } from './testing.js';
 
 const ECHO = [{ text: 'Hello back.' }];
@@ -164,16 +165,16 @@ describe('createChat', () => {
   it('starts from the configured defaults and keeps each session own choices', async () => {
     const { chat, provider } = testChat({ script: [{ text: 'a' }, { text: 'b' }, { text: 'c' }], config: { model: undefined } });
     // No model configured: nothing is asked of the provider until a turn needs it.
-    expect(await chat.settings()).toEqual({ model: '', permissions: 'destructive', reasoning: 'off' });
+    expect(await chat.settings()).toEqual({ model: '', permissions: 'destructive', reasoning: 'off', autoCompact: false });
     expect(provider.asked).toEqual([]);
 
     const started = await chat.say({ text: 'One', settings: { reasoning: 'high', model: 'fake/other' } });
     await chat.wait(started.sessionId);
     expect(provider.asked.at(-1)).toEqual({ id: 'other', params: { reasoning: { effort: 'high' } } });
-    expect((await chat.snapshot(started.sessionId)).settings).toEqual({ model: 'fake/other', permissions: 'destructive', reasoning: 'high' });
+    expect((await chat.snapshot(started.sessionId)).settings).toEqual({ model: 'fake/other', permissions: 'destructive', reasoning: 'high', autoCompact: false });
 
     await chat.configure(started.sessionId, { reasoning: 'off', permissions: 'ask' });
-    expect(await chat.settings(started.sessionId)).toEqual({ model: 'fake/other', permissions: 'ask', reasoning: 'off' });
+    expect(await chat.settings(started.sessionId)).toEqual({ model: 'fake/other', permissions: 'ask', reasoning: 'off', autoCompact: false });
     await chat.say({ sessionId: started.sessionId, text: 'Two' });
     await chat.wait(started.sessionId);
     expect(provider.asked.at(-1)).toEqual({ id: 'other', params: {} });
@@ -182,8 +183,8 @@ describe('createChat', () => {
     const fresh = await chat.say({ text: 'Three' });
     await chat.wait(fresh.sessionId);
     expect(provider.asked.at(-1)).toEqual({ id: 'scripted', params: {} });
-    expect(await chat.settings(fresh.sessionId)).toEqual({ model: 'fake/scripted', permissions: 'destructive', reasoning: 'off' });
-    expect(await chat.settings()).toEqual({ model: 'fake/scripted', permissions: 'destructive', reasoning: 'off' });
+    expect(await chat.settings(fresh.sessionId)).toEqual({ model: 'fake/scripted', permissions: 'destructive', reasoning: 'off', autoCompact: false });
+    expect(await chat.settings()).toEqual({ model: 'fake/scripted', permissions: 'destructive', reasoning: 'off', autoCompact: false });
 
     await expect(chat.configure(started.sessionId, { permissions: 'maybe' as never })).rejects.toMatchObject({ code: 'invalid_options' });
     await expect(chat.configure('missing', { reasoning: 'low' })).rejects.toMatchObject({ code: 'not_found' });
@@ -202,6 +203,30 @@ describe('createChat', () => {
     expect((await ask.chat.wait(asking.sessionId))?.status).toBe('awaiting');
     // ask_user itself now waits for approval before it may ask.
     expect((await ask.chat.snapshot(asking.sessionId)).pending?.kind).toBe('toolConfirmation');
+  });
+
+  it('compacts a session into a summary turn the next turn starts from, and refuses while busy', async () => {
+    const { tool } = deleteFileTool();
+    const { chat, provider } = testChat({
+      script: [{ text: 'Hello back.' }, { text: 'We greeted each other.' }, { text: 'Still here.' }, { toolCalls: [{ name: 'delete_file', input: { path: 'a' } }] }],
+      tools: [tool],
+    });
+    const started = await chat.say({ text: 'Hello there' });
+    await chat.wait(started.sessionId);
+    const folded = await chat.compact(started.sessionId);
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    const snapshot = await chat.snapshot(started.sessionId);
+    expect(snapshot.turns.map((turn) => turn.input)).toEqual(['Hello there', 'Summarize the conversation so far.']);
+    expect(snapshot.turns[1]).toMatchObject({ id: folded.runId, state: 'complete', parts: [{ kind: 'summary', text: 'Summary of the conversation so far:\n\nWe greeted each other.' }] });
+
+    await chat.say({ sessionId: started.sessionId, text: 'Again?' });
+    await chat.wait(started.sessionId);
+    const { requests } = provider.model({ id: 'scripted' }) as FakeModel;
+    expect(requests.at(-1)!.messages.map((m) => m.source)).toEqual(['summary', 'input']);
+
+    await chat.say({ sessionId: started.sessionId, text: 'Delete a' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('awaiting');
+    await expect(chat.compact(started.sessionId)).rejects.toMatchObject({ code: 'writer_busy' });
   });
 
   it('lists the shipped skills after the home ones, a home skill of the same name winning', async () => {

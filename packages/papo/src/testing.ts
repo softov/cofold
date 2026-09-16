@@ -53,6 +53,7 @@ export function testConfig(overrides: Partial<PapoConfig> | { model: undefined }
     reasoning: 'off',
     instructions: DEFAULT_INSTRUCTIONS,
     tools: { files: false, shell: false, web: false, memory: false },
+    context: { maxTokens: 32_000, autoCompact: false },
     theme: 'paper',
     shell: 'workbench',
   };

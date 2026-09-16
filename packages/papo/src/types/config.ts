@@ -27,6 +27,14 @@ export interface SearchConfig {
   duckduckgo?: boolean;
 }
 
+/** How much conversation a request may carry, and whether papo folds it before that runs out. */
+export interface ContextConfig {
+  /** Tokens for the instructions and the history, as the harness estimates them; default 32 000. */
+  maxTokens: number;
+  /** New sessions start with auto-compaction on; each session may switch it. Compaction runs at 80% of `maxTokens`. */
+  autoCompact: boolean;
+}
+
 /** Which `@facio/tools` capabilities the agent gets; all on by default. */
 export interface ToolsConfig {
   files: boolean;
@@ -51,6 +59,7 @@ export interface PapoConfig {
   /** Sampling; `reasoning` is a setting, not a param, so it is not here. */
   params?: Omit<ModelParams, 'reasoning'>;
   tools: ToolsConfig;
+  context: ContextConfig;
   /** The textui theme and shell the screen opens with. */
   theme: string;
   shell: string;

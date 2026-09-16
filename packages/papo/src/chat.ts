@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Agent, PendingRequest, RunHandle, RunRecord } from '@facio/agents';
-import { AgentError, listSkills, newId, resume, run } from '@facio/agents';
+import { AgentError, compact, listSkills, newId, resume, run } from '@facio/agents';
 import { fileSkillSource } from '@facio/store-file';
 import { AGENT_ID, buildAgent } from './agent.js';
 import { providerFor } from './config.js';
@@ -91,6 +91,7 @@ export function createChat(options: ChatOptions): Chat {
       model: own?.model ?? defaultModel ?? '',
       permissions: own?.permissions ?? config.permissions,
       reasoning: own?.reasoning ?? config.reasoning,
+      autoCompact: own?.autoCompact ?? config.context.autoCompact,
     };
   }
 
@@ -255,6 +256,19 @@ export function createChat(options: ChatOptions): Chat {
       attach(id, { handle, agent });
       notify(id);
       return { sessionId: id, runId: handle.runId } satisfies Started;
+    },
+
+    async compact(sessionId) {
+      await requireSession(sessionId);
+      const last = await newest(sessionId);
+      if (last?.status === 'awaiting' || (last?.status === 'running' && attached.has(sessionId))) {
+        throw new AgentError({ code: 'writer_busy', message: `session ${sessionId} is busy; wait, answer or cancel it first` });
+      }
+      const agent = await agentFor(await settingsOf(sessionId));
+      const handle = compact({ agent, session: sessionId });
+      attach(sessionId, { handle, agent });
+      notify(sessionId);
+      return { sessionId, runId: handle.runId } satisfies Started;
     },
 
     wait: async (sessionId) => attached.get(sessionId)?.handle.outcome,

@@ -81,7 +81,7 @@ packages/papo/README.md                      UPDATE
 ## Resume state
 
 - **Done so far:** plan written and Tasks 1-2 built 2026-09-16. `/export` on the screen takes no path (a free-text argument gets no picker; the shell's `-o` does); the overlay is `screen/info.tsx`.
-- **Next action:** none here. `/compact` and `/autocompact` wait for harness p5 Task 6; `/mcp` for the MCP client.
+- **Next action:** none here. `/compact` and `/autocompact` were added the same day once harness p5 Task 6 was built; `/mcp` waits for the MCP client.
 - **Open questions:** none.
 - **Watch out for:** `app.themes.list()` shape (`{ id }`), `app.keybindings.list()` availability in `@textui/core`.
 

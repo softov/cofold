@@ -24,6 +24,7 @@ import { toolCallsOf } from '../message/helpers.js';
 import { addUsage } from '../model/usage.js';
 import { validateSchema } from '@facio/sdk';
 import { renderAnswers } from '../tool/ask-user.js';
+import { historyEstimate, writeSummary } from './compact.js';
 import { assembleRequest } from './context.js';
 import { LOAD_TOOLS, createLoadToolsTool, instructionsOf, readLoaded, requestToolsOf } from './deferred.js';
 import { execute, handleToolCall } from './tools.js';
@@ -40,6 +41,9 @@ export function createTurnContext(args: {
   handle: InternalRunHandle;
   counters: TurnContext['counters'];
   claimed: boolean;
+  /** A `compact()` run; default false (resume() never resumes one: it has no pause). */
+  compact?: boolean;
+  inputMessageId?: string;
 }): TurnContext {
   const { agent, store, session, runId } = args;
   const agentId = agent.definition.id;
@@ -62,6 +66,8 @@ export function createTurnContext(args: {
     handle: args.handle,
     counters: args.counters,
     claimed: args.claimed,
+    compact: args.compact ?? false,
+    ...(args.inputMessageId !== undefined ? { inputMessageId: args.inputMessageId } : {}),
   };
 }
 
@@ -150,7 +156,23 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
       counters.steps += 1;
       ctx.run.step = counters.steps;
 
-      const history = await store.sessions.listMessages({ sessionId });
+      let history = await store.sessions.listMessages({ sessionId });
+      // A compact() run is the summary step and nothing else; a turn compacts in passing when the
+      // history has grown past the threshold, then goes on with the summary in place of it.
+      const threshold = agent.context.autoCompactTokens;
+      if (ctx.compact || (threshold !== undefined && historyEstimate(ctx, history) > threshold)) {
+        counters.steps -= 1;
+        let summary: Message;
+        try { summary = await writeSummary(ctx, history); }
+        catch (e) {
+          if (abort.signal.aborted) return await finishRun(ctx, abortOutcome(ctx));
+          return await finishRun(ctx, fail(ctx, e instanceof ModelError ? e.code : 'internal', `summary: ${(e as Error).message}`, summarize(e)));
+        }
+        if (ctx.compact) return await finishRun(ctx, { status: 'completed', message: summary, usage: counters.usage, steps: counters.steps });
+        counters.steps += 1;
+        ctx.run.step = counters.steps;
+        history = await store.sessions.listMessages({ sessionId });
+      }
       let request: ModelRequest = assembleRequest({
         instructions: instructionsOf(ctx), history, tools: requestToolsOf(ctx), params: agent.params,
         maxTokens: agent.context.maxTokens, estimateTokens: agent.context.estimateTokens, signal: abort.signal,

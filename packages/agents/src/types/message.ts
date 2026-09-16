@@ -39,4 +39,9 @@ export interface Message {
   parts: ContentPart[];
   source: MessageSource;
   createdAt: string;
+  /**
+   * On a `summary` message: the ids of the messages it stands for (older summaries included), which
+   * a request no longer carries. The originals stay on disk.
+   */
+  summarizes?: string[];
 }

@@ -218,6 +218,37 @@ describe('the screen', () => {
     }
   });
 
+  it('/compact folds the conversation into a summary turn and /autocompact toggles the setting', async () => {
+    const { t } = await screen({ script: [{ text: 'Hello back.' }, { text: 'We said hello.' }] });
+    t.press('n');
+    await settle(t);
+    t.type('Hello there');
+    t.press('enter');
+    await settle(t, 30);
+    t.type('/compact');
+    t.press('enter');
+    await settle(t, 30);
+    expect(t.hasText('folded into this summary')).toBe(true);
+    expect(t.hasText('We said hello.')).toBe(true);
+
+    t.type('/status');
+    t.press('enter');
+    await settle(t);
+    expect(t.hasText('auto-compact off')).toBe(true);
+    t.press('escape');
+    await settle(t);
+    t.type('/autocompact');
+    t.press('enter');
+    await settle(t);
+    t.type('/status');
+    t.press('enter');
+    await settle(t);
+    expect(t.hasText('auto-compact on, at 25600 of 32000 tokens')).toBe(true);
+    t.press('escape');
+    await settle(t);
+    await t.unmount();
+  });
+
   it('/skill opens a picker of the skills and puts the chosen one in the field', async () => {
     const { t } = await screen({ script: [] });
     t.press('n');

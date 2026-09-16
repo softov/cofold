@@ -90,7 +90,7 @@ describe('toMarkdown', () => {
     ];
     const snapshot = {
       session: { id: 's1', title: 'Read it', activity: 'idle' as const, workspace: '/w', updatedAt: at, createdAt: at },
-      settings: { model: 'p/m', permissions: 'destructive' as const, reasoning: 'off' as const },
+      settings: { model: 'p/m', permissions: 'destructive' as const, reasoning: 'off' as const, autoCompact: false },
       turns, pending: null, running: false,
     };
     expect(toMarkdown(snapshot)).toBe([

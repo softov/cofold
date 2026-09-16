@@ -28,6 +28,8 @@ export type RunEventBody =
   | { type: 'input.declined'; requestId: string; reason?: string }
   | { type: 'run.paused'; requestId: string; kind: 'approval' | 'input' }
   | { type: 'run.resumed'; requestId: string }
+  /** The history was folded into one summary message, by `compact()` or the auto-compact threshold. */
+  | { type: 'context.compacted'; messageId: string; summarized: number; estimatedTokens: number }
   | { type: 'run.finished'; outcome: RunOutcome };
 
 export type RunEvent = EventBase & RunEventBody;

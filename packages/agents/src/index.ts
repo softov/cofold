@@ -4,7 +4,7 @@ export type { AgentErrorCode } from './types/error.js';
 export { newId } from './ids.js';
 export { DEFAULT_LIMITS } from './agent/limits.js';
 export { createAgent } from './agent/create-agent.js';
-export { run, HEARTBEAT_MS } from './run/run.js';
+export { run, compact, HEARTBEAT_MS } from './run/run.js';
 export { resume } from './run/resume.js';
 export { pauseForInput, PauseSignal } from './run/pause.js';
 export { textOf, toolCallsOf } from './message/helpers.js';

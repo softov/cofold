@@ -225,9 +225,9 @@ packages/model-openai-compat/src/
 
 - `ModelAdapter.stream?(request): AsyncIterable<ModelStreamEvent>` with `text.delta`, `reasoning.delta`, `toolCall.delta`, `done { reply }`; the loop publishes `model.delta` for text immediately and assembles every tool call completely before validation or execution. A stream that ends before `done` records the step `failed`, never `uncertain` (spec: "A stream interruption must not leave a partial call that gets executed on retry"). `openaiCompat` implements SSE with its own parser (zero-deps rule). Open: whether `model.delta` is persisted (decision 61 says every event is; deltas are many and cheap) or coalesced into one event per step in the log.
 
-### Task 6 - Context reduction and `/compact` (outline)
+### Task 6 - Context reduction and `/compact` (Built 2026-09-16)
 
-- `context.strategy`: default `recent` (decision 60); `summarize` produces a `Message` with `source: 'summary'` stored in the session next to the originals, carrying `summarizes: messageId[]`, the model id and `createdAt`; the assembler takes the summary when the originals exceed the budget. `RunHandle`-level `compact` is a run whose only step is the summary. `AgentOptions.context.autoCompactTokens?: number` triggers it before a step when the estimate exceeds the threshold. Open: the exact `Message` shape for a summary (a part type or a field), and whether `resume()` needs to know about it (it should not: the transcript is complete without the summary).
+- Built as `run/compact.ts` + `run/context.ts` `contextOf`: the summary is a `Message { role: 'user', source: 'summary', summarizes: string[] }` (a field, not a part; no model id on it, the step record has the reply), appended to the session; a request carries the newest summary first, then every message no summary stands for (an auto-compacted turn's own input stays out of the summary and after it in the request). `compact({ agent, session })` is a run whose input is the ask (`source: 'system'`) and whose one step writes the summary; `context.autoCompactTokens` writes it in passing before the turn's model step. New event `context.compacted { messageId, summarized, estimatedTokens }`. No `context.strategy` option: there is one strategy, the summary floor plus `recent` after it. `resume()` needs nothing: `contextOf` reads the transcript. Tests: `run/compact.test.ts` (5). papo: `/compact`, `/autocompact`, `compact <session>`, `-a on|off`, `config.context { maxTokens, autoCompact }` at 80% of `maxTokens`.
 
 ### Task 7 - Usage accounting (outline)
 
@@ -254,9 +254,9 @@ packages/model-openai-compat/src/
 
 ## Resume state
 
-- **Done so far:** Tasks 1-4 planned in full 2026-09-16; Tasks 5-8 scoped.
+- **Done so far:** Tasks 1-4 planned in full 2026-09-16; Task 6 built 2026-09-16 (ahead of 1-4, on papo's need for `/compact`); Tasks 5, 7, 8 scoped.
 - **Next action:** `/dooit` Tasks 1-4 as one branch (typecheck is only green after Task 4); then `/dooplan` Tasks 5-8.
-- **Open questions (Tasks 5-8 round):** `model.delta` persistence; summary `Message` shape; `pricing` location; SSE parser (own).
+- **Open questions (Tasks 5, 7, 8 round):** `model.delta` persistence; `pricing` location; SSE parser (own).
 - **Watch out for:** `@facio/chat` decision 12 (queue) must be amended once Task 2 ships: `say` during an attached run → `submit(steer)`, falling back to `say` as a new run on `not_running`; `queue` stays the follow-up queue. `ahpd` adapter (p4) maps AHP's `queue` to the same split.
 
 ## Final verification checklist

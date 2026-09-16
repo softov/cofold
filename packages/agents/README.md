@@ -130,6 +130,20 @@ import { fileSkillSource } from '@facio/store-file';
 const agent = createAgent({ ..., capabilities: [skills({ sources: [fileSkillSource({ root })] })] });
 ```
 
+## Compaction
+
+A request carries the instructions and the history up to `context.maxTokens` (32 000 by default), newest turns first; what does not fit is left out.
+Before that silently loses the beginning, the history can be folded into one summary message: `compact({ agent, session })` is a run of one model step whose input is the ask (`source: 'system'`) and whose outcome's message is the summary (`role: 'user'`, `source: 'summary'`, `summarizes: [ids]`), appended to the session like any message.
+From then on a request carries the newest summary first, then every message no summary stands for; the originals stay on disk for the record and the screen.
+`context.autoCompactTokens` does the same in passing: a turn whose history is estimated above it writes the summary first (an extra model step, `context.compacted` event) and then answers, keeping its own input out of the summary since that is what it is about to answer.
+
+```ts
+const agent = createAgent({ ..., context: { maxTokens: 64_000, autoCompactTokens: 48_000 } });
+const handle = compact({ agent, session: 'abc' });   // events: run.started, model.started, model.completed, context.compacted, run.finished
+```
+
+The summary step sends no tools and skips the `beforeModel` / `afterModel` hooks; a model error fails the run as `summary: <message>`, and an empty reply is `invalid_response`.
+
 ## Deferred tools
 
 An agent with fifty tools sends the model a handful of definitions and one index line for the rest.

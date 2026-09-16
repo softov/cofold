@@ -30,6 +30,25 @@ export function groupUnits(history: Message[]): Message[][] {
   return units;
 }
 
+/** The ids every summary in the history stands for. */
+export function summarizedIds(history: Message[]): Set<string> {
+  const ids = new Set<string>();
+  for (const message of history) for (const id of message.summarizes ?? []) ids.add(id);
+  return ids;
+}
+
+/**
+ * What a request is assembled from (AGENT-01-p5 Task 6): the newest summary first, then every message
+ * no summary stands for, in transcript order. An auto-compacted turn's own input is such a message:
+ * it sits before the summary on disk and after it in the request. The originals stay in the store.
+ */
+export function contextOf(history: Message[]): Message[] {
+  const at = history.findLastIndex((message) => message.source === 'summary');
+  if (at === -1) return history;
+  const covered = summarizedIds(history);
+  return [history[at]!, ...history.filter((message) => message.source !== 'summary' && !covered.has(message.id))];
+}
+
 /** The `recent` strategy (decision 60): newest units first while they fit; the newest unit always goes in. */
 export function assembleRequest(args: {
   instructions: string;
@@ -41,7 +60,7 @@ export function assembleRequest(args: {
   signal: AbortSignal;
 }): ModelRequest {
   const budget = args.maxTokens - args.estimateTokens(args.instructions);
-  const units = groupUnits(args.history);
+  const units = groupUnits(contextOf(args.history));
   const picked: Message[][] = [];
   let used = 0;
   for (let i = units.length - 1; i >= 0; i--) {

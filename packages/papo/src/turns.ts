@@ -43,7 +43,8 @@ export function projectTurns(input: ProjectionInput): { turns: Turn[]; pending: 
     const calls = new Map<string, ChatToolCall>();
     let text = '';
     for (const message of slice) {
-      if (message.role === 'user' && message.source === 'input') { text = textOf(message); continue; }
+      if (message.role === 'user' && (message.source === 'input' || message.source === 'system')) { text = textOf(message); continue; }
+      if (message.source === 'summary') { parts.push({ kind: 'summary', id: message.id, text: textOf(message) }); continue; }
       for (const part of message.parts) {
         if (part.type === 'reasoning') parts.push({ kind: 'reasoning', id: `${message.id}:${parts.length}`, text: part.text });
         else if (part.type === 'text' && message.role === 'assistant') parts.push({ kind: 'text', id: `${message.id}:${parts.length}`, text: part.text });

@@ -8,6 +8,8 @@ import type { PapoConfig, PermissionMode, ToolsConfig } from './types/config.js'
 import type { Settings } from './types/settings.js';
 
 export const AGENT_ID = 'papo';
+/** Where auto-compaction fires, as a share of `context.maxTokens`: room for the turn's own tool results. */
+export const AUTO_COMPACT_AT = 0.8;
 
 export interface AgentArgs {
   config: PapoConfig;
@@ -63,10 +65,12 @@ export function buildAgent(args: AgentArgs): Agent {
     ...config.params,
     ...(settings.reasoning === 'off' ? {} : { reasoning: { effort: settings.reasoning } }),
   };
+  const { maxTokens } = config.context;
   return createAgent({
     id: AGENT_ID,
     instructions: args.instructions,
     model: args.provider.model({ id: args.modelId, params }),
+    context: { maxTokens, ...(settings.autoCompact ? { autoCompactTokens: Math.floor(maxTokens * AUTO_COMPACT_AT) } : {}) },
     tools: [createAskUserTool(), ...(args.tools ?? [])],
     capabilities: [
       ...capabilitiesOf(config.tools, { home: args.home, workspace: args.workspace }),

@@ -10,6 +10,18 @@ export interface ContextOptions {
   maxTokens?: number;
   /** Default: Math.ceil(text.length / 4). */
   estimateTokens?(text: string): number;
+  /**
+   * Compact before a model step when the history since the newest summary is estimated above this
+   * many tokens (AGENT-01-p5 Task 6). Absent: never; `compact()` is then the only way.
+   */
+  autoCompactTokens?: number;
+}
+
+/** `ContextOptions` with the defaults filled; what `Agent.context` holds. */
+export interface ResolvedContext {
+  maxTokens: number;
+  estimateTokens(text: string): number;
+  autoCompactTokens?: number;
 }
 
 /**
@@ -68,7 +80,7 @@ export interface Agent<Resources = Record<string, unknown>> {
   readonly hooks: Hooks;
   readonly policy: Policy;
   readonly limits: Limits;
-  readonly context: Required<ContextOptions>;
+  readonly context: ResolvedContext;
   readonly params: ModelParams;
   readonly resources: Resources;
   readonly sharedNamespace: string;

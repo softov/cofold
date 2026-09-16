@@ -9,7 +9,9 @@ export type TurnPart =
   | { kind: 'text'; id: string; text: string }
   | { kind: 'reasoning'; id: string; text: string }
   | { kind: 'tool'; id: string; call: ChatToolCall }
-  | { kind: 'error'; id: string; message: string };
+  | { kind: 'error'; id: string; message: string }
+  /** The conversation so far folded into one text (`/compact`, or the auto-compaction); later requests start here. */
+  | { kind: 'summary'; id: string; text: string };
 
 /**
  * One run of a session, as a conversation reads it: what was asked, what came back, how it ended.

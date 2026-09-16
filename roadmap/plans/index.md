@@ -31,7 +31,7 @@ Reference: [00-cli.md](cli/00-cli.md)
 | Plan | Priority | Status | Requires | Blocks |
 | --- | --- | --- | --- | --- |
 | [01 - papo: the harness in a terminal](cli/01-papo.md) | High | Built (manual run against a model server pending) | agent/01 (p3), textui `@textui/chat` | the `facio` program |
-| [02 - papo slash commands](cli/02-papo-commands.md) | High | Built | cli/01, tools/01 | /compact (agent p5 Task 6), /mcp (MCP client) |
+| [02 - papo slash commands](cli/02-papo-commands.md) | High | Built | cli/01, tools/01, agent/01-p5 Task 6 | /mcp (MCP client) |
 
 Next free number in `cli`: `02`.
 

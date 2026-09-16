@@ -123,9 +123,9 @@ describe('the shell', () => {
     const shown = await run('session', 'show', sessionId);
     expect(shown.out).toContain('model fake/scripted · permissions auto · reasoning high');
 
-    const set = await run('session', 'set', sessionId, '-m', 'fake/other', '-t', 'off');
+    const set = await run('session', 'set', sessionId, '-m', 'fake/other', '-t', 'off', '-a', 'on');
     expect(set.code).toBe(0);
-    expect(set.out).toBe('model fake/other · permissions auto · reasoning off\n');
+    expect(set.out).toBe('model fake/other · permissions auto · reasoning off · autocompact on\n');
     const nothing = await run('session', 'set', sessionId);
     expect(nothing.code).not.toBe(0);
     expect(nothing.err).toContain('nothing to set');

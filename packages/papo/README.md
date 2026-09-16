@@ -38,6 +38,7 @@ The family's `FACIO_BASE_URL`, `FACIO_API_KEY` and `FACIO_MODEL`, which the exam
   "limits": { "maxSteps": 20 },
   "params": { "temperature": 0.2 },
   "tools": { "files": true, "shell": true, "web": { "search": { "brave": { "apiKey": "BSA..." }, "duckduckgo": true } }, "memory": true },
+  "context": { "maxTokens": 32000, "autoCompact": true },
   "theme": "paper",
   "shell": "workbench"
 }
@@ -52,6 +53,7 @@ The family's `FACIO_BASE_URL`, `FACIO_API_KEY` and `FACIO_MODEL`, which the exam
 | `instructions` | The system prompt; `<workspace>/AGENTS.md` is appended when present. |
 | `limits`, `params` | `@facio/agents` `Limits` and `ModelParams` (without `reasoning`, which is the setting above). |
 | `tools` | The `@facio/tools` capabilities, all on by default: `files` (`read_file`, `write_file`, `edit_file`, `list_files`, `search_files`), `shell` (`shell_exec`), `web` (`web_fetch`; an object with `search` adds `web_search` over `brave`, `tavily`, `duckduckgo`, asked in that order), `memory` (`memory_read`, `memory_write` under `<home>/memory/<workspace slug>/`). `false` turns one off. |
+| `context` | `maxTokens`: what a request may carry, instructions and history, as the harness estimates it (32 000 by default; set it to what the model has). `autoCompact`: fold the conversation into a summary before a turn once it passes 80% of that (on by default; each session may switch it). |
 | `theme`, `shell` | What the screen opens with. |
 
 A wrong key is named: `config.permissions must be one of ask, destructive, auto (read: ~/.config/papo/config.json)`.
@@ -64,21 +66,22 @@ Under `destructive` (the default) `write_file`, `edit_file` and `shell_exec` sto
 
 ## Settings
 
-`model`, `permissions` and `reasoning` are the configuration's defaults for a new session and each session's own afterwards: `papo say -m -p -t` on the first message, `papo session set <id> -m -p -t` later, or the three chips under the composer on the screen (`tab` reaches them, `enter` opens the picker).
+`model`, `permissions`, `reasoning` and `autoCompact` are the configuration's defaults for a new session and each session's own afterwards: `papo say -m -p -t -a` on the first message, `papo session set <id> -m -p -t -a` later, or the three chips under the composer on the screen (`tab` reaches them, `enter` opens the picker) and `/autocompact`.
 They are kept beside the session in the store, and the agent is rebuilt from them for every turn, so a change between two messages takes effect on the next one.
 
 ## The shell
 
 ```
-say <text> [-s ID] [-m -p -t]   one turn; stops where the agent stops
+say <text> [-s ID] [-m -p -t -a]   one turn; stops where the agent stops
 approve <session> [--always]    let the waiting tool call run
 deny <session> [-r TEXT]        refuse it
 answer <session> id=value...    answer the agent's questions; repeat an id for a multi-select
 cancel <session>                abort a running turn, or deny a waiting approval
+compact <session>               fold the conversation so far into a summary
 session list | show | delete
 session export <session> [-o FILE]   the conversation as Markdown
 skills                          the skills the agent may read; `say "/name ..."` invokes one
-session set <session> [-m -p -t]   the model, the permission mode, the thinking level
+session set <session> [-m -p -t -a]   the model, the permission mode, the thinking level, auto-compaction
 models                          every model the providers offer
 skills                          the skills the agent may read; `say "/name ..."` invokes one
 config                          what is in force, keys redacted
@@ -101,6 +104,8 @@ The conversation: type and `enter`; `tab` walks the three chips under the field 
 | | |
 | --- | --- |
 | `/model`, `/permissions`, `/thinking` | The three settings, as pickers. |
+| `/compact` | Fold the conversation so far into a summary the model continues from: a turn of its own, shown in the transcript; nothing is deleted. |
+| `/autocompact` | Switch the automatic version for this session: the same fold, done before a turn once the conversation passes 80% of `context.maxTokens`. |
 | `/status`, `/cost` | The session, model, mode, folders and token totals; the tokens per turn. |
 | `/skill` | Pick a skill from the list. `/init` writes or refreshes `AGENTS.md`; `/review` reviews the working tree; both ship with papo, and a skill of the same name under `~/.facio/skills` or `<workspace>/.agents/skills` replaces it. |
 | `/memory` | What the agent remembers about this workspace (`~/.facio/memory/<workspace>/MEMORY.md`), with a button that opens it in `$VISUAL`, `$EDITOR`, or the platform's editor. |
@@ -111,7 +116,6 @@ The conversation: type and `enter`; `tab` walks the three chips under the field 
 | `/theme` | The colors and shapes; the choice is worn while the highlight moves. |
 | `/config`, `/help`, `/quit` | The configuration with keys redacted; every command and key; out. |
 
-`/compact` is not here yet: context reduction is the harness's next increment.
 
 The components are `@textui/chat`; what this package adds is the projection from the store to their props and the wiring from a key to the harness.
 
