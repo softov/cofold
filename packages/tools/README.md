@@ -1,6 +1,6 @@
 # @facio/tools
 
-The tools every agent on `@facio/agents` gets, as capabilities: files and shell today; web and memory follow (TOOLS-01).
+The tools every agent on `@facio/agents` gets, as capabilities: files, shell and web today; memory follows (TOOLS-01).
 Each capability is a `Capability` (its tools plus one instructions section), every tool is `createTool`, and nothing here is a second registry.
 Zero dependencies beyond `node:fs`, `node:path` and `node:child_process`.
 
@@ -8,9 +8,9 @@ Zero dependencies beyond `node:fs`, `node:path` and `node:child_process`.
 
 ```ts
 import { createAgent } from '@facio/agents';
-import { files, shell } from '@facio/tools';
+import { brave, files, shell, web } from '@facio/tools';
 
-const agent = createAgent({ id: 'cli', instructions, model, store, capabilities: [files(), shell()] });
+const agent = createAgent({ id: 'cli', instructions, model, store, capabilities: [files(), shell(), web({ search: [brave({ apiKey })] })] });
 ```
 
 ## `files()`
@@ -38,3 +38,13 @@ At the timeout (120 s by default, 600 s at most) or when the run is cancelled, t
 
 `shell({ timeoutMs, maxTimeoutMs, maxOutputChars, shell: { command, args } })` changes the defaults or the shell (`{ command: 'pwsh', args: ['-NoProfile', '-Command'] }`, `{ command: 'bash', args: ['-c'] }`).
 `execShell(args)` is the runner on its own, for a program that wants the `ShellResult` rather than the text.
+
+## `web({ search? })`
+
+`web_fetch({ url, maxBytes? })` GETs one http(s) URL, follows redirects, and returns `<final url> (<status>, <type>)` then the body: HTML reduced to its text (`htmlToText`: title first, scripts and styles gone, block ends as line breaks, entities decoded), JSON and other text types verbatim, anything else refused.
+The body is cut at 256 KiB (`[cut at N bytes]`), the request at 20 s; `web({ timeoutMs, maxBytes, fetch })` changes them, `fetch` being the function to use (a test injects one).
+
+`web_search({ query, count? })` exists only when `search` names at least one `SearchProvider { id, search({ query, count, signal }) }`; providers are asked in order and the first that answers wins, so a rate-limited key falls through to the next.
+Results are `1. title / url / snippet` rows.
+Shipped providers: `brave({ apiKey })` (https://brave.com/search/api/), `tavily({ apiKey })` (https://tavily.com; its answer comes first), `duckduckgo()` (the HTML results page scraped, no key, breaks the day the page changes).
+Both tools declare `effects.network` only.
