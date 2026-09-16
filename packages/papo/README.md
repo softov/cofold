@@ -76,6 +76,8 @@ deny <session> [-r TEXT]        refuse it
 answer <session> id=value...    answer the agent's questions; repeat an id for a multi-select
 cancel <session>                abort a running turn, or deny a waiting approval
 session list | show | delete
+session export <session> [-o FILE]   the conversation as Markdown
+skills                          the skills the agent may read; `say "/name ..."` invokes one
 session set <session> [-m -p -t]   the model, the permission mode, the thinking level
 models                          every model the providers offer
 skills                          the skills the agent may read; `say "/name ..."` invokes one
@@ -92,7 +94,24 @@ Global options: `--workspace DIR` (`PAPO_WORKSPACE`, default the current directo
 
 Two screens.
 The catalogue: `enter` opens, `n` starts a conversation, `d` deletes, `r` refreshes.
-The conversation: type and `enter`; `/` opens a menu of the skills (chosen, one becomes `/name ` in the field, and the message tells the agent to read it) and of the palette's commands (chosen, one runs); `tab` walks the three chips under the field (model, permissions, thinking) and `enter` opens one; `ctrl+c` stops a running turn (and quits when nothing runs); `a` and `d` answer a confirmation; a question is answered in its form; `esc` goes back; `ctrl+p` is the palette; `alt+m` toggles markdown.
+The conversation: type and `enter`; `tab` walks the three chips under the field (model, permissions, thinking) and `enter` opens one; `ctrl+c` stops a running turn (and quits when nothing runs); `a` and `d` answer a confirmation; a question is answered in its form; `esc` goes back; `ctrl+p` is the palette; `alt+m` toggles markdown.
+
+`/` opens a menu: the skills first (chosen, one becomes `/name ` in the field, and sending the line tells the agent to read that skill), then the commands, which are the palette's:
+
+| | |
+| --- | --- |
+| `/model`, `/permissions`, `/thinking` | The three settings, as pickers. |
+| `/status`, `/cost` | The session, model, mode, folders and token totals; the tokens per turn. |
+| `/skill` | Pick a skill from the list. `/init` writes or refreshes `AGENTS.md`; `/review` reviews the working tree; both ship with papo, and a skill of the same name under `~/.facio/skills` or `<workspace>/.agents/skills` replaces it. |
+| `/memory` | What the agent remembers about this workspace (`~/.facio/memory/<workspace>/MEMORY.md`), with a button that opens it in `$VISUAL`, `$EDITOR`, or the platform's editor. |
+| `/export` | The conversation as Markdown, to `<workspace>/papo-<session>.md`. |
+| `/retry` | The last message again, as a new turn. |
+| `/clear`, `/new` | A new conversation; the current one stays in the catalogue. |
+| `/stop`, `/approve`, `/deny` | What `ctrl+c`, `a` and `d` do. |
+| `/theme` | The colors and shapes; the choice is worn while the highlight moves. |
+| `/config`, `/help`, `/quit` | The configuration with keys redacted; every command and key; out. |
+
+`/compact` is not here yet: context reduction is the harness's next increment.
 
 The components are `@textui/chat`; what this package adds is the projection from the store to their props and the wiring from a key to the harness.
 

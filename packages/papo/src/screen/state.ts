@@ -28,6 +28,8 @@ export const SETTINGS = '$/papo/settings' as BindingPath;
 export const MODELS = '$/papo/models' as BindingPath;
 /** The skills a slash may name, as `chat.skills()` last answered. */
 export const SKILLS = '$/papo/skills' as BindingPath;
+/** What the information overlay shows (`/status`, `/cost`, `/config`, `/help`, `/memory`). */
+export const INFO = '$/papo/info' as BindingPath;
 
 /** textui's own: which screen is current, and which node holds the keyboard. */
 export const SCREEN = '$/layout/screen/current' as BindingPath;

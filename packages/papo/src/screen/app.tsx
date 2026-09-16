@@ -1,4 +1,8 @@
-import type { AskAnswers } from '@facio/agents';
+import { spawn } from 'node:child_process';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import type { AskAnswers, SkillIndexEntry } from '@facio/agents';
+import { workspaceSlug } from '@facio/store-file';
 import type { ChatAnswer, ChatSendStatus } from '@textui/chat';
 import {
   ChatBubble, ChatComposer, ChatHitl, ChatInputStatus, ChatTranscript, ReasoningBlock, SessionList, StreamingText, ToolCallRow,
@@ -7,12 +11,15 @@ import type { BoxProps, Disposable, ServiceKey, TextUIApp } from '@textui/core';
 import { createBag, defineComponent, serviceKey, useApp, useStoreValue, useTheme } from '@textui/core';
 import { KeyHints, Row, registerBuiltins } from '@textui/widgets';
 import type { Papo } from '../commands.js';
+import { redactedConfig } from '../commands.js';
+import { exportPath, toMarkdown } from '../export.js';
 import { toAskAnswers } from '../questions.js';
 import type { ModelRow } from '../types/chat.js';
 import type { Settings } from '../types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from '../types/settings.js';
-import type { Snapshot } from '../types/turn.js';
+import type { Snapshot, Turn } from '../types/turn.js';
 import { ChatScreen } from './chat.js';
+import { PapoInfo, showInfo } from './info.js';
 import { SessionsScreen } from './sessions.js';
 import {
   ANSWERS, CHAT_SCOPE, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SKILLS,
@@ -288,6 +295,7 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
     ['PapoHeader', Header],
     ['PapoStatus', Status],
     ['PapoHints', Hints],
+    ['PapoInfo', PapoInfo],
   ] as const) {
     bag.add(app.components.register({ component, category: 'template', renderer: { kind: 'function', render: render as never } }));
   }
@@ -298,6 +306,7 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
   // Kept alive: coming back to a conversation that scrolled itself to the top is losing your place.
   bag.add(app.screens.register({ id: 'chat', component: 'ChatScreen', keepAlive: true }));
 
+  const { papo } = options;
   const selected = (): string | null => app.store.get<string | null>(SELECTED) ?? null;
   const settings = (): Settings | null => app.store.get<Settings>(SETTINGS) ?? null;
   const commands = [
@@ -391,7 +400,149 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
       id: 'chat.markdown', title: 'Toggle markdown rendering', category: 'Chat', slots: ['palette'],
       run: () => { app.store.set(MARKDOWN, !(app.store.get<boolean>(MARKDOWN) ?? true)); },
     },
+    {
+      id: 'chat.status', title: 'Status', category: 'Chat', slots: ['palette'], description: 'Session, model, mode, folders, tokens',
+      run: () => showInfo(app, { title: 'Status', lines: statusLines() }),
+    },
+    {
+      id: 'chat.cost', title: 'Cost', category: 'Chat', slots: ['palette'], description: 'Tokens per turn and in total',
+      run: () => showInfo(app, { title: 'Cost', lines: costLines() }),
+    },
+    {
+      id: 'chat.skill', title: 'Skill', category: 'Chat', slots: ['palette'], description: 'Put /<skill> in the field',
+      args: [{
+        name: 'name', type: 'string' as const, required: true, description: 'Which skill',
+        descriptions: 'below' as const,
+        choices: () => (app.store.get<SkillIndexEntry[]>(SKILLS) ?? []).map((skill) => ({ value: skill.name, label: `/${skill.name}`, description: skill.description })),
+      }],
+      run: (args: Record<string, unknown>) => {
+        app.store.set(DRAFT, `/${String(args['name'])} `);
+        if (app.store.get<string>(SCREEN) !== 'chat') void controller.open(null).then(() => app.screens.push('chat'));
+        app.focus.focus('chat.composer');
+      },
+    },
+    {
+      id: 'chat.memory', title: 'Memory', category: 'Chat', slots: ['palette'], description: 'What the agent remembers about this workspace',
+      run: async () => {
+        const path = memoryIndexPath();
+        const text = await readFile(path, 'utf8').catch(() => undefined);
+        showInfo(app, { title: `Memory  ${path}`, lines: text === undefined || text.trim() === '' ? ['Nothing remembered yet.'] : text.trimEnd().split('\n') },
+          [{ id: 'edit', label: `Edit in ${editorName()}`, run: () => void editFile(path) }]);
+      },
+    },
+    {
+      id: 'chat.export', title: 'Export', category: 'Chat', slots: ['palette'], description: 'Write the conversation as Markdown',
+      run: async () => {
+        const current = open();
+        if (current === null) { app.store.set(ERROR, 'export: nothing said yet'); return; }
+        try {
+          const path = exportPath(papo.workspace, current);
+          await writeFile(path, toMarkdown(await papo.chat.snapshot(current)), 'utf8');
+          showInfo(app, { title: 'Exported', lines: ['Written to', path] });
+        } catch (error: unknown) {
+          app.store.set(ERROR, `export: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      },
+    },
+    {
+      id: 'chat.retry', title: 'Retry', category: 'Chat', slots: ['palette'], description: 'Send the last message again',
+      run: () => {
+        const last = snapshot()?.turns.at(-1);
+        if (last === undefined) { app.store.set(ERROR, 'retry: nothing said yet'); return; }
+        if (snapshot()?.running) { app.store.set(ERROR, 'retry: a turn is running'); return; }
+        void controller.send(last.input);
+      },
+    },
+    {
+      id: 'session.clear', title: 'Clear: start a new conversation', category: 'Sessions', slots: ['palette'], description: 'The current one stays in the catalogue',
+      run: () => { void controller.open(null).then(() => app.screens.push('chat')); },
+    },
+    {
+      id: 'view.theme', title: 'Theme', category: 'View', slots: ['palette'], description: 'The colors and shapes',
+      args: [{
+        name: 'id', type: 'string' as const, required: true, description: 'Which theme',
+        choices: () => app.themes.list().map((theme) => theme.id),
+        get default(): string { return app.theme.id; },
+        // Worn while the highlight moves: a theme's name says nothing until the screen is in it.
+        preview: (value: string | null) => { app.setTheme(value ?? papo.config.theme); },
+      }],
+      run: (args: Record<string, unknown>) => { app.setTheme(String(args['id'])); },
+    },
+    {
+      id: 'app.config', title: 'Configuration', category: 'Navigation', slots: ['palette'], description: 'What is in force, keys redacted',
+      run: () => showInfo(app, { title: 'Configuration', lines: JSON.stringify(redactedConfig(papo), null, 2).split('\n') }),
+    },
+    {
+      id: 'app.help', title: 'Help', category: 'Navigation', slots: ['palette'], description: 'Every command and key',
+      run: () => showInfo(app, { title: 'Help', lines: helpLines() }),
+    },
   ];
+
+  const snapshot = (): Snapshot | null => app.store.get<Snapshot | null>(SNAPSHOT) ?? null;
+  const open = (): string | null => app.store.get<string | null>(OPEN) ?? null;
+  const memoryIndexPath = () => join(papo.home, 'memory', workspaceSlug({ workspace: papo.workspace }), 'MEMORY.md');
+  const total = (turns: Turn[]) => turns.reduce((sum, turn) => ({ input: sum.input + turn.usage.inputTokens, output: sum.output + turn.usage.outputTokens }), { input: 0, output: 0 });
+
+  function statusLines(): string[] {
+    const current = snapshot();
+    const chosen = settings();
+    const sum = total(current?.turns ?? []);
+    return [
+      `session      ${current?.session.id ?? '(not started)'}${current !== null ? `  ${current.session.title}` : ''}`,
+      `model        ${chosen?.model || 'first listed model'}`,
+      `permissions  ${chosen === null ? '' : PERMISSION_LABELS[chosen.permissions].label}`,
+      `thinking     ${chosen === null ? '' : REASONING_LABELS[chosen.reasoning]}`,
+      `workspace    ${papo.workspace}`,
+      `home         ${papo.home}`,
+      `turns        ${current?.turns.length ?? 0}${current?.running ? '  (one running)' : ''}`,
+      `tokens       ${sum.input} in, ${sum.output} out`,
+    ];
+  }
+
+  function costLines(): string[] {
+    const turns = snapshot()?.turns ?? [];
+    if (turns.length === 0) return ['Nothing said yet.'];
+    const sum = total(turns);
+    const rows = turns.map((turn, index) => `${String(index + 1).padStart(3)}  ${String(turn.usage.inputTokens).padStart(7)} in  ${String(turn.usage.outputTokens).padStart(7)} out  ${String(turn.steps).padStart(2)} steps  ${turn.input.replace(/\s+/g, ' ').slice(0, 30)}`);
+    return [...rows, '', `total  ${sum.input} in, ${sum.output} out, ${turns.length} turns`, 'Counts are what the provider reported; a provider that reports nothing shows zeros.'];
+  }
+
+  function helpLines(): string[] {
+    const bound = new Map<string, string[]>();
+    for (const binding of app.keybindings.list()) {
+      if (binding.args !== undefined) continue;
+      bound.set(binding.commandId, [...(bound.get(binding.commandId) ?? []), String(binding.keys)]);
+    }
+    const rows = app.commands.list({ slot: 'palette', enabledOnly: false }).map((command) =>
+      `  /${command.id.split('.').at(-1)}  ${command.title.padEnd(36)} ${(bound.get(command.id) ?? []).join(', ')}`);
+    return [
+      'Type / in the field for a skill or one of these; ctrl+p opens the same list.',
+      '',
+      ...rows,
+      '',
+      'On the conversation: tab reaches the chips under the field, a and d answer a confirmation, esc goes back.',
+      'On the catalogue: enter opens, n starts, d deletes, r refreshes.',
+    ];
+  }
+
+  function editorName(): string {
+    return process.env['VISUAL'] || process.env['EDITOR'] || (process.platform === 'win32' ? 'notepad' : 'vi');
+  }
+
+  /** The editor over the screen: the terminal is handed to it and taken back (`app.suspend`). */
+  async function editFile(path: string): Promise<void> {
+    await mkdir(dirname(path), { recursive: true });
+    const [command, ...args] = editorName().split(/\s+/) as [string, ...string[]];
+    try {
+      await app.suspend(() => new Promise<void>((resolve, reject) => {
+        const child = spawn(command, [...args, path], { stdio: 'inherit' });
+        child.on('error', reject);
+        child.on('exit', () => resolve());
+      }));
+    } catch (error: unknown) {
+      app.store.set(ERROR, `${command}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
   for (const command of commands) bag.add(app.commands.register(command));
 
   const keys = [

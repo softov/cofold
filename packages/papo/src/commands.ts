@@ -45,6 +45,16 @@ export interface Papo {
   home: string;
 }
 
+/** The configuration as it may be shown: keys replaced, the two folders added. */
+export function redactedConfig(papo: Papo): Record<string, unknown> {
+  return {
+    ...papo.config,
+    providers: papo.config.providers.map((provider) => ({ ...provider, ...(provider.apiKey !== undefined ? { apiKey: '[redacted]' } : {}) })),
+    workspace: papo.workspace,
+    home: papo.home,
+  };
+}
+
 export function openPapo(globals: Readonly<Record<string, unknown>>): Papo {
   const workspace = resolve(typeof globals['workspace'] === 'string' ? globals['workspace'] : process.cwd());
   const home = typeof globals['home'] === 'string' ? resolve(globals['home']) : resolveHome({ name: 'facio' });
@@ -294,12 +304,7 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     needs: ['papo'],
     surfaces: { cli: { pattern: ['config'] } },
     run: ({ papo }) => {
-      const shown = {
-        ...papo.config,
-        providers: papo.config.providers.map((provider) => ({ ...provider, ...(provider.apiKey !== undefined ? { apiKey: '[redacted]' } : {}) })),
-        workspace: papo.workspace,
-        home: papo.home,
-      };
+      const shown = redactedConfig(papo);
       return output(shown, `${JSON.stringify(shown, null, 2)}\n`);
     },
   });

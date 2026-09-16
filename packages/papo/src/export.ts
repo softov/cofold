@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import type { Snapshot, Turn } from './types/turn.js';
 
 /**
@@ -33,5 +34,5 @@ function turnLines(turn: Turn): string[] {
 
 /** Where `/export` and `session export` write when no path is given. */
 export function exportPath(workspace: string, sessionId: string): string {
-  return `${workspace}/papo-${sessionId}.md`;
+  return join(workspace, `papo-${sessionId}.md`);
 }

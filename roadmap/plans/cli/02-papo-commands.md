@@ -1,6 +1,6 @@
 <!--
 Domain: cli
-Status: In progress
+Status: Built
 Priority: High
 Created: 2026-09-16
 Revalidated: 2026-09-16
@@ -10,7 +10,7 @@ Reference: ./00-cli.md
 
 # CLI-02 - papo slash commands: what `/` offers beyond the settings
 
-_Status: In progress · Priority: High · Created: 2026-09-16_
+_Status: Built (2026-09-16) · Priority: High · Created: 2026-09-16_
 
 ## Goal
 
@@ -80,13 +80,13 @@ packages/papo/README.md                      UPDATE
 
 ## Resume state
 
-- **Done so far:** plan written 2026-09-16.
-- **Next action:** Task 1.
+- **Done so far:** plan written and Tasks 1-2 built 2026-09-16. `/export` on the screen takes no path (a free-text argument gets no picker; the shell's `-o` does); the overlay is `screen/info.tsx`.
+- **Next action:** none here. `/compact` and `/autocompact` wait for harness p5 Task 6; `/mcp` for the MCP client.
 - **Open questions:** none.
 - **Watch out for:** `app.themes.list()` shape (`{ id }`), `app.keybindings.list()` availability in `@textui/core`.
 
 ## Final verification checklist
 
-- [ ] `pnpm check` green.
-- [ ] Every command in the table reachable from `/`, the palette, and (where bound) a key.
-- [ ] `index.md` updated.
+- [x] `pnpm check` green.
+- [x] Every command in the table reachable from `/` and the palette; screen tests cover `/status`, `/cost`, `/config`, `/help`, `/export`, `/retry`, `/theme`, `/clear`, `/skill`.
+- [x] `index.md` updated.
