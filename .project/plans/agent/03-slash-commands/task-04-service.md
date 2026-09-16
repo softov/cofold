@@ -24,7 +24,7 @@ refs:
 
 ## Steps
 
-1. The setters validate with `checkSettings` and write the `kv` record `configure()` writes; the output names the new value (`model: or/qwen3`). With no argument they print the current value and the choices (decision 9; the plan's open question 3).
+1. The setters validate with `checkSettings` and write the `kv` record `configure()` writes; the output names the new value (`model: or/qwen3`). With no argument they print the current value and the choices as a notice (decisions 9, 18). The chips keep `configure()` (decision 19).
 2. `status` prints session id, title, model, permissions, reasoning, autocompact, workspace, home, tokens so far; `cost` prints per-turn and total usage from the run records; `config` prints `redactedConfig`; `skills` prints what `listSkills` gives; `context` prints the message count, the estimated tokens, the budget.
 3. `commands()` needs an agent: build it from the defaults (`agentFor(await settingsOf(undefined))`) and `listSlashCommands` it; skills stay in `skills()`.
 

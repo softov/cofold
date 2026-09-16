@@ -88,6 +88,10 @@ papo `/` menu = Chat.commands() + Chat.skills() + client commands whose name the
 | 13 | Claude backend: `commands()` is `supportedCommands()` (`SlashCommandInfo` is what Claude's `SlashCommand` already is); `skills()` becomes the skills alone when the SDK tells them apart (0.3.273 does not: everything is in `supportedCommands()`, so `skills()` returns `[]` there and the list shows once); `say('/x')` passes through unchanged; the `autoCompact` refusal in `checkSettings` goes with the setting's special-casing (Claude's `/autocompact` is Claude's) | One `/compact` per backend; what is listed is what runs |
 | 14 | Contract test (`chat-contract.test.ts`): the `compact` scenario becomes `say('/compact')` on both backends, asserting a turn whose input is `/compact`, a `summary` part somewhere, a `notice` part on that turn; a new `commands` scenario asserts `commands()` includes `compact` on both | Decision 10 of cli/03: the same story, the same snapshot |
 | 15 | Not in this plan: steering (p5 Task 1), streaming (p5 Task 5, next after this), `/rename` (no title in the store), `/mcp`, Claude's other commands beyond listing them | Scope |
+| 16 | `/help` is external: the client's overlay (`PapoInfo`) stays for it alone and lists `Chat.commands()` first, then the external commands | User (2026-09-16): external, overlay; Claude's CLI does it in the client |
+| 17 | `/clear` is external in papo (start a new conversation; the store keeps the old one); on the Claude backend the runtime's `/clear` is listed and papo's is hidden, per decision 12 | User (2026-09-16) |
+| 18 | `/model`, `/reasoning`, `/permissions`, `/autocompact` with no argument print the current value and the choices as a notice; the same in the shell and on the screen. Claude opens a picker for `/model`: a divergence logged in `deferred.md`, checked after this plan | User (2026-09-16) |
+| 19 | The chips keep writing through `Chat.configure()`; a setting is data and a command is one way to set it. Chip changes are not echoed into the transcript | User (2026-09-16) |
 
 ## Proposed architecture
 
@@ -115,18 +119,14 @@ The typecheck is red between 01 and 02 (a deleted type); `pnpm check` runs after
 ## Risks and tradeoffs
 
 - The transcript of an existing session with the old `compact()` run (input `source: 'system'` "Summarize the conversation so far.") still projects: `turns.ts` keeps `system` as an input. No migration.
-- `/model` with no argument writes the catalogue into the transcript as a notice; the chip picker stays for people who prefer it. Claude's `/model` opens a picker instead; ours prints. Divergence to check later, not decided here.
-- Deleting `PapoInfo` loses the overlay style for `/help`; `/help` becomes a notice too. That is Claude's behaviour.
+- `/model` with no argument prints as a notice (decision 18); Claude's opens a picker. Logged in `deferred.md` to check after this plan.
+- `PapoInfo` stays for `/help` alone (decision 16); every other overlay use goes.
 
 ## Resume state
 
 - **Done so far:** plan written 2026-09-16 after the user found two `/compact` on the Claude backend.
-- **Next action:** lock the open questions below, then [task-01-contracts.md](task-01-contracts.md).
-- **Open questions (answer to lock):**
-  1. `/help` internal (a notice listing every command) or external (the overlay stays for it alone)? Proposed: external, overlay, as Claude's CLI does it.
-  2. `/clear` external in papo (start a new conversation; the store keeps the old one) while Claude's `/clear` is its runtime's? Proposed: external; on the Claude backend the runtime's name wins per decision 12.
-  3. `/model`, `/reasoning`, `/permissions` with no argument: print the choices as a notice (proposed) or open the chip picker?
-  4. Keep `Chat.configure()` and the chips as they are (proposed: yes; a setting is data, a command is one way to set it), or route the chips through `say('/model x')` so the transcript records every change?
+- **Next action:** [task-01-contracts.md](task-01-contracts.md); then 02 (the typecheck is red between them), then 03-07 in the table's order. Build and commit per task; `pnpm check` after 02 and after every later task.
+- **Open questions:** none; 1-4 were locked 2026-09-16 as decisions 16-19.
 - **Watch out for:** `start()` must intercept before the writer claim is taken? No: a command run takes the claim like any turn (a `/compact` while a turn runs is `writer_busy`, as today).
 
 ## Final verification checklist

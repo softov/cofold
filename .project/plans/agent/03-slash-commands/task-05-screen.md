@@ -17,16 +17,16 @@ The `/` menu is `Chat.commands()`, then `Chat.skills()`, then the external comma
 
 - `UPDATE: packages/papo/src/screen/chat.tsx:17-26` - `useSlashCommands` per decision 12 (an internal command and a skill are kind `session`, an external one `client`).
 - `UPDATE: packages/papo/src/screen/chat.tsx:132-139` - an internal command with `argumentHint` becomes the draft; one without is sent through `controller.send('/<name>')`.
-- `UPDATE: packages/papo/src/screen/app.tsx` - delete `chat.compact`, `chat.autocompact`, `chat.status`, `chat.cost`, `chat.skill`, `app.config`, `controller.compact`, `statusLines`, `costLines`; the controller loads `COMMANDS` on open and on `subscribe`; `app.help` lists `Chat.commands()` and then the external ones (decision 10; the plan's open question 1 decides whether `/help` keeps the overlay).
-- `DELETE: packages/papo/src/screen/info.tsx` - unless open question 1 keeps the overlay for `/help` alone.
-- `UPDATE: packages/papo/src/screen/state.ts` - delete `INFO` if the overlay goes; add `COMMANDS`.
+- `UPDATE: packages/papo/src/screen/app.tsx` - delete `chat.compact`, `chat.autocompact`, `chat.status`, `chat.cost`, `chat.skill`, `app.config`, `controller.compact`, `statusLines`, `costLines`; the controller loads `COMMANDS` on open and on `subscribe`; `app.help` keeps the overlay and lists `Chat.commands()` first, then the external ones (decisions 10, 16).
+- `UPDATE: packages/papo/src/screen/info.tsx` - stays for `/help` alone (decision 16); `showInfo` loses its other callers.
+- `UPDATE: packages/papo/src/screen/state.ts` - add `COMMANDS`; `INFO` stays for `/help`.
 - `UPDATE: packages/papo/src/screen/screen.test.tsx` - the `/status ... in one overlay` test becomes "`/status` lands as a notice in the transcript"; the `/compact` and `/autocompact` test sends them as text; a new test: the menu lists `compact` once and no client `compact`.
 
 ## Steps
 
 1. Load commands beside skills in the controller (`chat.commands()`), stored under `COMMANDS`.
 2. The menu per decision 12; the external names are the palette commands' short names: `theme`, `help`, `quit`, `markdown`, `export`, `retry`, `clear`, `memory`.
-3. Delete the six client commands and, per open question 1, the overlay.
+3. Delete the six client commands; the overlay stays for `/help` (decision 16); `clear` stays external and is hidden when the runtime lists one (decision 17).
 
 ## Validation
 

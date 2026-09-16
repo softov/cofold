@@ -24,7 +24,7 @@ Reference: [00-agent.md](agent/00-agent.md)
 | [01 - Harness core](agent/01-harness-core/plan.md) (parent) | high | active (p1-p3 built) | - | everything |
 | [01-p5 - Steering, hook stop, thinking levels, streaming, context, usage](agent/01-harness-core-p5-streaming-context-usage/plan.md) | medium | planned (task 06 done) | 01 (p3) | - |
 | [02 - Deferred tools: an index in the prompt, a definition on demand](agent/02-deferred-tools/plan.md) | high | built | 01 (p3) | the MCP client |
-| [03 - Slash commands: internal ones the runtime runs, external ones the client keeps](agent/03-slash-commands/plan.md) | high | planned (open questions to lock) | 01-p5 task 06, cli/02, cli/03 | cli/02's internal commands move here |
+| [03 - Slash commands: internal ones the runtime runs, external ones the client keeps](agent/03-slash-commands/plan.md) | high | planned; next: task 01 | 01-p5 task 06, cli/02, cli/03 | cli/02's internal commands move here |
 
 Next free number in `agent`: `04`.
 
