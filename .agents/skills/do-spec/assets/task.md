@@ -4,7 +4,7 @@ status: todo
 depends: []
 layer: <package or part: agents | papo | papo screen | tools | docs>
 refs:
-  - code://packages/<package>/src/<file>.ts
+  - code://packages/<package>/src/<file>.ts - <why this task touches it>
 ---
 
 ## Objective

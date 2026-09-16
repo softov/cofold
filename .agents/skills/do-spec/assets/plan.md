@@ -14,9 +14,10 @@ creates:
 decisions:
   - decisions/<decision>.md
 refs:
-  - code://packages/<package>/src/<file>.ts
-  - npm://<package>@<range>
-  - git://<sha>
+  - code://packages/<package>/src/<file>.ts#L<n>-L<m> - <what it does today and why it matters here>
+  - code://packages/<package>/src/<other>.ts - <the pattern this plan mirrors>
+  - npm://<package>@<range> - <what is taken from it>
+  - https://<document> - <what it says>
 ---
 
 ## Goal
@@ -25,9 +26,7 @@ refs:
 
 ## Reconnaissance
 
-### Files read
-
-- `code://<path>#L<n>-L<m>` - <what it does today and why it matters here>.
+The files read and the patterns to reuse are the `refs` above, each with its note.
 
 ### Searches performed
 
@@ -38,10 +37,6 @@ refs:
 ```
 <entry point> -> <layer> -> <contract> -> <store or event> -> <what the person sees>
 ```
-
-### Existing patterns to reuse
-
-- `code://<path>#L<n>` - <the pattern this plan mirrors>.
 
 ### Gaps
 

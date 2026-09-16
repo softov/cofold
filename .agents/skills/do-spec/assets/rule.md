@@ -5,7 +5,7 @@ applies:
 because:
   - decisions/<decision>.md
 refs:
-  - code://<path>
+  - code://<path> - <what it points at>
 ---
 
 <The constraint in full. What is forbidden or required, and where.>

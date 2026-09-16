@@ -9,6 +9,23 @@ requires:
   - plans/agent/01-harness-core-p5-streaming-context-usage/plan.md
   - plans/cli/02-papo-commands/plan.md
   - plans/cli/03-papo-claude/plan.md
+refs:
+  - code://packages/agents/src/run/run.ts#L29-L58 - `run()` and `compact()` both go through `start(args, compacting)`; `compact()` is a run whose input is the ask (`source: 'system'`) and whose one step writes the `summary` message
+  - code://packages/agents/src/run/context.ts#L46 - `contextOf(history)`: the newest `summary` first, then every message no summary covers. Nothing else is filtered by `source`
+  - code://packages/agents/src/types/message.ts#L34 - `MessageSource = 'input' | 'model' | 'tool' | 'hook' | 'summary' | 'system'`
+  - code://packages/agents/src/types/command.ts - `RunCommand` is `approve | deny | answer | cancel` (steer planned): the handle's control commands. The name "command" is taken by that; the new concept is a *slash command*
+  - code://packages/agents/src/types/capability.ts#L18-L30 - a `Capability` contributes `tools()` and `instructions()`; the shape a slash-command contribution mirrors
+  - code://packages/agents/src/capabilities/skills.ts - `listSkills(sources)` and the prompt rule "send `/<name>`"; a skill is a prompt the model reads, not a command the runtime runs
+  - code://packages/papo/src/chat.ts#L88-L96 - papo keeps `Settings { model, permissions, reasoning, autoCompact }` per session in `kv` and rebuilds the `Agent` from them for every turn (`agentFor`)
+  - code://packages/papo/src/agent.ts - `buildAgent`: the definition papo hands the harness (instructions, capabilities, policy, skills, context); the one place papo can register commands the runtime runs
+  - code://packages/papo/src/screen/app.tsx#L367-L505 - the client commands: `app.*`, `session.*`, `view.*`, `chat.*`; the `/` list is `skills + app.commands.list({ slot: 'palette' })` (chat.tsx:17-26)
+  - code://packages/papo/src/screen/chat.tsx#L132-L139 - a picked skill becomes the draft `/<name> `; a picked client command runs through `app.execute`
+  - code://packages/papo/src/turns.ts#L46-L47 - `source: 'input' | 'system'` is a turn's input; `summary` a summary part; `notice` parts exist (used by the Claude projection for `<local-command-stdout>`)
+  - code://packages/papo/src/claude/project.ts#L10-L11 - Claude's transcript after a command: a user message `<command-name>/compact</command-name>...` (the echo) and a user message `<local-command-stdout>Compacted </local-command-stdout>` (the output); projected as input `/compact` + notice `Compacted`
+  - code://packages/agents/src/run/compact.ts - the compaction step; `/compact` calls it
+  - code://packages/agents/src/capabilities/skills.ts:listSkills - the shape of `listSlashCommands`
+  - code://packages/papo/src/claude/project.ts - how a command run reads in a transcript (echo + notice); the harness writes the same two messages, typed
+  - npm://@anthropic-ai/claude-agent-sdk@^0.3.273 - supportedCommands() lists what Claude's runtime runs; the reference for internal commands
 ---
 
 # AGENT-03 - Slash commands: internal ones the runtime lists and runs, external ones the client keeps
@@ -21,21 +38,7 @@ This plan moves every command that belongs to the runtime into the runtime (inte
 
 ## Reconnaissance
 
-### Files read
-
-- `packages/agents/src/run/run.ts:29-58` - `run()` and `compact()` both go through `start(args, compacting)`; `compact()` is a run whose input is the ask (`source: 'system'`) and whose one step writes the `summary` message.
-- `packages/agents/src/run/context.ts:46` - `contextOf(history)`: the newest `summary` first, then every message no summary covers. Nothing else is filtered by `source`.
-- `packages/agents/src/types/message.ts:34` - `MessageSource = 'input' | 'model' | 'tool' | 'hook' | 'summary' | 'system'`.
-- `packages/agents/src/types/command.ts` - `RunCommand` is `approve | deny | answer | cancel` (steer planned): the handle's control commands. The name "command" is taken by that; the new concept is a *slash command*.
-- `packages/agents/src/types/capability.ts:18-30` - a `Capability` contributes `tools()` and `instructions()`; the shape a slash-command contribution mirrors.
-- `packages/agents/src/capabilities/skills.ts` - `listSkills(sources)` and the prompt rule "send `/<name>`"; a skill is a prompt the model reads, not a command the runtime runs.
-- `packages/papo/src/chat.ts:88-96` - papo keeps `Settings { model, permissions, reasoning, autoCompact }` per session in `kv` and rebuilds the `Agent` from them for every turn (`agentFor`).
-- `packages/papo/src/agent.ts` - `buildAgent`: the definition papo hands the harness (instructions, capabilities, policy, skills, context); the one place papo can register commands the runtime runs.
-- `packages/papo/src/screen/app.tsx:367-505` - the client commands: `app.*`, `session.*`, `view.*`, `chat.*`; the `/` list is `skills + app.commands.list({ slot: 'palette' })` ([chat.tsx:17-26](../../../../packages/papo/src/screen/chat.tsx#L17-L26)).
-- `packages/papo/src/screen/chat.tsx:132-139` - a picked skill becomes the draft `/<name> `; a picked client command runs through `app.execute`.
-- `packages/papo/src/turns.ts:46-47` - `source: 'input' | 'system'` is a turn's input; `summary` a summary part; `notice` parts exist (used by the Claude projection for `<local-command-stdout>`).
-- `packages/papo/src/claude/project.ts:10-11, 52-60` - Claude's transcript after a command: a user message `<command-name>/compact</command-name>...` (the echo) and a user message `<local-command-stdout>Compacted </local-command-stdout>` (the output); projected as input `/compact` + notice `Compacted`.
-- `packages/papo/src/claude/chat.ts` `skills()` - lists `supportedCommands()`; that is Claude's command list, typed as skills today.
+The files read and the patterns to reuse are the `refs` above, each with its note.
 
 ### Searches performed
 
@@ -57,13 +60,6 @@ composer "/compact"  → Chat.say(text)
 papo turns.ts: source 'command' → Turn.input; 'notice' → notice part; 'summary' → summary part
 papo `/` menu = Chat.commands() + Chat.skills() + client commands whose name the runtime does not list
 ```
-
-### Existing patterns to reuse
-
-- `packages/agents/src/run/compact.ts` - the compaction step; `/compact` calls it.
-- `packages/agents/src/capabilities/skills.ts:listSkills` - the shape of `listSlashCommands`.
-- `packages/papo/src/claude/project.ts` - how a command run reads in a transcript (echo + notice); the harness writes the same two messages, typed.
-- `packages/papo/src/commands.ts` `settingsPatch` / `checkSettings` - what `/model`, `/reasoning`, `/permissions`, `/autocompact` validate.
 
 ### Gaps
 
