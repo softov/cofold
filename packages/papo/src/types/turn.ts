@@ -11,7 +11,9 @@ export type TurnPart =
   | { kind: 'tool'; id: string; call: ChatToolCall }
   | { kind: 'error'; id: string; message: string }
   /** The conversation so far folded into one text (`/compact`, or the auto-compaction); later requests start here. */
-  | { kind: 'summary'; id: string; text: string };
+  | { kind: 'summary'; id: string; text: string }
+  /** A line from the runtime rather than the model: what a command printed, what a compaction did. */
+  | { kind: 'notice'; id: string; text: string };
 
 /**
  * One run of a session, as a conversation reads it: what was asked, what came back, how it ended.

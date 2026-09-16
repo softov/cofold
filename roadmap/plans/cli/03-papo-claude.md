@@ -61,7 +61,7 @@ Read from the published package, `@anthropic-ai/claude-agent-sdk@0.3.273` (`sdk.
 | 7 | `compact(id)` sends `/compact` as the prompt of a turn; the projection reads the `compact_boundary` that follows. `cancel` is `interrupt()`; `remove` is `deleteSession` | The CLI's own compaction and its own record of it |
 | 8 | `/cost` and `/status` read the per-turn `SDKResultMessage.usage` kept in the projection (`Turn.usage`) and `total_cost_usd` where the CLI reports it; `Turn.steps` is `num_turns` | Same fields, the CLI's numbers |
 | 9 | `systemPrompt: { type: 'preset', preset: 'claude_code', append: <config.instructions when set> }`, `settingSources: ['user', 'project']`, `cwd: workspace`: the person's Claude Code setup applies (CLAUDE.md, skills, MCP servers, hooks) | Contra-validation means Claude as the person already runs it |
-| 10 | Contract tests: `packages/papo/src/chat-contract.test.ts` runs the same scenarios (say, approve, deny, ask, cancel, compact, remove) against both backends, the Claude one over a fake `query` (a scripted `AsyncGenerator<SDKMessage>` with a `canUseTool` hook), so the two agree on what a `Snapshot` says for the same story; a manual run against the real CLI is the final check | The reason the backend exists |
+| 10 | Contract tests: `packages/papo/src/chat-contract.test.ts` runs the same scenarios (say, approve, deny, ask, cancel, compact, remove) against both backends, the Claude one over a fake `query` (a scripted `AsyncGenerator<SDKMessage>` with a `canUseTool` hook), so the two agree on what a `Snapshot` says for the same story; a manual run against the real CLI is the final check. Where the two disagree, the harness is presumed wrong and the difference is a thing to check, not a decision to record: Claude's runtime is the reference | User (2026-09-16): "If ours is divergent, mostly it's ours that's wrong... divergence is not a decision, it is a thing to be checked" |
 | 11 | Not done: streaming (`includePartialMessages`) until the harness has `model.delta` (p5 Task 5), so both backends land text whole; subagent transcripts; Claude's own slash commands beyond `/compact` (they arrive in `supportedCommands()` and are typed like skills, which works, but papo promises nothing about them); hooks; MCP configuration from papo | Scope |
 
 ## Proposed architecture
@@ -109,9 +109,9 @@ packages/papo/
 
 ## Resume state
 
-- **Done so far:** recon and plan 2026-09-16.
-- **Next action:** Task 1. Before it: `pnpm add -O @anthropic-ai/claude-agent-sdk@^0.3` in `packages/papo` is the user's call (it pulls the native binary).
-- **Open questions:** whether `startup()` keeps a process alive for the whole papo run (the SDK docs on `WarmQuery` say one prompt binds it; a second `startup` per session may be the honest reading). Task 1 measures it.
+- **Done so far:** recon and plan 2026-09-16; Task 1 built 2026-09-16 (`src/types/claude.ts`, `src/claude/{sdk,project}.ts`, fixtures from two real sessions in `src/claude/fixtures/`, 6 tests). The SDK is a devDependency of papo for the tests (`^0.3.273`); the peer declaration comes with Task 3. Findings from the real CLI: `getSessionMessages` after a compaction returns the summary (`isCompactSummary`), the retained tail, then the `/compact` echo (`<command-name>`) and its `<local-command-stdout>`; the originals are gone from that view. `canUseTool` in 0.3.273 passes no `title` / `decisionReason`; `suggestions` for a Write is `[{ type: 'setMode', mode: 'acceptEdits' }]`. A `WarmQuery` takes exactly one prompt.
+- **Next action:** Task 2. One `Query` per live session over a streaming input (`AsyncIterable<SDKUserMessage>`), so one process serves the session's turns and `setModel` / `setPermissionMode` apply between them; `models()` / `skills()` without a session use a throwaway `query` with an empty stream, then `close()`.
+- **Open questions:** none.
 - **Watch out for:** `getSessionMessages` needs the same `dir` the session was created under; `listSessions` without `dir` searches every project.
 
 ## Final verification checklist

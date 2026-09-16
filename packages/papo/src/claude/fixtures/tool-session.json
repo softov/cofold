@@ -1,0 +1,167 @@
+[
+  {
+    "type": "user",
+    "uuid": "1a8ddfe0-6727-485d-940b-b36350ccb0f4",
+    "session_id": "8e1f17e4-3774-46c3-9955-c5612e7ce97e",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "First call the AskUserQuestion tool once to ask me whether I prefer red or blue (header \"Color\"). Then write my answer into a file named color.txt in the current folder with the Write tool. Then reply with one short sentence."
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-09-16T02:55:45.774Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "b3880f11-aa4f-41c5-8e28-993feab54441",
+    "session_id": "8e1f17e4-3774-46c3-9955-c5612e7ce97e",
+    "message": {
+      "model": "claude-opus-5",
+      "id": "msg_011Cf6NA9PNEa9Nb58JWARPe",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01CaenP8ymKh1acF5C7PUV6k",
+          "name": "AskUserQuestion",
+          "input": {
+            "questions": [
+              {
+                "question": "Do you prefer red or blue?",
+                "header": "Color",
+                "options": [
+                  {
+                    "label": "Red",
+                    "description": "Choose red as your preferred color."
+                  },
+                  {
+                    "label": "Blue",
+                    "description": "Choose blue as your preferred color."
+                  }
+                ],
+                "multiSelect": false
+              }
+            ]
+          },
+          "caller": {
+            "type": "direct"
+          }
+        }
+      ],
+      "stop_reason": "tool_use",
+      "usage": {
+        "input_tokens": 2,
+        "output_tokens": 143,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 28920
+      }
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-09-16T02:55:48.493Z"
+  },
+  {
+    "type": "user",
+    "uuid": "c37f11d7-9c5b-4284-b915-a64addcf30e0",
+    "session_id": "8e1f17e4-3774-46c3-9955-c5612e7ce97e",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "content": "Your questions have been answered: \"Do you prefer red or blue?\"=\"Red\". You can now continue with these answers in mind.",
+          "tool_use_id": "toolu_01CaenP8ymKh1acF5C7PUV6k"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-09-16T02:55:48.531Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "21ddbc1d-9bd0-4288-abea-887d308deef7",
+    "session_id": "8e1f17e4-3774-46c3-9955-c5612e7ce97e",
+    "message": {
+      "model": "claude-opus-5",
+      "id": "msg_011Cf6NALYaWqnweprGHwhTo",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Xqtpt3EEiDdtdgAFtpVbpG",
+          "name": "Write",
+          "input": {
+            "file_path": "C:\\work\\color.txt",
+            "content": "Red\n"
+          },
+          "caller": {
+            "type": "direct"
+          }
+        }
+      ],
+      "stop_reason": "tool_use",
+      "usage": {
+        "input_tokens": 2,
+        "output_tokens": 143,
+        "cache_read_input_tokens": 28920,
+        "cache_creation_input_tokens": 211
+      }
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-09-16T02:55:51.535Z"
+  },
+  {
+    "type": "user",
+    "uuid": "079070b6-8ff1-43e0-8015-649db9f2536b",
+    "session_id": "8e1f17e4-3774-46c3-9955-c5612e7ce97e",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01Xqtpt3EEiDdtdgAFtpVbpG",
+          "type": "tool_result",
+          "content": "File created successfully at: C:\\work\\color.txt (file state is current in your context — no need to Read it back)"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-09-16T02:55:51.631Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "a9677952-5afb-4701-a034-fa9f9103f715",
+    "session_id": "8e1f17e4-3774-46c3-9955-c5612e7ce97e",
+    "message": {
+      "model": "claude-opus-5",
+      "id": "msg_011Cf6NAZcQ65W11q6MgvHyq",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Your answer \"Red\" has been saved to color.txt in the current folder."
+        }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+        "input_tokens": 2,
+        "output_tokens": 25,
+        "cache_read_input_tokens": 29131,
+        "cache_creation_input_tokens": 269
+      }
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-09-16T02:55:52.849Z"
+  }
+]

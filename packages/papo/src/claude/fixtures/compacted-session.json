@@ -1,0 +1,67 @@
+[
+  {
+    "type": "user",
+    "uuid": "e2de1bbc-0abf-41e6-aa72-47dafba24250",
+    "session_id": "8e1f17e4-3774-46c3-9955-c5612e7ce97e",
+    "message": {
+      "role": "user",
+      "content": "This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.\n\nSummary ..."
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "isCompactSummary": true,
+    "is_meta": true,
+    "timestamp": "2026-09-16T02:56:28.915Z"
+  },
+  {
+    "type": "assistant",
+    "uuid": "a9677952-5afb-4701-a034-fa9f9103f715",
+    "session_id": "8e1f17e4-3774-46c3-9955-c5612e7ce97e",
+    "message": {
+      "model": "claude-opus-5",
+      "id": "msg_011Cf6NAZcQ65W11q6MgvHyq",
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Your answer \"Red\" has been saved to color.txt in the current folder."
+        }
+      ],
+      "stop_reason": "end_turn",
+      "usage": {
+        "input_tokens": 2,
+        "output_tokens": 25,
+        "cache_read_input_tokens": 29131,
+        "cache_creation_input_tokens": 269
+      }
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-09-16T02:55:52.849Z"
+  },
+  {
+    "type": "user",
+    "uuid": "32a34081-5459-4110-871d-9d7398a85338",
+    "session_id": "8e1f17e4-3774-46c3-9955-c5612e7ce97e",
+    "message": {
+      "role": "user",
+      "content": "<command-name>/compact</command-name>\n            <command-message>compact</command-message>\n            <command-args></command-args>"
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-09-16T02:56:13.604Z"
+  },
+  {
+    "type": "user",
+    "uuid": "82070c28-a307-4865-83ef-b3e5c4db9f0e",
+    "session_id": "8e1f17e4-3774-46c3-9955-c5612e7ce97e",
+    "message": {
+      "role": "user",
+      "content": "<local-command-stdout>Compacted </local-command-stdout>"
+    },
+    "parent_tool_use_id": null,
+    "parent_agent_id": null,
+    "timestamp": "2026-09-16T02:56:29.081Z"
+  }
+]

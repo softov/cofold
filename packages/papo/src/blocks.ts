@@ -29,6 +29,7 @@ export function toBlocks(turns: Turn[], model?: string): Block[] {
         case 'reasoning': blocks.push({ kind: 'reasoning', id: part.id, turnId: turn.id, content: part.text, streaming: last }); break;
         case 'tool': blocks.push({ kind: 'tool', id: part.id, turnId: turn.id, call: part.call }); break;
         case 'error': blocks.push({ kind: 'failure', id: part.id, turnId: turn.id, content: part.message, resumable: false }); break;
+        case 'notice': blocks.push({ kind: 'notice', id: part.id, turnId: turn.id, content: part.text }); break;
         case 'summary':
           blocks.push({ kind: 'notice', id: `${part.id}:notice`, turnId: turn.id, content: 'The conversation so far was folded into this summary; the model continues from it.' });
           blocks.push({ kind: 'prose', id: part.id, turnId: turn.id, content: part.text, streaming: false });
