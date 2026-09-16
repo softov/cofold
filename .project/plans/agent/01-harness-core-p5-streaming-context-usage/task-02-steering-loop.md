@@ -1,6 +1,6 @@
 ---
 title: Steering in the loop
-status: todo
+status: done
 depends: [task-01-contracts.md]
 layer: agents
 ---
@@ -54,4 +54,9 @@ Steering in the loop.
 
 ## Resume
 
+Built 2026-09-16.
+`run/steering.ts` (`enqueueSteer`, `drainSteering`, `rejectSteering`; the `Steer` / `SteerQueue` types live in `types/turn.ts` with the other loop-internal shapes), `run/handle.ts` (`steer` required, `onCommand` typed without `cancel | steer`), `run/run.ts` (queue shared by the handle and the context; the no-context failure path of `setupRun` rejects the queue too), `run/resume.ts` (the handle's `steer` refuses with `invalid_options` while `accept` is installed, `not_running` once the handle settled, enqueues otherwise; `finishDetached` rejects the queue), `run/turn.ts` (`drainSteering` after the abort check, `rejectSteering` in `settle`).
+`validateCommand` needed no runtime line: `steer` never reaches it, the types exclude it.
+Departure from test sketch (5): `resume()` takes no command; the refusal is `submit(steer)` rejecting `invalid_options` on the resumed handle while its request is open, and the handle stays `awaiting` (the same shape as every other refused command), not a `failed` outcome.
+`run/steering.test.ts` covers the six cases; `examples/agents/steer.ts` run: seq 1..10 with `run.steered` at 7, `not_running` after the run.
 

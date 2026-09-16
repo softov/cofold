@@ -57,7 +57,7 @@ To close a plan: every task `done` or `dropped`, `implemented.md` written, `defe
 ## Decisions, rules, specs
 
 - A decision that replaces another is a new file with `supersedes`; the old one gets `status: superseded` and `superseded-by`, body untouched; rules and specs that pointed at the old one move to the new one unless the old rationale still holds.
-- A decision made in a plan's table and outliving the plan is promoted to a decision file when the plan closes; the table then links it.
+- Every decision is a file in `.project/decisions/` from the moment it is made; no file, no decision. A plan's *Decisions locked in* table only links them (`[<title>](../../decisions/<slug>.md)`) and a row without a file is not a decision. The file names its source: the user's answer with the question quoted, a `code://` line, or `(defaulted: ...)` when the writer chose and the user may erase it.
 - A rule restating another is removed, not added. To retire one: `status: retired` and one line at the top saying why.
 - A spec is corrected in place when behaviour changes; if the change contradicts a listed decision, a new decision comes first.
 
@@ -66,6 +66,18 @@ To close a plan: every task `done` or `dropped`, `implemented.md` written, `defe
 1. Read `.project/plans/index.md` and the domain's `00-<domain>.md`.
 2. Check the thing does not already exist; amend rather than duplicate.
 3. Find the refs: the code, package, commit or document it came from.
+
+## Finding what `.project/` already says about a file
+
+The `refs` are the index: every plan, task, decision, rule and spec names the code it is about as `code://<path>`, so the way to find what has been decided or planned for a file is to search `.project/` for its path.
+
+- Everything about one file: `rg -n "code://packages/agents/src/run/tools.ts" .project/` (drop the `#L...` so a ref with line numbers still matches).
+- Everything about a package or folder: `rg -n "code://packages/agents/src/run/" .project/`.
+- The decisions only: `rg -ln "code://packages/agents/src/run/tools.ts" .project/decisions/`.
+- Which plan a decision belongs to: `rg -n "decisions/<slug>.md" .project/plans/`.
+- A decision by number or subject when the slug is unknown: `rg -n "^title: 116 " .project/decisions/` or `rg -ln -i "deny" .project/decisions/`.
+
+Do this before proposing a change to a file, before writing a decision about it, and when a comment in the code cites a decision number that no plan on disk explains any more.
 
 ## Finishing
 

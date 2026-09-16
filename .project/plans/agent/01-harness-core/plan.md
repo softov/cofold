@@ -124,7 +124,7 @@ host (CLI / ahpd adapter / example)
 | p2 | (shipped, plan removed) | `createAgent()` + standalone `run()`: bounded serial loop, validation, cancellation, ordered events, run handle; prove tool -> result -> final answer | Shipped 2026-09-15 |
 | p3 | (shipped, plan removed) | `@facio/store-file`, paused approvals with durable `requestId`, `resume()`, writer fence; prove pause -> lose observer -> resume without double execution | Shipped 2026-09-16 |
 | p4 | (dropped) | ahpd adapter; the first human consumer of the harness is papo (`cli` domain) instead. An adapter gets its own plan under `transport` when wanted | Dropped |
-| p5 | [01-harness-core-p5-streaming-context-usage.md](../01-harness-core-p5-streaming-context-usage/plan.md) | Steering, hook stop, thinking levels, dynamic keys, cache key (Tasks 1-4, planned in full); streaming, context reduction, usage accounting, second adapter (Tasks 5-8, outlined) | Planned in part (Tasks 1-4) |
+| p5 | [01-harness-core-p5-streaming-context-usage.md](../01-harness-core-p5-streaming-context-usage/plan.md) | Steering, hook stop, thinking levels, dynamic keys, cache key (Tasks 1-4, built 2026-09-16); context reduction (Task 6, built); streaming, usage accounting, papo contra-validation findings F1, F2, F4 (Tasks 5, 7, 8, planned 2026-09-16) | Active (Tasks 1-4, 6 done; 5, 7, 8 planned) |
 
 Children declare dependencies by filename.
 A later phase must not assume an earlier phase's infrastructure unless that phase is marked complete in `index.md`.
@@ -148,8 +148,8 @@ Adapters, stores, transports, and examples import `@facio/agents` types and neve
 
 ## Resume state
 
-- **Done so far:** p1-p3 shipped (contracts, validator now in `@facio/sdk`, loop, run handle, file store, durable approvals, resume, writer fence); every package's types in `src/types/`.
-- **Next action:** p5 Tasks 1-4 ([01-harness-core-p5-streaming-context-usage.md](../01-harness-core-p5-streaming-context-usage/plan.md)); papo (`cli` domain) validates the harness with a person.
+- **Done so far:** p1-p3 shipped (contracts, validator now in `@facio/sdk`, loop, run handle, file store, durable approvals, resume, writer fence); p5 Tasks 1-4 and 6 built (steering, hook stop, effort levels, dynamic key, cache key, compaction); every package's types in `src/types/`.
+- **Next action:** `/dooit` p5 task 05 ([01-harness-core-p5-streaming-context-usage.md](../01-harness-core-p5-streaming-context-usage/plan.md)); papo (`cli` domain) adopts steering (`say` during a turn → `submit(steer)`), `model.delta` and `contextOf`.
 - **Open questions:** none.
 - **Watch out for:** the `@facio` npm scope must be claimed by the user before the first publish; the package names in this plan assume it.
 

@@ -1,6 +1,6 @@
 ---
 title: Provider: effort levels, budgets, dynamic key, cache key
-status: todo
+status: done
 depends: [task-03-stop-beforetool-aftertool.md]
 layer: agents
 ---
@@ -38,5 +38,13 @@ Provider: effort levels, budgets, dynamic key, cache key.
 - `pnpm check`; `examples/agents/adapter-smoke.ts` gains a `--effort xhigh` flag and prints the wire body against the injected fetch.
 
 ## Resume
+
+Built 2026-09-16.
+`types/options.ts` (`apiKey` string or function, `reasoningBudgets`), `index.ts` (`headersFor()` resolves the key once per attempt, outside the `try`, so a key function that throws surfaces as the host's error and is not retried as `network`; `prompt_cache_key: request.cacheKey`), `wire.ts` (`toWireReasoning(reasoning, budgets)`), `run/context.ts` (`assembleRequest` takes `cacheKey`), `run/turn.ts` and `run/compact.ts` pass `cacheKey: sessionId`.
+`src/wire.test.ts` did not exist; created with the three branches over every level.
+`src/index.test.ts`: `prompt_cache_key`, every level on the wire, budget map, key function called once for a 401 and twice for 500-then-200.
+Fixtures that build a `ModelRequest` by hand gained `cacheKey`: `testing/fake-model.test.ts`, `run/context.test.ts`, `run/compact.test.ts`, `examples/agents/adapter-smoke.ts`.
+`adapter-smoke.ts --effort xhigh` prints `reasoning_effort: "xhigh"` and `prompt_cache_key: "adapter-smoke"` in the wire body (checked against an unreachable server; the retries then fail as expected).
+`README.md` of both packages updated.
 
 

@@ -1,6 +1,6 @@
 ---
 title: Stop from `beforeTool` / `afterTool`
-status: todo
+status: done
 depends: [task-02-steering-loop.md]
 layer: agents
 ---
@@ -28,7 +28,7 @@ Stop from `beforeTool` / `afterTool`.
   }
   ```
   The counter rule stays: `executed: true` counts, `false` does not (decision 56).
-- `applyResolved` (an approved call re-entering `execute`) goes through `afterTool` inside `execute`, so an `afterTool` stop on a resumed call takes the same path; no change needed there beyond the union.
+- `applyResolved` (an approved call re-entering `executeTool`) goes through `afterTool` inside `executeTool`, so an `afterTool` stop on a resumed call takes the same path; no change needed there beyond the union.
 - `hook-stop.test.ts`: (1) `beforeTool` stop on the first of two calls → both calls have `Not executed` results, `tool.denied` for the first only, outcome `stopped { reason: 'hook' }`, `toolCalls` counter 0. (2) `afterTool` stop on a `notify_done` tool → its own result recorded, step `completed` with `detail.stoppedBy: 'afterTool'`, outcome `stopped { reason: 'hook' }`, counter 1. (3) The next `run()` on the session assembles a model-valid history (every `toolCall` has a `toolResult`). (4) `afterTool` stop with `isError: true` still stops.
 
 ## Validation
@@ -37,4 +37,8 @@ Stop from `beforeTool` / `afterTool`.
 
 ## Resume
 
+Built 2026-09-16.
+`run/tools.ts` (`beforeTool` stop branch after `deny`: `tool.denied` + `Not executed: <reason>`, no step record; `afterTool` `stop` captured, `detail: { stoppedBy: 'afterTool', reason }` on the step patch, `{ kind: 'stop', executed: true }` returned after the usual `tool.completed`), `run/turn.ts` (`processCalls`: the `stop` branch appends the part, answers the rest of the batch `Not executed: the run was stopped`, finishes `stopped { reason: 'hook' }`; the counter rule counts a stop only when `executed`).
+`ToolCallResult` lives in `types/turn.ts`, not `run/tools.ts` as the task said; the union was extended there (Task 1).
+`run/hook-stop.test.ts` covers the four cases (counter observed through the step log: no tool step after a `beforeTool` stop, one after an `afterTool` stop).
 
