@@ -172,6 +172,12 @@ importers:
         specifier: workspace:^
         version: link:../commands
 
+  packages/tools:
+    devDependencies:
+      '@facio/agents':
+        specifier: workspace:*
+        version: link:../agents
+
   packages/yaml: {}
 
 packages:

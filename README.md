@@ -32,6 +32,7 @@ For an agent, the surface is a run: a model proposes, the harness authorizes and
 | --- | --- |
 | [`@facio/agents`](packages/agents) | The harness: contracts, `createAgent`, `run`, `resume`, tools, capabilities, the step log, the in-memory store, a fake model for tests. |
 | [`@facio/store-file`](packages/store-file) | The durable `Store` on the filesystem: sessions, runs, requests, a writer lease. |
+| [`@facio/tools`](packages/tools) | The tools every agent gets, as capabilities: `files()` today; shell, web, memory next. |
 | [`@facio/model-openai-compat`](packages/model-openai-compat) | Chat Completions adapter (OpenRouter, LM Studio, any compatible server) with a model catalogue and reasoning. |
 
 ### Programs

@@ -17,6 +17,7 @@ export default defineWorkspace([
   { test: { name: '@facio/agents', root: 'packages/agents', typecheck } },
   { test: { name: '@facio/model-openai-compat', root: 'packages/model-openai-compat', typecheck } },
   { test: { name: '@facio/store-file', root: 'packages/store-file', typecheck } },
+  { test: { name: '@facio/tools', root: 'packages/tools', typecheck } },
   { test: { name: '@facio/papo', root: 'packages/papo', typecheck } },
   { test: { name: 'examples-commands', root: 'examples/commands' } },
   { test: { name: 'examples-agents', root: 'examples/agents' } },
