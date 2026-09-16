@@ -1,9 +1,11 @@
 export type * from './types/files.js';
 export type * from './types/shell.js';
 export type * from './types/web.js';
+export type * from './types/memory.js';
 export { files } from './files.js';
 export { shell, execShell, DEFAULT_SHELL } from './shell.js';
 export { web, htmlToText } from './web.js';
+export { memory } from './memory.js';
 export { brave } from './search/brave.js';
 export { tavily } from './search/tavily.js';
 export { duckduckgo } from './search/duckduckgo.js';

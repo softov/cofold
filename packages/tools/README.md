@@ -1,6 +1,6 @@
 # @facio/tools
 
-The tools every agent on `@facio/agents` gets, as capabilities: files, shell and web today; memory follows (TOOLS-01).
+The tools every agent on `@facio/agents` gets, as capabilities: files, shell, web and memory.
 Each capability is a `Capability` (its tools plus one instructions section), every tool is `createTool`, and nothing here is a second registry.
 Zero dependencies beyond `node:fs`, `node:path` and `node:child_process`.
 
@@ -48,3 +48,11 @@ The body is cut at 256 KiB (`[cut at N bytes]`), the request at 20 s; `web({ tim
 Results are `1. title / url / snippet` rows.
 Shipped providers: `brave({ apiKey })` (https://brave.com/search/api/), `tavily({ apiKey })` (https://tavily.com; its answer comes first), `duckduckgo()` (the HTML results page scraped, no key, breaks the day the page changes).
 Both tools declare `effects.network` only.
+
+## `memory({ dir })`
+
+Files under `dir`, which the program chooses (papo: `<home>/memory/<workspace slug>`), readable and editable by hand.
+`memory_read({ path? })` returns one file, `MEMORY.md` without a path; `memory_write({ path, content })` writes one, folders made.
+Both refuse a path that leaves the folder.
+The instructions section carries the first 200 lines of `MEMORY.md` every run (`indexLines` changes that) under the rule: write what will matter next session, one file per topic, indexed from `MEMORY.md`.
+`memory_write` declares `effects.writes` only, so the default policy does not ask.
