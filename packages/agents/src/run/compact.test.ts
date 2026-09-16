@@ -7,7 +7,8 @@ import { textOf } from '../message/helpers.js';
 import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
 import { assembleRequest, contextOf } from './context.js';
-import { compact, run } from './run.js';
+import { compact } from './compact.js';
+import { run } from './run.js';
 
 const estimate = (text: string) => Math.ceil(text.length / 4);
 
@@ -37,7 +38,7 @@ describe('contextOf and the assembler', () => {
     const history = [message('a'), s1, message('kept', 'input', 'user'), message('b'), s2, message('c')];
     expect(contextOf(history).map((m) => m.id)).toEqual(['s2', 'kept', 'c']);
     expect(contextOf([message('a')]).map((m) => m.id)).toEqual(['a']);
-    const request = assembleRequest({ instructions: 'x', history, tools: [], params: {}, maxTokens: 10_000, estimateTokens: estimate, signal: new AbortController().signal });
+    const request = assembleRequest({ instructions: 'x', history, tools: [], params: {}, cacheKey: 's', maxTokens: 10_000, estimateTokens: estimate, signal: new AbortController().signal });
     expect(request.messages.map((m) => m.id)).toEqual(['s2', 'kept', 'c']);
   });
 });

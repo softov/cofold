@@ -41,7 +41,7 @@ describe('estimateMessageTokens', () => {
 
 describe('assembleRequest', () => {
   const tools = [{ name: 'echo', description: 'd', input: { type: 'object' as const } }];
-  const base = { instructions: 'sys', tools, params: { temperature: 0 }, estimateTokens: len, signal };
+  const base = { instructions: 'sys', tools, params: { temperature: 0 }, cacheKey: 's', estimateTokens: len, signal };
 
   it('keeps only the newest units that fit and never splits a tool-call unit', () => {
     const history = [user('old'), assistantCall('x'), toolResult('x', 'result'), user('new')];

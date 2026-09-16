@@ -13,6 +13,7 @@ import type { Tool } from '../types/tool.js';
 import type {
   InternalRunHandle,
   ResolvedRequest,
+  SteerQueue,
   ToolCallDeps,
   ToolCallResult,
   TurnContext,
@@ -27,7 +28,8 @@ import { renderAnswers } from '../tool/ask-user.js';
 import { historyEstimate, writeSummary } from './compact.js';
 import { assembleRequest } from './context.js';
 import { LOAD_TOOLS, createLoadToolsTool, instructionsOf, readLoaded, requestToolsOf } from './deferred.js';
-import { execute, handleToolCall } from './tools.js';
+import { drainSteering, rejectSteering } from './steering.js';
+import { executeTool, handleToolCall } from './tools.js';
 
 const now = () => new Date().toISOString();
 
@@ -39,6 +41,7 @@ export function createTurnContext(args: {
   abort: RunAbort;
   emit: Emitter['emit'];
   handle: InternalRunHandle;
+  steering: SteerQueue;
   counters: TurnContext['counters'];
   claimed: boolean;
   /** A `compact()` run; default false (resume() never resumes one: it has no pause). */
@@ -64,6 +67,7 @@ export function createTurnContext(args: {
     abort: args.abort,
     emit: args.emit,
     handle: args.handle,
+    steering: args.steering,
     counters: args.counters,
     claimed: args.claimed,
     compact: args.compact ?? false,
@@ -135,9 +139,10 @@ export async function finishRun(ctx: TurnContext, outcome: RunOutcome): Promise<
   settle(ctx, outcome);
 }
 
-/** Releases the timers and closes the handle; the last thing every finish path does. */
+/** Releases the timers, refuses what the loop never picked up and closes the handle; the last thing every finish path does. */
 export function settle(ctx: TurnContext, outcome: RunOutcome): void {
   if (ctx.heartbeat !== undefined) clearInterval(ctx.heartbeat);
+  rejectSteering(ctx.steering, ctx.runId);
   ctx.abort.dispose();
   ctx.handle.finish(outcome);
 }
@@ -152,6 +157,8 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
 
     for (;;) {
       if (abort.signal.aborted) return await finishRun(ctx, abortOutcome(ctx));
+      // Steers land here, after the previous batch's results and before the step that answers them (decision 96).
+      await drainSteering(ctx);
       if (counters.steps >= agent.limits.maxSteps) return await finishRun(ctx, { status: 'stopped', reason: 'max_steps', usage: counters.usage, steps: counters.steps });
       counters.steps += 1;
       ctx.run.step = counters.steps;
@@ -174,7 +181,7 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
         history = await store.sessions.listMessages({ sessionId });
       }
       let request: ModelRequest = assembleRequest({
-        instructions: instructionsOf(ctx), history, tools: requestToolsOf(ctx), params: agent.params,
+        instructions: instructionsOf(ctx), history, tools: requestToolsOf(ctx), params: agent.params, cacheKey: sessionId,
         maxTokens: agent.context.maxTokens, estimateTokens: agent.context.estimateTokens, signal: abort.signal,
       });
 
@@ -264,10 +271,19 @@ async function processCalls(ctx: TurnContext, calls: ToolCallPart[], resolved?: 
     let result: ToolCallResult;
     try { result = decided ? await applyResolved(ctx, deps, call, decided) : await handleToolCall(deps, call); }
     catch (e) { await finishRun(ctx, fail(ctx, 'hook_error', `beforeTool/afterTool: ${(e as Error).message}`, summarize(e))); return 'done'; }
-    // Denied calls (unknown tool, invalid args, hook deny) never reached an executor and do not count (decision 56).
-    if (result.kind !== 'result' || result.executed) counters.toolCalls += 1;
+    // Denied calls (unknown tool, invalid args, hook deny or stop) never reached an executor and do not count (decision 56).
+    if ((result.kind !== 'result' && result.kind !== 'stop') || result.executed) counters.toolCalls += 1;
 
     if (result.kind === 'aborted') { await finishRun(ctx, abortOutcome(ctx)); return 'done'; }
+    if (result.kind === 'stop') {
+      // The rest of the batch is answered so the transcript stays model-valid (decision 90), then the run ends on purpose (decision 97).
+      await appendResult(ctx, result.part);
+      for (const rest of calls.slice(i + 1)) {
+        await appendResult(ctx, { type: 'toolResult', callId: rest.callId, name: rest.name, content: 'Not executed: the run was stopped', isError: true });
+      }
+      await finishRun(ctx, { status: 'stopped', reason: 'hook', usage: counters.usage, steps: counters.steps });
+      return 'done';
+    }
     if (result.kind === 'approval') {
       const payload: ApprovalPayload = { name: result.tool.name, input: result.input, ...(result.prompt !== undefined ? { prompt: result.prompt } : {}) };
       await pause(ctx, { call, kind: 'approval', payload, requested: { type: 'approval.requested', callId: call.callId, ...payload } });
@@ -298,7 +314,7 @@ async function applyResolved(ctx: TurnContext, deps: ToolCallDeps, call: ToolCal
       if (!validated.ok) throw new AgentError({ code: 'internal', message: `approved input of request ${pending.requestId} no longer validates` });
       input = validated.value;
     }
-    return execute(deps, call, tool, input);
+    return executeTool(deps, call, tool, input);
   }
   if (command.type === 'deny' && pending.kind === 'approval') {
     // No tool.denied event: approval.resolved { decision: 'deny' } already says it (decision 76).

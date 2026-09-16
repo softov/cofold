@@ -6,11 +6,12 @@
     "node": ">=22"
   },
   "scripts": {
-    "smoke": "node --env-file-if-exists=../.env --experimental-strip-types adapter-smoke.ts",
-    "standalone": "node --env-file-if-exists=../.env --experimental-strip-types standalone.ts",
-    "lmstudio-tools": "node --env-file-if-exists=../.env --experimental-strip-types lmstudio-tools.ts",
+    "smoke": "node --env-file-if-exists=../../.env --experimental-strip-types adapter-smoke.ts",
+    "standalone": "node --env-file-if-exists=../../.env --experimental-strip-types standalone.ts",
+    "lmstudio-tools": "node --env-file-if-exists=../../.env --experimental-strip-types lmstudio-tools.ts",
     "pause-resume": "node --experimental-strip-types pause-resume.ts",
     "ask-user": "node --experimental-strip-types ask-user.ts",
+    "steer": "node --experimental-strip-types steer.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

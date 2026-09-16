@@ -25,6 +25,12 @@ Known-good targets:
 
 With a model that has no tool support the script prints `finish: stop` and a text answer; neither run throws.
 
+`--effort <level>` (`minimal` .. `max`) asks for that reasoning level and prints the wire body first, so you can see `reasoning_effort` (or `reasoning.max_tokens`) and `prompt_cache_key` as sent:
+
+```bash
+pnpm --filter facio-examples-agents smoke -- --effort xhigh
+```
+
 ## standalone
 
 Fake model plus one tool through `createAgent` and `run`; prints every event and the outcome.
@@ -71,3 +77,14 @@ printf "Rust\nmy-app\n" | pnpm --filter facio-examples-agents ask-user   # one a
 
 A missing answer takes the first option (or `facio-demo` for the name).
 Expected: seq 9..14 and `completed Scaffolding the project now.`, then the answers as stored on the tool step.
+
+## steer
+
+A message sent while the turn is running (`submit({ type: 'steer', text })`, sent at the first `tool.started`) lands in the transcript after the tool result and before the next model step; nothing is cancelled.
+No server needed.
+
+```bash
+pnpm --filter facio-examples-agents steer
+```
+
+Expected: seq 1..10 with `run.steered` between `tool.completed` and the second `model.started`, `completed The tool said: hello. And bye!`, the transcript `user(input) > assistant(model) > tool(tool) > user(input) > assistant(model)`, and `after the run: not_running` for a steer sent once the run has finished.

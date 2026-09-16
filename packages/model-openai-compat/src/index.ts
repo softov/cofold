@@ -22,12 +22,19 @@ export function openaiCompatProvider(options: OpenAICompatProviderOptions): Mode
   const baseUrl = options.baseUrl.replace(/\/$/, '');
   const doFetch = options.fetch ?? fetch;
   const retries = options.retries ?? 2;
-  const headers: Record<string, string> = { 'content-type': 'application/json', ...options.headers };
-  if (options.apiKey) headers.authorization = `Bearer ${options.apiKey}`;
+  const baseHeaders: Record<string, string> = { 'content-type': 'application/json', ...options.headers };
+
+  /** Headers for one attempt: a key function is asked every time (decision 99). */
+  async function headersFor(): Promise<Record<string, string>> {
+    const key = typeof options.apiKey === 'function' ? await options.apiKey() : options.apiKey;
+    return key ? { ...baseHeaders, authorization: `Bearer ${key}` } : baseHeaders;
+  }
 
   /** POST/GET with the retry policy of decision 32; returns the parsed JSON body of a 2xx. */
   async function send(url: string, init: { method: 'GET' | 'POST'; body?: string }, signal: AbortSignal): Promise<unknown> {
     for (let attempt = 0; ; attempt++) {
+      // Outside the try: a key function that throws is the host's error, not a network failure to retry.
+      const headers = await headersFor();
       let res: Response;
       try {
         res = await doFetch(url, { ...init, headers, signal });
@@ -96,7 +103,8 @@ export function openaiCompatProvider(options: OpenAICompatProviderOptions): Mode
             ...(params.maxOutputTokens !== undefined ? { max_tokens: params.maxOutputTokens } : {}),
             ...(params.stop ? { stop: params.stop } : {}),
             ...(params.seed !== undefined ? { seed: params.seed } : {}),
-            ...(params.reasoning && features.reasoning ? toWireReasoning(params.reasoning) : {}),
+            ...(params.reasoning && features.reasoning ? toWireReasoning(params.reasoning, options.reasoningBudgets) : {}),
+            prompt_cache_key: request.cacheKey,
             stream: false,
           };
           const json = (await send(url, { method: 'POST', body: JSON.stringify(body) }, request.signal)) as WireResponse;

@@ -55,6 +55,8 @@ export function assembleRequest(args: {
   history: Message[];
   tools: ModelToolDefinition[];
   params: ModelParams;
+  /** The session id: a session's prefix is stable, so a provider-side prompt cache is keyed by it (decision 100). */
+  cacheKey: string;
   maxTokens: number;
   estimateTokens: (text: string) => number;
   signal: AbortSignal;
@@ -71,7 +73,7 @@ export function assembleRequest(args: {
     used += cost;
   }
   const messages = picked.flat().map(stripReasoning);
-  return { instructions: args.instructions, messages, tools: args.tools, params: args.params, signal: args.signal };
+  return { instructions: args.instructions, messages, tools: args.tools, params: args.params, cacheKey: args.cacheKey, signal: args.signal };
 }
 
 function stripReasoning(m: Message): Message {

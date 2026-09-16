@@ -16,7 +16,9 @@ export type ToolCallResult =
   | { kind: 'result'; part: ToolResultPart; executed: boolean }
   | { kind: 'approval'; tool: Tool<any, any>; input: unknown; prompt?: string }
   | { kind: 'input'; tool: Tool<any, any>; input: unknown; invocationId: string; questions: AskQuestion[] }
-  | { kind: 'aborted' };
+  | { kind: 'aborted' }
+  /** A hook ended the run at this call (decision 97); `part` is what the transcript gets for it. */
+  | { kind: 'stop'; part: ToolResultPart; executed: boolean; stoppedBy: 'beforeTool' | 'afterTool'; reason: string };
 
 export interface ToolCallDeps {
   agent: Agent<any>;
@@ -29,6 +31,10 @@ export interface ToolCallDeps {
   /** Names of the deferred tools whose definitions the model has this session (AGENT-02); shared with the context. */
   loaded: Set<string>;
 }
+
+/** One `submit({ type: 'steer' })` waiting for the loop; its promise settles once the text is in the transcript (decision 95). */
+export interface Steer { text: string; resolve: () => void; reject: (e: Error) => void }
+export type SteerQueue = Steer[];
 
 /** Everything the loop needs; built by run() for a fresh turn and by resume() from a stored run. */
 export interface TurnContext {
@@ -47,6 +53,8 @@ export interface TurnContext {
   abort: RunAbort;
   emit: Emitter['emit'];
   handle: InternalRunHandle;
+  /** Steers the handle took since the last model step; drained at the top of the next one, rejected when the run settles. */
+  steering: SteerQueue;
   counters: { usage: Usage; steps: number; stepIndex: number; toolCalls: number };
   claimed: boolean;
   /** A `compact()` run: one summary step, no tools, then done. */
@@ -60,7 +68,7 @@ export interface TurnContext {
 /** The pending request a command answered, applied to the first call of a resumed batch (decisions 74-77). */
 export interface ResolvedRequest {
   pending: PendingRequest;
-  command: Exclude<RunCommand, { type: 'cancel' }>;
+  command: Exclude<RunCommand, { type: 'cancel' | 'steer' }>;
 }
 
 /** Where to enter the loop: a fresh turn, or the rest of a paused batch. */

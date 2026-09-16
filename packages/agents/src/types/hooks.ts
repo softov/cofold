@@ -26,10 +26,17 @@ export type BeforeToolResult =
   | { decision: 'allow' }
   | { decision: 'modify'; input: unknown }
   | { decision: 'deny'; reason: string }
-  | { decision: 'approval'; prompt?: string };
+  | { decision: 'approval'; prompt?: string }
+  /** Ends the run after this call is answered "Not executed" (decision 97). */
+  | { decision: 'stop'; reason: string };
 
 export interface AfterToolArgs { call: ToolCallPart; tool: Tool<any, any>; output: ToolOutput; isError: boolean; run: RunInfo }
-export type AfterToolResult = { output: ToolOutput; isError?: boolean };
+export type AfterToolResult = {
+  output: ToolOutput;
+  isError?: boolean;
+  /** Ends the run after this result is recorded (decision 97). */
+  stop?: { reason: string };
+};
 
 export type HookHandler<Args, Result> = (args: Args) => Result | Promise<Result>;
 

@@ -1,6 +1,6 @@
 import type { WireImagePart, WireMessage, WireModel, WireResponse, WireTextPart } from './types/wire.js';
 import { newId } from '@facio/agents';
-import type { ContentPart, FinishReason, ImagePart, Message, ModelInfo, ModelFeatures, ModelReply, ModelRequest, TextPart, ToolCallPart } from '@facio/agents';
+import type { ContentPart, FinishReason, ImagePart, Message, ModelInfo, ModelFeatures, ModelReply, ModelRequest, ReasoningEffort, TextPart, ToolCallPart } from '@facio/agents';
 
 export function toWireMessages(request: ModelRequest, features: { images: boolean }): WireMessage[] {
   const out: WireMessage[] = [{ role: 'system', content: request.instructions }];
@@ -47,12 +47,15 @@ export function toWireTools(request: ModelRequest) {
 
 /**
  * `reasoning_effort` is the OpenAI form (OpenRouter accepts it too); only OpenRouter's `reasoning`
- * object carries a token budget, so that form is used as soon as `maxTokens` is set.
+ * object carries a token budget, so that form is used as soon as `maxTokens` is set, or when the
+ * provider has a budget for the requested effort (decision 98). A level the provider rejects is its error.
  */
-export function toWireReasoning(reasoning: NonNullable<ModelRequest['params']['reasoning']>): Record<string, unknown> {
+export function toWireReasoning(reasoning: NonNullable<ModelRequest['params']['reasoning']>, budgets: Partial<Record<ReasoningEffort, number>> = {}): Record<string, unknown> {
   if (reasoning.maxTokens !== undefined) {
     return { reasoning: { ...(reasoning.effort !== undefined ? { effort: reasoning.effort } : {}), max_tokens: reasoning.maxTokens } };
   }
+  const budget = reasoning.effort !== undefined ? budgets[reasoning.effort] : undefined;
+  if (budget !== undefined) return { reasoning: { max_tokens: budget } };
   return reasoning.effort !== undefined ? { reasoning_effort: reasoning.effort } : {};
 }
 

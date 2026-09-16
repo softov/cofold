@@ -9,6 +9,7 @@ const request = (signal: AbortSignal = new AbortController().signal): ModelReque
   messages: [{ id: 'm1', role: 'user', source: 'input', createdAt: 'now', parts: [{ type: 'text', text: 'hi' }] }],
   tools: [{ name: 'echo', description: 'echo', input: { type: 'object' } }],
   params: { temperature: 0 },
+  cacheKey: 's1',
   signal,
 });
 
@@ -49,7 +50,7 @@ describe('createFakeModel', () => {
 
     expect(model.remaining()).toBe(0);
     expect(model.requests).toHaveLength(2);
-    expect(model.requests[0]).toEqual({ instructions: 'be brief', messages: request().messages, tools: request().tools, params: { temperature: 0 } });
+    expect(model.requests[0]).toEqual({ instructions: 'be brief', messages: request().messages, tools: request().tools, params: { temperature: 0 }, cacheKey: 's1' });
     expect('signal' in model.requests[0]!).toBe(false);
   });
 

@@ -2,16 +2,16 @@ import type { RunAbort } from '../types/abort.js';
 import type { Agent } from '../types/agent.js';
 import type { ContentPart, Message } from '../types/message.js';
 import type { RunOutcome } from '../types/outcome.js';
-import type { CompactArgs, RunArgs, RunHandle } from '../types/run.js';
+import type { RunArgs, RunHandle } from '../types/run.js';
 import type { SessionRecord } from '../types/store.js';
-import type { InternalRunHandle, TurnContext } from '../types/turn.js';
+import type { InternalRunHandle, SteerQueue, TurnContext } from '../types/turn.js';
 import { AgentError } from '../errors.js';
 import { newId } from '../ids.js';
 import { ZERO_USAGE } from '../model/usage.js';
 import { createRunAbort } from './abort.js';
-import { COMPACT_INPUT } from './compact.js';
 import { createEmitter } from './events.js';
 import { createRunHandle } from './handle.js';
+import { enqueueSteer, rejectSteering } from './steering.js';
 import {
   createTurnContext,
   fail,
@@ -30,21 +30,14 @@ export function run<Resources = Record<string, unknown>>(args: RunArgs<Resources
   return start(args, false);
 }
 
-/**
- * A run whose only step folds the session so far into a summary message (AGENT-01-p5 Task 6): its
- * input is the ask, `source: 'system'`; its outcome's message is the summary. Later requests start
- * at that summary; nothing is deleted.
- */
-export function compact<Resources = Record<string, unknown>>(args: CompactArgs<Resources>): RunHandle {
-  return start({ agent: args.agent, session: args.session, input: [{ type: 'text', text: COMPACT_INPUT }], ...(args.signal ? { signal: args.signal } : {}) }, true);
-}
-
-function start<Resources>(args: RunArgs<Resources>, compacting: boolean): RunHandle {
+/** Shared by `run()` and `compact()` (`run/compact.ts`): `compacting` makes the one step a summary step. */
+export function start<Resources>(args: RunArgs<Resources>, compacting: boolean): RunHandle {
   const runId = newId();
   const abort = createRunAbort({ ...(args.signal ? { external: args.signal } : {}), timeoutMs: args.agent.limits.timeoutMs });
-  const handle = createRunHandle({ runId, sessionId: args.session, abort });
+  const steering: SteerQueue = [];
+  const handle = createRunHandle({ runId, sessionId: args.session, abort, steer: (text) => enqueueSteer(steering, text) });
   void (async () => {
-    const ctx = await setupRun(args, runId, abort, handle, compacting);
+    const ctx = await setupRun(args, runId, abort, handle, steering, compacting);
     if (!ctx) return;
     ctx.heartbeat = startHeartbeat(ctx.store, ctx.sessionId, runId);
     await runTurn(ctx, { kind: 'model' });
@@ -61,7 +54,7 @@ export function startHeartbeat(store: Agent['store'], sessionId: string, runId: 
  * Steps 1-5 of a turn: session and run record (decision 53), writer claim (decision 47), capabilities,
  * input message, `run.started`. Returns undefined after finishing the handle on any failure.
  */
-async function setupRun<Resources>(args: RunArgs<Resources>, runId: string, abort: RunAbort, handle: InternalRunHandle, compacting: boolean): Promise<TurnContext | undefined> {
+async function setupRun<Resources>(args: RunArgs<Resources>, runId: string, abort: RunAbort, handle: InternalRunHandle, steering: SteerQueue, compacting: boolean): Promise<TurnContext | undefined> {
   const { agent } = args;
   const { store } = agent;
   const sessionId = args.session;
@@ -82,7 +75,7 @@ async function setupRun<Resources>(args: RunArgs<Resources>, runId: string, abor
     const input: Message = { id: newId(), role: 'user', source: compacting ? 'system' : 'input', parts, createdAt: now() };
     await store.runs.create({ runId, sessionId, agentId, status: 'running', createdAt: now(), updatedAt: now(), usage: ZERO_USAGE, steps: 0, inputMessageId: input.id });
     const emitter = createEmitter({ store, runId, sessionId, agentId, publish: handle.publish, onEvent: agent.hooks.onEvent?.bind(agent.hooks), warn: agent.warn });
-    ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, counters: { usage: ZERO_USAGE, steps: 0, stepIndex: 0, toolCalls: 0 }, claimed: false, compact: compacting, inputMessageId: input.id });
+    ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, steering, counters: { usage: ZERO_USAGE, steps: 0, stepIndex: 0, toolCalls: 0 }, claimed: false, compact: compacting, inputMessageId: input.id });
 
     ctx.claimed = await store.sessions.claimWriter({ sessionId, runId });
     if (!ctx.claimed) { await finishRun(ctx, fail(ctx, 'writer_busy', `session ${sessionId} is being written by another run`)); return undefined; }
@@ -98,7 +91,7 @@ async function setupRun<Resources>(args: RunArgs<Resources>, runId: string, abor
       catch { /* fall through to the last resort */ }
     }
     if (ctx) settle(ctx, outcome);
-    else { abort.dispose(); handle.finish(outcome); }
+    else { rejectSteering(steering, runId); abort.dispose(); handle.finish(outcome); }
     return undefined;
   }
 }

@@ -17,4 +17,6 @@ export type AgentErrorCode =
   | 'internal'
   | 'uncertain_invocation'
   | 'interrupted'
-  | 'superseded';
+  | 'superseded'
+  /** A command that needs a live turn reached a handle whose run is no longer running (decision 101). */
+  | 'not_running';

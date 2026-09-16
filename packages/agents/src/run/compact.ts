@@ -1,17 +1,28 @@
 import type { Message } from '../types/message.js';
 import type { ModelReply } from '../types/model.js';
+import type { CompactArgs, RunHandle } from '../types/run.js';
 import type { TurnContext } from '../types/turn.js';
 import { ModelError } from '../errors.js';
 import { newId } from '../ids.js';
 import { textOf } from '../message/helpers.js';
 import { addUsage } from '../model/usage.js';
 import { assembleRequest, contextOf, estimateMessageTokens, summarizedIds } from './context.js';
+import { start } from './run.js';
 import { summarize as describe } from './turn.js';
 
 const now = () => new Date().toISOString();
 
 /** What a `compact()` run says, as its input message; `source: 'system'` so a reader can tell it from the person's words. */
 export const COMPACT_INPUT = 'Summarize the conversation so far.';
+
+/**
+ * A run whose only step folds the session so far into a summary message (AGENT-01-p5 Task 6): its
+ * input is the ask, `source: 'system'`; its outcome's message is the summary. Later requests start
+ * at that summary; nothing is deleted.
+ */
+export function compact<Resources = Record<string, unknown>>(args: CompactArgs<Resources>): RunHandle {
+  return start({ agent: args.agent, session: args.session, input: [{ type: 'text', text: COMPACT_INPUT }], ...(args.signal ? { signal: args.signal } : {}) }, true);
+}
 
 const SUMMARY_RULES = [
   'Write a summary of the conversation so far, for your own use when you continue it later with only this summary in view.',
@@ -46,6 +57,7 @@ export async function writeSummary(ctx: TurnContext, history: Message[]): Promis
     history: ctx.compact ? covered : [...covered, ask],
     tools: [],
     params: agent.params,
+    cacheKey: sessionId,
     maxTokens: agent.context.maxTokens,
     estimateTokens: agent.context.estimateTokens,
     signal: abort.signal,

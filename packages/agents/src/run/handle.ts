@@ -13,8 +13,10 @@ export function createRunHandle(args: {
   runId: string;
   sessionId: string;
   abort: RunAbort;
+  /** Receives a steer for the running turn; resolves once it is in the transcript (decision 95). */
+  steer: (text: string) => Promise<void>;
   /** Receives approve | deny | answer; resume() installs it (decision 86). Absent on a run() handle. */
-  onCommand?: (command: RunCommand) => Promise<void>;
+  onCommand?: (command: Exclude<RunCommand, { type: 'cancel' | 'steer' }>) => Promise<void>;
 }): InternalRunHandle {
   const buffer: RunEvent[] = [];
   const waiters: (() => void)[] = [];
@@ -46,6 +48,10 @@ export function createRunHandle(args: {
       if (command.type === 'cancel') {
         args.abort.abort({ kind: 'cancel', ...(command.reason !== undefined ? { reason: command.reason } : {}) });
         return;
+      }
+      if (command.type === 'steer') {
+        if (closed) throw new AgentError({ code: 'not_running', message: `run ${args.runId} is not running` });
+        return args.steer(command.text);
       }
       if (!args.onCommand) throw new AgentError({ code: 'not_found', message: `no live request for ${command.type}; use resume()` });
       await args.onCommand(command);

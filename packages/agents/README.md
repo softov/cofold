@@ -65,12 +65,15 @@ Without a `store` it uses an in-memory store and warns once; pass a real store f
 - `events`: every `RunEvent` from `seq` 1, replayed to any iterator, ending after `run.finished`.
 - `outcome`: resolves to exactly one of `completed | awaiting | stopped | cancelled | failed`; it never rejects.
 - `cancel({ reason })` / `submit({ type: 'cancel' })`: aborts the run; a tool in flight is left `uncertain` in the step log.
+- `submit({ type: 'steer', text })`: a message for the running turn, without cancelling it. It is appended to the transcript as a `user` message before the next model step (after every result of the tool batch in progress), announced as `run.steered`, and the promise resolves then. A steer that is still queued when the run settles rejects with `not_running`, as does one sent to a finished handle; the host decides whether to send it as a new run.
 - `status()`: `running` until the outcome settles.
 
 Per step the loop assembles a bounded request from the session transcript (newest messages first, tool-call groups kept whole), calls `hooks.beforeModel`, the model, `hooks.afterModel`, then handles each proposed tool call in order: validate the arguments, `hooks.beforeTool`, the policy floor (`policy.requireApproval`, default: `effects.destructive`), execute, bound the output, `hooks.afterTool`.
 Every message, step and event is persisted through the `Store` before it is published.
 A call that needs approval pauses the run as `awaiting` with a durable `requestId` (see "Pause and resume").
+A hook can end the run on purpose: `beforeTool` returning `{ decision: 'stop', reason }` answers the call `Not executed: <reason>` without running it, `afterTool` returning `{ output, stop: { reason } }` records the result as usual; either way the rest of the batch is answered `Not executed: the run was stopped` and the outcome is `stopped { reason: 'hook' }` (a `beforeModel` / `afterModel` abort is `stopped { reason: 'policy' }`).
 Limits: `maxSteps`, `maxToolCalls`, `timeoutMs`, `maxToolOutputChars`.
+Every model request carries `cacheKey`, the session id, for adapters that key a provider-side prompt cache.
 
 Capabilities (`{ id, tools?(args), instructions?(args) }`) are resolved at the start of every run and contribute tools plus a `## <id>` section to the instructions.
 
@@ -95,6 +98,7 @@ A `deny` on an input request declines the questions: the asking tool's result ca
 The approved call is executed exactly once, then the rest of its batch and the model loop continue as in `run`.
 `deny` appends an error result so the model can react.
 `cancel` while waiting detaches the handle and leaves the request open for a later `resume`.
+A `steer` while waiting is refused with `invalid_options` (answer the request first); once the command is applied the resumed handle takes steers like `run`'s.
 
 `resume` on a run that was `running` when its process died (decision 78) marks the open step `failed` (model) or `uncertain` (tool, plus an error result so the transcript stays valid) and finishes `failed { code: 'interrupted' | 'uncertain_invocation' }`.
 `resume` on a terminal run replays its events and delivers the stored outcome; `afterSeq` skips events the host already has.

@@ -10,6 +10,9 @@ export interface ModelFeatures {
   reasoning: boolean;
 }
 
+/** The whole range providers accept (decision 98); a level a provider rejects is the provider's error, not a client-side clamp. */
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
 export interface ModelParams {
   temperature?: number;
   topP?: number;
@@ -17,7 +20,7 @@ export interface ModelParams {
   stop?: string[];
   seed?: number;
   /** Ignored by an adapter whose features.reasoning is false. */
-  reasoning?: { effort?: 'low' | 'medium' | 'high'; maxTokens?: number };
+  reasoning?: { effort?: ReasoningEffort; maxTokens?: number };
 }
 
 export interface Usage {
@@ -36,6 +39,8 @@ export interface ModelRequest {
   messages: Message[];
   tools: ModelToolDefinition[];
   params: ModelParams;
+  /** Stable per session; adapters that key a prompt cache use it (decision 100). */
+  cacheKey: string;
   signal: AbortSignal;
 }
 

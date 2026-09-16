@@ -36,6 +36,11 @@ export async function handleToolCall(deps: ToolCallDeps, call: ToolCallPart): Pr
   if (agent.hooks.beforeTool) {
     const decision = await agent.hooks.beforeTool({ call, tool, run });
     if (decision.decision === 'deny') return deny(decision.reason);
+    if (decision.decision === 'stop') {
+      // Nothing executed, so no step record, same as a deny; the loop ends the run (decision 97).
+      await emit({ type: 'tool.denied', callId: call.callId, name: call.name, reason: decision.reason });
+      return { kind: 'stop', executed: false, stoppedBy: 'beforeTool', reason: decision.reason, part: { type: 'toolResult', callId: call.callId, name: call.name, content: `Not executed: ${decision.reason}`, isError: true } };
+    }
     if (decision.decision === 'modify') {
       const again = validateSchema({ schema: tool.input, value: decision.input });
       if (!again.ok) return deny(`Invalid arguments after hook modify: ${formatIssues(again.issues)}`);
@@ -49,10 +54,10 @@ export async function handleToolCall(deps: ToolCallDeps, call: ToolCallPart): Pr
     if (remembered !== true) return { kind: 'approval', tool, input, ...(prompt !== undefined ? { prompt } : {}) };
   }
 
-  return execute(deps, call, tool, input);
+  return executeTool(deps, call, tool, input);
 }
 
-export async function execute(deps: ToolCallDeps, call: ToolCallPart, tool: Tool<any, any>, input: unknown): Promise<ToolCallResult> {
+export async function executeTool(deps: ToolCallDeps, call: ToolCallPart, tool: Tool<any, any>, input: unknown): Promise<ToolCallResult> {
   const { agent, run, abort, emit } = deps;
   const invocationId = newId();
   const startedAt = new Date().toISOString();
@@ -89,18 +94,28 @@ export async function execute(deps: ToolCallDeps, call: ToolCallPart, tool: Tool
   let content = bounded;
   let isError = original.isError;
   let transformed: { content: string; isError: boolean } | undefined;
+  let stop: { reason: string } | undefined;
   if (agent.hooks.afterTool) {
     const after = await agent.hooks.afterTool({ call, tool, output: original.detail !== undefined ? { content, detail: original.detail } : content, isError, run });
     const next = normalizeOutput(after.output);
     content = boundOutput(next.content, agent.limits.maxToolOutputChars);
     isError = after.isError ?? isError;
     if (content !== bounded || isError !== original.isError) transformed = { content, isError };
+    stop = after.stop;
   }
 
-  const patch: Partial<StepRecord> = { status: original.isError ? 'failed' : 'completed', original, ...(transformed ? { transformed } : {}), endedAt: new Date().toISOString() };
+  const patch: Partial<StepRecord> = {
+    status: original.isError ? 'failed' : 'completed', original,
+    ...(transformed ? { transformed } : {}),
+    ...(stop ? { detail: { stoppedBy: 'afterTool', reason: stop.reason } } : {}),
+    endedAt: new Date().toISOString(),
+  };
   await agent.store.runs.updateStep({ sessionId: run.sessionId, runId: run.runId, invocationId, patch });
   await emit({ type: 'tool.completed', callId: call.callId, name: tool.name, invocationId, content, isError, durationMs });
-  return { kind: 'result', executed: true, part: { type: 'toolResult', callId: call.callId, name: tool.name, content, isError } };
+  const part = { type: 'toolResult' as const, callId: call.callId, name: tool.name, content, isError };
+  // The result is recorded as usual; the loop ends the run after it (decision 97).
+  if (stop) return { kind: 'stop', executed: true, stoppedBy: 'afterTool', reason: stop.reason, part };
+  return { kind: 'result', executed: true, part };
 }
 
 export function normalizeOutput(output: ToolOutput): { content: string; detail?: unknown } {

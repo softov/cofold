@@ -30,6 +30,7 @@ function request(overrides: Partial<ModelRequest> = {}): ModelRequest {
     messages: [user('hi')],
     tools: [{ name: 'now', description: 'time', input: { type: 'object', properties: {} } }],
     params: {},
+    cacheKey: 'session-1',
     signal: new AbortController().signal,
     ...overrides,
   };
@@ -83,8 +84,15 @@ describe('openaiCompat request mapping', () => {
       temperature: 0.5,
       max_tokens: 5,
       seed: 1,
+      prompt_cache_key: 'session-1',
       stream: false,
     });
+  });
+
+  it('sends the request cacheKey as prompt_cache_key (decision 100)', async () => {
+    const { calls, fetch } = stubFetch([json(okText)]);
+    await openaiCompat({ baseUrl: 'http://x', model: 'm', fetch }).complete(request({ cacheKey: 'other-session' }));
+    expect(calls[0]!.body.prompt_cache_key).toBe('other-session');
   });
 
   it('omits tools and tool_choice when the request has no tools, and sends no authorization without a key', async () => {
@@ -126,6 +134,28 @@ describe('openaiCompat reasoning', () => {
     await model.complete(request({ params: { reasoning: { effort: 'low', maxTokens: 512 } } }));
     expect(calls[1]!.body).toMatchObject({ reasoning: { effort: 'low', max_tokens: 512 } });
     expect(calls[1]!.body).not.toHaveProperty('reasoning_effort');
+  });
+
+  it('sends every effort level as-is, including the ones outside low/medium/high (decision 98)', async () => {
+    const levels = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+    const { calls, fetch } = stubFetch(levels.map(() => json(okText)));
+    const model = openaiCompat({ baseUrl: 'http://x', model: 'm', features: { reasoning: true }, fetch });
+    for (const effort of levels) await model.complete(request({ params: { reasoning: { effort } } }));
+    expect(calls.map((c) => c.body.reasoning_effort)).toEqual([...levels]);
+  });
+
+  it('turns an effort into max_tokens when the provider has a budget for it, and leaves the others as a level', async () => {
+    const { calls, fetch } = stubFetch([json(okText), json(okText), json(okText)]);
+    const model = openaiCompat({ baseUrl: 'http://x', model: 'm', features: { reasoning: true }, reasoningBudgets: { xhigh: 32_000 }, fetch });
+    await model.complete(request({ params: { reasoning: { effort: 'xhigh' } } }));
+    expect(calls[0]!.body).toMatchObject({ reasoning: { max_tokens: 32_000 } });
+    expect(calls[0]!.body).not.toHaveProperty('reasoning_effort');
+    await model.complete(request({ params: { reasoning: { effort: 'low' } } }));
+    expect(calls[1]!.body).toMatchObject({ reasoning_effort: 'low' });
+    expect(calls[1]!.body).not.toHaveProperty('reasoning');
+    // An explicit maxTokens wins over the budget map.
+    await model.complete(request({ params: { reasoning: { effort: 'xhigh', maxTokens: 100 } } }));
+    expect(calls[2]!.body).toMatchObject({ reasoning: { effort: 'xhigh', max_tokens: 100 } });
   });
 
   it('sends nothing for reasoning when the model does not support it', async () => {
@@ -364,6 +394,21 @@ describe('openaiCompat errors and retries', () => {
     expect(e.code).toBe('network');
     expect(e.retryable).toBe(true);
     expect(failing.calls).toHaveLength(3);
+  });
+
+  it('asks an apiKey function once per attempt: one call for a 401, two for a 500 then 200 (decision 99)', async () => {
+    let n = 0;
+    const apiKey = vi.fn(async () => `token-${++n}`);
+    const denied = stubFetch([text('nope', 401)]);
+    const e = await codeOf(settle(openaiCompat({ baseUrl: 'http://x', model: 'm', apiKey, fetch: denied.fetch }).complete(request())));
+    expect(e.code).toBe('auth');
+    expect(apiKey).toHaveBeenCalledTimes(1);
+    expect(denied.calls[0]!.init.headers).toMatchObject({ authorization: 'Bearer token-1' });
+
+    const flaky = stubFetch([text('a', 500), json(okText)]);
+    await settle(openaiCompat({ baseUrl: 'http://x', model: 'm', apiKey, fetch: flaky.fetch }).complete(request()));
+    expect(apiKey).toHaveBeenCalledTimes(3);
+    expect(flaky.calls.map((c) => (c.init.headers as Record<string, string>).authorization)).toEqual(['Bearer token-2', 'Bearer token-3']);
   });
 
   it('throws aborted when the signal is aborted during the request', async () => {

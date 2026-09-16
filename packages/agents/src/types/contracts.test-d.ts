@@ -10,8 +10,8 @@ import type {
   RunInfo,
 } from './hooks.js';
 import type { ContentPart } from './message.js';
-import type { ModelAdapter, Usage } from './model.js';
-import type { RunOutcome } from './outcome.js';
+import type { ModelAdapter, ModelRequest, Usage } from './model.js';
+import type { RunOutcome, StopReason } from './outcome.js';
 import type { ModelProvider } from './provider.js';
 import type { KvScope, RunRecord, Store } from './store.js';
 import type { Tool } from './tool.js';
@@ -65,5 +65,22 @@ describe('contracts', () => {
 
   it('a typed Tool is assignable to the tool a hook receives (decision 67)', () => {
     expectTypeOf<Tool<{ text: string }>>().toMatchTypeOf<BeforeToolArgs['tool']>();
+  });
+
+  it('a beforeTool stop needs a reason (decision 97)', () => {
+    expectTypeOf<{ decision: 'stop'; reason: string }>().toMatchTypeOf<BeforeToolResult>();
+    expectTypeOf<{ decision: 'stop' }>().not.toMatchTypeOf<BeforeToolResult>();
+    expectTypeOf<AfterToolResult['stop']>().toEqualTypeOf<{ reason: string } | undefined>();
+  });
+
+  it('ModelRequest needs a cacheKey (decision 100)', () => {
+    expectTypeOf<ModelRequest['cacheKey']>().toEqualTypeOf<string>();
+    expectTypeOf<Omit<ModelRequest, 'cacheKey'>>().not.toMatchTypeOf<ModelRequest>();
+  });
+
+  it('steer needs a text (decision 95) and stopped may say hook (decision 97)', () => {
+    expectTypeOf<Extract<RunCommand, { type: 'steer' }>['text']>().toEqualTypeOf<string>();
+    expectTypeOf<{ type: 'steer' }>().not.toMatchTypeOf<RunCommand>();
+    expectTypeOf<'hook'>().toMatchTypeOf<StopReason>();
   });
 });

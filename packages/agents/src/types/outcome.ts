@@ -3,7 +3,8 @@ import type { Usage } from './model.js';
 
 export type RunStatus = 'running' | 'completed' | 'awaiting' | 'stopped' | 'cancelled' | 'failed';
 
-export type StopReason = 'max_steps' | 'max_tool_calls' | 'timeout' | 'policy';
+/** `policy`: a beforeModel / afterModel abort (decision 58); `hook`: a beforeTool / afterTool stop, the run ending on purpose (decision 97). */
+export type StopReason = 'max_steps' | 'max_tool_calls' | 'timeout' | 'policy' | 'hook';
 
 export type RunOutcome =
   | { status: 'completed'; message: Message; usage: Usage; steps: number }

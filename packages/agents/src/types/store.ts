@@ -74,6 +74,8 @@ export type StepRecord =
       original?: { content: string; isError: boolean; detail?: unknown };
       /** What the model saw, when a hook changed it. */
       transformed?: { content: string; isError: boolean };
+      /** Why a hook stopped the run at this call (decision 97); never tool output. */
+      detail?: unknown;
       startedAt: string;
       endedAt?: string;
     };

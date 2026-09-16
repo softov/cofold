@@ -4,7 +4,7 @@ import type { RunOutcome } from '../types/outcome.js';
 import type { ResumeArgs, RunHandle } from '../types/run.js';
 import type { PendingRequest, RunRecord, StepRecord } from '../types/store.js';
 import type { ApprovalPayload, InputPayload } from '../types/store.js';
-import type { ResolvedRequest, TurnContext } from '../types/turn.js';
+import type { ResolvedRequest, SteerQueue, TurnContext } from '../types/turn.js';
 import { AgentError } from '../errors.js';
 import { toolCallsOf } from '../message/helpers.js';
 import { ZERO_USAGE, addUsage } from '../model/usage.js';
@@ -14,6 +14,7 @@ import { createRunAbort } from './abort.js';
 import { createEmitter } from './events.js';
 import { createRunHandle } from './handle.js';
 import { startHeartbeat } from './run.js';
+import { enqueueSteer, rejectSteering } from './steering.js';
 import {
   abortOutcome,
   appendResult,
@@ -45,12 +46,21 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
   let accept: ((command: Command) => Promise<void>) | undefined;
   let markReady!: () => void;
   const ready = new Promise<void>((resolve) => { markReady = resolve; });
+  const steering: SteerQueue = [];
   const handle = createRunHandle({
     runId, sessionId, abort,
     onCommand: async (command) => {
       await ready;
       if (!accept) throw new AgentError({ code: 'not_found', message: `run ${runId} is not awaiting a command` });
-      await accept(command as Command);
+      await accept(command);
+    },
+    // A steer is not the resuming command (decision 95): while the request is open it is refused; once the
+    // command is applied the turn is running again and takes steers like a run() handle.
+    steer: async (text) => {
+      await ready;
+      if (accept) throw new AgentError({ code: 'invalid_options', message: 'steer needs a live handle; answer the pending request first' });
+      if (handle.status() !== 'running') throw new AgentError({ code: 'not_running', message: `run ${runId} is not running` });
+      return enqueueSteer(steering, text);
     },
   });
 
@@ -59,6 +69,7 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
 
   /** Handle-only finish for states that must not touch the store (busy, detached, replayed). */
   function finishDetached(outcome: RunOutcome): void {
+    rejectSteering(steering, runId);
     abort.dispose();
     handle.finish(outcome);
   }
@@ -95,7 +106,7 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
       const emitter = createEmitter({ store, runId, sessionId, agentId: record.agentId, publish: handle.publish, onEvent: agent.hooks.onEvent?.bind(agent.hooks), warn: agent.warn, startSeq: lastSeq });
       const steps = await store.runs.listSteps({ sessionId, runId });
       const counters = countersOf(record, steps);
-      const ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, counters, claimed: true, ...(record.inputMessageId !== undefined ? { inputMessageId: record.inputMessageId } : {}) });
+      const ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, steering, counters, claimed: true, ...(record.inputMessageId !== undefined ? { inputMessageId: record.inputMessageId } : {}) });
       if (!(await resolveCapabilities(ctx))) return;
 
       if (record.status === 'running') return await recover(ctx, steps);

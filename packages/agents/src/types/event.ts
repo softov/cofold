@@ -13,6 +13,8 @@ export interface EventBase {
 
 export type RunEventBody =
   | { type: 'run.started'; input: Message }
+  /** A steer appended to the transcript, positioned before the next model step (decisions 95-96). */
+  | { type: 'run.steered'; message: Message }
   | { type: 'model.started'; step: number }
   | { type: 'model.delta'; step: number; text: string }
   | { type: 'model.completed'; step: number; message: Message; usage: Usage; finish: FinishReason }

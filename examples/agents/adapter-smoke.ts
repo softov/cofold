@@ -1,11 +1,21 @@
+import type { ReasoningEffort } from '@facio/agents';
 import { createTool, newId, textOf, toolCallsOf } from '@facio/agents';
 import { openaiCompat } from '@facio/model-openai-compat';
+
+// `--effort <level>` asks for that reasoning level (decision 98) and prints the wire body the adapter sends.
+const effortAt = process.argv.indexOf('--effort');
+const effort = effortAt === -1 ? undefined : (process.argv[effortAt + 1] as ReasoningEffort | undefined);
+const printing: typeof fetch = async (url, init) => {
+  console.log('wire body:', JSON.stringify(JSON.parse(String(init?.body)), null, 2));
+  return fetch(url, init);
+};
 
 const model = openaiCompat({
   baseUrl: process.env.FACIO_BASE_URL ?? 'http://localhost:1234/v1',
   model: process.env.FACIO_MODEL ?? 'qwen/qwen3-8b',
   ...(process.env.FACIO_API_KEY ? { apiKey: process.env.FACIO_API_KEY } : {}),
-  features: { tools: true },
+  features: { tools: true, reasoning: effort !== undefined },
+  ...(effort !== undefined ? { params: { reasoning: { effort } }, fetch: printing } : {}),
 });
 
 const now = createTool({
@@ -21,6 +31,7 @@ const reply = await model.complete({
   messages: [{ id: newId(), role: 'user', source: 'input', createdAt: new Date().toISOString(), parts: [{ type: 'text', text: 'What time is it?' }] }],
   tools: [now.toModelDefinition()],
   params: { temperature: 0 },
+  cacheKey: 'adapter-smoke',
   signal: AbortSignal.timeout(60_000),
 });
 
