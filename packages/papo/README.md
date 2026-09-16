@@ -138,7 +138,7 @@ What differs, because it is the CLI's:
 - Models are `claude/<name>` as `supportedModels()` lists them; a `model` of another provider in the configuration is ignored with a warning, and the CLI's default is used.
 - `permissions`: `destructive` and `ask` are the CLI's `default` mode (the CLI decides what asks; `ask` cannot make every tool ask, and says so once on stderr); `auto` lets every tool run without a decision, questions still ask.
 - `reasoning` is the CLI's `effort` (`off` sends none); changing it on a session with a live process restarts that process on the same session.
-- `autoCompact` is not a setting: the CLI compacts on its own; `/autocompact` is refused with that sentence. `/compact` sends the CLI its own command; afterwards the transcript is what the CLI keeps, the summary first (shown as a `(context compacted)` turn) and the turns after it.
+- `autoCompact` stays on: the CLI compacts on its own; `/autocompact` off is refused with that sentence. `/compact` sends the CLI its own command; afterwards the transcript is what the CLI keeps, the summary first (shown as a `(context compacted)` turn) and the turns after it.
 - A decision waits in the process that asked, not on disk: `papo say` that stops at a tool denies it when the command exits and says so; approvals and answers happen on the screen (`papo chat`), where the process lives.
 - `session delete` removes the CLI's session file; `session list` is the workspace's sessions in `~/.claude/projects/`.
 - Failed turns are the CLI's result (`error_*`) and are kept only in the process that saw them; the CLI's transcript has no record of them.

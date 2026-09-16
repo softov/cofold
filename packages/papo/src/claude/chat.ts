@@ -103,8 +103,9 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
   const settingsOf = (sessionId: string | undefined): Settings => (sessionId !== undefined ? settings.get(sessionId) : undefined) ?? defaults();
 
   function checkSettings(patch: Partial<Settings>): void {
-    if (patch.autoCompact !== undefined) {
-      throw new AgentError({ code: 'invalid_options', message: 'the claude backend compacts on its own; autocompact is not a setting there' });
+    // The screen sends every setting it shows; only turning the CLI's compaction off is refused.
+    if (patch.autoCompact === false) {
+      throw new AgentError({ code: 'invalid_options', message: 'the claude backend compacts on its own; autocompact cannot be turned off there' });
     }
     if (patch.model !== undefined && patch.model !== '' && !patch.model.startsWith(`${CLAUDE_PROVIDER}/`)) {
       throw new AgentError({ code: 'invalid_options', message: `model "${patch.model}" must be written ${CLAUDE_PROVIDER}/<model> on the claude backend` });

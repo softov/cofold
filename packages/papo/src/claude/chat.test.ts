@@ -189,6 +189,12 @@ describe('createClaudeChat', () => {
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
   });
 
+  it('takes the first say from the screen, which carries every setting it shows, autoCompact included', async () => {
+    const { chat } = claudeChat([{ text: 'Hi.' }]);
+    const started = await chat.say({ text: 'Hello', settings: { model: '', permissions: 'destructive', reasoning: 'off', autoCompact: true } });
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+  });
+
   it('lists the CLI models and commands as papo rows', async () => {
     const { chat, sdk } = claudeChat();
     const models = await chat.models();
