@@ -1,3 +1,4 @@
+import type { CanUseTool, ModelInfo, Options, PermissionMode, SDKMessage, SDKSessionInfo, SDKUserMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk';
 import type { ChatPendingInput } from '@textui/chat';
 
 /**
@@ -42,4 +43,33 @@ export interface ClaudeLive {
   pending: ChatPendingInput | null;
   /** The turn that failed, as the CLI's result said, keyed by the turn's input uuid. */
   errors?: Record<string, string>;
+}
+
+/** The part of a `Query` the service uses; the SDK's own satisfies it, a test's fake implements it. */
+export interface ClaudeQuery extends AsyncIterable<SDKMessage> {
+  interrupt(): Promise<unknown>;
+  setModel(model?: string): Promise<void>;
+  setPermissionMode(mode: PermissionMode): Promise<void>;
+  supportedModels(): Promise<ModelInfo[]>;
+  supportedCommands(): Promise<SlashCommand[]>;
+  close(): void;
+}
+
+/** The part of the SDK the service uses. */
+export interface ClaudeSdkSubset {
+  query(params: { prompt: AsyncIterable<SDKUserMessage>; options?: Options }): ClaudeQuery;
+  listSessions(options?: { dir?: string }): Promise<SDKSessionInfo[]>;
+  getSessionMessages(sessionId: string, options?: { dir?: string }): Promise<unknown[]>;
+  deleteSession(sessionId: string, options?: { dir?: string }): Promise<void>;
+}
+
+/** What `canUseTool` handed over and is waiting on: the person's decision resolves it. */
+export interface ClaudeDecision {
+  requestId: string;
+  /** The `tool_use` block's id, as the store names the call; the confirmation is shown on it. */
+  toolUseId: string;
+  toolName: string;
+  input: Record<string, unknown>;
+  suggestions: NonNullable<Parameters<CanUseTool>[2]['suggestions']>;
+  resolve(result: Awaited<ReturnType<CanUseTool>>): void;
 }

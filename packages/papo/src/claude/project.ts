@@ -9,6 +9,8 @@ export const COMPACTED_INPUT = '(context compacted)';
 
 const COMMAND = /<command-name>([^<]*)<\/command-name>(?:\s*<command-message>[^<]*<\/command-message>)?(?:\s*<command-args>([^<]*)<\/command-args>)?/;
 const COMMAND_OUTPUT = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/;
+/** What the CLI writes into the transcript when a turn is interrupted (also `... for tool use`). */
+const INTERRUPTED = /^\[Request interrupted by user[^\]]*\]$/;
 
 /**
  * A Claude Code session as papo's turns (CLI-03 decision 4). A top-level user message with text
@@ -50,8 +52,9 @@ export function projectSession(messages: ClaudeSessionMessage[], live: ClaudeLiv
       }
       const text = textOf(blocks);
       const output = COMMAND_OUTPUT.exec(text);
-      if (output !== null && current !== undefined) {
-        current.parts.push({ kind: 'notice', id: message.uuid, text: output[1]!.trim() });
+      const notice = output !== null ? output[1]!.trim() : INTERRUPTED.test(text) ? text.slice(1, -1) : undefined;
+      if (notice !== undefined && current !== undefined) {
+        current.parts.push({ kind: 'notice', id: message.uuid, text: notice });
         if (message.timestamp !== undefined) current.endedAt = message.timestamp;
         continue;
       }
