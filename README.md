@@ -39,7 +39,7 @@ For an agent, the surface is a run: a model proposes, the harness authorizes and
 
 | Package | Purpose |
 | --- | --- |
-| [`@facio/papo`](packages/papo) | `papo`: talk to an agent that runs in this process. A screen drawn with [`@textui/chat`](https://github.com/softov/textui) and a shell of `@facio/commands` actions over the same sessions on disk. |
+| [`@facio/papo`](packages/papo) | `papo`: talk to an agent that runs in this process. A screen drawn with [`@textui/chat`](https://github.com/softov/textui) and a shell of `@facio/commands` actions over the same sessions on disk; `--backend claude` runs both over Claude Code's runtime through its SDK. |
 
 ## Try it
 

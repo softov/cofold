@@ -47,6 +47,7 @@ export function deleteFileTool(): { tool: Tool<{ path: string }>; executions: ()
 /** `model: undefined` in the overrides means no model configured, which the type of the field cannot say. */
 export function testConfig(overrides: Partial<PapoConfig> | { model: undefined } = {}): PapoConfig {
   const config: PapoConfig = {
+    backend: 'facio',
     providers: [{ id: 'fake', baseUrl: 'http://fake.invalid/v1' }],
     model: 'fake/scripted',
     permissions: 'destructive',

@@ -1,4 +1,7 @@
 export { createChat } from './chat.js';
+export { createClaudeChat, CLAUDE_PROVIDER } from './claude/chat.js';
+export type { ClaudeChatOptions } from './claude/chat.js';
+export type { ClaudeSdkSubset, ClaudeQuery, ClaudeSessionMessage } from './types/claude.js';
 export { loadConfig, providersOf, providerFor, splitModel, DEFAULT_INSTRUCTIONS } from './config.js';
 export { buildAgent, policyOf, AGENT_ID } from './agent.js';
 export { projectTurns, titleOf, inputLine, ALWAYS } from './turns.js';
@@ -8,7 +11,7 @@ export { createPapoRegistry, openPapo, GLOBALS } from './commands.js';
 export type { Papo, RegistryOptions } from './commands.js';
 export { createProgram, argvFor, VERSION } from './program.js';
 export type { ProgramArgs } from './program.js';
-export type { PapoConfig, ProviderConfig, PermissionMode } from './types/config.js';
+export type { Backend, PapoConfig, ProviderConfig, PermissionMode } from './types/config.js';
 export type { Settings, Reasoning } from './types/settings.js';
 export { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 export type { Chat, ChatListener, ChatOptions, ModelRow, Started } from './types/chat.js';

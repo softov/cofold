@@ -138,7 +138,7 @@ describe('createClaudeChat', () => {
   });
 
   it('compacts by sending the CLI its own command and projects the summary the store keeps', async () => {
-    const { chat } = claudeChat([{ text: 'One.' }, { text: 'Two.' }]);
+    const { chat } = claudeChat([{ text: 'One.' }, { text: 'Two.' }, { text: 'We counted to two.' }]);
     const started = await chat.say({ text: 'First' });
     await chat.wait(started.sessionId);
     await chat.say({ sessionId: started.sessionId, text: 'Second' });
@@ -149,7 +149,7 @@ describe('createClaudeChat', () => {
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
     const after = await chat.snapshot(started.sessionId);
     expect(after.turns.map((turn) => turn.input)).toEqual([COMPACTED_INPUT, 'Second', '/compact']);
-    expect(after.turns[0]?.parts[0]).toMatchObject({ kind: 'summary', text: 'Summary of 4 messages' });
+    expect(after.turns[0]?.parts[0]).toMatchObject({ kind: 'summary', text: 'We counted to two.' });
     expect(after.turns[2]?.parts[0]).toMatchObject({ kind: 'notice', text: 'Compacted' });
     expect(after.settings.autoCompact).toBe(true);
   });
@@ -178,6 +178,17 @@ describe('createClaudeChat', () => {
     expect((await chat.snapshot(started.sessionId)).turns.map((turn) => turn.input)).toEqual(['Hello', 'Back']);
   });
 
+  it('under auto, tools run without a decision while a question still asks', async () => {
+    const { chat } = claudeChat([{ tool: 'Bash', input: { command: 'ls' }, output: 'a b', then: 'Listed.' }, ASK], { model: undefined, permissions: 'auto' });
+    const started = await chat.say({ text: 'List' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    expect((await chat.snapshot(started.sessionId)).turns[0]?.parts[0]).toMatchObject({ kind: 'tool', call: { status: 'completed', output: 'a b' } });
+    await chat.say({ sessionId: started.sessionId, text: 'Choose' });
+    expect(await chat.wait(started.sessionId)).toMatchObject({ status: 'awaiting', kind: 'input' });
+    await chat.answer(started.sessionId, { 'Which one?': 'B' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+  });
+
   it('lists the CLI models and commands as papo rows', async () => {
     const { chat, sdk } = claudeChat();
     const models = await chat.models();
@@ -193,6 +204,7 @@ describe('createClaudeChat', () => {
     const { chat, sdk } = claudeChat([{ text: 'a' }, { text: 'b' }, { text: 'c' }]);
     expect(await chat.settings()).toMatchObject({ model: '', permissions: 'destructive', reasoning: 'off' });
     await expect(chat.configure('s', { model: 'fake/x' })).rejects.toMatchObject({ code: 'invalid_options' });
+    await expect(chat.configure('s', { autoCompact: false })).rejects.toMatchObject({ code: 'invalid_options', message: /compacts on its own/ });
 
     const started = await chat.say({ text: 'One', settings: { model: 'claude/opus' } });
     await chat.wait(started.sessionId);
@@ -200,7 +212,6 @@ describe('createClaudeChat', () => {
     expect(sdk.queries[0]?.options?.effort).toBeUndefined();
 
     await chat.configure(started.sessionId, { permissions: 'auto' });
-    expect(sdk.queries[0]?.mode).toBe('bypassPermissions');
     await chat.say({ sessionId: started.sessionId, text: 'Two' });
     await chat.wait(started.sessionId);
     expect(sdk.queries).toHaveLength(1);
@@ -210,7 +221,7 @@ describe('createClaudeChat', () => {
     await chat.wait(started.sessionId);
     expect(sdk.queries).toHaveLength(2);
     expect(sdk.queries[0]?.closed).toBe(true);
-    expect(sdk.queries[1]?.options).toMatchObject({ resume: started.sessionId, model: 'opus', effort: 'high', permissionMode: 'bypassPermissions', allowDangerouslySkipPermissions: true });
+    expect(sdk.queries[1]?.options).toMatchObject({ resume: started.sessionId, model: 'opus', effort: 'high', permissionMode: 'default' });
     expect(await chat.settings(started.sessionId)).toMatchObject({ model: 'claude/opus', permissions: 'auto', reasoning: 'high' });
   });
 });

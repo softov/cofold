@@ -46,6 +46,7 @@ The family's `FACIO_BASE_URL`, `FACIO_API_KEY` and `FACIO_MODEL`, which the exam
 
 | Key | Meaning |
 | --- | --- |
+| `backend` | `facio` (the harness in this process, the default) or `claude` (Claude Code's runtime through its SDK; see below). `--backend` and `PAPO_BACKEND` override it. |
 | `providers[].id` | How a model is named: `<id>/<model>`. |
 | `model` | `<provider>/<model>`; the first the first provider lists when absent. |
 | `permissions` | `destructive` (the harness default: tools declaring `effects.destructive` stop to ask), `ask` (every tool asks), `auto` (nothing asks). |
@@ -119,6 +120,31 @@ The conversation: type and `enter`; `tab` walks the three chips under the field 
 
 The components are `@textui/chat`; what this package adds is the projection from the store to their props and the wiring from a key to the harness.
 
+## The claude backend
+
+`papo --backend claude` (or `"backend": "claude"`, or `PAPO_BACKEND=claude`) runs the same screen and shell over Claude Code's own runtime: its tools, its permission rules, its sessions under `~/.claude/projects/`, its compaction.
+It needs `@anthropic-ai/claude-agent-sdk` installed next to papo (an optional peer, under Anthropic's licence, with the CLI binary inside) and a Claude login or `ANTHROPIC_API_KEY`; without the package, `papo --backend claude` says `install @anthropic-ai/claude-agent-sdk to use the claude backend`.
+
+```sh
+npm install @anthropic-ai/claude-agent-sdk
+papo --backend claude models                     # what the CLI offers: claude/default, claude/opus, claude/sonnet, ...
+papo --backend claude                            # the screen, over Claude Code
+papo --backend claude say -p auto "Run the tests and fix what fails"
+```
+
+What is the same: the transcript, the confirmation block (the CLI's `canUseTool` becomes it; `Always, this session` sends the CLI's own suggested rule back), the question form (`AskUserQuestion`), `/compact`, `/cost`, `/status`, the session list, `session show` and `session export`.
+What differs, because it is the CLI's:
+
+- Models are `claude/<name>` as `supportedModels()` lists them; a `model` of another provider in the configuration is ignored with a warning, and the CLI's default is used.
+- `permissions`: `destructive` and `ask` are the CLI's `default` mode (the CLI decides what asks; `ask` cannot make every tool ask, and says so once on stderr); `auto` lets every tool run without a decision, questions still ask.
+- `reasoning` is the CLI's `effort` (`off` sends none); changing it on a session with a live process restarts that process on the same session.
+- `autoCompact` is not a setting: the CLI compacts on its own; `/autocompact` is refused with that sentence. `/compact` sends the CLI its own command; afterwards the transcript is what the CLI keeps, the summary first (shown as a `(context compacted)` turn) and the turns after it.
+- A decision waits in the process that asked, not on disk: `papo say` that stops at a tool denies it when the command exits and says so; approvals and answers happen on the screen (`papo chat`), where the process lives.
+- `session delete` removes the CLI's session file; `session list` is the workspace's sessions in `~/.claude/projects/`.
+- Failed turns are the CLI's result (`error_*`) and are kept only in the process that saw them; the CLI's transcript has no record of them.
+
+The harness's own tools, skills and memory are not involved; the CLI brings its own.
+
 ## What is kept, and where
 
 Sessions, runs, events, steps and requests are the file store's (`@facio/store-file`), under `<home>/workspaces/<slug>/sessions/<id>/`.
@@ -136,6 +162,9 @@ src/
   turns.ts  blocks.ts           store -> Turn[] -> Block[]
   questions.ts                  AskQuestion <-> ChatQuestion / ChatAnswer, id=value words
   chat.ts                       createChat: the service both fronts use
+  claude/                       the claude backend: sdk.ts (the optional peer), project.ts (the CLI's transcript as Turn[]),
+                                permissions.ts (canUseTool as the block), chat.ts (createClaudeChat), testing.ts (the fake SDK)
+  chat-contract.test.ts         the scenarios both backends must agree on
   commands.ts  program.ts       the actions and the @facio/terminal program
   main.ts                       the binary: screen or shell
   screen/{state,app,sessions,chat,tui}                  the textui application

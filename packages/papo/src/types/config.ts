@@ -45,8 +45,12 @@ export interface ToolsConfig {
   memory: boolean;
 }
 
+/** What runs the conversation: the harness in this process, or Claude Code's runtime through its SDK. */
+export type Backend = 'facio' | 'claude';
+
 /** `~/.config/papo/config.json`, `.papo.json`, `PAPO_CONFIG`, `--config`, and the `PAPO_*` variables, merged. */
 export interface PapoConfig {
+  backend: Backend;
   providers: ProviderConfig[];
   /** `<providerId>/<modelId>`; the first listed model of the first provider when absent. */
   model?: string;

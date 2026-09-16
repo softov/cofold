@@ -1,4 +1,4 @@
-import type { CanUseTool, ModelInfo, Options, PermissionMode, SDKMessage, SDKSessionInfo, SDKUserMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk';
+import type { CanUseTool, ModelInfo, Options, SDKMessage, SDKSessionInfo, SDKUserMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk';
 import type { ChatPendingInput } from '@textui/chat';
 
 /**
@@ -49,7 +49,6 @@ export interface ClaudeLive {
 export interface ClaudeQuery extends AsyncIterable<SDKMessage> {
   interrupt(): Promise<unknown>;
   setModel(model?: string): Promise<void>;
-  setPermissionMode(mode: PermissionMode): Promise<void>;
   supportedModels(): Promise<ModelInfo[]>;
   supportedCommands(): Promise<SlashCommand[]>;
   close(): void;

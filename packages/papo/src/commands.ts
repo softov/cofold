@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { RunOutcome } from '@facio/agents';
@@ -7,6 +8,7 @@ import { ArgumentError, createRegistry, output } from '@facio/commands';
 import { createFileStore, resolveHome } from '@facio/store-file';
 import { renderTable } from '@facio/terminal';
 import { createChat } from './chat.js';
+import { createClaudeChat } from './claude/chat.js';
 import { loadConfig, providersOf } from './config.js';
 import { exportPath, toMarkdown } from './export.js';
 import { parseAnswers } from './questions.js';
@@ -37,6 +39,7 @@ export const GLOBALS: readonly OptionSpec[] = [
   { name: '--workspace', short: '-w', value: 'DIR', description: 'Where the agent works; sessions are kept per workspace', env: 'PAPO_WORKSPACE' },
   { name: '--home', value: 'DIR', description: 'Where sessions and skills are stored (default ~/.facio)', env: 'FACIO_HOME' },
   { name: '--config', short: '-c', value: 'FILE', description: 'Read this configuration file on top of the others' },
+  { name: '--backend', short: '-b', value: 'NAME', description: 'What runs the conversation: facio (the harness here) or claude (Claude Code, through its SDK)' },
 ];
 
 /** Everything a front needs, built once from the program-wide options. */
@@ -59,11 +62,22 @@ export function redactedConfig(papo: Papo): Record<string, unknown> {
 
 export function openPapo(globals: Readonly<Record<string, unknown>>): Papo {
   const workspace = resolve(typeof globals['workspace'] === 'string' ? globals['workspace'] : process.cwd());
+  // Checked here because the runtimes fail obscurely without it (the CLI reports a binary that "failed to launch").
+  if (!isDirectory(workspace)) throw new ArgumentError(`workspace ${workspace} is not a directory`);
   const home = typeof globals['home'] === 'string' ? resolve(globals['home']) : resolveHome({ name: 'facio' });
   const config = loadConfig({ cwd: workspace, ...(typeof globals['config'] === 'string' ? { path: globals['config'] } : {}) });
-  const store = createFileStore({ root: home });
-  const chat = createChat({ store, config, providers: providersOf(config), workspace, home });
+  if (typeof globals['backend'] === 'string') {
+    if (globals['backend'] !== 'facio' && globals['backend'] !== 'claude') throw new ArgumentError(`--backend must be facio or claude, not "${globals['backend']}"`);
+    config.backend = globals['backend'];
+  }
+  const chat = config.backend === 'claude'
+    ? createClaudeChat({ config, workspace })
+    : createChat({ store: createFileStore({ root: home }), config, providers: providersOf(config), workspace, home });
   return { chat, config, workspace, home };
+}
+
+function isDirectory(path: string): boolean {
+  try { return statSync(path).isDirectory(); } catch { return false; }
 }
 
 /**
@@ -120,9 +134,16 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
         ...(input.session !== undefined ? { sessionId: input.session } : {}),
         ...(Object.keys(patch).length > 0 ? { settings: patch } : {}),
       }));
-      const outcome = await papo.chat.wait(started.sessionId);
+      let outcome = await papo.chat.wait(started.sessionId);
+      let note: string | undefined;
+      // The CLI's decision lives in the process that asked: this command cannot leave it for the next one.
+      if (outcome?.status === 'awaiting' && papo.config.backend === 'claude') {
+        note = 'papo say cannot hold a decision on the claude backend: the tool was denied; use papo chat to approve tools';
+        await papo.chat.deny(started.sessionId, { reason: 'papo say exited before the decision was made; open papo chat to approve tools' });
+        outcome = await papo.chat.wait(started.sessionId);
+      }
       const snapshot = await papo.chat.snapshot(started.sessionId);
-      return output({ sessionId: started.sessionId, runId: started.runId, outcome, pending: snapshot.pending }, () => renderOutcome(snapshot, outcome));
+      return output({ sessionId: started.sessionId, runId: started.runId, outcome, pending: snapshot.pending, ...(note !== undefined ? { note } : {}) }, () => renderOutcome(snapshot, outcome, note));
     },
   });
 
@@ -363,10 +384,11 @@ async function settle(papo: Papo, sessionId: string) {
   return output({ sessionId, outcome, pending: snapshot.pending }, () => renderOutcome(snapshot, outcome));
 }
 
-function renderOutcome(snapshot: Snapshot, outcome: RunOutcome | undefined): string {
+function renderOutcome(snapshot: Snapshot, outcome: RunOutcome | undefined, note?: string): string {
   const lines: string[] = [];
   const last = snapshot.turns[snapshot.turns.length - 1];
   if (last !== undefined) lines.push(...renderTurn(last, { toolCalls: true }));
+  if (note !== undefined) lines.push(`Note: ${note}`);
   if (outcome?.status === 'awaiting' || snapshot.pending !== null) {
     lines.push(...renderPending(snapshot));
   } else if (outcome?.status === 'stopped') {

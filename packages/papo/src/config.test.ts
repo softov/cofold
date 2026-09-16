@@ -19,7 +19,7 @@ afterEach(() => rm(root, { recursive: true, force: true }));
 describe('loadConfig', () => {
   it('has defaults and no provider until one is written', () => {
     const config = loadConfig({ cwd: join(root, 'work'), env });
-    expect(config).toMatchObject({ providers: [], permissions: 'destructive', reasoning: 'off', theme: 'paper', shell: 'workbench' });
+    expect(config).toMatchObject({ backend: 'facio', providers: [], permissions: 'destructive', reasoning: 'off', theme: 'paper', shell: 'workbench' });
     expect(config.tools).toEqual({ files: true, shell: true, web: true, memory: true });
     expect(config.instructions.length).toBeGreaterThan(10);
   });
@@ -58,6 +58,15 @@ describe('loadConfig', () => {
     expect(own.model).toBe('default/x');
   });
 
+  it('picks the backend from the file or PAPO_BACKEND, and refuses one it does not know', async () => {
+    await writeFile(join(root, 'config', 'papo', 'config.json'), JSON.stringify({ backend: 'claude' }));
+    expect(loadConfig({ cwd: join(root, 'work'), env }).backend).toBe('claude');
+    expect(loadConfig({ cwd: join(root, 'work'), env: { ...env, PAPO_BACKEND: 'facio' } }).backend).toBe('facio');
+    expect(() => loadConfig({ cwd: join(root, 'work'), env: { ...env, PAPO_BACKEND: 'gemini' } })).toThrow('PAPO_BACKEND must be facio or claude');
+    await writeFile(join(root, 'config', 'papo', 'config.json'), JSON.stringify({ backend: 'gemini' }));
+    expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow('config.backend must be one of facio, claude');
+  });
+
   it('names the key that is wrong, and the file it read', async () => {
     const file = join(root, 'config', 'papo', 'config.json');
     await writeFile(file, JSON.stringify({ permissions: 'sometimes' }));
@@ -77,7 +86,7 @@ describe('model references', () => {
   });
 
   it('finds the provider by id and says which are configured when it is missing', () => {
-    const config = { providers: [{ id: 'a', baseUrl: 'http://a' }, { id: 'b', baseUrl: 'http://b' }], permissions: 'ask' as const, reasoning: 'off' as const, instructions: '', tools: { files: false, shell: false, web: false, memory: false }, context: { maxTokens: 32_000, autoCompact: false }, theme: 'paper', shell: 'workbench' };
+    const config = { backend: 'facio' as const, providers: [{ id: 'a', baseUrl: 'http://a' }, { id: 'b', baseUrl: 'http://b' }], permissions: 'ask' as const, reasoning: 'off' as const, instructions: '', tools: { files: false, shell: false, web: false, memory: false }, context: { maxTokens: 32_000, autoCompact: false }, theme: 'paper', shell: 'workbench' };
     const providers = providersOf(config);
     expect(providers.map((provider) => provider.id)).toEqual(['openai-compat:a', 'openai-compat:b']);
     expect(providerFor(providers, config, 'b/m')).toEqual({ provider: providers[1], modelId: 'm' });

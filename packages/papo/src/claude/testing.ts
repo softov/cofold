@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { ModelInfo, Options, PermissionMode, PermissionResult, PermissionUpdate, SDKMessage, SDKSessionInfo, SDKUserMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk';
+import type { ModelInfo, Options, PermissionResult, PermissionUpdate, SDKMessage, SDKSessionInfo, SDKUserMessage, SlashCommand } from '@anthropic-ai/claude-agent-sdk';
 import type { ClaudeBlock, ClaudeQuery, ClaudeSdkSubset, ClaudeSessionMessage } from '../types/claude.js';
 
 /** What the CLI stores when a turn is interrupted: a user message in the transcript, not a prompt. */
@@ -19,7 +19,6 @@ export interface FakeQueryRecord {
   options: Options | undefined;
   closed: boolean;
   model?: string | undefined;
-  mode?: PermissionMode;
 }
 
 /**
@@ -71,7 +70,7 @@ export function fakeClaudeSdk(): FakeClaudeSdk {
     deleteSession: async (sessionId) => { store.delete(sessionId); },
   };
   function fakeQuery(owner: FakeClaudeSdk, prompt: AsyncIterable<SDKUserMessage>, options: Options | undefined): ClaudeQuery {
-    const record: FakeQueryRecord = { options, closed: false, model: options?.model, ...(options?.permissionMode !== undefined ? { mode: options.permissionMode } : {}) };
+    const record: FakeQueryRecord = { options, closed: false, model: options?.model };
     owner.queries.push(record);
     const sessionId = options?.resume ?? options?.sessionId ?? randomUUID();
     let interrupt: (() => void) | undefined;
@@ -81,8 +80,8 @@ export function fakeClaudeSdk(): FakeClaudeSdk {
       if (held === undefined) { held = []; store.set(sessionId, held); created.set(sessionId, Date.now()); }
       return held;
     };
-    const record_ = (message: Omit<ClaudeSessionMessage, 'uuid' | 'session_id' | 'timestamp'>): ClaudeSessionMessage => {
-      const full: ClaudeSessionMessage = { ...message, uuid: randomUUID(), session_id: sessionId, timestamp: new Date().toISOString() };
+    const record_ = (message: Omit<ClaudeSessionMessage, 'uuid' | 'session_id' | 'timestamp'>, uuid: string = randomUUID()): ClaudeSessionMessage => {
+      const full: ClaudeSessionMessage = { ...message, uuid, session_id: sessionId, timestamp: new Date().toISOString() };
       messages().push(full);
       return full;
     };
@@ -92,18 +91,21 @@ export function fakeClaudeSdk(): FakeClaudeSdk {
       uuid: randomUUID(), session_id: sessionId, ...fields,
     } as unknown as SDKMessage);
 
-    async function* turn(userText: string): AsyncGenerator<SDKMessage> {
+    async function* turn(userText: string, uuid: string | undefined): AsyncGenerator<SDKMessage> {
       if (userText === '/compact') {
         const all = messages();
         const tail = all.slice(-2);
-        const summary = record_({ type: 'user', message: { role: 'user', content: `Summary of ${all.length} messages` }, parent_tool_use_id: null, isCompactSummary: true });
-        const echo = record_({ type: 'user', message: { role: 'user', content: '<command-name>/compact</command-name><command-message>compact</command-message><command-args></command-args>' }, parent_tool_use_id: null });
+        // The summary is the model's: the next scripted text is it, as the harness's fake model gives it.
+        const scripted = owner.replies.shift();
+        const summary = record_({ type: 'user', message: { role: 'user', content: scripted !== undefined && 'text' in scripted ? scripted.text : `Summary of ${all.length} messages` }, parent_tool_use_id: null, isCompactSummary: true });
+        const echo = record_({ type: 'user', message: { role: 'user', content: '<command-name>/compact</command-name><command-message>compact</command-message><command-args></command-args>' }, parent_tool_use_id: null }, uuid);
         const out = record_({ type: 'user', message: { role: 'user', content: '<local-command-stdout>Compacted </local-command-stdout>' }, parent_tool_use_id: null });
         store.set(sessionId, [summary, ...tail, echo, out]);
         yield result({ subtype: 'success', result: '', user_message_uuid: echo.uuid });
         return;
       }
-      const input = record_({ type: 'user', message: { role: 'user', content: userText }, parent_tool_use_id: null });
+      // The client's uuid is the record's, as the CLI keeps it.
+      const input = record_({ type: 'user', message: { role: 'user', content: userText }, parent_tool_use_id: null }, uuid);
       const reply = owner.replies.shift() ?? { text: `echo: ${userText}` };
       const say = (blocks: ClaudeBlock[]): SDKMessage => {
         const stored = record_({ type: 'assistant', message: { role: 'assistant', content: blocks, usage: { input_tokens: 10, output_tokens: 5 } }, parent_tool_use_id: null });
@@ -144,7 +146,7 @@ export function fakeClaudeSdk(): FakeClaudeSdk {
       for await (const message of prompt) {
         if (record.closed) return;
         const text = typeof message.message.content === 'string' ? message.message.content : '';
-        yield* turn(text);
+        yield* turn(text, message.uuid);
       }
     }
     const iterator = run();
@@ -152,7 +154,6 @@ export function fakeClaudeSdk(): FakeClaudeSdk {
       [Symbol.asyncIterator]: () => iterator,
       interrupt: async () => { interrupt?.(); interrupt = undefined; },
       setModel: async (model) => { record.model = model; },
-      setPermissionMode: async (mode) => { record.mode = mode; },
       supportedModels: async () => FAKE_MODELS,
       supportedCommands: async () => FAKE_COMMANDS,
       close: () => { record.closed = true; interrupt?.(); void iterator.return(undefined); },

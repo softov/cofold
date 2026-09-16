@@ -22,6 +22,7 @@ const PROVIDER: JsonSchema = {
 const SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
+    backend: { type: 'string', enum: ['facio', 'claude'] },
     providers: { type: 'array', items: PROVIDER },
     model: { type: 'string', minLength: 1 },
     permissions: { type: 'string', enum: ['ask', 'destructive', 'auto'] },
@@ -94,7 +95,7 @@ const SCHEMA: JsonSchema = {
 export const DEFAULT_INSTRUCTIONS = 'You are a careful assistant working in the user\'s project. Answer plainly; use the tools you are given when they help.';
 
 const BASE = {
-  providers: [], permissions: 'destructive', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS,
+  backend: 'facio', providers: [], permissions: 'destructive', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS,
   tools: { files: true, shell: true, web: true, memory: true },
   context: { maxTokens: 32_000, autoCompact: true },
   theme: 'paper', shell: 'workbench',
@@ -107,6 +108,7 @@ const BASE = {
  * `$PAPO_CONFIG`, `--config`); on top of them `PAPO_BASE_URL`, `PAPO_API_KEY` and `PAPO_MODEL` (or the
  * family's `FACIO_*`, which the examples read too) add or replace a provider called `default`, which
  * is how a first run needs no file at all. A `FACIO_MODEL` with no slash names a model of `default`.
+ * `PAPO_BACKEND` picks the runtime.
  */
 export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: string }): PapoConfig {
   const env = args.env ?? process.env;
@@ -134,6 +136,11 @@ export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: 
   }
   const model = variable('MODEL');
   if (model !== undefined) config.model = model.includes('/') ? model : `default/${model}`;
+  const backend = env['PAPO_BACKEND'];
+  if (backend !== undefined && backend !== '') {
+    if (backend !== 'facio' && backend !== 'claude') throw new ConfigurationError(`PAPO_BACKEND must be facio or claude, not "${backend}"`);
+    config.backend = backend;
+  }
   return config;
 }
 

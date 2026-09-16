@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { CanUseTool, Options, PermissionMode as ClaudePermissionMode, SDKMessage, SDKResultMessage, SDKSessionInfo, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import type { CanUseTool, Options, SDKMessage, SDKResultMessage, SDKSessionInfo, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { RunOutcome, SkillIndexEntry, Usage } from '@facio/agents';
 import { AgentError, newId } from '@facio/agents';
 import { DEFAULT_INSTRUCTIONS } from '../config.js';
 import { titleOf } from '../turns.js';
 import type { Chat, ChatListener, ModelRow, Started } from '../types/chat.js';
-import type { ClaudeDecision, ClaudeQuery, ClaudeSdkSubset, ClaudeSessionMessage } from '../types/claude.js';
+import type { ClaudeDecision, ClaudeMessage, ClaudeQuery, ClaudeSdkSubset, ClaudeSessionMessage } from '../types/claude.js';
 import type { PapoConfig } from '../types/config.js';
 import type { Settings } from '../types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from '../types/settings.js';
@@ -60,14 +60,21 @@ interface Live {
   effort: Settings['reasoning'];
   running: boolean;
   decision: ClaudeDecision | null;
+  /** The turn in flight is the CLI's `/compact`. */
+  compacting: boolean;
   /** The turn in flight: what `wait` resolves to, settled by a decision to make or the CLI's result. */
-  turn: { runId: string; resolve(outcome: RunOutcome): void; outcome: Promise<RunOutcome> } | undefined;
+  turn: { runId: string; inputId: string; resolve(outcome: RunOutcome): void; outcome: Promise<RunOutcome> } | undefined;
+  /**
+   * What the stream delivered that the store may not hold yet: the CLI writes its transcript after
+   * it answers, so a read right after the result can miss the turn. Dropped as the store catches up.
+   */
+  seen: ClaudeSessionMessage[];
 }
 
-function deferred(runId: string): NonNullable<Live['turn']> {
+function deferred(runId: string, inputId: string): NonNullable<Live['turn']> {
   let resolve!: (outcome: RunOutcome) => void;
   const outcome = new Promise<RunOutcome>((done) => { resolve = done; });
-  return { runId, resolve, outcome };
+  return { runId, inputId, resolve, outcome };
 }
 
 /**
@@ -88,10 +95,17 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
   const sdk = (): Promise<ClaudeSdkSubset> => (sdkLoaded ??= options.sdk !== undefined ? Promise.resolve(options.sdk) : loadClaudeSdk());
   const notify = (sessionId: string): void => { for (const listener of listeners) listener(sessionId); };
 
-  const defaults = (): Settings => ({ model: modelIdOf(config.model ?? '') === '' ? '' : `${CLAUDE_PROVIDER}/${modelIdOf(config.model ?? '')}`, permissions: config.permissions, reasoning: config.reasoning, autoCompact: true });
+  // A configured model of another provider is not for this backend: the CLI's default is used.
+  const configured = config.model !== undefined && config.model.startsWith(`${CLAUDE_PROVIDER}/`) ? config.model : '';
+  if (config.model !== undefined && configured === '') warn(`model "${config.model}" is not written ${CLAUDE_PROVIDER}/<model>; the claude backend uses the CLI's default`);
+  if (config.permissions === 'ask') warn('permissions "ask" has no equivalent on the claude backend: the CLI decides what asks, as in its default mode');
+  const defaults = (): Settings => ({ model: configured, permissions: config.permissions, reasoning: config.reasoning, autoCompact: true });
   const settingsOf = (sessionId: string | undefined): Settings => (sessionId !== undefined ? settings.get(sessionId) : undefined) ?? defaults();
 
   function checkSettings(patch: Partial<Settings>): void {
+    if (patch.autoCompact !== undefined) {
+      throw new AgentError({ code: 'invalid_options', message: 'the claude backend compacts on its own; autocompact is not a setting there' });
+    }
     if (patch.model !== undefined && patch.model !== '' && !patch.model.startsWith(`${CLAUDE_PROVIDER}/`)) {
       throw new AgentError({ code: 'invalid_options', message: `model "${patch.model}" must be written ${CLAUDE_PROVIDER}/<model> on the claude backend` });
     }
@@ -112,8 +126,9 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       ...(resume ? { resume: sessionId } : { sessionId }),
       ...(model !== '' ? { model } : {}),
       ...(chosen.reasoning !== 'off' ? { effort: chosen.reasoning } : {}),
-      permissionMode: claudeModeOf(chosen.permissions),
-      ...(chosen.permissions === 'auto' ? { allowDangerouslySkipPermissions: true } : {}),
+      // Always `default`: `bypassPermissions` would answer AskUserQuestion too (the SDK says so), and
+      // papo's `auto` is "tools run, questions ask"; the callback below is where `auto` is applied.
+      permissionMode: 'default',
       canUseTool,
       systemPrompt: { type: 'preset', preset: 'claude_code', ...(append !== undefined ? { append } : {}) },
       settingSources: ['user', 'project'],
@@ -123,14 +138,15 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
   /** Starts the process for a session and reads it to its end in the background. */
   async function start(sessionId: string, chosen: Settings, resume: boolean): Promise<Live> {
     const feed = createFeed();
-    const entry: Live = { query: undefined as unknown as ClaudeQuery, feed, effort: chosen.reasoning, running: false, decision: null, turn: undefined };
+    const entry: Live = { query: undefined as unknown as ClaudeQuery, feed, effort: chosen.reasoning, running: false, decision: null, compacting: false, turn: undefined, seen: [] };
     const canUseTool: CanUseTool = (toolName, input, opts) => new Promise((resolve) => {
+      if (settingsOf(sessionId).permissions === 'auto' && toolName !== ASK_TOOL) { resolve({ behavior: 'allow', updatedInput: input }); return; }
       const requestId = opts.requestId ?? newId();
       entry.decision = { requestId, toolUseId: opts.toolUseID ?? requestId, toolName, input, suggestions: opts.suggestions ?? [], resolve: (result) => { entry.decision = null; resolve(result); notify(sessionId); } };
       // As the harness pauses: whoever waits on the turn learns it needs a decision, and waits again after.
       if (entry.turn !== undefined) {
-        const { runId, resolve: pause } = entry.turn;
-        entry.turn = deferred(runId);
+        const { runId, inputId, resolve: pause } = entry.turn;
+        entry.turn = deferred(runId, inputId);
         pause({ status: 'awaiting', sessionId, runId, requestId, kind: toolName === ASK_TOOL ? 'input' : 'approval', usage: ZERO, steps: 0 });
       }
       notify(sessionId);
@@ -139,7 +155,7 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
     live.set(sessionId, entry);
     // A process that ends mid-turn fails that turn; the store keeps no trace, so the error is kept here.
     const ended = (code: 'interrupted' | 'internal', message: string): void => {
-      if (entry.turn !== undefined) errorsOf(sessionId)['*'] = message;
+      if (entry.turn !== undefined) errorsOf(sessionId)[entry.turn.inputId] = message;
       settle(entry, { status: 'failed', error: { code, message }, usage: ZERO, steps: 0 });
     };
     void (async () => {
@@ -159,10 +175,13 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
   }
 
   function handle(sessionId: string, entry: Live, message: SDKMessage): void {
-    if (message.type === 'result') {
+    if ((message.type === 'assistant' || message.type === 'user') && 'uuid' in message && typeof message.uuid === 'string') {
+      entry.seen.push({ type: message.type, uuid: message.uuid, session_id: sessionId, message: message.message as ClaudeMessage, parent_tool_use_id: message.parent_tool_use_id, timestamp: new Date().toISOString() });
+    } else if (message.type === 'result') {
       const outcome = outcomeOf(message);
-      // Keyed by the turn's input uuid; `*` marks the newest turn when the result did not name it.
-      if (outcome.status === 'failed') errorsOf(sessionId)[message.user_message_uuid ?? '*'] = outcome.error.message;
+      if (outcome.status === 'failed' && entry.turn !== undefined) errorsOf(sessionId)[entry.turn.inputId] = outcome.error.message;
+      // After a compaction the store's view is the only true one: what was seen before it is gone from it.
+      if (entry.turn !== undefined && entry.compacting) entry.seen = [];
       settle(entry, outcome);
     }
     notify(sessionId);
@@ -182,20 +201,25 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       else {
         const model = modelIdOf(chosen.model);
         await held.query.setModel(model === '' ? undefined : model);
-        await held.query.setPermissionMode(claudeModeOf(chosen.permissions));
         return held;
       }
     }
     return start(sessionId, chosen, resume);
   }
 
-  /** The store's view; a session this process started may not be written yet, any other must be there. */
+  /** The store's view plus what the stream delivered that it does not hold yet; not_found when neither knows the session. */
   async function messagesOf(sessionId: string): Promise<ClaudeSessionMessage[]> {
-    try { return (await (await sdk()).getSessionMessages(sessionId, { dir: workspace })) as ClaudeSessionMessage[]; }
+    const held = live.get(sessionId);
+    let stored: ClaudeSessionMessage[];
+    try { stored = (await (await sdk()).getSessionMessages(sessionId, { dir: workspace })) as ClaudeSessionMessage[]; }
     catch (error: unknown) {
-      if (live.has(sessionId)) return [];
-      throw new AgentError({ code: 'not_found', message: `session ${sessionId} not found`, cause: error });
+      if (held !== undefined) stored = [];
+      else throw new AgentError({ code: 'not_found', message: `session ${sessionId} not found`, cause: error });
     }
+    if (held === undefined || held.seen.length === 0) return stored;
+    const known = new Set(stored.map((message) => message.uuid));
+    held.seen = held.seen.filter((message) => !known.has(message.uuid));
+    return [...stored, ...held.seen];
   }
 
   async function send(sessionId: string | undefined, text: string, patch?: Partial<Settings>): Promise<Started> {
@@ -207,9 +231,13 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
     const chosen = settingsOf(id);
     const entry = await liveFor(id, chosen, sessionId !== undefined);
     const runId = newId();
-    entry.turn = deferred(runId);
+    // The prompt's uuid is the CLI's record of it: the store's user message, the turn's id here.
+    const inputId = randomUUID();
+    entry.turn = deferred(runId, inputId);
     entry.running = true;
-    entry.feed.push({ type: 'user', message: { role: 'user', content: text }, parent_tool_use_id: null, session_id: id });
+    entry.compacting = text === COMPACT_COMMAND;
+    entry.seen.push({ type: 'user', uuid: inputId, session_id: id, message: { role: 'user', content: text }, parent_tool_use_id: null, timestamp: new Date().toISOString() });
+    entry.feed.push({ type: 'user', uuid: inputId, message: { role: 'user', content: text }, parent_tool_use_id: null, session_id: id });
     notify(id);
     return { sessionId: id, runId };
   }
@@ -232,7 +260,6 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       if (held !== undefined && !held.running) {
         const model = modelIdOf(next.model);
         await held.query.setModel(model === '' ? undefined : model);
-        await held.query.setPermissionMode(claudeModeOf(next.permissions));
       }
       notify(sessionId);
       return next;
@@ -273,7 +300,7 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       const { turns, pending } = projectSession(messages, {
         running,
         pending: held?.decision !== null && held?.decision !== undefined ? pendingOf(held.decision) : null,
-        errors: pinned(errorsOf(sessionId), lastPromptOf(messages)),
+        errors: errorsOf(sessionId),
       });
       const listed = (await (await sdk()).listSessions({ dir: workspace })).find((info) => info.sessionId === sessionId);
       const now = new Date().toISOString();
@@ -332,7 +359,12 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
     },
 
     async close() {
-      for (const [sessionId, held] of live) { held.feed.end(); held.query.close(); live.delete(sessionId); }
+      for (const [sessionId, held] of live) {
+        held.decision?.resolve(denial('papo closed before the decision was made'));
+        held.feed.end();
+        held.query.close();
+        live.delete(sessionId);
+      }
     },
   };
 
@@ -350,11 +382,6 @@ const ZERO: Usage = { inputTokens: 0, outputTokens: 0 };
 /** `claude/<model>` → `<model>`; a bare id passes through. */
 function modelIdOf(ref: string): string {
   return ref.startsWith(`${CLAUDE_PROVIDER}/`) ? ref.slice(CLAUDE_PROVIDER.length + 1) : ref;
-}
-
-/** papo's modes as the CLI's (CLI-03 decision 6): `ask` has no equivalent and is `default`. */
-export function claudeModeOf(mode: Settings['permissions']): ClaudePermissionMode {
-  return mode === 'auto' ? 'bypassPermissions' : 'default';
 }
 
 function activityOf(held: Live | undefined): SessionRow['activity'] {
@@ -379,17 +406,4 @@ function outcomeOf(result: SDKResultMessage): RunOutcome {
 
 function titleOfInfo(info: SDKSessionInfo): string {
   return info.customTitle || info.summary || info.firstPrompt || info.sessionId;
-}
-
-/** The last prompt's uuid in the store's view, so an error recorded under `*` lands on it. */
-function lastPromptOf(messages: ClaudeSessionMessage[]): string | undefined {
-  const prompts = messages.filter((message) => message.type === 'user' && message.parent_tool_use_id === null && (typeof message.message.content === 'string' || message.message.content.some((block) => block.type === 'text')));
-  return prompts.at(-1)?.uuid;
-}
-
-/** Pins an error recorded under `*` to the turn it belongs to, once the store names it. */
-function pinned(errors: Record<string, string>, lastPrompt: string | undefined): Record<string, string> {
-  const pending = errors['*'];
-  if (pending !== undefined && lastPrompt !== undefined) { errors[lastPrompt] = pending; delete errors['*']; }
-  return errors;
 }

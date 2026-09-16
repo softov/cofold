@@ -1,6 +1,6 @@
 <!--
 Domain: cli
-Status: Planned
+Status: Built
 Priority: High
 Created: 2026-09-16
 Revalidated: 2026-09-16
@@ -10,7 +10,7 @@ Reference: ./00-cli.md
 
 # CLI-03 - papo on the Claude Agent SDK: the same screen, Claude Code's runtime
 
-_Status: Planned · Priority: High · Created: 2026-09-16_
+_Status: Built · Priority: High · Created: 2026-09-16 · Built: 2026-09-16_
 
 ## Goal
 
@@ -54,11 +54,11 @@ Read from the published package, `@anthropic-ai/claude-agent-sdk@0.3.273` (`sdk.
 | --- | --- | --- |
 | 1 | The backend is chosen per process: `config.backend: 'facio' \| 'claude'` (default `facio`), overridden by `--backend` / `PAPO_BACKEND`. `openPapo` builds `createChat` or `createClaudeChat`; the fronts do not know which | Two runtimes share nothing below `Chat`; switching per session would be two catalogues in one list |
 | 2 | `@anthropic-ai/claude-agent-sdk` is an optional peer of `@facio/papo`, imported lazily by `createClaudeChat`; absent, `papo --backend claude` fails with `install @anthropic-ai/claude-agent-sdk to use the claude backend` | Zero third-party dependencies (the one optional peer pattern of `@facio/mcp`); 5 MB plus a native binary is not something every papo carries |
-| 3 | `packages/papo/src/claude/{chat,project,permissions}.ts`: `createClaudeChat({ config, workspace, warn })` implements `Chat` over one `WarmQuery` per session in use (`startup` once for `models()` / `skills()` without a session); `say` on an idle session is `warm.query(text)` with `resume: sessionId` (or a fresh `sessionId` for a new one); the `Query` is iterated in the background and every message wakes the listeners | The same shape as the harness `Chat`: attached handles, everything else read back |
+| 3 | `packages/papo/src/claude/{chat,project,permissions}.ts`: `createClaudeChat({ config, workspace, warn, sdk? })` implements `Chat` over one `Query` per session in use, fed a streaming input so one process serves the session's turns (a `WarmQuery` takes exactly one prompt; found on the real SDK); a throwaway `query` with an empty stream for `models()` / `skills()` without a session); `say` on an idle session is `warm.query(text)` with `resume: sessionId` (or a fresh `sessionId` for a new one); the `Query` is iterated in the background and every message wakes the listeners | The same shape as the harness `Chat`: attached handles, everything else read back |
 | 4 | Sessions are the CLI's own: `sessions()` is `listSessions({ dir: workspace })` with activity from this process's attached queries; `snapshot(id)` projects `getSessionMessages(id, { dir: workspace })` with `project.ts`: each top-level user text message starts a `Turn`; assistant blocks become `text` / `reasoning` / `tool` parts; a `tool_result` completes the call; `compact_boundary` becomes a `summary` part; `parent_tool_use_id !== null` (subagent traffic) is folded into its parent call's output, not shown | One projection, tested against fixtures copied from real sessions |
 | 5 | `canUseTool` becomes papo's pending block: a tool call → `toolConfirmation` with the harness's own `ChatToolCall` shape, `confirmationTitle` from `options.title`, the `always` option present when `suggestions` is non-empty (returned as `updatedPermissions`); `AskUserQuestion` → `chatInput` through `toChatQuestion` (header, question, options, multiSelect map one to one), answered as `updatedInput.answers` keyed by question text; a `deny` is `{ behavior: 'deny', message }` | The screen and the shell stay as they are |
-| 6 | Settings map: `model` → `options.model` (refs are `claude/<model>`; `models()` lists `supportedModels()` under provider `claude`); `reasoning` off/low/medium/high → `effort` absent/low/medium/high; `permissions` destructive → `default`, auto → `bypassPermissions` + `allowDangerouslySkipPermissions`, ask → `default` with a warning in the status row ("claude decides what asks; ask is default here"); `autoCompact` → not sent, the `/autocompact` badge reads `claude` and the toggle says so | What the SDK offers; nothing invented |
-| 7 | `compact(id)` sends `/compact` as the prompt of a turn; the projection reads the `compact_boundary` that follows. `cancel` is `interrupt()`; `remove` is `deleteSession` | The CLI's own compaction and its own record of it |
+| 6 | Settings map: `model` → `options.model` (refs are `claude/<model>`; `models()` lists `supportedModels()` under provider `claude`; a configured model of another provider is ignored with a warning); `reasoning` off/low/medium/high → `effort` absent/low/medium/high (a change restarts the session's process with `resume`, the SDK has no live `setEffort`); `permissions`: the CLI always runs in `default` mode and `canUseTool` applies papo's word: `auto` allows every tool but `AskUserQuestion` before the person sees it, `destructive` and `ask` hand the CLI's questions to the person (`ask` cannot make every tool ask; a warning once on stderr); `autoCompact` is refused as a setting (`the claude backend compacts on its own`) | What the SDK offers; `bypassPermissions` was the first cut for `auto` and is wrong: the SDK warns that it answers every tool before the callback, `AskUserQuestion` included, so a question under `auto` would be lost (found on the real CLI 2026-09-16) |
+| 7 | `compact(id)` sends `/compact` as the prompt of a turn; the transcript afterwards is what `getSessionMessages` returns: the summary (`isCompactSummary`, shown as a `(context compacted)` turn), the retained tail, the `/compact` echo with its `Compacted` notice. `cancel` is `interrupt()` on a running turn (the result comes with `terminal_reason: 'aborted_streaming'`, projected as `cancelled`; the CLI writes `[Request interrupted by user]` into the transcript, shown as a notice) or a denial of the pending decision; `remove` is `deleteSession` | The CLI's own compaction and its own record of it; the `compact_boundary` stream message is not needed, the store says it |
 | 8 | `/cost` and `/status` read the per-turn `SDKResultMessage.usage` kept in the projection (`Turn.usage`) and `total_cost_usd` where the CLI reports it; `Turn.steps` is `num_turns` | Same fields, the CLI's numbers |
 | 9 | `systemPrompt: { type: 'preset', preset: 'claude_code', append: <config.instructions when set> }`, `settingSources: ['user', 'project']`, `cwd: workspace`: the person's Claude Code setup applies (CLAUDE.md, skills, MCP servers, hooks) | Contra-validation means Claude as the person already runs it |
 | 10 | Contract tests: `packages/papo/src/chat-contract.test.ts` runs the same scenarios (say, approve, deny, ask, cancel, compact, remove) against both backends, the Claude one over a fake `query` (a scripted `AsyncGenerator<SDKMessage>` with a `canUseTool` hook), so the two agree on what a `Snapshot` says for the same story; a manual run against the real CLI is the final check. Where the two disagree, the harness is presumed wrong and the difference is a thing to check, not a decision to record: Claude's runtime is the reference | User (2026-09-16): "If ours is divergent, mostly it's ours that's wrong... divergence is not a decision, it is a thing to be checked" |
@@ -100,6 +100,18 @@ packages/papo/
 - `config.backend`, `--backend`, `openPapo`; the contract test file; README.
 - **Validation:** `pnpm check`; `papo --backend claude` against the installed CLI: a reply, an Edit that asks and is approved on screen, an `AskUserQuestion` answered in the form, `/compact`, `/cost`, `/models`.
 
+## Findings: where the harness differs from Claude's runtime
+
+Per decision 10 these are things to check against the harness, not decisions; Claude's runtime is the reference.
+
+| # | Claude's runtime | The harness (papo over `@facio/agents`) | To check |
+| --- | --- | --- | --- |
+| F1 | After `/compact` the transcript is the summary, the retained tail and the command's echo; what came before is gone from the view | The store keeps every turn and appends a summary turn (`Summarize the conversation so far.`) at the end; the screen still shows the whole history | Whether papo's transcript after `/compact` should show what the model no longer sees; the harness's `contextOf` already feeds only the summary |
+| F2 | The prompt's uuid is the client's (`SDKUserMessage.uuid`), echoed on every reply frame as `user_message_uuid` and kept as the transcript record's id | The harness mints the input message id on `run()`; `Started.runId` is the run, not the message | Whether `say` should take the message id from the caller, so a client can match a reply to its send without waiting |
+| F3 | A tool the runtime refuses before asking (deny rules) is a `permission_denials` entry on the result, not a decision | The harness has no rule layer: `policy` decides ask/allow only | Whether `policy` should carry deny rules (`@facio/tools` may want them for `shell_exec`) |
+| F4 | An interrupted turn leaves a marker in the transcript (`[Request interrupted by user]`) and the tool results it cut are marked as such | The harness's cancelled run leaves the run record `cancelled` and no message | Whether the harness should write a `notice`-like message on cancel, so a transcript read later says what happened |
+| F5 | The CLI writes its transcript after it answers: a read right after the result can miss the turn | The harness writes the store before it answers | Nothing to change in the harness; the Claude backend keeps what the stream delivered until the store has it |
+
 ## Risks and tradeoffs
 
 - The SDK moves fast (0.3.x, weekly): the plan pins `^0.3` and reads only the surface named above; a breaking change lands in `sdk.ts` and `project.ts`, nowhere else.
@@ -109,16 +121,14 @@ packages/papo/
 
 ## Resume state
 
-- **Done so far:** recon and plan 2026-09-16; Task 1 built 2026-09-16 (`src/types/claude.ts`, `src/claude/{sdk,project}.ts`, fixtures from two real sessions in `src/claude/fixtures/`, 6 tests). The SDK is a devDependency of papo for the tests (`^0.3.273`); the peer declaration comes with Task 3. Findings from the real CLI: `getSessionMessages` after a compaction returns the summary (`isCompactSummary`), the retained tail, then the `/compact` echo (`<command-name>`) and its `<local-command-stdout>`; the originals are gone from that view. `canUseTool` in 0.3.273 passes no `title` / `decisionReason`; `suggestions` for a Write is `[{ type: 'setMode', mode: 'acceptEdits' }]`. A `WarmQuery` takes exactly one prompt.
-- Task 2 built 2026-09-16: `src/claude/chat.ts` (`createClaudeChat`; one streaming-input `Query` per live session, `setModel` / `setPermissionMode` between turns, an effort change closes and resumes; `canUseTool` becomes a `ClaudeDecision` that `approve` / `deny` / `answer` resolve; `wait` resolves `awaiting` when a decision appears, as the harness does; failed turns kept per session keyed by the result's `user_message_uuid`), `src/claude/permissions.ts`, `src/claude/testing.ts` (`fakeClaudeSdk`: scripted replies, the store in the real message shapes, `canUseTool` asked as the CLI asks), 11 tests over the seven scenarios, `writer_busy`, resume, models and commands, settings.
-- **Next action:** Task 3. `config.backend`, `--backend` / `PAPO_BACKEND`, `openPapo` picks the chat, the optional peer in `package.json`, `chat-contract.test.ts` over both backends, README.
+- **Done so far:** recon and plan 2026-09-16; Task 1 (SDK boundary, projection, fixtures), Task 2 (`createClaudeChat`, `permissions.ts`, the fake SDK, 12 tests) and Task 3 (`config.backend`, `--backend` / `PAPO_BACKEND`, `openPapo`, the optional peer in `package.json`, `chat-contract.test.ts` with 8 scenarios on both backends, README) built 2026-09-16. Verified on the real CLI (0.3.273, the user's login): `models`, a text turn, a `Write` that asks and is approved with `always`, an `AskUserQuestion` answered through the form's shape, `/compact` and a turn after it, `interrupt` mid-reply, `auto` running a `Write` without a decision. `papo say` that stops at a decision denies it on exit and says so (the decision lives in the process). A workspace that is not a directory is refused up front (the CLI reports a binary that "failed to launch" otherwise).
+- **Next action:** none in this plan. The findings above go to the harness's plans (F1, F2, F4 to agent/01 p5; F3 to a policy plan).
 - **Open questions:** none.
-- **To check on the real CLI (things the fake assumes; ours is presumed wrong where they differ):** the transcript after an interrupt (the fake writes `[Request interrupted by user]` as a user message, projected as a notice) and the result it ends with (assumed `terminal_reason: 'aborted_streaming'`, projected as `cancelled`); `user_message_uuid` on the result; `AskUserQuestion`'s stored `tool_result` content; `SDKSessionInfo.createdAt` presence.
-- **Watch out for:** `getSessionMessages` needs the same `dir` the session was created under; `listSessions` without `dir` searches every project.
+- **Watch out for:** `getSessionMessages` needs the same `dir` the session was created under; `listSessions` without `dir` searches every project; the SDK moves weekly, `pnpm check` after a bump.
 
 ## Final verification checklist
 
-- [ ] `pnpm check` green with the SDK absent (the optional peer path) and present.
-- [ ] The contract scenarios pass on both backends.
-- [ ] Manual run against the real CLI, as Task 3 says.
-- [ ] `index.md` updated.
+- [x] `pnpm check` green with the SDK present (610 tests); the absent path is `loadClaudeSdk`'s test (an importer that fails as Node does) - the SDK is a devDependency of the workspace, so it is never absent there.
+- [x] The contract scenarios pass on both backends (`chat-contract.test.ts`, 16 tests).
+- [x] Manual run against the real CLI, as Task 3 says (the screen itself was driven through `createClaudeChat`, the same calls it makes).
+- [x] `index.md` updated.
