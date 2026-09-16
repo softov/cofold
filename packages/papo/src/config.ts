@@ -48,6 +48,35 @@ const SCHEMA: JsonSchema = {
       },
       additionalProperties: false,
     },
+    tools: {
+      type: 'object',
+      properties: {
+        files: { type: 'boolean' },
+        shell: { type: 'boolean' },
+        web: {
+          anyOf: [
+            { type: 'boolean' },
+            {
+              type: 'object',
+              properties: {
+                search: {
+                  type: 'object',
+                  properties: {
+                    brave: { type: 'object', properties: { apiKey: { type: 'string', minLength: 1 } }, required: ['apiKey'], additionalProperties: false },
+                    tavily: { type: 'object', properties: { apiKey: { type: 'string', minLength: 1 } }, required: ['apiKey'], additionalProperties: false },
+                    duckduckgo: { type: 'boolean' },
+                  },
+                  additionalProperties: false,
+                },
+              },
+              additionalProperties: false,
+            },
+          ],
+        },
+        memory: { type: 'boolean' },
+      },
+      additionalProperties: false,
+    },
     theme: { type: 'string', minLength: 1 },
     shell: { type: 'string', minLength: 1 },
   },
@@ -56,7 +85,11 @@ const SCHEMA: JsonSchema = {
 
 export const DEFAULT_INSTRUCTIONS = 'You are a careful assistant working in the user\'s project. Answer plainly; use the tools you are given when they help.';
 
-const BASE = { providers: [], permissions: 'destructive', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS, theme: 'paper', shell: 'workbench' } as const;
+const BASE = {
+  providers: [], permissions: 'destructive', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS,
+  tools: { files: true, shell: true, web: true, memory: true },
+  theme: 'paper', shell: 'workbench',
+} as const;
 
 /**
  * The configuration, from every place it may be written.

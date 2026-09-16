@@ -20,7 +20,16 @@ describe('loadConfig', () => {
   it('has defaults and no provider until one is written', () => {
     const config = loadConfig({ cwd: join(root, 'work'), env });
     expect(config).toMatchObject({ providers: [], permissions: 'destructive', reasoning: 'off', theme: 'paper', shell: 'workbench' });
+    expect(config.tools).toEqual({ files: true, shell: true, web: true, memory: true });
     expect(config.instructions.length).toBeGreaterThan(10);
+  });
+
+  it('merges the tools block key by key and names a wrong one', async () => {
+    const file = join(root, 'config', 'papo', 'config.json');
+    await writeFile(file, JSON.stringify({ tools: { shell: false, web: { search: { duckduckgo: true } } } }));
+    expect(loadConfig({ cwd: join(root, 'work'), env }).tools).toEqual({ files: true, shell: false, web: { search: { duckduckgo: true } }, memory: true });
+    await writeFile(file, JSON.stringify({ tools: { web: { search: { bing: {} } } } }));
+    expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow(/config\.tools\.web/);
   });
 
   it('reads the user file, then the project file over it', async () => {

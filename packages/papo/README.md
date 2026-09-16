@@ -2,6 +2,7 @@
 
 Talk to an agent that runs in this process.
 `papo` is a screen (the transcript, a composer, the block that asks before a destructive tool runs) and a shell (`papo say`, `papo approve`, `papo session list`) over the same conversations, kept on disk under `~/.facio` per workspace.
+The agent reads and edits files, runs commands, fetches the web and keeps notes across sessions (`@facio/tools`), and asks before anything destructive.
 It is the first program on `@facio/agents`, and the way a person checks what the harness does.
 
 ## Try it
@@ -36,6 +37,7 @@ The family's `FACIO_BASE_URL`, `FACIO_API_KEY` and `FACIO_MODEL`, which the exam
   "instructions": "You are a careful assistant.",
   "limits": { "maxSteps": 20 },
   "params": { "temperature": 0.2 },
+  "tools": { "files": true, "shell": true, "web": { "search": { "brave": { "apiKey": "BSA..." }, "duckduckgo": true } }, "memory": true },
   "theme": "paper",
   "shell": "workbench"
 }
@@ -49,9 +51,16 @@ The family's `FACIO_BASE_URL`, `FACIO_API_KEY` and `FACIO_MODEL`, which the exam
 | `reasoning` | `off`, `low`, `medium`, `high`: the thinking level, sent as `params.reasoning.effort` to a model that has it. |
 | `instructions` | The system prompt; `<workspace>/AGENTS.md` is appended when present. |
 | `limits`, `params` | `@facio/agents` `Limits` and `ModelParams` (without `reasoning`, which is the setting above). |
+| `tools` | The `@facio/tools` capabilities, all on by default: `files` (`read_file`, `write_file`, `edit_file`, `list_files`, `search_files`), `shell` (`shell_exec`), `web` (`web_fetch`; an object with `search` adds `web_search` over `brave`, `tavily`, `duckduckgo`, asked in that order), `memory` (`memory_read`, `memory_write` under `<home>/memory/<workspace slug>/`). `false` turns one off. |
 | `theme`, `shell` | What the screen opens with. |
 
 A wrong key is named: `config.permissions must be one of ask, destructive, auto (read: ~/.config/papo/config.json)`.
+
+## Tools and the permission mode
+
+Under `destructive` (the default) `write_file`, `edit_file` and `shell_exec` stop and ask; reads, searches, fetches and memory writes do not.
+`ask` asks before every tool; `auto` never asks.
+`approve --always` (or the `Always, this session` option on the screen) lets that tool run without asking for the rest of the session.
 
 ## Settings
 

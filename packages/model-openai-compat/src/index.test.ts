@@ -377,6 +377,18 @@ describe('openaiCompat errors and retries', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('throws network, not aborted, when a timeout signal ends the request', async () => {
+    // What AbortSignal.timeout() leaves on the signal, without waiting for it.
+    const controller = new AbortController();
+    const fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      controller.abort(new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
+      throw (init?.signal as AbortSignal).reason;
+    }) as unknown as typeof fetch;
+    const e = await codeOf(settle(openaiCompat({ baseUrl: 'http://x', model: 'm', fetch }).complete(request({ signal: controller.signal }))));
+    expect(e.code).toBe('network');
+    expect(e.message).toBe('cannot reach http://x/chat/completions: no answer in time');
+  });
+
   it('throws aborted when the signal fires during backoff', async () => {
     const controller = new AbortController();
     const { calls, fetch } = stubFetch([text('slow', 429), json(okText)]);

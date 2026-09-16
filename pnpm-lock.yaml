@@ -131,6 +131,9 @@ importers:
       '@facio/terminal':
         specifier: workspace:^
         version: link:../terminal
+      '@facio/tools':
+        specifier: workspace:^
+        version: link:../tools
       '@textui/chat':
         specifier: link:../../../textui/packages/chat
         version: link:../../../textui/packages/chat

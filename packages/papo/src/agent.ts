@@ -1,7 +1,10 @@
-import type { Agent, ModelProvider, Policy, Store, Tool } from '@facio/agents';
+import { join } from 'node:path';
+import type { Agent, Capability, ModelProvider, Policy, Store, Tool } from '@facio/agents';
 import { createAgent, createAskUserTool, skills } from '@facio/agents';
-import { fileSkillSource } from '@facio/store-file';
-import type { PapoConfig, PermissionMode } from './types/config.js';
+import { fileSkillSource, workspaceSlug } from '@facio/store-file';
+import type { SearchProvider } from '@facio/tools';
+import { brave, duckduckgo, files, memory, shell, tavily, web } from '@facio/tools';
+import type { PapoConfig, PermissionMode, ToolsConfig } from './types/config.js';
 import type { Settings } from './types/settings.js';
 
 export const AGENT_ID = 'papo';
@@ -12,8 +15,9 @@ export interface AgentArgs {
   provider: ModelProvider;
   modelId: string;
   store: Store;
-  /** `<root>` of the file store: global skills live under `<root>/skills`. */
+  /** `<root>` of the file store: global skills live under `<root>/skills`, memory under `<root>/memory/<slug>`. */
   home: string;
+  workspace: string;
   /** The system prompt, already joined with the workspace's AGENTS.md. */
   instructions: string;
   /** Beyond `ask_user`; a `--demo-tools` flag or a later plugin adds them. */
@@ -28,6 +32,23 @@ export function policyOf(mode: PermissionMode): Partial<Policy> {
     case 'auto': return { requireApproval: () => false };
     case 'destructive': return {};
   }
+}
+
+/** The `@facio/tools` capabilities the configuration turns on (decision 9), in a fixed order. */
+export function capabilitiesOf(tools: ToolsConfig, args: { home: string; workspace: string }): Capability[] {
+  const search: SearchProvider[] = [];
+  if (typeof tools.web === 'object' && tools.web.search !== undefined) {
+    const { search: config } = tools.web;
+    if (config.brave !== undefined) search.push(brave({ apiKey: config.brave.apiKey }));
+    if (config.tavily !== undefined) search.push(tavily({ apiKey: config.tavily.apiKey }));
+    if (config.duckduckgo === true) search.push(duckduckgo());
+  }
+  return [
+    ...(tools.files ? [files()] : []),
+    ...(tools.shell ? [shell()] : []),
+    ...(tools.web !== false ? [web({ search })] : []),
+    ...(tools.memory ? [memory({ dir: join(args.home, 'memory', workspaceSlug({ workspace: args.workspace })) })] : []),
+  ];
 }
 
 /**
@@ -45,7 +66,10 @@ export function buildAgent(args: AgentArgs): Agent {
     instructions: args.instructions,
     model: args.provider.model({ id: args.modelId, params }),
     tools: [createAskUserTool(), ...(args.tools ?? [])],
-    capabilities: [skills({ sources: [fileSkillSource({ root: args.home })], warn: args.warn })],
+    capabilities: [
+      ...capabilitiesOf(config.tools, { home: args.home, workspace: args.workspace }),
+      skills({ sources: [fileSkillSource({ root: args.home })], warn: args.warn }),
+    ],
     store: args.store,
     policy: policyOf(settings.permissions),
     ...(config.limits !== undefined ? { limits: config.limits } : {}),

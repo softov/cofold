@@ -41,6 +41,7 @@
     "@facio/sdk": "workspace:^",
     "@facio/store-file": "workspace:^",
     "@facio/terminal": "workspace:^",
+    "@facio/tools": "workspace:^",
     "@textui/chat": "link:../../../textui/packages/chat",
     "@textui/core": "link:../../../textui/packages/core",
     "@textui/terminal": "link:../../../textui/packages/terminal",

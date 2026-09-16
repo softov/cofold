@@ -1,3 +1,6 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AgentError } from '@facio/agents';
 import { deleteFileTool, testChat } from './testing.js';
@@ -199,5 +202,37 @@ describe('createChat', () => {
     expect((await ask.chat.wait(asking.sessionId))?.status).toBe('awaiting');
     // ask_user itself now waits for approval before it may ask.
     expect((await ask.chat.snapshot(asking.sessionId)).pending?.kind).toBe('toolConfirmation');
+  });
+
+  it('gives the agent the standard tools the configuration turns on: read_file answers, shell_exec asks under destructive and runs under auto', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'papo-tools-'));
+    await writeFile(join(workspace, 'package.json'), '{ "name": "demo" }\n');
+    try {
+      const reading = testChat({
+        script: [{ toolCalls: [{ name: 'read_file', input: { path: 'package.json' } }] }, { text: 'It is demo.' }],
+        config: { tools: { files: true, shell: false, web: false, memory: false } },
+        workspace,
+      });
+      const read = await reading.chat.say({ text: 'What is the package name?' });
+      expect((await reading.chat.wait(read.sessionId))?.status).toBe('completed');
+      const answered = await reading.chat.snapshot(read.sessionId);
+      expect(answered.turns[0]?.parts[0]).toMatchObject({ kind: 'tool', call: { name: 'read_file', status: 'completed', output: '1│{ "name": "demo" }' } });
+      expect(answered.turns[0]?.parts[1]).toMatchObject({ kind: 'text', text: 'It is demo.' });
+
+      const script = [{ toolCalls: [{ name: 'shell_exec', input: { command: 'echo papo' } }] }, { text: 'Said papo.' }];
+      const asking = testChat({ script, config: { tools: { files: false, shell: true, web: false, memory: false } }, workspace });
+      const asked = await asking.chat.say({ text: 'Run echo' });
+      expect((await asking.chat.wait(asked.sessionId))?.status).toBe('awaiting');
+      expect((await asking.chat.snapshot(asked.sessionId)).pending).toMatchObject({ kind: 'toolConfirmation', call: { name: 'shell_exec' } });
+      await asking.chat.deny(asked.sessionId);
+      expect((await asking.chat.wait(asked.sessionId))?.status).toBe('completed');
+
+      const running = testChat({ script, config: { tools: { files: false, shell: true, web: false, memory: false } }, workspace });
+      const ran = await running.chat.say({ text: 'Run echo', settings: { permissions: 'auto' } });
+      expect((await running.chat.wait(ran.sessionId))?.status).toBe('completed');
+      expect((await running.chat.snapshot(ran.sessionId)).turns[0]?.parts[0]).toMatchObject({ call: { name: 'shell_exec', status: 'completed', output: 'exit 0\npapo' } });
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
   });
 });

@@ -92,7 +92,7 @@ export function createChat(options: ChatOptions): Chat {
     const { provider, modelId } = providerFor(providers, config, model);
     settings = { ...settings, model };
     return buildAgent({
-      config, settings, provider, modelId, store, home, instructions: await instructions(), warn,
+      config, settings, provider, modelId, store, home, workspace, instructions: await instructions(), warn,
       ...(options.tools !== undefined ? { tools: options.tools } : {}),
     });
   }

@@ -19,6 +19,24 @@ export interface ProviderConfig {
  */
 export type PermissionMode = 'ask' | 'destructive' | 'auto';
 
+/** The search backends `web_search` may use, asked in this order: brave, tavily, duckduckgo. */
+export interface SearchConfig {
+  brave?: { apiKey: string };
+  tavily?: { apiKey: string };
+  /** The HTML results page, scraped; no key. */
+  duckduckgo?: boolean;
+}
+
+/** Which `@facio/tools` capabilities the agent gets; all on by default. */
+export interface ToolsConfig {
+  files: boolean;
+  shell: boolean;
+  /** `true` is `web_fetch` alone; an object adds `web_search` over its providers. */
+  web: boolean | { search?: SearchConfig };
+  /** Files under `<home>/memory/<workspace slug>/`. */
+  memory: boolean;
+}
+
 /** `~/.config/papo/config.json`, `.papo.json`, `PAPO_CONFIG`, `--config`, and the `PAPO_*` variables, merged. */
 export interface PapoConfig {
   providers: ProviderConfig[];
@@ -32,6 +50,7 @@ export interface PapoConfig {
   limits?: Partial<Limits>;
   /** Sampling; `reasoning` is a setting, not a param, so it is not here. */
   params?: Omit<ModelParams, 'reasoning'>;
+  tools: ToolsConfig;
   /** The textui theme and shell the screen opens with. */
   theme: string;
   shell: string;

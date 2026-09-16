@@ -51,6 +51,7 @@ export function testConfig(overrides: Partial<PapoConfig> = {}): PapoConfig {
     permissions: 'destructive',
     reasoning: 'off',
     instructions: DEFAULT_INSTRUCTIONS,
+    tools: { files: false, shell: false, web: false, memory: false },
     theme: 'paper',
     shell: 'workbench',
     ...overrides,

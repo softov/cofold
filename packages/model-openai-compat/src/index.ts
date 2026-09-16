@@ -32,7 +32,12 @@ export function openaiCompatProvider(options: OpenAICompatProviderOptions): Mode
       try {
         res = await doFetch(url, { ...init, headers, signal });
       } catch (e) {
-        if (signal.aborted) throw new ModelError({ code: 'aborted', message: 'request aborted', cause: e });
+        if (signal.aborted) {
+          // A timeout signal (AbortSignal.timeout) is the server not answering, which is a network fact, not a cancellation.
+          const timedOut = (signal.reason as { name?: string } | undefined)?.name === 'TimeoutError';
+          if (timedOut) throw new ModelError({ code: 'network', message: `cannot reach ${url}: no answer in time`, cause: e, retryable: true });
+          throw new ModelError({ code: 'aborted', message: 'request aborted', cause: e });
+        }
         if (attempt < retries) { await backoff(attempt, signal); continue; }
         // Node's fetch says "fetch failed" and keeps the reason on `cause`; the reason is what a person needs.
         const reason = (e as { cause?: { code?: string; message?: string } }).cause;
