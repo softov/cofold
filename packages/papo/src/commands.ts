@@ -255,6 +255,18 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
   });
 
   registry.action({
+    id: 'skills',
+    group: 'setup',
+    summary: 'The skills the agent may read; send /<name> to invoke one',
+    needs: ['papo'],
+    surfaces: { cli: { pattern: ['skills'] }, mcp: true },
+    run: async ({ papo }) => {
+      const rows = await papo.chat.skills();
+      return output(rows, () => renderTable(['skill', 'description'], rows.map((row) => [`/${row.name}`, row.description])));
+    },
+  });
+
+  registry.action({
     id: 'config.show',
     group: 'setup',
     summary: 'The configuration in force, keys redacted',

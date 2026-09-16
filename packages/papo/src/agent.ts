@@ -1,7 +1,7 @@
 import { join } from 'node:path';
-import type { Agent, Capability, ModelProvider, Policy, Store, Tool } from '@facio/agents';
+import type { Agent, Capability, ModelProvider, Policy, SkillSource, Store, Tool } from '@facio/agents';
 import { createAgent, createAskUserTool, skills } from '@facio/agents';
-import { fileSkillSource, workspaceSlug } from '@facio/store-file';
+import { workspaceSlug } from '@facio/store-file';
 import type { SearchProvider } from '@facio/tools';
 import { brave, duckduckgo, files, memory, shell, tavily, web } from '@facio/tools';
 import type { PapoConfig, PermissionMode, ToolsConfig } from './types/config.js';
@@ -15,9 +15,11 @@ export interface AgentArgs {
   provider: ModelProvider;
   modelId: string;
   store: Store;
-  /** `<root>` of the file store: global skills live under `<root>/skills`, memory under `<root>/memory/<slug>`. */
+  /** `<root>` of the file store: memory lives under `<root>/memory/<slug>`. */
   home: string;
   workspace: string;
+  /** The skills the agent may read; the service lists the same source for the slash menu. */
+  skills: SkillSource;
   /** The system prompt, already joined with the workspace's AGENTS.md. */
   instructions: string;
   /** Beyond `ask_user`; a `--demo-tools` flag or a later plugin adds them. */
@@ -68,7 +70,7 @@ export function buildAgent(args: AgentArgs): Agent {
     tools: [createAskUserTool(), ...(args.tools ?? [])],
     capabilities: [
       ...capabilitiesOf(config.tools, { home: args.home, workspace: args.workspace }),
-      skills({ sources: [fileSkillSource({ root: args.home })], warn: args.warn }),
+      skills({ sources: [args.skills], warn: args.warn }),
     ],
     store: args.store,
     policy: policyOf(settings.permissions),

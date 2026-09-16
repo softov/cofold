@@ -5,7 +5,7 @@ import type { Store } from '@facio/agents';
 import { createMemoryStore } from '@facio/agents';
 import type { FakeStep } from '@facio/agents/testing';
 import { argvFor, createProgram } from './program.js';
-import { deleteFileTool, testChat } from './testing.js';
+import { deleteFileTool, testChat, testConfig } from './testing.js';
 
 interface Ran { code: number; out: string; err: string }
 
@@ -19,7 +19,7 @@ function shell(args: { script: FakeStep[]; store?: Store; tools?: ReturnType<typ
     io,
     open: (globals) => {
       const { chat } = testChat({ script: args.script, store, ...(args.tools !== undefined ? { tools: args.tools } : {}), workspace: String(globals['workspace'] ?? '/work') });
-      return { chat, config: { providers: [], permissions: 'destructive', reasoning: 'off', instructions: '', theme: 'paper', shell: 'workbench' }, workspace: '/work', home: '/nowhere' };
+      return { chat, config: testConfig({ providers: [] }), workspace: '/work', home: '/nowhere' };
     },
   });
   // What `runEntry` does around the binary: a fault becomes a sentence on stderr and an exit code.

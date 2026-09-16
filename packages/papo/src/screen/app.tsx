@@ -15,7 +15,7 @@ import type { Snapshot } from '../types/turn.js';
 import { ChatScreen } from './chat.js';
 import { SessionsScreen } from './sessions.js';
 import {
-  ANSWERS, CHAT_SCOPE, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS,
+  ANSWERS, CHAT_SCOPE, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SKILLS,
   SNAPSHOT,
 } from './state.js';
 
@@ -408,6 +408,10 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
   ];
   for (const binding of keys) bag.add(app.keybindings.register(binding));
 
+  // The skills, once: what the slash menu offers beside the palette's commands.
+  void options.papo.chat.skills()
+    .then((rows) => app.store.set(SKILLS, rows))
+    .catch((error: unknown) => app.store.set(ERROR, `skills: ${error instanceof Error ? error.message : String(error)}`));
   // The catalogue of models, once, in the background; a provider that cannot be reached says so in the status row.
   void options.papo.chat.models()
     .then((rows) => app.store.set(MODELS, rows))

@@ -78,6 +78,7 @@ cancel <session>                abort a running turn, or deny a waiting approval
 session list | show | delete
 session set <session> [-m -p -t]   the model, the permission mode, the thinking level
 models                          every model the providers offer
+skills                          the skills the agent may read; `say "/name ..."` invokes one
 config                          what is in force, keys redacted
 chat [-s ID]                    the screen (what a bare `papo` does)
 ```
@@ -91,7 +92,7 @@ Global options: `--workspace DIR` (`PAPO_WORKSPACE`, default the current directo
 
 Two screens.
 The catalogue: `enter` opens, `n` starts a conversation, `d` deletes, `r` refreshes.
-The conversation: type and `enter`; `tab` walks the three chips under the field (model, permissions, thinking) and `enter` opens one; `ctrl+c` stops a running turn (and quits when nothing runs); `a` and `d` answer a confirmation; a question is answered in its form; `esc` goes back; `ctrl+p` is the palette; `alt+m` toggles markdown.
+The conversation: type and `enter`; `/` opens a menu of the skills (chosen, one becomes `/name ` in the field, and the message tells the agent to read it) and of the palette's commands (chosen, one runs); `tab` walks the three chips under the field (model, permissions, thinking) and `enter` opens one; `ctrl+c` stops a running turn (and quits when nothing runs); `a` and `d` answer a confirmation; a question is answered in its form; `esc` goes back; `ctrl+p` is the palette; `alt+m` toggles markdown.
 
 The components are `@textui/chat`; what this package adds is the projection from the store to their props and the wiring from a key to the harness.
 

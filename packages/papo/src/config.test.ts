@@ -77,7 +77,7 @@ describe('model references', () => {
   });
 
   it('finds the provider by id and says which are configured when it is missing', () => {
-    const config = { providers: [{ id: 'a', baseUrl: 'http://a' }, { id: 'b', baseUrl: 'http://b' }], permissions: 'ask' as const, reasoning: 'off' as const, instructions: '', theme: 'paper', shell: 'workbench' };
+    const config = { providers: [{ id: 'a', baseUrl: 'http://a' }, { id: 'b', baseUrl: 'http://b' }], permissions: 'ask' as const, reasoning: 'off' as const, instructions: '', tools: { files: false, shell: false, web: false, memory: false }, theme: 'paper', shell: 'workbench' };
     const providers = providersOf(config);
     expect(providers.map((provider) => provider.id)).toEqual(['openai-compat:a', 'openai-compat:b']);
     expect(providerFor(providers, config, 'b/m')).toEqual({ provider: providers[1], modelId: 'm' });

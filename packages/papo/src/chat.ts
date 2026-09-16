@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Agent, PendingRequest, RunHandle, RunRecord } from '@facio/agents';
 import { AgentError, newId, resume, run } from '@facio/agents';
+import { fileSkillSource } from '@facio/store-file';
 import { AGENT_ID, buildAgent } from './agent.js';
 import { providerFor } from './config.js';
 import { projectTurns, titleOf } from './turns.js';
@@ -24,6 +25,7 @@ interface Attached {
  */
 export function createChat(options: ChatOptions): Chat {
   const { store, config, providers, workspace, home } = options;
+  const skillSource = fileSkillSource({ root: home });
   const warn = options.warn ?? ((message: string) => process.stderr.write(`papo: ${message}\n`));
   const attached = new Map<string, Attached>();
   const listeners = new Set<ChatListener>();
@@ -92,7 +94,7 @@ export function createChat(options: ChatOptions): Chat {
     const { provider, modelId } = providerFor(providers, config, model);
     settings = { ...settings, model };
     return buildAgent({
-      config, settings, provider, modelId, store, home, workspace, instructions: await instructions(), warn,
+      config, settings, provider, modelId, store, home, workspace, skills: skillSource, instructions: await instructions(), warn,
       ...(options.tools !== undefined ? { tools: options.tools } : {}),
     });
   }
@@ -173,6 +175,8 @@ export function createChat(options: ChatOptions): Chat {
       }
       return rows;
     },
+
+    skills: () => skillSource.list({ workspace }),
 
     async sessions() {
       const rows: SessionRow[] = [];

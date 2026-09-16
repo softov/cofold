@@ -5,7 +5,7 @@ import { createTool } from '../tool/create-tool.js';
 
 const RULES = [
   'A skill is a set of instructions stored in a SKILL.md file. The list below has the skills available in this session (name and description).',
-  'When the user names a skill or the task clearly matches a skill description, read it with read_skill({ name }) before doing the work and follow it for that turn.',
+  'When the user names a skill (a message starting with /<name> invokes it; what follows is its argument) or the task clearly matches a skill description, read it with read_skill({ name }) before doing the work and follow it for that turn.',
   'Read only what the SKILL.md points to (read_skill({ name, path }) for files beside it). Do not load everything.',
   'If a skill cannot be applied (missing files, unclear steps), say so and continue with the next-best approach.',
 ].join('\n');

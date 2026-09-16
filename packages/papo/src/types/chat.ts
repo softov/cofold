@@ -1,4 +1,4 @@
-import type { AskAnswers, ModelInfo, ModelProvider, RunOutcome, Store, Tool } from '@facio/agents';
+import type { AskAnswers, ModelInfo, ModelProvider, RunOutcome, SkillIndexEntry, Store, Tool } from '@facio/agents';
 import type { PapoConfig } from './config.js';
 import type { Settings } from './settings.js';
 import type { SessionRow, Snapshot } from './turn.js';
@@ -49,6 +49,8 @@ export interface Chat {
   /** Change a session's settings; validated (a model must be configured, the words must be known). */
   configure(sessionId: string, patch: Partial<Settings>): Promise<Settings>;
   models(): Promise<ModelRow[]>;
+  /** The skills the agent may read: global ones under `<home>/skills` and the workspace's own; what a slash offers. */
+  skills(): Promise<SkillIndexEntry[]>;
   sessions(): Promise<SessionRow[]>;
   /** AgentError('not_found') when the session is not there. */
   snapshot(sessionId: string): Promise<Snapshot>;

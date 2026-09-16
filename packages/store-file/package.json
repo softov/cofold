@@ -14,7 +14,7 @@
   "files": ["dist", "src", "!src/**/*.test.ts", "!src/**/*.test-d.ts", "README.md"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "clean": "rm -rf dist"
   },
   "peerDependencies": { "@facio/agents": "workspace:*" },

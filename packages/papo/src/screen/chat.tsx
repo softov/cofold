@@ -1,13 +1,29 @@
-import type { ChatAnswer, ChatSendStatus, ComposerOption } from '@textui/chat';
+import type { ChatAnswer, ChatCommand, ChatSendStatus, ComposerOption } from '@textui/chat';
 import { ChatComposer, ChatHitl, ChatInputStatus, ChatTranscript, openPicker, settingIcon, valueIcon } from '@textui/chat';
 import type { BindingPath, RenderOutput } from '@textui/core';
 import { defineComponent, useApp, useCapabilities, useFocusScope, useMemo, useRequiredService, useStore, useStoreValue } from '@textui/core';
-import { Column, Divider } from '@textui/widgets';
+import type { SkillIndexEntry } from '@facio/agents';
+import { Column, Divider, argumentOf } from '@textui/widgets';
 import { toBlocks } from '../blocks.js';
 import type { Settings } from '../types/settings.js';
 import type { Snapshot } from '../types/turn.js';
 import { CONTROLLER, PERMISSION_LABELS, REASONING_LABELS } from './app.js';
-import { ANSWERS, CHAT_SCOPE, DRAFT, EXPANDED, INPUT_STATUS, MARKDOWN, SETTINGS, SNAPSHOT } from './state.js';
+import { ANSWERS, CHAT_SCOPE, DRAFT, EXPANDED, INPUT_STATUS, MARKDOWN, SETTINGS, SKILLS, SNAPSHOT } from './state.js';
+
+/**
+ * What a slash offers: the skills first (a `session` command is sent as `/<name> ...`, which is how
+ * the agent is told to read one), then the palette's own commands (a `client` command runs here).
+ */
+function useSlashCommands(): ChatCommand[] {
+  const app = useApp();
+  const skills = useStoreValue<SkillIndexEntry[]>(SKILLS, []) ?? [];
+  return useMemo(() => [
+    ...skills.map((skill): ChatCommand => ({ id: skill.name, kind: 'session', title: skill.name, description: skill.description })),
+    ...app.commands.list({ slot: 'palette', enabledOnly: true }).map((command): ChatCommand => ({
+      id: command.id, kind: 'client', title: command.title, ...(command.description !== undefined ? { description: command.description } : {}),
+    })),
+  ], [skills, app]);
+}
 
 /**
  * The row under the field: which model, what it may do without asking, how hard it thinks.
@@ -60,6 +76,7 @@ export const ChatScreen: (props: Record<string, never>) => RenderOutput =
     const model = snapshot?.settings.model;
     const blocks = useMemo(() => toBlocks(snapshot?.turns ?? [], model), [snapshot, model]);
     const options = useComposerOptions();
+    const commands = useSlashCommands();
     // Only before anything is said: once there is a conversation, the header names it.
     const head = useMemo(() => (snapshot === null ? (
       <Column padding={[0, 0, 1, 0]}>
@@ -110,7 +127,16 @@ export const ChatScreen: (props: Record<string, never>) => RenderOutput =
           onOption={(option, anchorId) => {
             if (option.commandId !== undefined) openPicker(app, { commandId: option.commandId, anchorId, descriptions: 'below' });
           }}
-          placeholder={pending !== null ? 'Answer the block above first' : 'Say something'}
+          placeholder={pending !== null ? 'Answer the block above first' : 'Say something, or / for a skill or a command'}
+          commands={commands}
+          onCommand={(picked: ChatCommand) => {
+            // A skill is typed, not run: the draft becomes `/<name> ` and the person finishes the line.
+            if (picked.kind === 'session') { app.store.set(DRAFT, `/${picked.id} `); app.focus.focus('chat.composer'); return; }
+            app.store.set(DRAFT, '');
+            const command = app.commands.get(picked.id);
+            if (command && argumentOf(command)) { openPicker(app, { commandId: picked.id, anchorId: 'chat.composer', descriptions: 'below' }); return; }
+            void app.execute(picked.id, undefined, 'palette');
+          }}
           onChange={(value: string) => app.store.set(DRAFT, value)}
           onSubmit={(value: string) => void controller.send(value)}
           onCancel={() => app.focus.focus('chat.transcript')}

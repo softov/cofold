@@ -44,8 +44,9 @@ export function deleteFileTool(): { tool: Tool<{ path: string }>; executions: ()
   return { tool, executions: () => executions };
 }
 
-export function testConfig(overrides: Partial<PapoConfig> = {}): PapoConfig {
-  return {
+/** `model: undefined` in the overrides means no model configured, which the type of the field cannot say. */
+export function testConfig(overrides: Partial<PapoConfig> | { model: undefined } = {}): PapoConfig {
+  const config: PapoConfig = {
     providers: [{ id: 'fake', baseUrl: 'http://fake.invalid/v1' }],
     model: 'fake/scripted',
     permissions: 'destructive',
@@ -54,12 +55,16 @@ export function testConfig(overrides: Partial<PapoConfig> = {}): PapoConfig {
     tools: { files: false, shell: false, web: false, memory: false },
     theme: 'paper',
     shell: 'workbench',
-    ...overrides,
   };
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) delete config[key as keyof PapoConfig];
+    else Object.assign(config, { [key]: value });
+  }
+  return config;
 }
 
 /** A chat over the memory store and a scripted model. */
-export function testChat(args: { script: FakeStep[]; store?: Store; tools?: Tool<any, any>[]; config?: Partial<PapoConfig>; workspace?: string }): { chat: Chat; store: Store; provider: FakeProvider } {
+export function testChat(args: { script: FakeStep[]; store?: Store; tools?: Tool<any, any>[]; config?: Parameters<typeof testConfig>[0]; workspace?: string; home?: string }): { chat: Chat; store: Store; provider: FakeProvider } {
   const store = args.store ?? createMemoryStore();
   const provider = fakeProvider(args.script);
   const chat = createChat({
@@ -67,7 +72,7 @@ export function testChat(args: { script: FakeStep[]; store?: Store; tools?: Tool
     config: testConfig(args.config),
     providers: [provider],
     workspace: args.workspace ?? '/work',
-    home: '/nowhere',
+    home: args.home ?? '/nowhere',
     ...(args.tools !== undefined ? { tools: args.tools } : {}),
     warn: () => {},
   });

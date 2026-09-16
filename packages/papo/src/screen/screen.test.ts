@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Harness } from '@textui/testing';
 import { renderApp } from '@textui/testing';
@@ -10,8 +13,8 @@ async function settle(t: Harness, times = 12): Promise<void> {
   for (let i = 0; i < times; i++) await t.settle();
 }
 
-async function screen(args: { script: FakeStep[]; tools?: Tool<any, any>[] }): Promise<{ t: Harness; quit: () => boolean }> {
-  const { chat } = testChat({ script: args.script, ...(args.tools !== undefined ? { tools: args.tools } : {}) });
+async function screen(args: { script: FakeStep[]; tools?: Tool<any, any>[]; home?: string }): Promise<{ t: Harness; quit: () => boolean }> {
+  const { chat } = testChat({ script: args.script, ...(args.tools !== undefined ? { tools: args.tools } : {}), ...(args.home !== undefined ? { home: args.home } : {}) });
   let quit = false;
   const t = await renderApp({
     width: 100,
@@ -19,7 +22,7 @@ async function screen(args: { script: FakeStep[]; tools?: Tool<any, any>[] }): P
     shell: 'workbench',
     theme: 'paper',
     onBoot: (app) => registerPapo(app, {
-      papo: { chat, config: testConfig(), workspace: '/work', home: '/nowhere' },
+      papo: { chat, config: testConfig(), workspace: '/work', home: args.home ?? '/nowhere' },
       onQuit: () => { quit = true; },
     }),
   });
@@ -92,6 +95,37 @@ describe('the screen', () => {
     expect(executions()).toBe(1);
     expect(t.hasText('Gone.')).toBe(true);
     await t.unmount();
+  });
+
+  it('offers the skills and the palette commands after a slash: a skill completes the draft, a command runs', async () => {
+    const home = await mkdtemp(join(tmpdir(), 'papo-skills-'));
+    await mkdir(join(home, 'skills', 'review'), { recursive: true });
+    await writeFile(join(home, 'skills', 'review', 'SKILL.md'), ['---', 'name: review', 'description: Review the change', '---', 'Look hard.', ''].join('\n'));
+    try {
+      const { t, quit } = await screen({ script: [{ text: 'Reviewed.' }], home });
+      t.press('n');
+      await settle(t);
+      t.type('/rev');
+      await settle(t);
+      expect(t.hasText('Review the change')).toBe(true);
+      t.press('enter');
+      await settle(t);
+      expect(t.hasText('/review')).toBe(true);
+      expect(t.hasText('Reviewed.')).toBe(false);
+      t.type('the diff');
+      t.press('enter');
+      await settle(t, 30);
+      expect(t.hasText('/review the diff')).toBe(true);
+      expect(t.hasText('Reviewed.')).toBe(true);
+      t.type('/quit');
+      await settle(t);
+      expect(t.hasText('Quit')).toBe(true);
+      t.press('enter');
+      await settle(t);
+      expect(quit()).toBe(true);
+    } finally {
+      await rm(home, { recursive: true, force: true });
+    }
   });
 
   it('quits on ctrl+c when nothing is running', async () => {
