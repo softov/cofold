@@ -32,6 +32,7 @@ Reference: [00-cli.md](cli/00-cli.md)
 | --- | --- | --- | --- | --- |
 | [01 - papo: the harness in a terminal](cli/01-papo.md) | High | Built (manual run against a model server pending) | agent/01 (p3), textui `@textui/chat` | the `facio` program |
 | [02 - papo slash commands](cli/02-papo-commands.md) | High | Built | cli/01, tools/01, agent/01-p5 Task 6 | /mcp (MCP client) |
+| [03 - papo on the Claude Agent SDK](cli/03-papo-claude.md) | High | Planned | cli/01, cli/02 | contra-validation of the harness |
 
 Next free number in `cli`: `02`.
 
