@@ -24,7 +24,9 @@ export const ANSWERS = '$/papo/answers' as BindingPath;
 export const MARKDOWN = '$/papo/markdown' as BindingPath;
 /** What the open conversation runs with; for a conversation not yet started, what it will start with. */
 export const SETTINGS = '$/papo/settings' as BindingPath;
-/** The catalogue of models, as `chat.models()` last answered. */
+/** The providers a model may be chosen from, as `chat.providers()` answered at start. */
+export const PROVIDERS = '$/papo/providers' as BindingPath;
+/** The models listed so far, per provider: `chat.models({ provider })` is asked when a provider is chosen, once. */
 export const MODELS = '$/papo/models' as BindingPath;
 /** The skills a slash may name, as `chat.skills()` last answered. */
 export const SKILLS = '$/papo/skills' as BindingPath;

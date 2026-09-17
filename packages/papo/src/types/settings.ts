@@ -1,4 +1,4 @@
-import type { PermissionMode } from './config.js';
+import type { PermissionMode, RuleLists } from './config.js';
 
 /** How much the model thinks before it answers; `off` sends no reasoning request at all. */
 export type Reasoning = 'off' | 'low' | 'medium' | 'high';
@@ -13,10 +13,12 @@ export interface Settings {
   /** `<providerId>/<modelId>`; empty means the first model the first provider lists, asked when a turn starts. */
   model: string;
   permissions: PermissionMode;
+  /** The session's own rules, evaluated before the configuration's (decision CLI-04.5); `always` on a confirmation adds to `allow`. */
+  rules?: RuleLists;
   reasoning: Reasoning;
   /** Fold the conversation into a summary before a turn once it nears the context budget (`/compact` does it by hand). */
   autoCompact: boolean;
 }
 
-export const PERMISSION_MODES: readonly PermissionMode[] = ['destructive', 'ask', 'auto'];
+export const PERMISSION_MODES: readonly PermissionMode[] = ['default', 'acceptEdits', 'bypassPermissions', 'dontAsk'];
 export const REASONING_LEVELS: readonly Reasoning[] = ['off', 'low', 'medium', 'high'];

@@ -27,8 +27,9 @@ function turnLines(turn: Turn): string[] {
       lines.push(`- \`${part.call.name}${input}\` → ${part.call.status}`, '');
       said = true;
     } else if (part.kind === 'error') { lines.push(`> Failed: ${part.message}`, ''); said = true; }
-    else if (part.kind === 'summary') { lines.push('> _Compacted._', '', part.text, ''); said = true; }
+    else if (part.kind === 'summary') { lines.push(`> _Compacted${part.before !== undefined && part.after !== undefined ? `: ${part.before} tokens to ${part.after}` : ''}._`, '', part.text, ''); said = true; }
     else if (part.kind === 'notice') { lines.push(`> ${part.text}`, ''); said = true; }
+    else if (part.kind === 'steer') { lines.push('**You, while it ran:**', '', part.text.trim(), ''); said = true; }
   }
   if (!said) lines.push(turn.state === 'running' ? '_(running)_' : '_(nothing said)_', '');
   return lines;

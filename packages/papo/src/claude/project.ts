@@ -1,11 +1,8 @@
 import type { Usage } from '@facio/agents';
 import type { ChatPendingInput, ChatToolCall } from '@textui/chat';
-import { inputLine } from '../turns.js';
+import { COMPACTED_INPUT, inputLine } from '../turns.js';
 import type { ClaudeBlock, ClaudeLive, ClaudeSessionMessage, ClaudeUsage } from '../types/claude.js';
 import type { Turn } from '../types/turn.js';
-
-/** What a `/compact` leaves as the turn that holds its summary; the CLI keeps no user prompt for it. */
-export const COMPACTED_INPUT = '(context compacted)';
 
 const COMMAND = /<command-name>([^<]*)<\/command-name>(?:\s*<command-message>[^<]*<\/command-message>)?(?:\s*<command-args>([^<]*)<\/command-args>)?/;
 const COMMAND_OUTPUT = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/;
@@ -23,6 +20,8 @@ const INTERRUPTED = /^\[Request interrupted by user[^\]]*\]$/;
 export function projectSession(messages: ClaudeSessionMessage[], live: ClaudeLive): { turns: Turn[]; pending: ChatPendingInput | null } {
   const turns: Turn[] = [];
   const calls = new Map<string, ChatToolCall>();
+  /** The API message ids already counted: the CLI stores one entry per block of a reply, all sharing the id (review R1). */
+  const counted = new Set<string>();
   let current: Turn | undefined;
   const open = (message: ClaudeSessionMessage, input: string): Turn => {
     current = { id: message.uuid, input, parts: [], state: 'complete', startedAt: message.timestamp ?? '', usage: { inputTokens: 0, outputTokens: 0 }, steps: 0 };
@@ -64,8 +63,13 @@ export function projectSession(messages: ClaudeSessionMessage[], live: ClaudeLiv
     }
     if (message.type !== 'assistant') continue;
     const turn = current ?? open(message, '');
-    turn.steps += 1;
-    turn.usage = add(turn.usage, message.message.usage);
+    // A reply split across entries is one step with one usage; an entry without an id counts on its own.
+    const replyId = message.message.id;
+    if (replyId === undefined || !counted.has(replyId)) {
+      if (replyId !== undefined) counted.add(replyId);
+      turn.steps += 1;
+      turn.usage = add(turn.usage, message.message.usage);
+    }
     if (message.timestamp !== undefined) turn.endedAt = message.timestamp;
     for (const [index, block] of blocks.entries()) {
       const id = `${message.uuid}:${index}`;

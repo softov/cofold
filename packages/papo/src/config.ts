@@ -1,10 +1,13 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 import type { ModelProvider } from '@facio/agents';
 import { AgentError } from '@facio/agents';
 import { ArgumentError, ConfigurationError, check } from '@facio/commands';
 import { resolveConfig } from '@facio/config';
 import { openaiCompatProvider } from '@facio/model-openai-compat';
 import type { JsonSchema } from '@facio/sdk';
-import type { PapoConfig, ProviderConfig } from './types/config.js';
+import type { PapoConfig, ProviderConfig, RememberedSettings } from './types/config.js';
 
 const PROVIDER: JsonSchema = {
   type: 'object',
@@ -18,6 +21,14 @@ const PROVIDER: JsonSchema = {
   additionalProperties: false,
 };
 
+/** One permission rule as the file writes it: the tool (or `*`) and the glob over its subject (decision 117). */
+const RULE: JsonSchema = {
+  type: 'object',
+  properties: { tool: { type: 'string', minLength: 1 }, match: { type: 'string', minLength: 1 } },
+  required: ['tool'],
+  additionalProperties: false,
+};
+
 /** The file's shape; `check` turns the first problem into a sentence naming the key. */
 const SCHEMA: JsonSchema = {
   type: 'object',
@@ -25,7 +36,12 @@ const SCHEMA: JsonSchema = {
     backend: { type: 'string', enum: ['facio', 'claude'] },
     providers: { type: 'array', items: PROVIDER },
     model: { type: 'string', minLength: 1 },
-    permissions: { type: 'string', enum: ['ask', 'destructive', 'auto'] },
+    permissions: { type: 'string', enum: ['default', 'acceptEdits', 'bypassPermissions', 'dontAsk'] },
+    rules: {
+      type: 'object',
+      properties: { deny: { type: 'array', items: RULE }, ask: { type: 'array', items: RULE }, allow: { type: 'array', items: RULE } },
+      additionalProperties: false,
+    },
     reasoning: { type: 'string', enum: ['off', 'low', 'medium', 'high'] },
     instructions: { type: 'string' },
     limits: {
@@ -95,7 +111,7 @@ const SCHEMA: JsonSchema = {
 export const DEFAULT_INSTRUCTIONS = 'You are a careful assistant working in the user\'s project. Answer plainly; use the tools you are given when they help.';
 
 const BASE = {
-  backend: 'facio', providers: [], permissions: 'destructive', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS,
+  backend: 'facio', providers: [], permissions: 'default', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS,
   tools: { files: true, shell: true, web: true, memory: true },
   context: { maxTokens: 32_000, autoCompact: true },
   theme: 'paper', shell: 'workbench',
@@ -142,6 +158,63 @@ export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: 
     config.backend = backend;
   }
   return config;
+}
+
+/** `~/.config/papo/config.json`, `$XDG_CONFIG_HOME` honoured: where a field no file sets is written. */
+export function userConfigPath(env: NodeJS.ProcessEnv, home = homedir()): string {
+  return join(env['XDG_CONFIG_HOME'] ?? join(home, '.config'), 'papo', 'config.json');
+}
+
+/** The indentation a JSON file uses (its first indented line), two spaces when it has none. */
+export function indentOf(text: string): string {
+  const indented = /^([ \t]+)\S/mu.exec(text);
+  return indented?.[1] ?? '  ';
+}
+
+/**
+ * Writes each field of `patch` into the file that currently sets it, else the user file (decision CLI-05.1).
+ * `model: ''` is skipped (unset is not a choice). Returns the files written, in order.
+ *
+ * The layers are resolved again with the arguments `loadConfig` had, so the file found is the one that was read;
+ * the base layer (`(defaults)`) is not a file, and a field it alone sets goes to the user file like an unset one.
+ */
+export async function rememberConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: string; patch: RememberedSettings }): Promise<string[]> {
+  const env = args.env ?? process.env;
+  const fields = (Object.entries(args.patch) as [keyof RememberedSettings, string | undefined][])
+    .filter((entry): entry is [keyof RememberedSettings, string] => entry[1] !== undefined && !(entry[0] === 'model' && entry[1] === ''));
+  if (fields.length === 0) return [];
+  const resolved = resolveConfig({ name: 'papo', base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
+  const files = new Map<string, Record<string, string>>();
+  for (const [field, value] of fields) {
+    const source = resolved.sourceOf(field);
+    const target = source !== undefined && resolved.layers.some((layer) => layer.path === source && layer.kind !== 'base') ? source : userConfigPath(env);
+    const held = files.get(target) ?? {};
+    held[field] = value;
+    files.set(target, held);
+  }
+  for (const [target, values] of files) {
+    let text: string | undefined;
+    try {
+      text = await readFile(target, 'utf8');
+    } catch (error: unknown) {
+      if ((error as { code?: string }).code !== 'ENOENT') throw error;
+      await mkdir(dirname(target), { recursive: true });
+    }
+    let json: Record<string, unknown> = {};
+    if (text !== undefined) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text) as unknown;
+      } catch (error: unknown) {
+        throw new ConfigurationError(`${target} is not valid JSON: ${error instanceof Error ? error.message : 'unknown'}`);
+      }
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new ConfigurationError(`${target} is not an object, so it is not a configuration file`);
+      json = parsed as Record<string, unknown>;
+    }
+    Object.assign(json, values);
+    await writeFile(target, JSON.stringify(json, null, text === undefined ? '  ' : indentOf(text)) + (text === undefined || text.endsWith('\n') ? '\n' : ''), 'utf8');
+  }
+  return [...files.keys()];
 }
 
 export function providersOf(config: PapoConfig): ModelProvider[] {

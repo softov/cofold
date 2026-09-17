@@ -19,6 +19,8 @@ export interface ClaudeSessionMessage {
 
 export interface ClaudeMessage {
   role: 'user' | 'assistant';
+  /** The API message id on a reply; the CLI stores one entry per content block, all sharing it (review R1). */
+  id?: string;
   content: string | ClaudeBlock[];
   usage?: ClaudeUsage;
 }
@@ -69,6 +71,10 @@ export interface ClaudeDecision {
   toolUseId: string;
   toolName: string;
   input: Record<string, unknown>;
+  /** The CLI's own sentence for the ask ("Claude wants to read foo.txt"), when it sends one (review R3). */
+  title?: string;
   suggestions: NonNullable<Parameters<CanUseTool>[2]['suggestions']>;
+  /** The CLI asked that no "always" be offered: the rule it would write grants more than this ask. */
+  suppressAlways: boolean;
   resolve(result: Awaited<ReturnType<CanUseTool>>): void;
 }

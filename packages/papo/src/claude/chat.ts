@@ -2,11 +2,14 @@ import { randomUUID } from 'node:crypto';
 import type { CanUseTool, Options, SDKMessage, SDKResultMessage, SDKSessionInfo, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { RunOutcome, SkillIndexEntry, Usage } from '@facio/agents';
 import { AgentError, newId } from '@facio/agents';
+import { createFileStore } from '@facio/store-file';
+import { settingsKey } from '../chat.js';
 import { DEFAULT_INSTRUCTIONS } from '../config.js';
-import { titleOf } from '../turns.js';
-import type { Chat, ChatListener, ModelRow, Started } from '../types/chat.js';
+import { createQueues } from '../queue.js';
+import { checkRules } from '../rules.js';
+import { COMPACTED_INPUT, shortTitle } from '../turns.js';
+import type { Chat, ChatListener, ClaudeChatOptions, ModelRow, Started } from '../types/chat.js';
 import type { ClaudeDecision, ClaudeMessage, ClaudeQuery, ClaudeSdkSubset, ClaudeSessionMessage } from '../types/claude.js';
-import type { PapoConfig } from '../types/config.js';
 import type { Settings } from '../types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from '../types/settings.js';
 import type { SessionRow, Snapshot } from '../types/turn.js';
@@ -18,14 +21,6 @@ import { loadClaudeSdk } from './sdk.js';
 export const CLAUDE_PROVIDER = 'claude';
 /** What `compact()` sends; the CLI's own command. */
 export const COMPACT_COMMAND = '/compact';
-
-export interface ClaudeChatOptions {
-  config: PapoConfig;
-  workspace: string;
-  warn?: (message: string) => void;
-  /** The SDK, when a test hands in a fake; otherwise the optional peer, loaded on first use. */
-  sdk?: ClaudeSdkSubset;
-}
 
 /** A queue a `for await` reads from: what the CLI process takes its user messages through. */
 interface Feed extends AsyncIterable<SDKUserMessage> {
@@ -58,12 +53,15 @@ interface Live {
   feed: Feed;
   /** What the process was started with; a change the query cannot take live means a new process. */
   effort: Settings['reasoning'];
+  mode: Settings['permissions'];
   running: boolean;
   decision: ClaudeDecision | null;
   /** The turn in flight is the CLI's `/compact`. */
   compacting: boolean;
   /** The turn in flight: what `wait` resolves to, settled by a decision to make or the CLI's result. */
   turn: { runId: string; inputId: string; resolve(outcome: RunOutcome): void; outcome: Promise<RunOutcome> } | undefined;
+  /** The uuids pushed while the turn ran (steers, decision 95); the CLI takes them into the turn, or runs each as the next one. */
+  pushed: string[];
   /**
    * What the stream delivered that the store may not hold yet: the CLI writes its transcript after
    * it answers, so a read right after the result can miss the turn. Dropped as the store catches up.
@@ -80,27 +78,49 @@ function deferred(runId: string, inputId: string): NonNullable<Live['turn']> {
 /**
  * papo's `Chat` over Claude Code's runtime (CLI-03). Sessions, transcripts and compaction are the
  * CLI's own; this process holds one query per session in use and the block a `canUseTool` is
- * waiting on. Every read projects `getSessionMessages` plus what is live here.
+ * waiting on. Every read projects `getSessionMessages` plus what is live here. A session's settings
+ * are the one thing kept on papo's side, in the file store's kv under `home`, where the harness
+ * backend keeps its own (CLI-03 decision 6).
  */
 export function createClaudeChat(options: ClaudeChatOptions): Chat {
-  const { config, workspace } = options;
+  const { config, workspace, home } = options;
   const warn = options.warn ?? ((message: string) => process.stderr.write(`papo: ${message}\n`));
   const listeners = new Set<ChatListener>();
   const live = new Map<string, Live>();
-  const settings = new Map<string, Settings>();
+  /** Per-session choices, under the same key the harness backend writes, so `session set` reads one thing on both. */
+  const kv = createFileStore({ root: home }).kv({ kind: 'workspace', workspace });
   /** Failed turns by session, keyed by the turn's input uuid; the CLI's store keeps no trace of them. */
   const errors = new Map<string, Record<string, string>>();
   const errorsOf = (sessionId: string): Record<string, string> => { let held = errors.get(sessionId); if (held === undefined) { held = {}; errors.set(sessionId, held); } return held; };
   let sdkLoaded: Promise<ClaudeSdkSubset> | undefined;
   const sdk = (): Promise<ClaudeSdkSubset> => (sdkLoaded ??= options.sdk !== undefined ? Promise.resolve(options.sdk) : loadClaudeSdk());
   const notify = (sessionId: string): void => { for (const listener of listeners) listener(sessionId); };
+  /** The next turns, in memory (CLI-04.1), the same list the harness backend keeps; the head is sent when a turn settles, or at once while idle. */
+  const queues = createQueues({
+    start: (sessionId, head) => send(sessionId, head.text, head.settings),
+    idle: async (sessionId) => { const held = live.get(sessionId); return held === undefined || (!held.running && held.decision === null); },
+    warn,
+    notify,
+  });
 
-  // A configured model of another provider is not for this backend: the CLI's default is used.
-  const configured = config.model !== undefined && config.model.startsWith(`${CLAUDE_PROVIDER}/`) ? config.model : '';
-  if (config.model !== undefined && configured === '') warn(`model "${config.model}" is not written ${CLAUDE_PROVIDER}/<model>; the claude backend uses the CLI's default`);
-  if (config.permissions === 'ask') warn('permissions "ask" has no equivalent on the claude backend: the CLI decides what asks, as in its default mode');
-  const defaults = (): Settings => ({ model: configured, permissions: config.permissions, reasoning: config.reasoning, autoCompact: true });
-  const settingsOf = (sessionId: string | undefined): Settings => (sessionId !== undefined ? settings.get(sessionId) : undefined) ?? defaults();
+  // A configured model of another provider is not for this backend: the CLI's default is used. Read each time it is
+  // needed, not once: a pick on the model chip changes `config.model` while papo runs (decision CLI-05.1).
+  const configured = (): string => (config.model !== undefined && config.model.startsWith(`${CLAUDE_PROVIDER}/`) ? config.model : '');
+  if (config.model !== undefined && configured() === '') warn(`model "${config.model}" is not written ${CLAUDE_PROVIDER}/<model>; the claude backend uses the CLI's default`);
+  const defaults = (): Settings => ({ model: configured(), permissions: config.permissions, reasoning: config.reasoning, autoCompact: true });
+
+  /** The defaults under the session's own choices, read from the kv; nothing is cached, so a restart reads the same. */
+  async function settingsOf(sessionId: string | undefined): Promise<Settings> {
+    const own = sessionId === undefined ? undefined : await kv.get<Partial<Settings>>(settingsKey(sessionId));
+    return { ...defaults(), ...own };
+  }
+
+  async function patchSettings(sessionId: string, patch: Partial<Settings>): Promise<Settings> {
+    checkSettings(patch);
+    const held = (await kv.get<Partial<Settings>>(settingsKey(sessionId))) ?? {};
+    await kv.set(settingsKey(sessionId), { ...held, ...patch });
+    return settingsOf(sessionId);
+  }
 
   function checkSettings(patch: Partial<Settings>): void {
     // The screen sends every setting it shows; only turning the CLI's compaction off is refused.
@@ -116,6 +136,8 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
     if (patch.reasoning !== undefined && !REASONING_LEVELS.includes(patch.reasoning)) {
       throw new AgentError({ code: 'invalid_options', message: `reasoning must be one of ${REASONING_LEVELS.join(', ')}` });
     }
+    // Kept and listed like the harness backend's; the CLI applies its own settings files, not these.
+    if (patch.rules !== undefined) checkRules(patch.rules);
   }
 
   /** The options a process is started with, from the session's settings (CLI-03 decision 6). */
@@ -127,9 +149,10 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       ...(resume ? { resume: sessionId } : { sessionId }),
       ...(model !== '' ? { model } : {}),
       ...(chosen.reasoning !== 'off' ? { effort: chosen.reasoning } : {}),
-      // Always `default`: `bypassPermissions` would answer AskUserQuestion too (the SDK says so), and
-      // papo's `auto` is "tools run, questions ask"; the callback below is where `auto` is applied.
-      permissionMode: 'default',
+      // The four names are the CLI's own (cli/03 F8), passed through; papo's rule lists are the harness backend's,
+      // the CLI reads its own settings files (`settingSources`). `bypassPermissions` needs the flag the SDK asks for.
+      permissionMode: chosen.permissions,
+      ...(chosen.permissions === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } : {}),
       canUseTool,
       systemPrompt: { type: 'preset', preset: 'claude_code', ...(append !== undefined ? { append } : {}) },
       settingSources: ['user', 'project'],
@@ -139,51 +162,90 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
   /** Starts the process for a session and reads it to its end in the background. */
   async function start(sessionId: string, chosen: Settings, resume: boolean): Promise<Live> {
     const feed = createFeed();
-    const entry: Live = { query: undefined as unknown as ClaudeQuery, feed, effort: chosen.reasoning, running: false, decision: null, compacting: false, turn: undefined, seen: [] };
-    const canUseTool: CanUseTool = (toolName, input, opts) => new Promise((resolve) => {
-      if (settingsOf(sessionId).permissions === 'auto' && toolName !== ASK_TOOL) { resolve({ behavior: 'allow', updatedInput: input }); return; }
-      const requestId = opts.requestId ?? newId();
-      entry.decision = { requestId, toolUseId: opts.toolUseID ?? requestId, toolName, input, suggestions: opts.suggestions ?? [], resolve: (result) => { entry.decision = null; resolve(result); notify(sessionId); } };
-      // As the harness pauses: whoever waits on the turn learns it needs a decision, and waits again after.
-      if (entry.turn !== undefined) {
-        const { runId, inputId, resolve: pause } = entry.turn;
-        entry.turn = deferred(runId, inputId);
-        pause({ status: 'awaiting', sessionId, runId, requestId, kind: toolName === ASK_TOOL ? 'input' : 'approval', usage: ZERO, steps: 0 });
-      }
-      notify(sessionId);
-    });
+    const entry: Live = { query: undefined as unknown as ClaudeQuery, feed, effort: chosen.reasoning, mode: chosen.permissions, running: false, decision: null, compacting: false, turn: undefined, pushed: [], seen: [] };
+    const canUseTool: CanUseTool = async (toolName, input, opts) => {
+      return new Promise((resolve) => {
+        const requestId = opts.requestId ?? newId();
+        entry.decision = {
+          requestId,
+          toolUseId: opts.toolUseID ?? requestId,
+          toolName,
+          input,
+          ...(opts.title !== undefined ? { title: opts.title } : {}),
+          suggestions: opts.suggestions ?? [],
+          suppressAlways: opts.suppressAlwaysAllowRule === true,
+          resolve: (result) => { entry.decision = null; resolve(result); notify(sessionId); },
+        };
+        // As the harness pauses: whoever waits on the turn learns it needs a decision, and waits again after.
+        if (entry.turn !== undefined) {
+          const { runId, inputId, resolve: pause } = entry.turn;
+          entry.turn = deferred(runId, inputId);
+          pause({ status: 'awaiting', sessionId, runId, requestId, kind: toolName === ASK_TOOL ? 'input' : 'approval', usage: ZERO, steps: 0 });
+        }
+        notify(sessionId);
+      });
+    };
     entry.query = (await sdk()).query({ prompt: feed, options: optionsFor(sessionId, chosen, resume, canUseTool) });
     live.set(sessionId, entry);
-    // A process that ends mid-turn fails that turn; the store keeps no trace, so the error is kept here.
-    const ended = (code: 'interrupted' | 'internal', message: string): void => {
-      if (entry.turn !== undefined) errorsOf(sessionId)[entry.turn.inputId] = message;
-      settle(entry, { status: 'failed', error: { code, message }, usage: ZERO, steps: 0 });
+    /**
+     * A process that ends mid-turn fails that turn; the store keeps no trace, so the error is kept
+     * here. A process this service already let go of (`remove`, or replaced for a new effort) records
+     * nothing: its turn is settled so a waiter wakes, and the session has no failed turn to show.
+     * Returns the outcome a turn in flight ended with, for the queue to act on.
+     */
+    const ended = (code: 'interrupted' | 'internal', message: string): RunOutcome | undefined => {
+      if (live.get(sessionId) !== entry) { settle(entry, { status: 'cancelled', reason: 'the session was removed', usage: ZERO, steps: 0 }); return undefined; }
+      const turn = entry.turn;
+      if (turn !== undefined) errorsOf(sessionId)[turn.inputId] = message;
+      const outcome: RunOutcome = { status: 'failed', error: { code, message }, usage: ZERO, steps: 0 };
+      settle(entry, outcome);
+      return turn !== undefined ? outcome : undefined;
     };
     void (async () => {
+      let outcome: RunOutcome | undefined;
       try {
         for await (const message of entry.query) handle(sessionId, entry, message);
-        ended('interrupted', 'the claude process ended');
+        outcome = ended('interrupted', 'the claude process ended');
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         warn(`session ${sessionId}: ${message}`);
-        ended('internal', message);
+        outcome = ended('internal', message);
       } finally {
         if (live.get(sessionId) === entry) live.delete(sessionId);
         notify(sessionId);
       }
+      // After the process is let go of, so the head's `send` starts a fresh one.
+      if (outcome !== undefined) await queues.settled(sessionId, outcome.status);
     })();
     return entry;
   }
 
   function handle(sessionId: string, entry: Live, message: SDKMessage): void {
     if ((message.type === 'assistant' || message.type === 'user') && 'uuid' in message && typeof message.uuid === 'string') {
-      entry.seen.push({ type: message.type, uuid: message.uuid, session_id: sessionId, message: message.message as ClaudeMessage, parent_tool_use_id: message.parent_tool_use_id, timestamp: new Date().toISOString() });
+      // The prompt comes back with the uuid `send` gave it: what is already here is not shown twice.
+      const uuid = message.uuid;
+      if (!entry.seen.some((held) => held.uuid === uuid)) {
+        entry.seen.push({ type: message.type, uuid, session_id: sessionId, message: message.message as ClaudeMessage, parent_tool_use_id: message.parent_tool_use_id, timestamp: new Date().toISOString() });
+      }
     } else if (message.type === 'result') {
       const outcome = outcomeOf(message);
       if (outcome.status === 'failed' && entry.turn !== undefined) errorsOf(sessionId)[entry.turn.inputId] = outcome.error.message;
       // After a compaction the store's view is the only true one: what was seen before it is gone from it.
       if (entry.turn !== undefined && entry.compacting) entry.seen = [];
       settle(entry, outcome);
+      // A message pushed mid-turn that the CLI kept for after this turn: another result follows without further
+      // input (`queued_turn_count`), so the process is still answering and whoever waits learns to wait again.
+      const next = (message.queued_turn_count ?? 0) > 0 ? entry.pushed.shift() : undefined;
+      if (next !== undefined) {
+        entry.turn = deferred(newId(), next);
+        entry.running = true;
+        notify(sessionId);
+        return;
+      }
+      entry.pushed = [];
+      notify(sessionId);
+      void queues.settled(sessionId, outcome.status);
+      return;
     }
     notify(sessionId);
   }
@@ -198,7 +260,8 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
   async function liveFor(sessionId: string, chosen: Settings, resume: boolean): Promise<Live> {
     const held = live.get(sessionId);
     if (held !== undefined) {
-      if (held.effort !== chosen.reasoning) { held.feed.end(); held.query.close(); live.delete(sessionId); }
+      // The effort and the permission mode are process options: a change means a new process on the same session.
+      if (held.effort !== chosen.reasoning || held.mode !== chosen.permissions) { held.feed.end(); held.query.close(); live.delete(sessionId); }
       else {
         const model = modelIdOf(chosen.model);
         await held.query.setModel(model === '' ? undefined : model);
@@ -227,9 +290,19 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
     const id = sessionId ?? randomUUID();
     const held = live.get(id);
     if (held?.decision !== null && held?.decision !== undefined) throw new AgentError({ code: 'writer_busy', message: `session ${id} is waiting on a decision; approve, deny or answer it first` });
-    if (held?.running) throw new AgentError({ code: 'writer_busy', message: `session ${id} is still answering; wait or cancel it` });
-    if (patch !== undefined) { checkSettings(patch); settings.set(id, { ...settingsOf(id), ...patch }); }
-    const chosen = settingsOf(id);
+    // A person spoke: whatever a cancel held back may start again on the next settle (CLI-04.1).
+    queues.release(id);
+    const chosen = patch !== undefined ? await patchSettings(id, patch) : await settingsOf(id);
+    if (held?.running && held.turn !== undefined) {
+      // The prompt stays open for the life of the process, so a message pushed mid-turn is the CLI's to
+      // take into the running turn, as the reference does (ahpd `steer`); shown here until the store has it.
+      const uuid = randomUUID();
+      held.pushed.push(uuid);
+      held.seen.push({ type: 'user', uuid, session_id: id, message: { role: 'user', content: text }, parent_tool_use_id: null, timestamp: new Date().toISOString() });
+      held.feed.push({ type: 'user', uuid, message: { role: 'user', content: text }, parent_tool_use_id: null, session_id: id });
+      notify(id);
+      return { sessionId: id, runId: held.turn.runId, steered: true };
+    }
     const entry = await liveFor(id, chosen, sessionId !== undefined);
     const runId = newId();
     // The prompt's uuid is the CLI's record of it: the store's user message, the turn's id here.
@@ -251,12 +324,10 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
   }
 
   const chat: Chat = {
-    settings: async (sessionId) => settingsOf(sessionId),
+    settings: settingsOf,
 
     async configure(sessionId, patch) {
-      checkSettings(patch);
-      const next = { ...settingsOf(sessionId), ...patch };
-      settings.set(sessionId, next);
+      const next = await patchSettings(sessionId, patch);
       const held = live.get(sessionId);
       if (held !== undefined && !held.running) {
         const model = modelIdOf(next.model);
@@ -266,7 +337,12 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       return next;
     },
 
-    async models() {
+    providers: async () => [{ id: CLAUDE_PROVIDER, key: false, default: true }],
+
+    async models({ provider } = {}) {
+      if (provider !== undefined && provider !== CLAUDE_PROVIDER) {
+        throw new AgentError({ code: 'invalid_options', message: `provider "${provider}" is not configured; configured: ${CLAUDE_PROVIDER}` });
+      }
       const listed = await withQuery((query) => query.supportedModels());
       return listed.map((model): ModelRow => ({
         id: model.value,
@@ -284,16 +360,26 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
 
     async sessions() {
       const listed = await (await sdk()).listSessions({ dir: workspace });
-      return listed.map((info): SessionRow => ({
+      const rows = listed.map((info): SessionRow => ({
         id: info.sessionId,
         title: titleOfInfo(info),
         activity: activityOf(live.get(info.sessionId)),
         workspace,
         createdAt: new Date(info.createdAt ?? info.lastModified).toISOString(),
         updatedAt: new Date(info.lastModified).toISOString(),
-      })).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+      }));
+      // A session started here that the CLI has not written yet (it writes after the first result, CLI-03 F5).
+      const known = new Set(rows.map((row) => row.id));
+      for (const [sessionId, held] of live) {
+        if (known.has(sessionId) || held.seen.length === 0) continue;
+        const first = held.seen[0]!;
+        const text = typeof first.message.content === 'string' ? first.message.content : '';
+        rows.push({ id: sessionId, title: shortTitle(text, sessionId), activity: activityOf(held), workspace, createdAt: first.timestamp ?? '', updatedAt: held.seen.at(-1)?.timestamp ?? '' });
+      }
+      return rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },
 
+    /** One session's file, not the folder: the row is read off the messages themselves (CLI-03 decision 4). */
     async snapshot(sessionId) {
       const messages = await messagesOf(sessionId);
       const held = live.get(sessionId);
@@ -303,22 +389,38 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
         pending: held?.decision !== null && held?.decision !== undefined ? pendingOf(held.decision) : null,
         errors: errorsOf(sessionId),
       });
-      const listed = (await (await sdk()).listSessions({ dir: workspace })).find((info) => info.sessionId === sessionId);
       const now = new Date().toISOString();
+      const first = turns.find((turn) => turn.input !== COMPACTED_INPUT && turn.input.trim() !== '');
       const session: SessionRow = {
         id: sessionId,
-        title: listed !== undefined ? titleOfInfo(listed) : titleOf([], turns[0]?.input.trim() || sessionId),
+        title: shortTitle(first?.input ?? '', sessionId),
         activity: activityOf(held),
         workspace,
-        createdAt: listed !== undefined ? new Date(listed.createdAt ?? listed.lastModified).toISOString() : now,
-        updatedAt: listed !== undefined ? new Date(listed.lastModified).toISOString() : now,
+        createdAt: messages[0]?.timestamp ?? now,
+        updatedAt: messages.at(-1)?.timestamp ?? now,
       };
-      return { session, settings: settingsOf(sessionId), turns, pending, running } satisfies Snapshot;
+      return { session, settings: await settingsOf(sessionId), turns, pending, running, queued: queues.list(sessionId) } satisfies Snapshot;
     },
 
     say: ({ sessionId, text, settings: patch }) => send(sessionId, text, patch),
 
-    wait: async (sessionId) => live.get(sessionId)?.turn?.outcome,
+    wait: async (sessionId) => {
+      // Taken now, before any await: a `remove` or `cancel` issued right after must still settle this waiter.
+      const current = live.get(sessionId)?.turn?.outcome;
+      if (current !== undefined) return current;
+      // Nothing in flight yet: a queued head may be starting (its `send` awaits the settings first).
+      await queues.starting(sessionId);
+      return live.get(sessionId)?.turn?.outcome;
+    },
+
+    async queue({ sessionId, text, settings: patch, id }) {
+      if (patch !== undefined) checkSettings(patch);
+      return queues.add(sessionId, { text, ...(patch !== undefined ? { settings: patch } : {}), ...(id !== undefined ? { id } : {}) });
+    },
+
+    unqueue: async (sessionId, id) => { queues.remove(sessionId, id); },
+
+    queued: async (sessionId) => queues.list(sessionId),
 
     async approve(sessionId, args) {
       const decision = decisionOf(sessionId);
@@ -336,20 +438,31 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       decision.resolve(answered(decision, answers));
     },
 
+    /**
+     * Stop the turn, as the reference host does (ahpd's cancel, decision 120): a decision the turn waits on is denied
+     * with the same words the harness uses, then the CLI is interrupted, so the turn ends cancelled with its marker.
+     * Nothing queued starts after a cancel, until the person says something (CLI-04.1).
+     */
     async cancel(sessionId) {
+      queues.hold(sessionId);
       const held = live.get(sessionId);
       if (held === undefined) return;
-      if (held.decision !== null) { held.decision.resolve(denial('cancelled by the user')); return; }
+      if (held.decision !== null) held.decision.resolve(denial('The turn was stopped'));
       if (held.running) await held.query.interrupt();
     },
 
-    compact: (sessionId) => send(sessionId, COMPACT_COMMAND),
+    async compact(sessionId) {
+      // The CLI's command is a turn of its own, never a steer into a running one.
+      if (live.get(sessionId)?.running) throw new AgentError({ code: 'writer_busy', message: `session ${sessionId} is still answering; wait or cancel it` });
+      return send(sessionId, COMPACT_COMMAND);
+    },
 
     async remove(sessionId) {
       const held = live.get(sessionId);
       if (held !== undefined) { held.feed.end(); held.query.close(); live.delete(sessionId); }
-      settings.delete(sessionId);
+      queues.clear(sessionId);
       errors.delete(sessionId);
+      await kv.delete(settingsKey(sessionId));
       await (await sdk()).deleteSession(sessionId, { dir: workspace });
       notify(sessionId);
     },
@@ -400,6 +513,8 @@ function outcomeOf(result: SDKResultMessage): RunOutcome {
     return { status: 'cancelled', reason: 'interrupted', usage, steps: result.num_turns };
   }
   if (result.subtype === 'success') {
+    // The SDK's doc: `success` with `is_error` is a turn that ended on an API error, its text in `result` (review R2).
+    if (result.is_error) return { status: 'failed', error: { code: 'api_error', message: result.result }, usage, steps: result.num_turns };
     return { status: 'completed', message: { id: result.uuid, role: 'assistant', source: 'model', parts: [{ type: 'text', text: result.result }], createdAt: new Date().toISOString() }, usage, steps: result.num_turns };
   }
   return { status: 'failed', error: { code: result.subtype, message: result.errors.join('; ') || result.subtype }, usage, steps: result.num_turns };

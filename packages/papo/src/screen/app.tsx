@@ -7,15 +7,16 @@ import type { ChatAnswer, ChatSendStatus } from '@textui/chat';
 import {
   ChatBubble, ChatComposer, ChatHitl, ChatInputStatus, ChatTranscript, ReasoningBlock, SessionList, StreamingText, ToolCallRow,
 } from '@textui/chat';
-import type { BoxProps, Disposable, ServiceKey, TextUIApp } from '@textui/core';
+import type { ArgChoices, ArgSpec, BoxProps, Disposable, ServiceKey, TextUIApp } from '@textui/core';
 import { createBag, defineComponent, serviceKey, useApp, useStoreValue, useTheme } from '@textui/core';
 import { KeyHints, Row, registerBuiltins } from '@textui/widgets';
 import type { Papo } from '../commands.js';
 import { AUTO_COMPACT_AT } from '../agent.js';
-import { redactedConfig } from '../commands.js';
+import { redactedConfig, rememberedOf } from '../commands.js';
+import { splitModel } from '../config.js';
 import { exportPath, toMarkdown } from '../export.js';
 import { toAskAnswers } from '../questions.js';
-import type { ModelRow } from '../types/chat.js';
+import type { ModelRow, ProviderRow } from '../types/chat.js';
 import type { Settings } from '../types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from '../types/settings.js';
 import type { Snapshot, Turn } from '../types/turn.js';
@@ -23,15 +24,16 @@ import { ChatScreen } from './chat.js';
 import { PapoInfo, showInfo } from './info.js';
 import { SessionsScreen } from './sessions.js';
 import {
-  ANSWERS, CHAT_SCOPE, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SKILLS,
+  ANSWERS, CHAT_SCOPE, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, PROVIDERS, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SKILLS,
   SNAPSHOT,
 } from './state.js';
 
-/** The words on the chips and in the picker, for the values the configuration spells. */
+/** The words on the chips and in the picker, for the values the configuration spells: Claude Code's four modes (cli/03 F8). */
 export const PERMISSION_LABELS: Record<Settings['permissions'], { label: string; description: string }> = {
-  destructive: { label: 'Ask for destructive tools', description: 'A tool that declares it destroys something waits for you; the rest run.' },
-  ask: { label: 'Ask every tool', description: 'Every tool call waits for a yes.' },
-  auto: { label: 'Never ask', description: 'Every tool call runs; nothing stops.' },
+  default: { label: 'Ask before changes', description: 'Reads run; a tool that writes, destroys or reaches the network waits for you.' },
+  acceptEdits: { label: 'Accept edits', description: 'File edits inside the workspace run; commands, the network and edits outside still wait.' },
+  bypassPermissions: { label: 'Bypass permissions', description: 'Every tool call runs; only a deny or ask rule stops one.' },
+  dontAsk: { label: "Don't ask", description: 'What would wait for you is refused instead; reads run.' },
 };
 export const REASONING_LABELS: Record<Settings['reasoning'], string> = { off: 'No thinking', low: 'Think a little', medium: 'Think', high: 'Think hard' };
 
@@ -46,7 +48,11 @@ export interface Controller extends Disposable {
   refresh(): Promise<void>;
   /** Open a session, or `null` for a conversation that starts with the first message. */
   open(sessionId: string | null): Promise<void>;
+  /** Say the text: a new turn, or a steer into the one running (decision 95). */
   send(text: string): Promise<void>;
+  /** Hold the text as the open conversation's next turn (decision CLI-04.1). */
+  queue(text: string): Promise<void>;
+  unqueue(id: string): Promise<void>;
   approve(optionId?: string): Promise<void>;
   deny(): Promise<void>;
   answer(answers: Record<string, ChatAnswer>, accepted: boolean): Promise<void>;
@@ -122,6 +128,32 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
       }
     },
 
+    async queue(text) {
+      const trimmed = text.trim();
+      const current = open();
+      if (trimmed === '' || current === null) return;
+      try {
+        await chat.queue({ sessionId: current, text: trimmed });
+        app.store.set(DRAFT, '');
+        app.store.set(ERROR, null);
+        await reload(current);
+      } catch (error: unknown) {
+        report(error);
+      }
+    },
+
+    async unqueue(id) {
+      const current = open();
+      if (current === null) return;
+      try {
+        await chat.unqueue(current, id);
+        app.store.set(ERROR, null);
+        await reload(current);
+      } catch (error: unknown) {
+        report(error);
+      }
+    },
+
     approve: (optionId) => decide('approved', (id) => chat.approve(id, { always: optionId === 'always' })),
     deny: () => decide('denied', (id) => chat.deny(id)),
     answer: (answers, accepted) => decide(accepted ? 'answered' : 'declined', (id) =>
@@ -165,6 +197,16 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
           app.store.set(SETTINGS, await chat.configure(current, patch));
         }
         app.store.set(ERROR, null);
+      } catch (error: unknown) {
+        report(error);
+        return;
+      }
+      // The pick is the next new conversation's default too (decision CLI-05.1); a file that cannot be written is said
+      // on the status row and the pick still holds on the session.
+      const remembered = rememberedOf(patch);
+      if (Object.keys(remembered).length === 0) return;
+      try {
+        await papo.remember(remembered);
       } catch (error: unknown) {
         report(error);
       }
@@ -217,8 +259,9 @@ const Header = defineComponent<Record<string, never>>('PapoHeader', () => {
       <text content={theme.glyphs.separator} fg="subtle" shrink={0} />
       {title !== undefined
         ? <text content={title} flex={1} truncate="end" />
-        : <text content={papo.workspace} fg="muted" flex={1} truncate="end" />}
-      <text content={model} fg="muted" shrink={2} truncate="end" />
+        : <text content={''} fg="muted" flex={1} truncate="end" />}
+      {/* <text content={model} fg="muted" shrink={2} truncate="end" /> */}
+      <text content={papo.workspace} fg="muted" shrink={2} truncate="start" />
     </Row>
   );
 });
@@ -324,6 +367,26 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
   const { papo } = options;
   const selected = (): string | null => app.store.get<string | null>(SELECTED) ?? null;
   const settings = (): Settings | null => app.store.get<Settings>(SETTINGS) ?? null;
+  const providers = (): ProviderRow[] => app.store.get<ProviderRow[]>(PROVIDERS) ?? [];
+  /**
+   * One provider's models, asked of it the first time it is chosen and kept (cli/05 task 05). Asking
+   * every provider at start made one that is down (a local server that is off) stall the chip for
+   * its whole timeout and, before `models()` learnt to skip it, hide the others' models altogether.
+   * A listing that fails says so on the status row and offers nothing, which is the truth of it.
+   */
+  const modelsOf = async (provider: string): Promise<ModelRow[]> => {
+    const listed = app.store.get<Record<string, ModelRow[]>>(MODELS) ?? {};
+    const held = listed[provider];
+    if (held !== undefined) return held;
+    try {
+      const rows = await papo.chat.models({ provider });
+      app.store.set(MODELS, { ...listed, [provider]: rows });
+      return rows;
+    } catch (error: unknown) {
+      app.store.set(ERROR, `models: ${provider}: ${error instanceof Error ? error.message : String(error)}`);
+      return [];
+    }
+  };
   const commands = [
     /*
      * The chips' questions, as commands with one argument each: the picker asks it, the palette
@@ -331,18 +394,44 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
      */
     {
       id: 'compose.model', title: 'Model', category: 'Compose', slots: ['palette'],
-      args: [{
-        name: 'value', type: 'string' as const, required: true, description: 'Which model answers',
-        get default(): string | undefined { return settings()?.model; },
-        descriptions: 'below' as const,
-        choices: () => (app.store.get<ModelRow[]>(MODELS) ?? []).map((row) => ({
-          value: row.ref,
-          label: row.ref,
-          description: [row.name !== row.id ? row.name : '', row.contextTokens !== undefined ? `${Math.round(row.contextTokens / 1000)}k context` : '', row.features.reasoning ? 'reasoning' : '']
-            .filter(Boolean).join(' · '),
-        })),
-      }],
-      run: (args: Record<string, unknown>) => { void controller.configure({ model: String(args['value']) }); },
+      /*
+       * Two questions, provider then model (CLI-05.2): the second list is that provider's rows only,
+       * through textui's `choices(collected)`. The providers come from the service (`chat.providers()`:
+       * the configuration's list, or `claude` on that backend), so a provider that is down is still
+       * offered and says why when chosen; its models are asked for then, not at start.
+       */
+      args: [
+        {
+          name: 'provider', type: 'string' as const, required: true, description: 'Which provider',
+          get default(): string | undefined {
+            const model = settings()?.model;
+            return model ? splitModel(model).provider : providers().find((row) => row.default)?.id ?? providers()[0]?.id;
+          },
+          // Asked only when there is a choice to make: with one provider the default stands and the
+          // palette skips the question (`argumentOf` asks nothing of an argument without `choices`).
+          // A getter, because the list arrives after the command is registered; the cast is what lets
+          // it read as absent under `exactOptionalPropertyTypes`, which is how every reader treats it.
+          get choices(): (() => ArgChoices) | undefined {
+            const listed = providers();
+            return listed.length > 1
+              ? () => listed.map((row) => ({ value: row.id, label: row.id, ...(row.baseUrl !== undefined ? { description: row.baseUrl } : {}) }))
+              : undefined;
+          },
+        } as ArgSpec,
+        {
+          name: 'model', type: 'string' as const, required: true, description: 'Which model answers',
+          get default(): string | undefined { const model = settings()?.model; return model ? splitModel(model).modelId : undefined; },
+          descriptions: 'below' as const,
+          choices: async (collected: Readonly<Record<string, unknown>>) => (await modelsOf(String(collected['provider'])))
+            .map((row) => ({
+              value: row.id,
+              label: row.id,
+              description: [row.name !== row.id ? row.name : '', row.contextTokens !== undefined ? `${Math.round(row.contextTokens / 1000)}k context` : '', row.features.reasoning ? 'reasoning' : '']
+                .filter(Boolean).join(' · '),
+            })),
+        },
+      ],
+      run: (args: Record<string, unknown>) => { void controller.configure({ model: `${String(args['provider'])}/${String(args['model'])}` }); },
     },
     {
       id: 'compose.permissions', title: 'Permissions', category: 'Compose', slots: ['palette'],
@@ -400,6 +489,21 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
       id: 'chat.stop', title: 'Stop the turn', category: 'Chat', slots: ['palette'],
       when: `${SCREEN} == 'chat' && ${SNAPSHOT}/running`,
       run: () => void controller.stop(),
+    },
+    {
+      id: 'chat.queue', title: 'Queue the message', category: 'Chat', slots: ['palette'], description: 'Hold what is in the field as the next turn; it starts when this one ends',
+      when: `${SCREEN} == 'chat' && ${SNAPSHOT}/running`,
+      run: () => { void controller.queue(app.store.get<string>(DRAFT) ?? ''); },
+    },
+    {
+      id: 'chat.unqueue', title: 'Drop a queued message', category: 'Chat', slots: ['palette'],
+      when: `${SCREEN} == 'chat' && ${SNAPSHOT}/queued/0`,
+      args: [{
+        name: 'id', type: 'string' as const, required: true, description: 'Which queued message',
+        descriptions: 'below' as const,
+        choices: () => (snapshot()?.queued ?? []).map((waiting) => ({ value: waiting.id, label: waiting.text.replace(/\s+/g, ' ').slice(0, 60), description: waiting.id })),
+      }],
+      run: (args: Record<string, unknown>) => { void controller.unqueue(String(args['id'])); },
     },
     {
       id: 'chat.approve', title: 'Approve the waiting tool call', category: 'Chat', slots: ['palette'],
@@ -520,7 +624,7 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
       `auto-compact ${chosen === null ? '' : chosen.autoCompact ? `on, at ${Math.floor(papo.config.context.maxTokens * AUTO_COMPACT_AT)} of ${papo.config.context.maxTokens} tokens` : 'off'}`,
       `workspace    ${papo.workspace}`,
       `home         ${papo.home}`,
-      `turns        ${current?.turns.length ?? 0}${current?.running ? '  (one running)' : ''}`,
+      `turns        ${current?.turns.length ?? 0}${current?.running ? '  (one running)' : ''}${current !== null && current.queued.length > 0 ? `  (${current.queued.length} queued)` : ''}`,
       `tokens       ${sum.input} in, ${sum.output} out`,
     ];
   }
@@ -589,10 +693,10 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
   void options.papo.chat.skills()
     .then((rows) => app.store.set(SKILLS, rows))
     .catch((error: unknown) => app.store.set(ERROR, `skills: ${error instanceof Error ? error.message : String(error)}`));
-  // The catalogue of models, once, in the background; a provider that cannot be reached says so in the status row.
-  void options.papo.chat.models()
-    .then((rows) => app.store.set(MODELS, rows))
-    .catch((error: unknown) => app.store.set(ERROR, `models: ${error instanceof Error ? error.message : String(error)}`));
+  // The providers, once; nothing is asked of them until a provider is chosen on the chip (`modelsOf`).
+  void options.papo.chat.providers()
+    .then((rows) => app.store.set(PROVIDERS, rows))
+    .catch((error: unknown) => app.store.set(ERROR, `providers: ${error instanceof Error ? error.message : String(error)}`));
   void controller.refresh().then(async () => {
     if (options.sessionId !== undefined) {
       await controller.open(options.sessionId);

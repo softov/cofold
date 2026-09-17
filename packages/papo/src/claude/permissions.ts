@@ -1,4 +1,4 @@
-import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk';
+import type { PermissionResult, PermissionUpdate } from '@anthropic-ai/claude-agent-sdk';
 import type { AskAnswers, AskQuestion } from '@facio/agents';
 import type { ChatPendingInput, ChatToolCall } from '@textui/chat';
 import { toChatQuestion } from '../questions.js';
@@ -17,7 +17,8 @@ interface ClaudeQuestion {
 
 /**
  * A `canUseTool` call as the block papo shows (CLI-03 decision 5): `AskUserQuestion` as the question
- * form, any other tool as the confirmation, with `always` offered when the CLI suggested a rule.
+ * form, any other tool as the confirmation under the CLI's own sentence when it sent one, with `always`
+ * offered when the CLI suggested a rule and did not ask for the option to be withheld.
  */
 export function pendingOf(decision: ClaudeDecision): ChatPendingInput {
   if (decision.toolName === ASK_TOOL) {
@@ -34,8 +35,8 @@ export function pendingOf(decision: ClaudeDecision): ChatPendingInput {
     name: decision.toolName,
     status: 'pending-confirmation',
     input: inputLine({ input: decision.input, raw: '' }),
-    confirmationTitle: `Run ${decision.toolName}?`,
-    options: decision.suggestions.length > 0 ? [{ id: ALWAYS, label: 'Always, this session' }] : [],
+    confirmationTitle: decision.title ?? `Run ${decision.toolName}?`,
+    options: decision.suggestions.length > 0 && !decision.suppressAlways ? [{ id: ALWAYS, label: 'Always, this session' }] : [],
   };
   return { kind: 'toolConfirmation', id: decision.toolUseId, call };
 }
@@ -52,8 +53,13 @@ function askQuestionOf(question: ClaudeQuestion): AskQuestion {
   };
 }
 
+/**
+ * The allow, with the CLI's suggested rules sent back on `always`, every one rewritten to the session:
+ * the button says "this session", and nothing is written into a settings file (review R4).
+ */
 export function approval(decision: ClaudeDecision, always: boolean): PermissionResult {
-  return { behavior: 'allow', updatedInput: decision.input, ...(always && decision.suggestions.length > 0 ? { updatedPermissions: decision.suggestions } : {}) };
+  const rules = always && !decision.suppressAlways ? decision.suggestions.map((rule): PermissionUpdate => ({ ...rule, destination: 'session' })) : [];
+  return { behavior: 'allow', updatedInput: decision.input, ...(rules.length > 0 ? { updatedPermissions: rules } : {}) };
 }
 
 export function denial(reason: string): PermissionResult {

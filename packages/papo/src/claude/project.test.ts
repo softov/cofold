@@ -2,7 +2,8 @@ import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import type { ChatToolCall } from '@textui/chat';
 import type { ClaudeSessionMessage } from '../types/claude.js';
-import { COMPACTED_INPUT, isCommandEcho, projectSession } from './project.js';
+import { COMPACTED_INPUT } from '../turns.js';
+import { isCommandEcho, projectSession } from './project.js';
 import { loadClaudeSdk } from './sdk.js';
 
 const fixture = async (name: string): Promise<ClaudeSessionMessage[]> =>
@@ -29,6 +30,22 @@ describe('projectSession', () => {
     expect(turn!.parts[2]).toMatchObject({ kind: 'text', text: 'Your answer "Red" has been saved to color.txt in the current folder.' });
     // Cached input counts as input read: 2 + 28920 + 2 + 28920 + 211 + 2 + 29131 + 269.
     expect(turn!.usage).toEqual({ inputTokens: 87457, outputTokens: 311 });
+  });
+
+  it('counts a reply the CLI stored as several entries once: one step, its usage once, every block a part', async () => {
+    const messages = await fixture('split-reply');
+    // The prompt, the three entries of one reply and its tool result: one step, the usage once.
+    const split = projectSession(messages.slice(0, 5), idle).turns[0]!;
+    expect(split).toMatchObject({ steps: 1, usage: { inputTokens: 29263, outputTokens: 212 } });
+    const { turns } = projectSession(messages, idle);
+    expect(turns).toHaveLength(1);
+    const [turn] = turns;
+    expect(turn!.parts.map((part) => part.kind)).toEqual(['reasoning', 'text', 'tool', 'text']);
+    expect(turn!.parts[2]).toMatchObject({ kind: 'tool', call: { name: 'Write', status: 'completed' } });
+    // Two replies (msg_01Split... over three entries, msg_01Second... over one): two steps, each usage once.
+    expect(turn!.steps).toBe(2);
+    expect(turn!.usage).toEqual({ inputTokens: 58620, outputTokens: 230 });
+    expect(turn!.endedAt).toBe('2026-09-16T10:00:05.400Z');
   });
 
   it('reads the view after a compaction: the summary, the tail, then the /compact echo with what it printed', async () => {
