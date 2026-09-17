@@ -101,7 +101,7 @@ A `deny` on an input request declines the questions: the asking tool's result ca
 The approved call is executed exactly once, then the rest of its batch and the model loop continue as in `run`.
 `deny` appends an error result so the model can react, and the run records the refusal with `by: 'user'`.
 `cancel` while waiting denies the pending request (`deny { reason: 'The turn was stopped' }` through the same path a host's deny takes: `approval.resolved` or `input.declined`, the error result for the call, `run.resumed`), then finishes the run `cancelled` with the interrupt marker; a request is never left open by a cancel.
-A `steer` while waiting is refused with `invalid_options` (answer the request first); once the command is applied the resumed handle takes steers like `run`'s.
+A `steer` while waiting is not the resuming command: it waits in the queue and lands at the first model step after the command (a cancel instead rejects it `not_running`); once the command is applied the resumed handle takes steers like `run`'s.
 
 `resume` on a run that was `running` when its process died (decision 78) marks the open step `failed` (model) or `uncertain` (tool, plus an error result so the transcript stays valid) and finishes `failed { code: 'interrupted' | 'uncertain_invocation' }`.
 `resume` on a terminal run replays its events and delivers the stored outcome; `afterSeq` skips events the host already has.

@@ -98,7 +98,31 @@ describe('steering (decisions 95-96)', () => {
     expect(transcript.map((m) => m.role)).toEqual(['user', 'assistant']);
   });
 
-  it('5. a resumed handle refuses a steer while the request is open (invalid_options) and stays awaiting', async () => {
+  it('5. a steer while the request is open waits, the run stays awaiting, and it drains at the first model step after the command', async () => {
+    const rm = createTool({ name: 'rm', description: 'rm', input: textInput, effects: { destructive: true }, execute: () => 'removed' });
+    const { agent, store, model } = build({ script: [{ toolCalls: [{ name: 'rm', input: { text: 'x' } }] }, { text: 'done' }], tools: [rm] });
+    const first = run({ agent, session: 's', input: 'x' });
+    const paused = await first.outcome;
+    if (paused.status !== 'awaiting') throw new Error(paused.status);
+
+    const second = resume({ agent, sessionId: 's', runId: first.runId });
+    const steered = second.submit({ type: 'steer', text: 'now summarize' });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Not the resuming command: nothing moved until one arrives.
+    expect(second.status()).toBe('running');
+    expect((await store.runs.get({ sessionId: 's', runId: first.runId }))?.status).toBe('awaiting');
+    expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.role)).toEqual(['user', 'assistant']);
+
+    await second.submit({ type: 'approve', requestId: paused.requestId });
+    const events = await collect(second);
+    expect((await second.outcome).status).toBe('completed');
+    await steered;
+    expect(types(events).slice(-5)).toEqual(['tool.completed', 'run.steered', 'model.started', 'model.completed', 'run.finished']);
+    expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.role)).toEqual(['user', 'assistant', 'tool', 'user', 'assistant']);
+    expect(textOf(model.requests[1]!.messages.at(-1)!)).toBe('now summarize');
+  });
+
+  it('5b. a steer waiting on an open request is rejected not_running when the run is cancelled instead', async () => {
     const rm = createTool({ name: 'rm', description: 'rm', input: textInput, effects: { destructive: true }, execute: () => 'removed' });
     const { agent, store } = build({ script: [{ toolCalls: [{ name: 'rm', input: { text: 'x' } }] }, { text: 'done' }], tools: [rm] });
     const first = run({ agent, session: 's', input: 'x' });
@@ -106,12 +130,12 @@ describe('steering (decisions 95-96)', () => {
     if (paused.status !== 'awaiting') throw new Error(paused.status);
 
     const second = resume({ agent, sessionId: 's', runId: first.runId });
-    expect(await codeOf(second.submit({ type: 'steer', text: 'nope' }))).toBe('invalid_options');
-    expect(second.status()).toBe('running');
-    expect((await store.runs.get({ sessionId: 's', runId: first.runId }))?.status).toBe('awaiting');
-    expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.role)).toEqual(['user', 'assistant']);
+    const steered = second.submit({ type: 'steer', text: 'nope' });
+    await new Promise((resolve) => setTimeout(resolve, 10));
     second.cancel();
     expect((await second.outcome).status).toBe('cancelled');
+    expect(await codeOf(steered)).toBe('not_running');
+    expect((await store.sessions.listMessages({ sessionId: 's' })).some((m) => m.parts.some((part) => part.type === 'text' && part.text === 'nope'))).toBe(false);
   });
 
   it('6. a resumed run takes a steer once the approval is applied', async () => {
