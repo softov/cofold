@@ -167,8 +167,17 @@ export function createChat(options: ChatOptions): Chat {
     });
   }
 
+  /**
+   * The run in force: the one holding the session's writer (running or paused on a decision, in this
+   * process or another), else the newest. The newest alone would hide a paused turn behind a run that
+   * failed after it, and a run refused `writer_busy` by that very pause is exactly such a run.
+   */
   async function newest(sessionId: string): Promise<RunRecord | undefined> {
-    return (await store.runs.list({ sessionId }))[0];
+    return inForce(await store.runs.list({ sessionId }), (await store.sessions.get({ sessionId }))?.activeWriterRunId);
+  }
+
+  function inForce(runs: RunRecord[], holder: string | undefined): RunRecord | undefined {
+    return (holder !== undefined ? runs.find((run) => run.runId === holder) : undefined) ?? runs[0];
   }
 
   /**
@@ -214,7 +223,27 @@ export function createChat(options: ChatOptions): Chat {
     const agent = await agentFor(await settingsOf(sessionId));
     const handle = resume({ agent, sessionId, runId: run.runId });
     attach(sessionId, { handle, agent });
+    steerHeld(sessionId, handle);
     return { handle, run };
+  }
+
+  /**
+   * What was said while the turn paused (`Queued.steer`) goes into the resumed turn ahead of its next model
+   * step. Refused `not_running` again (the turn paused once more, or ended, before that step) it waits on:
+   * for the next resume, or as the next turn when the turn ended, as a steer the turn settled before does.
+   */
+  function steerHeld(sessionId: string, handle: RunHandle): void {
+    for (const waiting of queues.list(sessionId)) {
+      if (waiting.steer !== true) continue;
+      queues.remove(sessionId, waiting.id);
+      void handle.submit({ type: 'steer', text: waiting.text }).then(
+        () => notify(sessionId),
+        async (error: unknown) => {
+          if (error instanceof AgentError && error.code === 'not_running') { await queues.add(sessionId, waiting); return; }
+          warn(`session ${sessionId}: the held message did not go in: ${error instanceof Error ? error.message : String(error)}`);
+        },
+      );
+    }
   }
 
   async function submitTo(sessionId: string, build: (requestId: string, run: RunRecord) => Parameters<RunHandle['submit']>[0] | Promise<Parameters<RunHandle['submit']>[0]>): Promise<void> {
@@ -323,8 +352,9 @@ export function createChat(options: ChatOptions): Chat {
       const all = await store.sessions.listMessages({ sessionId });
       // The screen shows what the model sees (cli/03 F1); `--all` shows the whole transcript.
       const messages = options?.all === true ? all : contextOf(all);
-      const runs = (await store.runs.list({ sessionId })).reverse();
-      const last = runs[runs.length - 1];
+      const listed = await store.runs.list({ sessionId });
+      const runs = [...listed].reverse();
+      const last = inForce(listed, session.activeWriterRunId);
       let pending: PendingRequest | undefined;
       if (last?.status === 'awaiting' && last.pendingRequestId !== undefined) {
         pending = await store.requests.get({ sessionId, runId: last.runId, requestId: last.pendingRequestId });
@@ -385,6 +415,12 @@ export function createChat(options: ChatOptions): Chat {
           return { sessionId: id, runId: running.handle.runId, steered: true } satisfies Started;
         } catch (error: unknown) {
           if (!(error instanceof AgentError) || error.code !== 'not_running') throw error;
+          // Refused because the turn paused on a decision, not because it ended: the turn still holds the
+          // session, so a new run could not start; the text waits and goes in when the decision resumes it.
+          if ((await newest(id))?.status === 'awaiting') {
+            await queues.add(id, { text, steer: true });
+            return { sessionId: id, runId: running.handle.runId, held: true } satisfies Started;
+          }
         }
       }
       const agent = await agentFor(await settingsOf(id));

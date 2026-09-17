@@ -632,6 +632,6 @@ function renderTranscript(snapshot: Snapshot): string {
     lines.push('');
   }
   lines.push(...renderPending(snapshot));
-  if (snapshot.queued.length > 0) lines.push('Queued:', ...snapshot.queued.map((waiting) => `  ${waiting.id}  ${waiting.text.replace(/\s+/g, ' ')}`));
+  if (snapshot.queued.length > 0) lines.push('Queued:', ...snapshot.queued.map((waiting) => `  ${waiting.id}  ${waiting.text.replace(/\s+/g, ' ')}${waiting.steer === true ? '  (steer)' : ''}`));
   return `${lines.join('\n').trimEnd()}\n`;
 }

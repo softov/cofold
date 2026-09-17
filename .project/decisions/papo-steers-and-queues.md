@@ -28,6 +28,7 @@ Source: user, 2026-09-16, asked "cli/04 task 01 built the queue so that a messag
 ## Consequences
 
 `writer_busy` on `say` disappears for a running turn (an `awaiting` one still refuses: answer it first).
+A steer a turn pauses on a decision before taking is held in this queue with `steer: true` and steered into the turn when the decision resumes it (CLI-05.4, [papo-holds-a-steer-across-a-decision](papo-holds-a-steer-across-a-decision.md)).
 A message queued and not started before papo exits is lost; the screen shows the queue so the person knows what is pending.
 
 ## Options

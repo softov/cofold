@@ -53,6 +53,11 @@ export interface Started {
   runId: string;
   /** The text went into the turn already running (decision 95) rather than starting one; `runId` is that turn's. */
   steered?: true;
+  /**
+   * The turn paused on a decision before the text could land: it waits (`Queued.steer`) and goes into the
+   * turn when the decision resumes it; `runId` is that turn's.
+   */
+  held?: true;
 }
 
 /**
@@ -64,6 +69,12 @@ export interface Queued {
   text: string;
   /** Applied to the session before the turn starts, as `say`'s `settings` are. */
   settings?: Partial<Settings>;
+  /**
+   * A steer the turn paused on a decision before taking (decision 95): it goes into the turn ahead of its
+   * next model step when the decision resumes it, and becomes the next turn, as any queued message, when
+   * the turn ends first.
+   */
+  steer?: true;
   /** When it was queued, ISO 8601. */
   at: string;
 }
@@ -88,7 +99,7 @@ export interface Queues {
    * cancel, the head starts at once (CLI-04.1, as the reference's `startNext`), so what is returned may
    * already be running.
    */
-  add(sessionId: string, args: { id?: string; text: string; settings?: Partial<Settings> }): Promise<Queued>;
+  add(sessionId: string, args: { id?: string; text: string; settings?: Partial<Settings>; steer?: true }): Promise<Queued>;
   /** AgentError('not_found') when nothing waits under that id. */
   remove(sessionId: string, id: string): void;
   /** After a cancel: the head does not start on the coming settle. */
@@ -139,8 +150,9 @@ export interface Chat {
   /**
    * One turn. A missing `sessionId` starts a session; `settings` given here are stored on the session
    * first. While a run of the session is still going here the text steers it (decision 95): it lands
-   * in the transcript before the next model step, and `Started.steered` says so. AgentError('writer_busy')
-   * while the session waits on a decision; answer it first.
+   * in the transcript before the next model step, and `Started.steered` says so; a turn that pauses on a
+   * decision before the text lands keeps it as a held steer (`Started.held`, `Queued.steer`) for when it
+   * resumes. AgentError('writer_busy') while the session already waits on a decision; answer it first.
    */
   say(args: { sessionId?: string; text: string; settings?: Partial<Settings> }): Promise<Started>;
   /**

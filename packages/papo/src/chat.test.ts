@@ -206,6 +206,93 @@ describe('createChat', () => {
     expect(snapshot.turns.map((turn) => [turn.input, turn.state])).toEqual([['Wait for me', 'cancelled'], ['Never mind, start over', 'complete']]);
   });
 
+  it('a steer the turn paused on a decision before taking is held, and goes in ahead of the next model step when the decision resumes it', async () => {
+    const gate = gateTool();
+    const { tool, executions } = deleteFileTool();
+    const { chat, provider } = testChat({
+      script: [{ toolCalls: [{ name: 'wait_for', input: {} }, { name: 'delete_file', input: { path: 'notes.txt' } }] }, { text: 'Brief: done.' }],
+      tools: [gate.tool, tool],
+    });
+    const started = await chat.say({ text: 'Wait, then delete notes.txt' });
+    await gate.entered();
+    // Typed while the gate holds: the steer waits for the next model step, but the second call asks first.
+    const steering = chat.say({ sessionId: started.sessionId, text: 'Also, be brief' });
+    gate.release();
+    // Paused, and already detached here: `say` resolved once the pause refused the steer.
+    expect(await steering).toEqual({ sessionId: started.sessionId, runId: started.runId, held: true });
+
+    // No run was started against the paused one: the confirmation shows, the text waits as a steer.
+    const paused = await chat.snapshot(started.sessionId);
+    expect(paused.pending).toMatchObject({ kind: 'toolConfirmation', call: { name: 'delete_file' } });
+    expect(paused.turns.map((turn) => [turn.input, turn.state])).toEqual([['Wait, then delete notes.txt', 'running']]);
+    expect(paused.queued).toMatchObject([{ text: 'Also, be brief', steer: true }]);
+    expect((await chat.sessions())[0]?.activity).toBe('awaiting');
+
+    await chat.approve(started.sessionId);
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    expect(executions()).toBe(1);
+    const done = await chat.snapshot(started.sessionId);
+    expect(done.queued).toEqual([]);
+    expect(done.turns).toHaveLength(1);
+    expect(done.turns[0]?.parts.map((part) => part.kind)).toEqual(['tool', 'tool', 'steer', 'text']);
+    // The model read it after both tool results, before answering.
+    const { requests } = provider.model({ id: 'scripted' }) as FakeModel;
+    const last = requests.at(-1)!.messages;
+    const steerAt = last.findIndex((message) => message.role === 'user' && message.parts.some((part) => part.type === 'text' && part.text === 'Also, be brief'));
+    const resultAt = last.findIndex((message) => message.parts.some((part) => part.type === 'toolResult'));
+    expect(resultAt).toBeGreaterThan(-1);
+    expect(steerAt).toBeGreaterThan(resultAt);
+  });
+
+  it('a held steer outlives a cancel of the decision as a queued message, and is the next turn once the person speaks again', async () => {
+    const gate = gateTool();
+    const { tool } = deleteFileTool();
+    const { chat } = testChat({
+      script: [{ toolCalls: [{ name: 'wait_for', input: {} }, { name: 'delete_file', input: { path: 'notes.txt' } }] }, { text: 'Fresh start.' }, { text: 'Brief.' }],
+      tools: [gate.tool, tool],
+    });
+    const started = await chat.say({ text: 'Wait, then delete notes.txt' });
+    await gate.entered();
+    const steering = chat.say({ sessionId: started.sessionId, text: 'Also, be brief' });
+    gate.release();
+    expect((await steering).held).toBe(true);
+    expect((await chat.sessions())[0]?.activity).toBe('awaiting');
+
+    await chat.cancel(started.sessionId);
+    expect((await chat.wait(started.sessionId))?.status).toBe('cancelled');
+    // Held by the cancel, as any queued message is; `unqueue` could drop it here.
+    expect((await chat.snapshot(started.sessionId)).queued).toMatchObject([{ text: 'Also, be brief', steer: true }]);
+
+    const next = await chat.say({ sessionId: started.sessionId, text: 'Start over' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    const snapshot = await chat.snapshot(started.sessionId);
+    expect(snapshot.queued).toEqual([]);
+    expect(snapshot.turns.map((turn) => [turn.input, turn.state])).toEqual([
+      ['Wait, then delete notes.txt', 'cancelled'], ['Start over', 'complete'], ['Also, be brief', 'complete'],
+    ]);
+    expect(next.runId).not.toBe(started.runId);
+  });
+
+  it('a run another process recorded after the paused one does not hide the decision: the writer holder is the turn in force', async () => {
+    const { tool, executions } = deleteFileTool();
+    const { chat, store } = testChat({ script: [{ toolCalls: [{ name: 'delete_file', input: { path: 'a' } }] }, { text: 'Done.' }], tools: [tool] });
+    const started = await chat.say({ text: 'Delete a' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('awaiting');
+    // What a collision leaves: a newer run, failed `writer_busy` against the paused one.
+    const later = new Date(Date.now() + 1000).toISOString();
+    await store.runs.create({ runId: 'stray', sessionId: started.sessionId, agentId: 'papo', status: 'failed', createdAt: later, updatedAt: later, usage: { inputTokens: 0, outputTokens: 0 }, steps: 0, denials: [] });
+
+    expect((await chat.sessions())[0]?.activity).toBe('awaiting');
+    const snapshot = await chat.snapshot(started.sessionId);
+    expect(snapshot.pending).toMatchObject({ kind: 'toolConfirmation' });
+    expect(snapshot.running).toBe(true);
+    await expect(chat.say({ sessionId: started.sessionId, text: 'hurry' })).rejects.toMatchObject({ code: 'writer_busy' });
+    await chat.approve(started.sessionId);
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    expect(executions()).toBe(1);
+  });
+
   it('queues the next turns: the head starts when the turn settles, not after a cancel; unqueue drops one; settings ride along', async () => {
     const gate = gateTool();
     const { chat, provider } = testChat({

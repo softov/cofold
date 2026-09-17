@@ -23,8 +23,13 @@ export function createQueues(deps: QueueDeps): Queues {
     return list;
   };
 
-  /** Shifts the head and says it; a head that does not start stays at the head, warned once, for the next settle. */
+  /**
+   * Shifts the head and says it; a head that does not start stays at the head, warned once, for the next settle.
+   * One start at a time per session: a head already on its way would otherwise be followed by a second run
+   * that fails `writer_busy` against it.
+   */
   async function startHead(sessionId: string): Promise<void> {
+    if (starting.has(sessionId)) return;
     const list = queues.get(sessionId);
     const head = list?.shift();
     if (list === undefined || head === undefined) return;
@@ -47,7 +52,13 @@ export function createQueues(deps: QueueDeps): Queues {
 
     /** Appends, or replaces what waits under the same `id`; on an idle session the head starts at once. */
     async add(sessionId, args) {
-      const entry: Queued = { id: args.id ?? newId(), text: args.text, ...(args.settings !== undefined ? { settings: args.settings } : {}), at: new Date().toISOString() };
+      const entry: Queued = {
+        id: args.id ?? newId(),
+        text: args.text,
+        ...(args.settings !== undefined ? { settings: args.settings } : {}),
+        ...(args.steer === true ? { steer: true } : {}),
+        at: new Date().toISOString(),
+      };
       const list = listOf(sessionId);
       const at = list.findIndex((waiting) => waiting.id === entry.id);
       if (at >= 0) list[at] = entry;
