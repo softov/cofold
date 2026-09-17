@@ -1,8 +1,12 @@
 import type { ModelAdapter, ModelRequest, Usage } from './model.js';
 
 export type FakeStep =
-  | { text: string; usage?: Usage }
-  | { toolCalls: { name: string; input: unknown; callId?: string }[]; text?: string; usage?: Usage }
+  /**
+   * A text answer. `reasoning` becomes a reasoning part before the text. When the fake streams, `chunks` are the
+   * text deltas (default: one per word, spaces attached) and `interrupt` ends the stream after them without `done`.
+   */
+  | { text: string; reasoning?: string; usage?: Usage; chunks?: string[]; interrupt?: true }
+  | { toolCalls: { name: string; input: unknown; callId?: string }[]; text?: string; reasoning?: string; usage?: Usage }
   | { error: { code: 'server' | 'rate_limit' | 'network'; message?: string; retryable?: boolean } }
   | { rawToolCall: { name: string; raw: string; callId?: string } };
 

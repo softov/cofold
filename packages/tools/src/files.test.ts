@@ -44,6 +44,18 @@ describe('files()', () => {
     expect(await files().instructions!(argsFor(workspace))).toContain(workspace);
   });
 
+  it('names its subjects for permission rules: the resolved path (relative inside the workspace, absolute outside), or the pattern for the two that take none', () => {
+    // Decision CLI-04.6: a rule's glob sees where the tool will go, so `..` and `./` cannot slip past it.
+    expect(tools.get('read_file')!.subject!({ path: 'src/a.ts', offset: 2 })).toBe('src/a.ts');
+    expect(tools.get('read_file')!.subject!({ path: join(workspace, 'src', 'a.ts') })).toBe('src/a.ts');
+    expect(tools.get('write_file')!.subject!({ path: './out.txt', content: 'x' })).toBe('out.txt');
+    expect(tools.get('write_file')!.subject!({ path: 'src/../out.txt', content: 'x' })).toBe('out.txt');
+    expect(tools.get('edit_file')!.subject!({ path: 'src/a.ts', old: 'a', new: 'b' })).toBe('src/a.ts');
+    expect(tools.get('edit_file')!.subject!({ path: '../outside/x.ts', old: 'a', new: 'b' })).toBe(resolve(workspace, '..', 'outside', 'x.ts').split(sep).join('/'));
+    expect(tools.get('list_files')!.subject!({ pattern: 'src/**/*.ts', cwd: '.' })).toBe('src/**/*.ts');
+    expect(tools.get('search_files')!.subject!({ pattern: 'todo', path: 'src' })).toBe('todo');
+  });
+
   it('read_file numbers lines, pages with offset and limit, and refuses binary', async () => {
     expect(await call('read_file', { path: 'src/a.ts' })).toBe('1│const a = 1;\n2│export const b = a + 1;\n3│// TODO later');
     expect(await call('read_file', { path: 'README.md' })).toBe('1│line 1\n2│line 2\n3│line 3\n4│line 4\n5│line 5\n[7 more lines; read from offset 6]');

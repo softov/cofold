@@ -72,10 +72,14 @@ async function setupRun<Resources>(args: RunArgs<Resources>, runId: string, abor
       }
     }
     const parts: ContentPart[] = typeof args.input === 'string' ? [{ type: 'text', text: args.input }] : args.input;
-    const input: Message = { id: newId(), role: 'user', source: compacting ? 'system' : 'input', parts, createdAt: now() };
-    await store.runs.create({ runId, sessionId, agentId, status: 'running', createdAt: now(), updatedAt: now(), usage: ZERO_USAGE, steps: 0, inputMessageId: input.id });
+    // A caller-supplied id must be new in the session (cli/03 F2); a duplicate fails on the handle alone, nothing written (decision 92's shape).
+    if (args.messageId !== undefined && (await store.sessions.listMessages({ sessionId })).some((message) => message.id === args.messageId)) {
+      throw new AgentError({ code: 'already_exists', message: `message ${args.messageId} already exists in session ${sessionId}` });
+    }
+    const input: Message = { id: args.messageId ?? newId(), role: 'user', source: compacting ? 'system' : 'input', parts, createdAt: now() };
+    await store.runs.create({ runId, sessionId, agentId, status: 'running', createdAt: now(), updatedAt: now(), usage: ZERO_USAGE, steps: 0, denials: [], inputMessageId: input.id });
     const emitter = createEmitter({ store, runId, sessionId, agentId, publish: handle.publish, onEvent: agent.hooks.onEvent?.bind(agent.hooks), warn: agent.warn });
-    ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, steering, counters: { usage: ZERO_USAGE, steps: 0, stepIndex: 0, toolCalls: 0 }, claimed: false, compact: compacting, inputMessageId: input.id });
+    ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, steering, counters: { usage: ZERO_USAGE, steps: 0, cost: agent.model.pricing ? 0 : undefined, denials: [], stepIndex: 0, toolCalls: 0 }, claimed: false, compact: compacting, inputMessageId: input.id });
 
     ctx.claimed = await store.sessions.claimWriter({ sessionId, runId });
     if (!ctx.claimed) { await finishRun(ctx, fail(ctx, 'writer_busy', `session ${sessionId} is being written by another run`)); return undefined; }
@@ -85,7 +89,7 @@ async function setupRun<Resources>(args: RunArgs<Resources>, runId: string, abor
     await ctx.emit({ type: 'run.started', input });
     return ctx;
   } catch (e) {
-    const outcome: RunOutcome = { status: 'failed', error: { code: e instanceof AgentError ? e.code : 'internal', message: (e as Error).message, detail: summarize(e) }, usage: ZERO_USAGE, steps: 0 };
+    const outcome: RunOutcome = { status: 'failed', error: { code: e instanceof AgentError ? e.code : 'internal', message: (e as Error).message, detail: summarize(e) }, usage: ZERO_USAGE, steps: 0, ...(agent.model.pricing ? { cost: 0 } : {}), denials: [] };
     if (ctx) {
       try { await finishRun(ctx, outcome); return undefined; }
       catch { /* fall through to the last resort */ }

@@ -281,7 +281,7 @@ describe('resume: terminal, missing and crashed runs', () => {
   it('a run that died before its first model step is recovered as interrupted', async () => {
     const { agent, store } = build();
     await store.sessions.create({ sessionId: 's', agentId: 'a' });
-    await store.runs.create({ runId: 'r', sessionId: 's', agentId: 'a', status: 'running', createdAt: 'now', updatedAt: 'now', usage: { inputTokens: 0, outputTokens: 0 }, steps: 0 });
+    await store.runs.create({ runId: 'r', sessionId: 's', agentId: 'a', status: 'running', createdAt: 'now', updatedAt: 'now', usage: { inputTokens: 0, outputTokens: 0 }, steps: 0, denials: [] });
     const handle = resume({ agent, sessionId: 's', runId: 'r' });
     expect(await handle.outcome).toMatchObject({ status: 'failed', error: { code: 'interrupted' } });
     expect((await store.runs.listEvents({ sessionId: 's', runId: 'r' })).map((e) => e.type)).toEqual(['run.finished']);
@@ -290,21 +290,54 @@ describe('resume: terminal, missing and crashed runs', () => {
 });
 
 describe('resume: detaching and exclusivity', () => {
-  it('11. cancel while waiting detaches the handle and leaves the request open for a later resume', async () => {
-    const { agent, store } = build();
+  it('11. cancel while waiting denies the pending request and finishes the run cancelled with the marker (decision 120, F6)', async () => {
+    const execute = vi.fn(() => 'removed');
+    const { agent, store } = build({ tools: [rmTool(execute)] });
     const { first, requestId } = await pauseRun(agent);
     const handle = resume({ agent, ...ref(first) });
+    const eventsP = collect(handle);
     await collectUntilReplayed(handle, 7);
     handle.cancel({ reason: 'later' });
     expect(await handle.outcome).toMatchObject({ status: 'cancelled', reason: 'later', steps: 1 });
-    expect(await store.runs.get(ref(first))).toMatchObject({ status: 'awaiting', pendingRequestId: requestId });
-    expect((await store.requests.get({ ...ref(first), requestId }))?.resolvedAt).toBeUndefined();
-    expect((await store.sessions.get({ sessionId: 's' }))?.activeWriterRunId).toBe(first.runId);
+    const events = await eventsP;
+    expect(types(events).slice(7)).toEqual(['approval.resolved', 'run.resumed', 'run.finished']);
+    expect(events[7]).toMatchObject({ type: 'approval.resolved', requestId, decision: 'deny', reason: 'The turn was stopped' });
+    expect(execute).not.toHaveBeenCalled();
+
+    // The request is closed, the run is terminal and the claim released; the transcript answers the call and says why.
+    expect((await store.requests.get({ ...ref(first), requestId }))?.resolvedAt).toEqual(expect.any(String));
+    expect(await store.runs.get(ref(first))).toMatchObject({ status: 'cancelled' });
+    expect('pendingRequestId' in (await store.runs.get(ref(first)))!).toBe(false);
+    expect((await store.sessions.get({ sessionId: 's' }))?.activeWriterRunId).toBeUndefined();
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect(transcript.map((m) => [m.role, m.source])).toEqual([['user', 'input'], ['assistant', 'model'], ['tool', 'tool'], ['user', 'system']]);
+    expect(transcript[2]!.parts[0]).toMatchObject({ type: 'toolResult', isError: true, content: 'The turn was stopped' });
+    expect(textOf(transcript[3]!)).toBe('[Request interrupted by user]');
     expect(await codeOf(handle.submit({ type: 'approve', requestId }))).toBe('not_found');
 
+    // A later resume() replays a terminal run and delivers the stored outcome.
     const again = resume({ agent, ...ref(first) });
-    await again.submit({ type: 'approve', requestId });
-    expect((await again.outcome).status).toBe('completed');
+    expect(await again.outcome).toMatchObject({ status: 'cancelled', reason: 'later' });
+    expect(await codeOf(again.submit({ type: 'approve', requestId }))).toBe('not_found');
+  });
+
+  it('11b. cancel while waiting on an input request declines it the same way', async () => {
+    const ask = createAskUserTool();
+    const { agent, store } = build({ tools: [ask], script: [{ toolCalls: [{ name: 'ask_user', input: { questions: [{ id: 'q', question: 'Which?' }] } }] }, { text: 'never' }] });
+    const { first, requestId, seqs } = await pauseRun(agent);
+    const handle = resume({ agent, ...ref(first) });
+    const eventsP = collect(handle);
+    await collectUntilReplayed(handle, seqs.length);
+    handle.cancel();
+    expect(await handle.outcome).toMatchObject({ status: 'cancelled' });
+    const events = await eventsP;
+    expect(types(events).slice(seqs.length)).toEqual(['input.declined', 'run.resumed', 'tool.completed', 'run.finished']);
+    expect(events[seqs.length]).toMatchObject({ type: 'input.declined', requestId, reason: 'The turn was stopped' });
+    const steps = await store.runs.listSteps(ref(first));
+    expect(steps[1]).toMatchObject({ kind: 'tool', status: 'failed', original: { content: 'The turn was stopped', isError: true } });
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect(transcript.at(-2)!.parts[0]).toMatchObject({ type: 'toolResult', content: 'The turn was stopped', isError: true });
+    expect(textOf(transcript.at(-1)!)).toBe('[Request interrupted by user]');
   });
 
   it('12. a second resume on a live awaiting run fails with writer_busy', async () => {

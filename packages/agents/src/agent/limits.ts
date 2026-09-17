@@ -4,5 +4,6 @@ export const DEFAULT_LIMITS: Limits = {
   maxSteps: 20,
   maxToolCalls: 50,
   timeoutMs: 0,
+  maxCost: 0,
   maxToolOutputChars: 16_000,
 };

@@ -50,6 +50,7 @@ function shellTool(args: { workspace: string; spec: ShellSpec; name: string; tim
       additionalProperties: false,
     },
     effects: { writes: true, destructive: true },
+    subject: (input) => input.command,
     execute: async (input, ctx) => {
       const timeoutMs = Math.min(input.timeoutMs ?? args.timeoutMs, args.maxTimeoutMs);
       const result = await execShell({

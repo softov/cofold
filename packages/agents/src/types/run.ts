@@ -10,6 +10,8 @@ export interface RunArgs<Resources = Record<string, unknown>> {
   /** Stored on the session when it is created; ignored for an existing session. See SessionRecord.workspace. */
   workspace?: string;
   input: string | ContentPart[];
+  /** The input message's id; default newId(). A client that supplies it can match run.started to its send. Must be new in the session (cli/03 F2). */
+  messageId?: string;
   signal?: AbortSignal;
 }
 
@@ -17,6 +19,8 @@ export interface RunArgs<Resources = Record<string, unknown>> {
 export interface CompactArgs<Resources = Record<string, unknown>> {
   agent: Agent<Resources>;
   session: string;
+  /** The ask message's id; default newId(). Must be new in the session (cli/03 F2). */
+  messageId?: string;
   signal?: AbortSignal;
 }
 

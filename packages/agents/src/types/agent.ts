@@ -15,6 +15,8 @@ export interface ContextOptions {
    * many tokens (AGENT-01-p5 Task 6). Absent: never; `compact()` is then the only way.
    */
   autoCompactTokens?: number;
+  /** Newest messages kept verbatim after a summary, estimated; default 20% of maxTokens. 0 keeps nothing (cli/03 F1). */
+  compactKeepTokens?: number;
 }
 
 /** `ContextOptions` with the defaults filled; what `Agent.context` holds. */
@@ -22,14 +24,22 @@ export interface ResolvedContext {
   maxTokens: number;
   estimateTokens(text: string): number;
   autoCompactTokens?: number;
+  compactKeepTokens: number;
+}
+
+/** What the policy says about one call (cli/03 F3). `reason` is what the model and the person read on a deny. */
+export interface PolicyDecision {
+  behavior: 'allow' | 'ask' | 'deny';
+  reason?: string;
 }
 
 /**
- * The run-level authorization floor (decision 46). A hook may escalate above it, never below.
+ * The run-level authorization policy (decisions 46, 119; cli/03 F3). A hook runs first and may raise a call to `ask`
+ * or refuse it; the policy then decides on the possibly modified input, and its `deny` wins over the hook.
  * `Tool<any, any>` (decision 67): execute's input is contravariant, so a typed `Tool<{ text: string }>` is not a `Tool`.
  */
 export interface Policy {
-  requireApproval(args: { tool: Tool<any, any>; input: unknown; run: RunInfo }): boolean | Promise<boolean>;
+  decide(args: { tool: Tool<any, any>; input: unknown; run: RunInfo }): PolicyDecision | Promise<PolicyDecision>;
 }
 
 export interface AgentOptions<Resources = Record<string, unknown>> {
@@ -41,7 +51,7 @@ export interface AgentOptions<Resources = Record<string, unknown>> {
   capabilities?: Capability[];
   store?: Store;
   hooks?: Hooks;
-  /** Default: approval required when tool.effects.destructive is true. */
+  /** Default: ask when tool.effects.destructive is true, allow otherwise (cli/03 F3). */
   policy?: Partial<Policy>;
   limits?: Partial<Limits>;
   context?: ContextOptions;

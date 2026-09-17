@@ -32,6 +32,10 @@ describe('shell()', () => {
     expect(tool.effects).toEqual({ writes: true, destructive: true });
   });
 
+  it('names the command as its subject for permission rules', () => {
+    expect(tool.subject!({ command: 'rm -rf build', timeoutMs: 100 })).toBe('rm -rf build');
+  });
+
   it('runs a command in the workspace and returns the exit code with stdout and stderr', async () => {
     expect(await call({ command: 'echo hello' })).toBe('exit 0\nhello');
     const pwd = await call({ command: WINDOWS ? 'Write-Output (Get-Location).Path' : 'pwd' }) as string;

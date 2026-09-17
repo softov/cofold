@@ -1,4 +1,4 @@
-import type { ModelAdapter, ModelFeatures, ModelParams } from './model.js';
+import type { ModelAdapter, ModelFeatures, ModelParams, ModelPricing } from './model.js';
 
 /** One entry of a provider's catalog; what a host shows when the user picks a model. */
 export interface ModelInfo {
@@ -11,7 +11,8 @@ export interface ModelInfo {
   /** Max input context when the provider reports it. */
   contextTokens?: number;
   maxOutputTokens?: number;
-  pricing?: { inputPerMillion: number; outputPerMillion: number; currency: 'USD' };
+  /** What the provider reports (decision 108); the host passes it through to `model({ id, pricing })`. */
+  pricing?: ModelPricing;
 }
 
 /**
@@ -22,5 +23,6 @@ export interface ModelProvider {
   /** Stable id, e.g. 'openai-compat:lmstudio'. */
   id: string;
   listModels(args?: { signal?: AbortSignal }): Promise<ModelInfo[]>;
-  model(args: { id: string; features?: Partial<ModelFeatures>; params?: ModelParams }): ModelAdapter;
+  /** Synchronous, so nothing is looked up: `pricing` is the catalogue's value passed through (decision 108). */
+  model(args: { id: string; features?: Partial<ModelFeatures>; params?: ModelParams; pricing?: ModelPricing }): ModelAdapter;
 }

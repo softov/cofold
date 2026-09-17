@@ -3,18 +3,18 @@ import type { Capability } from '../types/capability.js';
 import type { Limits } from '../types/limits.js';
 import type { Tool } from '../types/tool.js';
 import { AgentError } from '../errors.js';
+import { DEFAULT_DECIDE } from '../policy/rules.js';
 import { createMemoryStore } from '../store/memory.js';
 import { DEFAULT_LIMITS } from './limits.js';
 
 const ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 // Function property, not a method: Required<ContextOptions> demands a value for estimateTokens.
-const DEFAULT_CONTEXT: ResolvedContext = {
+// `compactKeepTokens` is filled per agent: its default is a share of the resolved maxTokens (cli/03 F1).
+const DEFAULT_CONTEXT: Omit<ResolvedContext, 'compactKeepTokens'> = {
   maxTokens: 32_000,
   estimateTokens: (text) => Math.ceil(text.length / 4),
 };
-const DEFAULT_POLICY: Policy = {
-  requireApproval: ({ tool }) => tool.effects.destructive === true,
-};
+const DEFAULT_POLICY: Policy = { decide: DEFAULT_DECIDE };
 
 let warnedMemoryStore = false;
 
@@ -61,9 +61,13 @@ export function createAgent<Resources = Record<string, unknown>>(options: AgentO
   }
 
   const limits: Limits = { ...DEFAULT_LIMITS, ...options.limits };
-  const context: ResolvedContext = { ...DEFAULT_CONTEXT, ...options.context };
+  const merged = { ...DEFAULT_CONTEXT, ...options.context };
+  const context: ResolvedContext = { ...merged, compactKeepTokens: merged.compactKeepTokens ?? Math.floor(merged.maxTokens / 5) };
   if (context.autoCompactTokens !== undefined && context.autoCompactTokens <= 0) {
     throw new AgentError({ code: 'invalid_options', message: `agent "${options.id}": context.autoCompactTokens must be positive` });
+  }
+  if (context.compactKeepTokens < 0) {
+    throw new AgentError({ code: 'invalid_options', message: `agent "${options.id}": context.compactKeepTokens must not be negative` });
   }
   const policy: Policy = { ...DEFAULT_POLICY, ...options.policy };
   const definition: AgentDefinition = {

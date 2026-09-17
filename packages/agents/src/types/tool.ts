@@ -34,6 +34,11 @@ export interface ToolDefinition<Input = unknown, Resources = Record<string, unkn
   input: JsonSchema;
   effects?: ToolEffects;
   /**
+   * What a permission rule's `match` is checked against (decision 117): the command for a shell tool,
+   * the path for a file tool. Absent: rules on this tool match by name only.
+   */
+  subject?(input: Input): string;
+  /**
    * Known to the model by name and one line only, until it loads the definition with `load_tools`
    * or a run's session has loaded it before (AGENT-02). A capability's `defer` sets it wholesale.
    */

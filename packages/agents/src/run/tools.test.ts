@@ -1,8 +1,8 @@
-import type { AgentOptions } from '../types/agent.js';
+import type { AgentOptions, PolicyDecision } from '../types/agent.js';
 import type { RunEventBody } from '../types/event.js';
 import type { RunInfo } from '../types/hooks.js';
 import type { ToolCallPart } from '../types/message.js';
-import type { Store } from '../types/store.js';
+import type { Denial, Store } from '../types/store.js';
 import type { Tool, ToolDefinition } from '../types/tool.js';
 import type { ToolCallDeps } from '../types/turn.js';
 import { describe, expect, it, vi } from 'vitest';
@@ -32,20 +32,22 @@ async function setup(opts: {
     resources: { token: 't' },
   });
   await store.sessions.create({ sessionId: 's', agentId: 'a', workspace: 'w' });
-  await store.runs.create({ runId: 'r', sessionId: 's', agentId: 'a', status: 'running', createdAt: 'now', updatedAt: 'now', usage: { inputTokens: 0, outputTokens: 0 }, steps: 0 });
+  await store.runs.create({ runId: 'r', sessionId: 's', agentId: 'a', status: 'running', createdAt: 'now', updatedAt: 'now', usage: { inputTokens: 0, outputTokens: 0 }, steps: 0, denials: [] });
   const kv = { agent: store.kv({ kind: 'agent', agentId: 'a' }), shared: store.kv({ kind: 'shared', namespace: 'default' }), workspace: store.kv({ kind: 'workspace', workspace: 'w' }) };
   const run: RunInfo = { runId: 'r', sessionId: 's', agentId: 'a', step: 1, kv };
   const events: RunEventBody[] = [];
   const abort = createRunAbort({ timeoutMs: 0 });
   let index = 0;
+  const denials: Denial[] = [];
   const deps: ToolCallDeps = {
     agent, tools: agent.tools, run, abort,
     emit: async (body) => { events.push(body); return { ...body, seq: events.length, runId: 'r', sessionId: 's', agentId: 'a', at: 'now' }; },
     nextStepIndex: () => index++,
+    denied: (denial) => denials.push(denial),
     loaded: new Set(),
   };
   const steps = () => store.runs.listSteps({ sessionId: 's', runId: 'r' });
-  return { deps, events, execute, store, abort, kv, steps, types: () => events.map((e) => e.type) };
+  return { deps, events, denials, execute, store, abort, kv, steps, types: () => events.map((e) => e.type) };
 }
 
 const call = (over: Partial<ToolCallPart> = {}): ToolCallPart => ({ type: 'toolCall', callId: 'c1', name: 'echo', input: { text: 'hi' }, raw: '{"text":"hi"}', ...over });
@@ -112,10 +114,10 @@ describe('handleToolCall approvals', () => {
   });
 
   it('passes the validated input and run to the policy', async () => {
-    const requireApproval = vi.fn(() => false);
-    const t = await setup({ policy: { requireApproval } });
+    const decide = vi.fn((): PolicyDecision => ({ behavior: 'allow' }));
+    const t = await setup({ policy: { decide } });
     await handleToolCall(t.deps, call());
-    expect(requireApproval).toHaveBeenCalledWith({ tool: t.deps.tools.get('echo'), input: { text: 'hi', loud: false }, run: t.deps.run });
+    expect(decide).toHaveBeenCalledWith({ tool: t.deps.tools.get('echo'), input: { text: 'hi', loud: false }, run: t.deps.run });
   });
 
   it('executes when the approval is remembered in agent kv', async () => {
@@ -124,6 +126,55 @@ describe('handleToolCall approvals', () => {
     const r = await handleToolCall(t.deps, call());
     expect(r.kind === 'result' && r.executed).toBe(true);
     expect(t.types()).toEqual(['tool.proposed', 'tool.started', 'tool.completed']);
+  });
+});
+
+describe('handleToolCall policy precedence (decision 119)', () => {
+  it('a policy deny refuses a call the hook allowed, with the reason', async () => {
+    const t = await setup({ hooks: { beforeTool: () => ({ decision: 'allow' }) }, policy: { decide: () => ({ behavior: 'deny', reason: 'blocked by rule' }) } });
+    const r = await handleToolCall(t.deps, call());
+    expect(r).toEqual({ kind: 'result', executed: false, part: { type: 'toolResult', callId: 'c1', name: 'echo', content: 'blocked by rule', isError: true } });
+    expect(t.events.at(-1)).toMatchObject({ type: 'tool.denied', reason: 'blocked by rule' });
+    expect(t.execute).not.toHaveBeenCalled();
+  });
+
+  it('a policy deny without a reason names the tool', async () => {
+    const t = await setup({ policy: { decide: () => ({ behavior: 'deny' }) } });
+    const r = await handleToolCall(t.deps, call());
+    expect(r.kind === 'result' && r.part.content).toBe('Denied by policy: echo');
+  });
+
+  it('a policy deny beats a remembered approval', async () => {
+    const t = await setup({ policy: { decide: () => ({ behavior: 'deny', reason: 'no' }) } });
+    await t.kv.agent.set('approvals/s/echo', true);
+    const r = await handleToolCall(t.deps, call());
+    expect(r.kind === 'result' && r.executed).toBe(false);
+    expect(t.types()).toEqual(['tool.proposed', 'tool.denied']);
+    expect(t.execute).not.toHaveBeenCalled();
+  });
+
+  it('a policy ask wins over a hook allow', async () => {
+    const t = await setup({ hooks: { beforeTool: () => ({ decision: 'allow' }) }, policy: { decide: () => ({ behavior: 'ask' }) } });
+    const r = await handleToolCall(t.deps, call());
+    expect(r).toMatchObject({ kind: 'approval', input: { text: 'hi', loud: false } });
+    expect('prompt' in r).toBe(false);
+    expect(t.execute).not.toHaveBeenCalled();
+  });
+
+  it('a policy allow leaves a hook approval standing, with its prompt', async () => {
+    const t = await setup({ hooks: { beforeTool: () => ({ decision: 'approval', prompt: 'really?' }) }, policy: { decide: () => ({ behavior: 'allow' }) } });
+    const r = await handleToolCall(t.deps, call());
+    expect(r).toMatchObject({ kind: 'approval', prompt: 'really?' });
+    expect(t.execute).not.toHaveBeenCalled();
+  });
+
+  it('the policy judges the input a hook modified', async () => {
+    const decide = vi.fn((): PolicyDecision => ({ behavior: 'deny', reason: 'seen' }));
+    const t = await setup({ hooks: { beforeTool: () => ({ decision: 'modify', input: { text: 'changed' } }) }, policy: { decide } });
+    const r = await handleToolCall(t.deps, call());
+    expect(decide).toHaveBeenCalledWith({ tool: t.deps.tools.get('echo'), input: { text: 'changed', loud: false }, run: t.deps.run });
+    expect(r.kind === 'result' && r.part.content).toBe('seen');
+    expect(t.execute).not.toHaveBeenCalled();
   });
 });
 

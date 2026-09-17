@@ -10,6 +10,7 @@ import { textOf } from '../message/helpers.js';
 import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
 import { createTool } from '../tool/create-tool.js';
+import { compact } from './compact.js';
 import { pauseForInput } from './pause.js';
 import { HEARTBEAT_MS, run } from './run.js';
 
@@ -408,5 +409,43 @@ describe('run: handle and sessions', () => {
     expect(onEvent).toHaveBeenCalledTimes(4);
     expect(warn).toHaveBeenCalledTimes(4);
     expect(warn.mock.calls[0]![0]).toMatch(/onEvent observer threw on run.started/);
+  });
+});
+
+describe('run: a caller-supplied messageId (cli/03 F2)', () => {
+  it('is the input message id in run.started, the run record and the transcript', async () => {
+    const { agent, store } = build({ script: [{ text: 'hi' }] });
+    const handle = run({ agent, session: 's', input: 'Say hi', messageId: 'client-msg-1' });
+    const events = await collect(handle);
+    expect(await handle.outcome).toMatchObject({ status: 'completed' });
+    expect(events[0]).toMatchObject({ type: 'run.started', input: { id: 'client-msg-1' } });
+    expect(await store.runs.get(ref(handle))).toMatchObject({ inputMessageId: 'client-msg-1' });
+    expect((await store.sessions.listMessages({ sessionId: 's' }))[0]).toMatchObject({ id: 'client-msg-1', role: 'user', source: 'input' });
+  });
+
+  it('a duplicate id in the session fails already_exists on the handle alone: no run record, nothing appended', async () => {
+    const { agent, store } = build({ script: [{ text: 'hi' }, { text: 'never' }] });
+    const first = run({ agent, session: 's', input: 'once', messageId: 'dup' });
+    await collect(first);
+    expect(await first.outcome).toMatchObject({ status: 'completed' });
+
+    const second = run({ agent, session: 's', input: 'twice', messageId: 'dup' });
+    const events = await collect(second);
+    expect(await second.outcome).toMatchObject({ status: 'failed', error: { code: 'already_exists' }, steps: 0 });
+    expect(events).toEqual([]);
+    expect(await store.runs.get(ref(second))).toBeUndefined();
+    expect(await store.runs.list({ sessionId: 's' })).toHaveLength(1);
+    expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.id)).toHaveLength(2);
+    expect((await store.sessions.get({ sessionId: 's' }))?.activeWriterRunId).toBeUndefined();
+  });
+
+  it('compact() takes a messageId for its ask too', async () => {
+    const store = createMemoryStore();
+    await collect(run({ agent: build({ store, script: [{ text: 'Hello.' }] }).agent, session: 's', input: 'Hi' }));
+    const handle = compact({ agent: build({ store, script: [{ text: 'Greeted.' }] }).agent, session: 's', messageId: 'ask-1' });
+    const events = await collect(handle);
+    expect(await handle.outcome).toMatchObject({ status: 'completed' });
+    expect(events[0]).toMatchObject({ type: 'run.started', input: { id: 'ask-1', source: 'system' } });
+    expect(await store.runs.get(ref(handle))).toMatchObject({ inputMessageId: 'ask-1' });
   });
 });

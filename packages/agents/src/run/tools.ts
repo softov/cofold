@@ -1,5 +1,5 @@
 import type { ToolCallPart } from '../types/message.js';
-import type { StepRecord } from '../types/store.js';
+import type { Denial, StepRecord } from '../types/store.js';
 import type { Tool, ToolContext, ToolOutput } from '../types/tool.js';
 import type { ToolCallDeps, ToolCallResult } from '../types/turn.js';
 import { newId } from '../ids.js';
@@ -8,48 +8,53 @@ import { markLoaded } from './deferred.js';
 import { PauseSignal } from './pause.js';
 
 /**
- * Validate → beforeTool hook → policy floor → remembered approval → execute (decisions 46, 55, 63).
+ * Validate → beforeTool hook → policy.decide → remembered approval → execute (decisions 46, 55, 63, 119).
  * Hook throws propagate as-is; the loop wraps them as hook_error.
  */
 export async function handleToolCall(deps: ToolCallDeps, call: ToolCallPart): Promise<ToolCallResult> {
   const { agent, run, emit } = deps;
-  const deny = async (reason: string): Promise<ToolCallResult> => {
+  /** Records the refusal on the run (cli/03 F3), announces it and answers the call with the reason. */
+  const deny = async (reason: string, by: Denial['by']): Promise<ToolCallResult> => {
+    deps.denied({ callId: call.callId, name: call.name, input: call.input, reason, by });
     await emit({ type: 'tool.denied', callId: call.callId, name: call.name, reason });
     return { kind: 'result', executed: false, part: { type: 'toolResult', callId: call.callId, name: call.name, content: reason, isError: true } };
   };
 
   const tool = deps.tools.get(call.name);
-  if (!tool) return deny(`Unknown tool "${call.name}"`);
+  if (!tool) return deny(`Unknown tool "${call.name}"`, 'invalid');
 
   await emit({ type: 'tool.proposed', callId: call.callId, name: call.name, input: call.input });
 
-  if (call.input === undefined) return deny('Invalid arguments: not valid JSON');
+  if (call.input === undefined) return deny('Invalid arguments: not valid JSON', 'invalid');
   const validated = validateSchema({ schema: tool.input, value: call.input });
-  if (!validated.ok) return deny(`Invalid arguments: ${formatIssues(validated.issues)}`);
+  if (!validated.ok) return deny(`Invalid arguments: ${formatIssues(validated.issues)}`, 'invalid');
   let input: unknown = validated.value;
   // A valid call to a deferred tool the model never loaded runs anyway (AGENT-02 decision 6) and loads it.
   if (tool.deferred === true) await markLoaded({ loaded: deps.loaded, kv: run.kv.agent, sessionId: run.sessionId }, [tool.name]);
 
-  // Hook first: it may deny, modify, or ask for approval. It cannot lower the policy floor.
+  // Hook first: it may deny, stop, modify, or ask (decisions 46, 97). It cannot lower the policy (decision 119).
   let hookWantsApproval = false;
   let prompt: string | undefined;
   if (agent.hooks.beforeTool) {
-    const decision = await agent.hooks.beforeTool({ call, tool, run });
-    if (decision.decision === 'deny') return deny(decision.reason);
-    if (decision.decision === 'stop') {
+    const hook = await agent.hooks.beforeTool({ call, tool, run });
+    if (hook.decision === 'deny') return deny(hook.reason, 'hook');
+    if (hook.decision === 'stop') {
       // Nothing executed, so no step record, same as a deny; the loop ends the run (decision 97).
-      await emit({ type: 'tool.denied', callId: call.callId, name: call.name, reason: decision.reason });
-      return { kind: 'stop', executed: false, stoppedBy: 'beforeTool', reason: decision.reason, part: { type: 'toolResult', callId: call.callId, name: call.name, content: `Not executed: ${decision.reason}`, isError: true } };
+      deps.denied({ callId: call.callId, name: call.name, input: call.input, reason: hook.reason, by: 'hook' });
+      await emit({ type: 'tool.denied', callId: call.callId, name: call.name, reason: hook.reason });
+      return { kind: 'stop', executed: false, stoppedBy: 'beforeTool', reason: hook.reason, part: { type: 'toolResult', callId: call.callId, name: call.name, content: `Not executed: ${hook.reason}`, isError: true } };
     }
-    if (decision.decision === 'modify') {
-      const again = validateSchema({ schema: tool.input, value: decision.input });
-      if (!again.ok) return deny(`Invalid arguments after hook modify: ${formatIssues(again.issues)}`);
+    if (hook.decision === 'modify') {
+      const again = validateSchema({ schema: tool.input, value: hook.input });
+      if (!again.ok) return deny(`Invalid arguments after hook modify: ${formatIssues(again.issues)}`, 'invalid');
       input = again.value;
     }
-    if (decision.decision === 'approval') { hookWantsApproval = true; prompt = decision.prompt; }
+    if (hook.decision === 'approval') { hookWantsApproval = true; prompt = hook.prompt; }
   }
-  const needsApproval = hookWantsApproval || (await agent.policy.requireApproval({ tool, input, run }));
-  if (needsApproval) {
+  const decision = await agent.policy.decide({ tool, input, run });
+  if (decision.behavior === 'deny') return deny(decision.reason ?? `Denied by policy: ${tool.name}`, 'policy');
+  if (decision.behavior === 'ask' || hookWantsApproval) {
+    // A remembered approval (decision 63) answers an ask, never a deny, which returned above.
     const remembered = await run.kv.agent.get<boolean>(`approvals/${run.sessionId}/${tool.name}`);
     if (remembered !== true) return { kind: 'approval', tool, input, ...(prompt !== undefined ? { prompt } : {}) };
   }

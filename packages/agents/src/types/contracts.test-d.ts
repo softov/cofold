@@ -9,11 +9,12 @@ import type {
   Hooks,
   RunInfo,
 } from './hooks.js';
+import type { Policy, PolicyDecision } from './agent.js';
 import type { ContentPart } from './message.js';
-import type { ModelAdapter, ModelRequest, Usage } from './model.js';
-import type { RunOutcome, StopReason } from './outcome.js';
+import type { ModelAdapter, ModelPricing, ModelRequest, ModelStreamEvent, Usage } from './model.js';
+import type { RunOutcome, RunTally, StopReason } from './outcome.js';
 import type { ModelProvider } from './provider.js';
-import type { KvScope, RunRecord, Store } from './store.js';
+import type { Denial, KvScope, RunRecord, Store } from './store.js';
 import type { Tool } from './tool.js';
 import { describe, expectTypeOf, it } from 'vitest';
 
@@ -78,9 +79,36 @@ describe('contracts', () => {
     expectTypeOf<Omit<ModelRequest, 'cacheKey'>>().not.toMatchTypeOf<ModelRequest>();
   });
 
+  it('Policy has exactly decide, answering the three behaviors (cli/03 F3, decision 119)', () => {
+    expectTypeOf<keyof Policy>().toEqualTypeOf<'decide'>();
+    expectTypeOf<PolicyDecision['behavior']>().toEqualTypeOf<'allow' | 'ask' | 'deny'>();
+    expectTypeOf<Policy['decide']>().returns.toEqualTypeOf<PolicyDecision | Promise<PolicyDecision>>();
+  });
+
   it('steer needs a text (decision 95) and stopped may say hook (decision 97)', () => {
     expectTypeOf<Extract<RunCommand, { type: 'steer' }>['text']>().toEqualTypeOf<string>();
     expectTypeOf<{ type: 'steer' }>().not.toMatchTypeOf<RunCommand>();
     expectTypeOf<'hook'>().toMatchTypeOf<StopReason>();
+  });
+
+  it('ModelStreamEvent has exactly text.delta, reasoning.delta, toolCall.delta and done (decision 105)', () => {
+    expectTypeOf<ModelStreamEvent['type']>().toEqualTypeOf<'text.delta' | 'reasoning.delta' | 'toolCall.delta' | 'done'>();
+    expectTypeOf<Extract<RunEvent, { type: 'model.delta' }>['kind']>().toEqualTypeOf<'text' | 'reasoning'>();
+    expectTypeOf<NonNullable<ModelAdapter['stream']>>().returns.toEqualTypeOf<AsyncIterable<ModelStreamEvent>>();
+  });
+
+  it('every outcome carries the tally, cost optional; the record and the adapter agree (decisions 108, 109)', () => {
+    expectTypeOf<RunOutcome>().toMatchTypeOf<RunTally>();
+    expectTypeOf<RunTally['cost']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<RunRecord['cost']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<ModelAdapter['pricing']>().toEqualTypeOf<ModelPricing | undefined>();
+    expectTypeOf<Usage['cacheWriteTokens']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<'max_cost'>().toMatchTypeOf<StopReason>();
+  });
+
+  it('every denial names who refused, and the record and the tally carry the same list (cli/03 F3)', () => {
+    expectTypeOf<Denial['by']>().toEqualTypeOf<'policy' | 'hook' | 'user' | 'invalid' | 'limit'>();
+    expectTypeOf<RunRecord['denials']>().toEqualTypeOf<Denial[]>();
+    expectTypeOf<RunTally['denials']>().toEqualTypeOf<Denial[] | undefined>();
   });
 });

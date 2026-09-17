@@ -1,4 +1,4 @@
-import type { ModelFeatures, ModelParams, ReasoningEffort } from '@facio/agents';
+import type { ModelFeatures, ModelParams, ModelPricing, ReasoningEffort } from '@facio/agents';
 
 export interface OpenAICompatProviderOptions {
   /** e.g. 'http://localhost:1234/v1' or 'https://openrouter.ai/api/v1' */
@@ -21,4 +21,6 @@ export interface OpenAICompatOptions extends OpenAICompatProviderOptions {
   model: string;
   features?: Partial<ModelFeatures>;
   params?: ModelParams;
+  /** Becomes `adapter.pricing` (decision 108); pass the catalogue's `ModelInfo.pricing` through. Absent means unknown cost. */
+  pricing?: ModelPricing;
 }

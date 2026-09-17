@@ -28,13 +28,14 @@ Reads go anywhere; `write_file` and `edit_file` declare `effects.destructive`, s
 
 `files({ maxLines, maxMatches })` changes the two defaults.
 Every result is the text the model reads; every refusal is a thrown `Error` with one sentence, which the harness turns into an `isError` result.
+For `rules()` (`@facio/agents`), `read_file`, `write_file` and `edit_file` name the resolved path as their subject: relative to the workspace with forward slashes when inside it (`src/a.ts`, whatever spelling the model used), absolute when outside, so a rule such as `{ tool: 'edit_file', match: 'src/*' }` cannot be slipped past with `./` or `..`; `list_files` and `search_files` name the `pattern`; the memory and web tools declare none and match by name only.
 
 ## `shell()`
 
 `shell_exec({ command, cwd?, timeoutMs? })` runs one command through the platform's shell (`sh -c`; `powershell.exe -NoProfile -NonInteractive -Command` on Windows) in the workspace and returns `exit <code>`, stdout, then stderr under a `--- stderr ---` line.
 It is one execution, not a session: nothing carries over between calls, and the instructions section tells the model so.
 At the timeout (120 s by default, 600 s at most) or when the run is cancelled, the whole process tree is killed and the result says `killed: timed out after 30 s` or `killed: the run was cancelled`; each stream is cut at 64 Ki characters with `[output truncated]`.
-`effects: { writes, destructive }`, so the default policy asks before every command.
+`effects: { writes, destructive }`, so the default policy asks before every command; its subject for `rules()` is the `command` (`{ tool: 'shell_exec', match: 'rm *' }`).
 
 `shell({ timeoutMs, maxTimeoutMs, maxOutputChars, shell: { command, args } })` changes the defaults or the shell (`{ command: 'pwsh', args: ['-NoProfile', '-Command'] }`, `{ command: 'bash', args: ['-c'] }`).
 `execShell(args)` is the runner on its own, for a program that wants the `ShellResult` rather than the text.

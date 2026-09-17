@@ -25,6 +25,15 @@ export interface RunRef {
   runId: string;
 }
 
+/** One refused tool call (cli/03 F3). `by` says who refused: the policy, a hook, the person, the validator or a limit. */
+export interface Denial {
+  callId: string;
+  name: string;
+  input: unknown;
+  reason: string;
+  by: 'policy' | 'hook' | 'user' | 'invalid' | 'limit';
+}
+
 export interface RunRecord {
   runId: string;
   sessionId: string;
@@ -36,7 +45,11 @@ export interface RunRecord {
   pendingRequestId?: string;
   /** Accumulated by the loop; resume continues from here (decision 73). */
   usage: Usage;
+  /** USD so far, when the adapter has pricing (decision 109); absent means unknown, never zero. */
+  cost?: number;
   steps: number;
+  /** Every refused tool call of the run, in order (cli/03 F3): the authoritative record, `[]` from `runs.create`. */
+  denials: Denial[];
   /** Message ids of this turn's input and last appended message; p4 fork/rewind slots. */
   inputMessageId?: string;
   lastMessageId?: string;
@@ -144,7 +157,7 @@ export interface Store {
     /** Newest `createdAt` first (decision 71). */
     list(args: { sessionId: string; status?: RunStatus }): Promise<RunRecord[]>;
     /** Fields present are written; `pendingRequestId: undefined` passed explicitly clears it, absent leaves it. */
-    update(args: RunRef & { status: RunStatus; pendingRequestId?: string | undefined; usage?: Usage; steps?: number; lastMessageId?: string }): Promise<void>;
+    update(args: RunRef & { status: RunStatus; pendingRequestId?: string | undefined; usage?: Usage; steps?: number; cost?: number; denials?: Denial[]; lastMessageId?: string }): Promise<void>;
     /** Fails with StoreError('seq_gap') unless event.seq === last + 1 (first is 1). Located by event.sessionId + event.runId. */
     appendEvent(event: RunEvent): Promise<void>;
     listEvents(args: RunRef & { afterSeq?: number }): Promise<RunEvent[]>;

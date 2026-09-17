@@ -5,8 +5,9 @@ import type { TurnContext } from '../types/turn.js';
 import { ModelError } from '../errors.js';
 import { newId } from '../ids.js';
 import { textOf } from '../message/helpers.js';
+import { costOf } from '../model/cost.js';
 import { addUsage } from '../model/usage.js';
-import { assembleRequest, contextOf, estimateMessageTokens, summarizedIds } from './context.js';
+import { assembleRequest, contextOf, estimateMessageTokens, groupUnits, summarizedIds } from './context.js';
 import { start } from './run.js';
 import { summarize as describe } from './turn.js';
 
@@ -21,7 +22,11 @@ export const COMPACT_INPUT = 'Summarize the conversation so far.';
  * at that summary; nothing is deleted.
  */
 export function compact<Resources = Record<string, unknown>>(args: CompactArgs<Resources>): RunHandle {
-  return start({ agent: args.agent, session: args.session, input: [{ type: 'text', text: COMPACT_INPUT }], ...(args.signal ? { signal: args.signal } : {}) }, true);
+  return start({
+    agent: args.agent, session: args.session, input: [{ type: 'text', text: COMPACT_INPUT }],
+    ...(args.messageId !== undefined ? { messageId: args.messageId } : {}),
+    ...(args.signal ? { signal: args.signal } : {}),
+  }, true);
 }
 
 const SUMMARY_RULES = [
@@ -47,14 +52,20 @@ export function historyEstimate(ctx: Pick<TurnContext, 'agent'>, history: Messag
 export async function writeSummary(ctx: TurnContext, history: Message[]): Promise<Message> {
   const { agent, store, sessionId, runId, abort, emit, counters } = ctx;
   const already = summarizedIds(history);
-  const keep = ctx.compact ? undefined : ctx.inputMessageId;
-  const covered = history.filter((message) => !already.has(message.id) && message.id !== keep);
+  // The turn's own input is never summarized nor kept as tail: an auto-compact is about to answer it, and a
+  // `compact()` run's input is the ask itself, sent last and covered by the summary so it does not linger.
+  const own = history.find((message) => message.id === ctx.inputMessageId);
+  const candidates = history.filter((message) => !already.has(message.id) && message.id !== ctx.inputMessageId);
+  // The newest units stay verbatim while they fit in `compactKeepTokens` (cli/03 F1); a unit is never split, so a
+  // tool call stays next to its results. What is kept is neither summarized nor listed in `summarizes`.
+  const { covered, kept } = splitTail(candidates, agent.context.compactKeepTokens, agent.context.estimateTokens);
   const estimatedTokens = historyEstimate(ctx, history);
   // A `compact()` run already ends with the ask as its input; an auto-compact asks in passing.
-  const ask: Message = { id: newId(), role: 'user', source: 'system', parts: [{ type: 'text', text: COMPACT_INPUT }], createdAt: now() };
+  const ask: Message = ctx.compact && own ? own : { id: newId(), role: 'user', source: 'system', parts: [{ type: 'text', text: COMPACT_INPUT }], createdAt: now() };
+  const summarized = ctx.compact && own ? [...covered, own] : covered;
   const request = assembleRequest({
     instructions: `${ctx.instructions}\n\n## summary\n${SUMMARY_RULES}`,
-    history: ctx.compact ? covered : [...covered, ask],
+    history: [...covered, ask],
     tools: [],
     params: agent.params,
     cacheKey: sessionId,
@@ -79,12 +90,13 @@ export async function writeSummary(ctx: TurnContext, history: Message[]): Promis
     throw e;
   }
   counters.usage = addUsage(counters.usage, reply.usage);
+  if (agent.model.pricing) counters.cost = (counters.cost ?? 0) + costOf(reply.usage, agent.model.pricing);
   const text = textOf(reply.message).trim();
   if (text === '') {
     await store.runs.updateStep({ ...stepRef, patch: { status: 'failed', reply, endedAt: now() } });
     throw new ModelError({ code: 'invalid_response', message: 'the model returned no summary' });
   }
-  await store.runs.updateStep({ ...stepRef, patch: { status: 'completed', reply, detail: { compacted: covered.length }, endedAt: now() } });
+  await store.runs.updateStep({ ...stepRef, patch: { status: 'completed', reply, detail: { compacted: summarized.length, kept: kept.length }, endedAt: now() } });
   await emit({ type: 'model.completed', step: counters.steps, message: reply.message, usage: reply.usage, finish: reply.finish });
 
   const summary: Message = {
@@ -93,9 +105,25 @@ export async function writeSummary(ctx: TurnContext, history: Message[]): Promis
     source: 'summary',
     parts: [{ type: 'text', text: `${SUMMARY_HEAD}\n\n${text}` }],
     createdAt: now(),
-    summarizes: covered.map((message) => message.id),
+    summarizes: summarized.map((message) => message.id),
   };
   await store.sessions.appendMessages({ sessionId, runId, messages: [summary] });
-  await emit({ type: 'context.compacted', messageId: summary.id, summarized: covered.length, estimatedTokens });
+  // What the model sees from here on: the summary, the tail and whatever no summary stands for (cli/03 F7).
+  const afterTokens = historyEstimate(ctx, [...history, summary]);
+  await emit({ type: 'context.compacted', messageId: summary.id, summarized: summarized.length, kept: kept.length, estimatedTokens, afterTokens });
   return summary;
+}
+
+/** The newest units of `messages` that fit in `budget` tokens become the tail (`kept`); the rest is `covered`. */
+function splitTail(messages: Message[], budget: number, estimate: (text: string) => number): { covered: Message[]; kept: Message[] } {
+  const units = groupUnits(messages);
+  let keptFrom = units.length;
+  let used = 0;
+  for (let i = units.length - 1; i >= 0; i -= 1) {
+    const cost = units[i]!.reduce((n, message) => n + estimateMessageTokens(message, estimate), 0);
+    if (used + cost > budget) break;
+    used += cost;
+    keptFrom = i;
+  }
+  return { covered: units.slice(0, keptFrom).flat(), kept: units.slice(keptFrom).flat() };
 }

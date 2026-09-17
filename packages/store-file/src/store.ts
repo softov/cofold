@@ -66,7 +66,11 @@ export function createFileStore(options: FileStoreOptions): Store {
     const holder = await lock.readLock(dir);
     return holder ? { ...record, activeWriterRunId: holder.runId } : record;
   }
-  const readRun = (runDir: string) => readJson<RunRecord>(join(runDir, 'run.json'));
+  // A run.json written before denials existed (agent/04 task 02) reads back with an empty list.
+  const readRun = async (runDir: string): Promise<RunRecord | undefined> => {
+    const record = await readJson<RunRecord>(join(runDir, 'run.json'));
+    return record && !Array.isArray(record.denials) ? { ...record, denials: [] } : record;
+  };
   const requestFile = (runDir: string, requestId: string) => join(runDir, 'requests', `${encodeSegment(requestId)}.json`);
 
   return {
@@ -153,7 +157,7 @@ export function createFileStore(options: FileStoreOptions): Store {
         }
         return records.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
       },
-      async update({ sessionId, runId, status, usage, steps, lastMessageId, ...rest }) {
+      async update({ sessionId, runId, status, usage, steps, cost, denials, lastMessageId, ...rest }) {
         const { sessionDir, runDir } = await requireRunDir({ sessionId, runId });
         await lock.assertNotSuperseded(sessionDir, runId);
         const r = (await readRun(runDir)) as RunRecord;
@@ -166,6 +170,8 @@ export function createFileStore(options: FileStoreOptions): Store {
         }
         if (usage) r.usage = usage;
         if (steps !== undefined) r.steps = steps;
+        if (cost !== undefined) r.cost = cost;
+        if (denials !== undefined) r.denials = denials;
         if (lastMessageId !== undefined) r.lastMessageId = lastMessageId;
         await writeAtomic(join(runDir, 'run.json'), r);
       },

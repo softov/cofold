@@ -1,6 +1,6 @@
 import type { WireImagePart, WireMessage, WireModel, WireResponse, WireTextPart } from './types/wire.js';
 import { newId } from '@facio/agents';
-import type { ContentPart, FinishReason, ImagePart, Message, ModelInfo, ModelFeatures, ModelReply, ModelRequest, ReasoningEffort, TextPart, ToolCallPart } from '@facio/agents';
+import type { ContentPart, FinishReason, ImagePart, Message, ModelInfo, ModelFeatures, ModelPricing, ModelReply, ModelRequest, ReasoningEffort, TextPart, ToolCallPart, Usage } from '@facio/agents';
 
 export function toWireMessages(request: ModelRequest, features: { images: boolean }): WireMessage[] {
   const out: WireMessage[] = [{ role: 'system', content: request.instructions }];
@@ -84,18 +84,18 @@ export function fromWireResponse(body: WireResponse): ModelReply {
   }
   const message: Message = { id: newId(), role: 'assistant', source: 'model', createdAt: new Date().toISOString(), parts };
   const finish = mapFinish(choice.finish_reason, parts.some((p) => p.type === 'toolCall'));
-  const cached = body.usage?.prompt_tokens_details?.cached_tokens;
-  const reasoningTokens = body.usage?.completion_tokens_details?.reasoning_tokens;
+  return { message, usage: usageOf(body.usage), finish, raw: body };
+}
+
+/** Provider usage → `Usage`; zeros when the provider sent none (a stream without `include_usage`). */
+export function usageOf(usage: WireResponse['usage']): Usage {
+  const cached = usage?.prompt_tokens_details?.cached_tokens;
+  const reasoningTokens = usage?.completion_tokens_details?.reasoning_tokens;
   return {
-    message,
-    usage: {
-      inputTokens: body.usage?.prompt_tokens ?? 0,
-      outputTokens: body.usage?.completion_tokens ?? 0,
-      ...(cached !== undefined ? { cacheReadTokens: cached } : {}),
-      ...(reasoningTokens !== undefined ? { reasoningTokens } : {}),
-    },
-    finish,
-    raw: body,
+    inputTokens: usage?.prompt_tokens ?? 0,
+    outputTokens: usage?.completion_tokens ?? 0,
+    ...(cached !== undefined ? { cacheReadTokens: cached } : {}),
+    ...(reasoningTokens !== undefined ? { reasoningTokens } : {}),
   };
 }
 
@@ -106,7 +106,7 @@ function contentText(content: WireMessage['content']): string {
   return '';
 }
 
-function mapFinish(reason: string | undefined, hasToolCalls: boolean): FinishReason {
+export function mapFinish(reason: string | null | undefined, hasToolCalls: boolean): FinishReason {
   if (hasToolCalls) return 'tool_calls';
   switch (reason) {
     case 'stop': return 'stop';
@@ -128,17 +128,36 @@ export function fromWireModel(model: WireModel, defaults: ModelFeatures): ModelI
         reasoning: params.includes('reasoning') || params.includes('include_reasoning'),
       }
     : defaults;
-  const input = Number(model.pricing?.prompt);
-  const output = Number(model.pricing?.completion);
   const maxOut = model.top_provider?.max_completion_tokens;
+  const pricing = pricingOf(model.pricing);
   return {
     id: model.id,
     name: model.name ?? model.id,
     features,
     ...(model.context_length !== undefined ? { contextTokens: model.context_length } : {}),
     ...(typeof maxOut === 'number' ? { maxOutputTokens: maxOut } : {}),
-    ...(Number.isFinite(input) && Number.isFinite(output)
-      ? { pricing: { inputPerMillion: input * 1e6, outputPerMillion: output * 1e6, currency: 'USD' as const } }
-      : {}),
+    ...(pricing !== undefined ? { pricing } : {}),
   };
+}
+
+/** OpenRouter prices are USD per token as decimal strings; the cache rates are optional and kept only when finite (decision 108). */
+function pricingOf(wire: WireModel['pricing']): ModelPricing | undefined {
+  const input = Number(wire?.prompt);
+  const output = Number(wire?.completion);
+  if (!Number.isFinite(input) || !Number.isFinite(output)) return undefined;
+  const cacheRead = perMillion(wire?.input_cache_read);
+  const cacheWrite = perMillion(wire?.input_cache_write);
+  return {
+    inputPerMillion: input * 1e6,
+    outputPerMillion: output * 1e6,
+    ...(cacheRead !== undefined ? { cacheReadPerMillion: cacheRead } : {}),
+    ...(cacheWrite !== undefined ? { cacheWritePerMillion: cacheWrite } : {}),
+    currency: 'USD',
+  };
+}
+
+function perMillion(perToken: string | undefined): number | undefined {
+  if (perToken === undefined) return undefined;
+  const n = Number(perToken);
+  return Number.isFinite(n) ? n * 1e6 : undefined;
 }

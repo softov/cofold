@@ -1,5 +1,6 @@
 import type { RunEvent } from '../types/event.js';
 import type { ToolCallPart } from '../types/message.js';
+import type { ModelPricing } from '../types/model.js';
 import type { RunOutcome } from '../types/outcome.js';
 import type { ResumeArgs, RunHandle } from '../types/run.js';
 import type { PendingRequest, RunRecord, StepRecord } from '../types/store.js';
@@ -7,6 +8,7 @@ import type { ApprovalPayload, InputPayload } from '../types/store.js';
 import type { ResolvedRequest, SteerQueue, TurnContext } from '../types/turn.js';
 import { AgentError } from '../errors.js';
 import { toolCallsOf } from '../message/helpers.js';
+import { costOf } from '../model/cost.js';
 import { ZERO_USAGE, addUsage } from '../model/usage.js';
 import { validateSchema } from '@facio/sdk';
 import { validateAnswers } from '../tool/ask-user.js';
@@ -16,7 +18,6 @@ import { createRunHandle } from './handle.js';
 import { startHeartbeat } from './run.js';
 import { enqueueSteer, rejectSteering } from './steering.js';
 import {
-  abortOutcome,
   appendResult,
   createTurnContext,
   fail,
@@ -32,6 +33,9 @@ type Command = ResolvedRequest['command'];
 const liveResumes = new Set<string>();
 
 const now = () => new Date().toISOString();
+
+/** The deny a cancel answers an open request with (decision 120), in ahpd's wording. */
+const STOPPED = 'The turn was stopped';
 
 /**
  * Reattaches to a stored run: replays its events, then continues an `awaiting` run from the command the host
@@ -91,21 +95,21 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
     if (record.status !== 'awaiting' && record.status !== 'running') return finishDetached(storedOutcome(record, events));
 
     if (liveResumes.has(runId)) {
-      return finishDetached({ status: 'failed', error: { code: 'writer_busy', message: `run ${runId} is already attached in this process` }, usage: record.usage, steps: record.steps });
+      return finishDetached({ status: 'failed', error: { code: 'writer_busy', message: `run ${runId} is already attached in this process` }, usage: record.usage, steps: record.steps, denials: record.denials, ...(record.cost !== undefined ? { cost: record.cost } : {}) });
     }
     liveResumes.add(runId);
     try {
       const session = await store.sessions.get({ sessionId });
-      if (!session) return finishDetached({ status: 'failed', error: { code: 'not_found', message: `session ${sessionId}` }, usage: record.usage, steps: record.steps });
+      if (!session) return finishDetached({ status: 'failed', error: { code: 'not_found', message: `session ${sessionId}` }, usage: record.usage, steps: record.steps, denials: record.denials, ...(record.cost !== undefined ? { cost: record.cost } : {}) });
 
       // An awaiting run still holds its claim (decision 62); re-claiming is idempotent and proves it. A running run's
       // claim is taken over only when the store finds it stale (decision 68).
       const claimed = await store.sessions.claimWriter({ sessionId, runId });
-      if (!claimed) return finishDetached({ status: 'failed', error: { code: 'writer_busy', message: `session ${sessionId} is being written by another run` }, usage: record.usage, steps: record.steps });
+      if (!claimed) return finishDetached({ status: 'failed', error: { code: 'writer_busy', message: `session ${sessionId} is being written by another run` }, usage: record.usage, steps: record.steps, denials: record.denials, ...(record.cost !== undefined ? { cost: record.cost } : {}) });
 
       const emitter = createEmitter({ store, runId, sessionId, agentId: record.agentId, publish: handle.publish, onEvent: agent.hooks.onEvent?.bind(agent.hooks), warn: agent.warn, startSeq: lastSeq });
       const steps = await store.runs.listSteps({ sessionId, runId });
-      const counters = countersOf(record, steps);
+      const counters = countersOf(record, steps, agent.model.pricing);
       const ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, steering, counters, claimed: true, ...(record.inputMessageId !== undefined ? { inputMessageId: record.inputMessageId } : {}) });
       if (!(await resolveCapabilities(ctx))) return;
 
@@ -127,28 +131,15 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
   }
 
   /**
-   * Installs the command acceptor and resolves once a valid command has been persisted (decisions 74-77, 86).
-   * Resolves undefined after a cancel: the handle detaches, the request stays open for a later resume().
+   * Installs the command acceptor and resolves once a valid command has been persisted (decisions 74-77).
+   * A cancel while waiting denies the pending request through the same path a host's deny takes (decision 120):
+   * the turn then continues, `applyResolved` writes the call's error result, and the loop's abort check writes the
+   * marker and finishes it `cancelled`. A request is never left open by a cancel.
    */
   function waitForCommand(ctx: TurnContext, pending: PendingRequest): Promise<Command | undefined> {
     return new Promise((resolve) => {
       let taken = false;
-      const onAbort = () => {
-        if (taken) return;
-        taken = true;
-        accept = undefined;
-        finishDetached(abortOutcome(ctx));
-        resolve(undefined);
-      };
-      if (abort.signal.aborted) return onAbort();
-      abort.signal.addEventListener('abort', onAbort, { once: true });
-
-      accept = async (command) => {
-        validateCommand(ctx, pending, command); // throws; nothing changes
-        if (taken) throw new AgentError({ code: 'not_found', message: `request ${pending.requestId} is already being resolved` });
-        taken = true;
-        accept = undefined;
-        abort.signal.removeEventListener('abort', onAbort);
+      const apply = async (command: Command): Promise<void> => {
         try {
           await store.requests.resolve({ sessionId, runId, requestId: pending.requestId, resolution: command });
           const reason = command.type === 'deny' && command.reason !== undefined ? { reason: command.reason } : {};
@@ -164,6 +155,24 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
           throw e;
         }
         resolve(command);
+      };
+      const onAbort = () => {
+        if (taken) return;
+        taken = true;
+        accept = undefined;
+        // The failure path already finished the run and resolved; nothing else listens for this promise.
+        void apply({ type: 'deny', requestId: pending.requestId, reason: STOPPED }).catch(() => {});
+      };
+      if (abort.signal.aborted) return onAbort();
+      abort.signal.addEventListener('abort', onAbort, { once: true });
+
+      accept = async (command) => {
+        validateCommand(ctx, pending, command); // throws; nothing changes
+        if (taken) throw new AgentError({ code: 'not_found', message: `request ${pending.requestId} is already being resolved` });
+        taken = true;
+        accept = undefined;
+        abort.signal.removeEventListener('abort', onAbort);
+        await apply(command);
       };
       markReady();
     });
@@ -213,19 +222,29 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
 
 /**
  * A paused run wrote its counters at the pause (decision 73); a run that died while running never did, so its
- * usage and step count come from the step log.
+ * usage, cost and step count come from the step log; `denials` come from the record either way. Cost follows usage (decision 109): carried on from the record,
+ * or recomputed from every reply with the adapter's current pricing; undefined when the adapter has none.
  */
-function countersOf(record: RunRecord, steps: StepRecord[]): TurnContext['counters'] {
+function countersOf(record: RunRecord, steps: StepRecord[], pricing: ModelPricing | undefined): TurnContext['counters'] {
   const models = steps.filter((s) => s.kind === 'model');
   const fromLog = record.status === 'running';
   let usage = record.usage;
+  let cost = pricing ? (record.cost ?? 0) : undefined;
   if (fromLog) {
     usage = ZERO_USAGE;
-    for (const s of models) if (s.kind === 'model' && s.reply) usage = addUsage(usage, s.reply.usage);
+    cost = pricing ? 0 : undefined;
+    for (const s of models) {
+      if (s.kind !== 'model' || !s.reply) continue;
+      usage = addUsage(usage, s.reply.usage);
+      if (pricing) cost = (cost ?? 0) + costOf(s.reply.usage, pricing);
+    }
   }
   return {
     usage,
     steps: fromLog ? models.length : record.steps,
+    cost,
+    // Written with every update; a dead run's refusals after its last update are in the events, the accepted loss (cli/03 F3).
+    denials: [...record.denials],
     stepIndex: steps.length,
     // A step left 'started' at a pause completes (and counts) on resume.
     toolCalls: steps.filter((s) => s.kind === 'tool' && s.status !== 'started').length,

@@ -42,6 +42,12 @@ function fileTools(args: { workspace: string; maxLines: number; maxMatches: numb
   const { workspace, maxLines, maxMatches } = args;
   const at = (path: string) => resolveWithin(workspace, path).absolute;
   const shown = (absolute: string) => displayPath(workspace, absolute);
+  /**
+   * What a permission rule's `match` sees for a path tool (decision CLI-04.6): the path resolved, relative with
+   * forward slashes when it is inside the workspace (`src/a.ts`), absolute when it is not; never the raw input, whose
+   * `..` and mixed spellings a glob cannot tell inside from outside by.
+   */
+  const subject = (path: string) => shown(at(path));
 
   const readFileTool = createTool<ReadFileInput>({
     name: 'read_file',
@@ -57,6 +63,7 @@ function fileTools(args: { workspace: string; maxLines: number; maxMatches: numb
       additionalProperties: false,
     },
     effects: { reads: true },
+    subject: (input) => subject(input.path),
     execute: async (input) => {
       const absolute = at(input.path);
       const text = await readText(absolute, shown(absolute));
@@ -86,6 +93,7 @@ function fileTools(args: { workspace: string; maxLines: number; maxMatches: numb
       additionalProperties: false,
     },
     effects: { writes: true, destructive: true },
+    subject: (input) => subject(input.path),
     execute: async (input) => {
       const absolute = at(input.path);
       const existed = await exists(absolute);
@@ -110,6 +118,7 @@ function fileTools(args: { workspace: string; maxLines: number; maxMatches: numb
       additionalProperties: false,
     },
     effects: { writes: true, destructive: true },
+    subject: (input) => subject(input.path),
     execute: async (input) => {
       const absolute = at(input.path);
       const text = await readText(absolute, shown(absolute));
@@ -135,6 +144,7 @@ function fileTools(args: { workspace: string; maxLines: number; maxMatches: numb
       additionalProperties: false,
     },
     effects: { reads: true },
+    subject: (input) => input.pattern,
     execute: async (input) => {
       const cwd = at(input.cwd ?? '.');
       const rows: string[] = [];
@@ -165,6 +175,7 @@ function fileTools(args: { workspace: string; maxLines: number; maxMatches: numb
       additionalProperties: false,
     },
     effects: { reads: true },
+    subject: (input) => input.pattern,
     execute: async (input, ctx) => {
       const regex = compile(input.pattern, input.ignoreCase === true);
       const root = at(input.path ?? '.');

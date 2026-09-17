@@ -116,7 +116,7 @@ export function createMemoryStore(): Store {
           .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
           .map(stripRun);
       },
-      async update({ sessionId, runId, status, usage, steps, lastMessageId, ...rest }) {
+      async update({ sessionId, runId, status, usage, steps, cost, denials, lastMessageId, ...rest }) {
         const r = requireRun({ sessionId, runId });
         r.status = status;
         r.updatedAt = now();
@@ -127,6 +127,8 @@ export function createMemoryStore(): Store {
         }
         if (usage) r.usage = structuredClone(usage);
         if (steps !== undefined) r.steps = steps;
+        if (cost !== undefined) r.cost = cost;
+        if (denials !== undefined) r.denials = structuredClone(denials);
         if (lastMessageId !== undefined) r.lastMessageId = lastMessageId;
       },
       async appendEvent(event) {

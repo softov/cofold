@@ -22,7 +22,7 @@ describeStoreConformance({ name: 'file', create: async () => createFileStore({ r
 
 const runRecord = (sessionId: string, runId: string, over: Partial<RunRecord> = {}): RunRecord => ({
   runId, sessionId, agentId: 'a', status: 'running', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
-  usage: { inputTokens: 0, outputTokens: 0 }, steps: 0, ...over,
+  usage: { inputTokens: 0, outputTokens: 0 }, steps: 0, denials: [], ...over,
 });
 const exists = (p: string) => stat(p).then(() => true, () => false);
 

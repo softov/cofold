@@ -7,7 +7,7 @@ import type { RunEventBody } from '../types/event.js';
 import type { RunInfo } from '../types/hooks.js';
 import type { Message, ToolCallPart, ToolResultPart } from '../types/message.js';
 import type { ModelReply, ModelRequest } from '../types/model.js';
-import type { RunOutcome } from '../types/outcome.js';
+import type { RunOutcome, RunTally } from '../types/outcome.js';
 import type { ApprovalPayload, InputPayload, SessionRecord, Store } from '../types/store.js';
 import type { Tool } from '../types/tool.js';
 import type {
@@ -22,6 +22,8 @@ import type {
 import { AgentError, ModelError } from '../errors.js';
 import { newId } from '../ids.js';
 import { toolCallsOf } from '../message/helpers.js';
+import { INTERRUPTED, INTERRUPTED_TOOL } from '../message/markers.js';
+import { costOf } from '../model/cost.js';
 import { addUsage } from '../model/usage.js';
 import { validateSchema } from '@facio/sdk';
 import { renderAnswers } from '../tool/ask-user.js';
@@ -117,14 +119,36 @@ export async function resolveCapabilities(ctx: TurnContext): Promise<boolean> {
 }
 
 export function fail(ctx: TurnContext, code: string, message: string, detail?: unknown): RunOutcome {
-  return { status: 'failed', error: { code, message, ...(detail !== undefined ? { detail } : {}) }, usage: ctx.counters.usage, steps: ctx.counters.steps };
+  return { status: 'failed', error: { code, message, ...(detail !== undefined ? { detail } : {}) }, ...tally(ctx) };
 }
 
 export function abortOutcome(ctx: TurnContext): RunOutcome {
   const reason = ctx.abort.reason();
-  const { usage, steps } = ctx.counters;
-  if (reason?.kind === 'timeout') return { status: 'stopped', reason: 'timeout', usage, steps };
-  return { status: 'cancelled', ...(reason?.reason !== undefined ? { reason: reason.reason } : {}), usage, steps };
+  if (reason?.kind === 'timeout') return { status: 'stopped', reason: 'timeout', ...tally(ctx) };
+  return { status: 'cancelled', ...(reason?.reason !== undefined ? { reason: reason.reason } : {}), ...tally(ctx) };
+}
+
+/**
+ * Answers the calls a cancel cut and writes the marker, so the transcript stays model-valid and says what happened
+ * (cli/03 F4); a timeout is an abort too and writes the same texts. Returns the abort outcome for the caller to finish with.
+ */
+async function interrupt(ctx: TurnContext, calls: ToolCallPart[], from: number): Promise<RunOutcome> {
+  for (const call of calls.slice(from)) {
+    await appendResult(ctx, { type: 'toolResult', callId: call.callId, name: call.name, content: INTERRUPTED_TOOL, isError: true });
+  }
+  const marker: Message = { id: newId(), role: 'user', source: 'system', parts: [{ type: 'text', text: INTERRUPTED }], createdAt: now() };
+  await ctx.store.sessions.appendMessages({ sessionId: ctx.sessionId, runId: ctx.runId, messages: [marker] });
+  return abortOutcome(ctx);
+}
+
+/**
+ * The counters as every outcome and every run update carries them (decision 109; cli/03 F3): `cost` only when the adapter
+ * has pricing, so an unknown price is never recorded as zero; `denials` as a copy, so a later refusal does not change a
+ * published outcome.
+ */
+export function tally(ctx: TurnContext): RunTally {
+  const { usage, steps, cost, denials } = ctx.counters;
+  return { usage, steps, ...(cost !== undefined ? { cost } : {}), denials: [...denials] };
 }
 
 /** Persist the transition, release the claim, then publish (spec: persist before publish). */
@@ -132,6 +156,8 @@ export async function finishRun(ctx: TurnContext, outcome: RunOutcome): Promise<
   const { store, sessionId, runId } = ctx;
   await store.runs.update({
     sessionId, runId, status: outcome.status, usage: outcome.usage, steps: outcome.steps,
+    ...(outcome.cost !== undefined ? { cost: outcome.cost } : {}),
+    ...(outcome.denials !== undefined ? { denials: outcome.denials } : {}),
     ...(outcome.status === 'awaiting' ? { pendingRequestId: outcome.requestId } : {}),
   });
   if (ctx.claimed && outcome.status !== 'awaiting') await store.sessions.releaseWriter({ sessionId, runId });
@@ -156,10 +182,14 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
     }
 
     for (;;) {
-      if (abort.signal.aborted) return await finishRun(ctx, abortOutcome(ctx));
+      if (abort.signal.aborted) return await finishRun(ctx, await interrupt(ctx, [], 0));
       // Steers land here, after the previous batch's results and before the step that answers them (decision 96).
       await drainSteering(ctx);
-      if (counters.steps >= agent.limits.maxSteps) return await finishRun(ctx, { status: 'stopped', reason: 'max_steps', usage: counters.usage, steps: counters.steps });
+      if (counters.steps >= agent.limits.maxSteps) return await finishRun(ctx, { status: 'stopped', reason: 'max_steps', ...tally(ctx) });
+      // The ceiling is checked before a step, so the step that crosses it completes and the next never starts.
+      if (agent.limits.maxCost > 0 && counters.cost !== undefined && counters.cost >= agent.limits.maxCost) {
+        return await finishRun(ctx, { status: 'stopped', reason: 'max_cost', ...tally(ctx) });
+      }
       counters.steps += 1;
       ctx.run.step = counters.steps;
 
@@ -172,10 +202,10 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
         let summary: Message;
         try { summary = await writeSummary(ctx, history); }
         catch (e) {
-          if (abort.signal.aborted) return await finishRun(ctx, abortOutcome(ctx));
+          if (abort.signal.aborted) return await finishRun(ctx, await interrupt(ctx, [], 0));
           return await finishRun(ctx, fail(ctx, e instanceof ModelError ? e.code : 'internal', `summary: ${(e as Error).message}`, summarize(e)));
         }
-        if (ctx.compact) return await finishRun(ctx, { status: 'completed', message: summary, usage: counters.usage, steps: counters.steps });
+        if (ctx.compact) return await finishRun(ctx, { status: 'completed', message: summary, ...tally(ctx) });
         counters.steps += 1;
         ctx.run.step = counters.steps;
         history = await store.sessions.listMessages({ sessionId });
@@ -200,22 +230,23 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
         catch (e) { await store.runs.updateStep({ ...stepRef, patch: { status: 'failed', endedAt: now() } }); return await finishRun(ctx, fail(ctx, 'hook_error', `beforeModel: ${(e as Error).message}`)); }
         if ('abort' in before) {
           await store.runs.updateStep({ ...stepRef, patch: { status: 'completed', detail: { abortedBy: 'beforeModel', reason: before.abort.reason }, endedAt: now() } });
-          return await finishRun(ctx, { status: 'stopped', reason: 'policy', usage: counters.usage, steps: counters.steps });
+          return await finishRun(ctx, { status: 'stopped', reason: 'policy', ...tally(ctx) });
         }
         request = before.request;
       }
 
       let reply: ModelReply;
       try {
-        reply = await agent.model.complete(request);
+        reply = await callModel(ctx, request);
       } catch (e) {
         await store.runs.updateStep({ ...stepRef, patch: { status: 'failed', detail: summarize(e), endedAt: now() } });
-        if (abort.signal.aborted) return await finishRun(ctx, abortOutcome(ctx));
+        if (abort.signal.aborted) return await finishRun(ctx, await interrupt(ctx, [], 0));
         const code = e instanceof ModelError ? e.code : 'internal';
         return await finishRun(ctx, fail(ctx, code, (e as Error).message, summarize(e)));
       }
       // The model consumed these tokens whatever afterModel decides.
       counters.usage = addUsage(counters.usage, reply.usage);
+      if (agent.model.pricing) counters.cost = (counters.cost ?? 0) + costOf(reply.usage, agent.model.pricing);
 
       if (agent.hooks.afterModel) {
         let after;
@@ -223,7 +254,7 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
         catch (e) { await store.runs.updateStep({ ...stepRef, patch: { status: 'failed', endedAt: now() } }); return await finishRun(ctx, fail(ctx, 'hook_error', `afterModel: ${(e as Error).message}`)); }
         if ('abort' in after) {
           await store.runs.updateStep({ ...stepRef, patch: { status: 'completed', reply: replyRecord(reply), detail: { abortedBy: 'afterModel', reason: after.abort.reason }, endedAt: now() } });
-          return await finishRun(ctx, { status: 'stopped', reason: 'policy', usage: counters.usage, steps: counters.steps });
+          return await finishRun(ctx, { status: 'stopped', reason: 'policy', ...tally(ctx) });
         }
         reply = after.reply;
       }
@@ -233,7 +264,7 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
       await emit({ type: 'model.completed', step: counters.steps, message: reply.message, usage: reply.usage, finish: reply.finish });
 
       const calls = toolCallsOf(reply.message);
-      if (calls.length === 0) return await finishRun(ctx, { status: 'completed', message: reply.message, usage: counters.usage, steps: counters.steps });
+      if (calls.length === 0) return await finishRun(ctx, { status: 'completed', message: reply.message, ...tally(ctx) });
       if ((await processCalls(ctx, calls)) === 'done') return;
     }
   } catch (e) {
@@ -250,20 +281,37 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
 }
 
 /**
+ * Streams when the adapter can (decision 104); every delta is an event before the next one is read (decision 102).
+ * A stream that ends without `done` fails the step: nothing partial was executed, so nothing is uncertain (harness spec).
+ */
+async function callModel(ctx: TurnContext, request: ModelRequest): Promise<ModelReply> {
+  const { agent, emit, counters } = ctx;
+  if (!agent.model.stream || !agent.model.features.streaming) return agent.model.complete(request);
+  for await (const event of agent.model.stream(request)) {
+    if (event.type === 'done') return event.reply;
+    if (event.type === 'toolCall.delta') continue; // assembled by the adapter; whole in done.reply (decision 105)
+    await emit({ type: 'model.delta', step: counters.steps, kind: event.type === 'text.delta' ? 'text' : 'reasoning', text: event.text });
+  }
+  throw new ModelError({ code: 'invalid_response', message: 'the stream ended before the reply was complete' });
+}
+
+/**
  * One batch of tool calls, serially (decisions 54-56). 'done' means the run has been finished (pause, abort,
  * limit or hook failure); 'continue' means every call has a result and the model loop may go on.
  */
 async function processCalls(ctx: TurnContext, calls: ToolCallPart[], resolved?: ResolvedRequest): Promise<'continue' | 'done'> {
   const { agent, abort, emit, counters } = ctx;
-  const deps: ToolCallDeps = { agent, tools: ctx.tools, run: ctx.run, abort, emit, nextStepIndex: () => counters.stepIndex++, loaded: ctx.loaded };
+  const deps: ToolCallDeps = { agent, tools: ctx.tools, run: ctx.run, abort, emit, nextStepIndex: () => counters.stepIndex++, denied: (denial) => counters.denials.push(denial), loaded: ctx.loaded };
   let limitHit = false;
   for (let i = 0; i < calls.length; i += 1) {
     const call = calls[i]!;
-    if (abort.signal.aborted) { await finishRun(ctx, abortOutcome(ctx)); return 'done'; }
-    // The human already decided the paused call (decisions 75-77); the limit never applies to it.
+    // The human already decided the paused call (decisions 75-77); the limit never applies to it, and a persisted
+    // decision reaches the transcript even when the run was cancelled meanwhile (decision 120: the cancel's own deny).
     const decided = i === 0 ? resolved : undefined;
+    if (!decided && abort.signal.aborted) { await finishRun(ctx, await interrupt(ctx, calls, i)); return 'done'; }
     if (!decided && (limitHit || counters.toolCalls >= agent.limits.maxToolCalls)) {
       limitHit = true;
+      counters.denials.push({ callId: call.callId, name: call.name, input: call.input, reason: 'Tool call limit reached', by: 'limit' });
       await emit({ type: 'tool.denied', callId: call.callId, name: call.name, reason: 'max_tool_calls' });
       await appendResult(ctx, { type: 'toolResult', callId: call.callId, name: call.name, content: 'Tool call limit reached', isError: true });
       continue;
@@ -274,14 +322,14 @@ async function processCalls(ctx: TurnContext, calls: ToolCallPart[], resolved?: 
     // Denied calls (unknown tool, invalid args, hook deny or stop) never reached an executor and do not count (decision 56).
     if ((result.kind !== 'result' && result.kind !== 'stop') || result.executed) counters.toolCalls += 1;
 
-    if (result.kind === 'aborted') { await finishRun(ctx, abortOutcome(ctx)); return 'done'; }
+    if (result.kind === 'aborted') { await finishRun(ctx, await interrupt(ctx, calls, i)); return 'done'; }
     if (result.kind === 'stop') {
       // The rest of the batch is answered so the transcript stays model-valid (decision 90), then the run ends on purpose (decision 97).
       await appendResult(ctx, result.part);
       for (const rest of calls.slice(i + 1)) {
         await appendResult(ctx, { type: 'toolResult', callId: rest.callId, name: rest.name, content: 'Not executed: the run was stopped', isError: true });
       }
-      await finishRun(ctx, { status: 'stopped', reason: 'hook', usage: counters.usage, steps: counters.steps });
+      await finishRun(ctx, { status: 'stopped', reason: 'hook', ...tally(ctx) });
       return 'done';
     }
     if (result.kind === 'approval') {
@@ -296,7 +344,7 @@ async function processCalls(ctx: TurnContext, calls: ToolCallPart[], resolved?: 
     }
     await appendResult(ctx, result.part);
   }
-  if (limitHit) { await finishRun(ctx, { status: 'stopped', reason: 'max_tool_calls', usage: counters.usage, steps: counters.steps }); return 'done'; }
+  if (limitHit) { await finishRun(ctx, { status: 'stopped', reason: 'max_tool_calls', ...tally(ctx) }); return 'done'; }
   return 'continue';
 }
 
@@ -317,13 +365,16 @@ async function applyResolved(ctx: TurnContext, deps: ToolCallDeps, call: ToolCal
     return executeTool(deps, call, tool, input);
   }
   if (command.type === 'deny' && pending.kind === 'approval') {
-    // No tool.denied event: approval.resolved { decision: 'deny' } already says it (decision 76).
-    return { kind: 'result', executed: false, part: { type: 'toolResult', callId: call.callId, name: call.name, content: command.reason ?? 'Denied by the user', isError: true } };
+    // No tool.denied event: approval.resolved { decision: 'deny' } already says it (decision 76); the record still lists it (cli/03 F3).
+    const reason = command.reason ?? 'Denied by the user';
+    ctx.counters.denials.push({ callId: call.callId, name: call.name, input: (pending.payload as ApprovalPayload).input, reason, by: 'user' });
+    return { kind: 'result', executed: false, part: { type: 'toolResult', callId: call.callId, name: call.name, content: reason, isError: true } };
   }
   // answer, or a declined question: complete the tool step left 'started' at the pause (decision 77)
   const payload = pending.payload as InputPayload;
   const declined = command.type === 'deny';
   const content = declined ? (command.reason ?? 'The user declined to answer') : renderAnswers(payload.questions, command.answers);
+  if (declined) ctx.counters.denials.push({ callId: call.callId, name: payload.name, input: payload.input, reason: content, by: 'user' });
   const step = (await ctx.store.runs.listSteps({ sessionId: ctx.sessionId, runId: ctx.runId })).find((s) => s.invocationId === payload.invocationId);
   const durationMs = step ? Math.max(0, Date.now() - Date.parse(step.startedAt)) : 0;
   await ctx.store.runs.updateStep({
@@ -342,8 +393,8 @@ async function pause(ctx: TurnContext, args: { call: ToolCallPart; kind: 'approv
   const requestId = newId();
   await store.requests.create({ requestId, sessionId, runId, kind: args.kind, callId: args.call.callId, payload: args.payload, createdAt: now() });
   await ctx.emit({ ...args.requested, requestId } as RunEventBody);
-  const outcome: RunOutcome = { status: 'awaiting', sessionId, runId, requestId, kind: args.kind, usage: counters.usage, steps: counters.steps };
-  await store.runs.update({ sessionId, runId, status: 'awaiting', pendingRequestId: requestId, usage: outcome.usage, steps: outcome.steps });
+  const outcome: RunOutcome = { status: 'awaiting', sessionId, runId, requestId, kind: args.kind, ...tally(ctx) };
+  await store.runs.update({ sessionId, runId, status: 'awaiting', pendingRequestId: requestId, ...tally(ctx) });
   await ctx.emit({ type: 'run.paused', requestId, kind: args.kind });
   await ctx.emit({ type: 'run.finished', outcome });
   settle(ctx, outcome);

@@ -1,7 +1,7 @@
 import type { WireModelList, WireResponse } from './types/wire.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ModelError, textOf, toolCallsOf } from '@facio/agents';
-import type { Message, ModelRequest } from '@facio/agents';
+import type { Message, ModelRequest, ModelStreamEvent } from '@facio/agents';
 import { openaiCompat, openaiCompatProvider } from './index.js';
 
 type Call = { url: string; init: RequestInit; body: Record<string, unknown> };
@@ -57,7 +57,7 @@ describe('openaiCompat request mapping', () => {
     const model = openaiCompat({ baseUrl: 'http://localhost:1234/v1/', model: 'm', apiKey: 'k', headers: { 'x-extra': '1' }, params: { temperature: 0.5 }, fetch });
     expect(model.id).toBe('openai-compat:m');
     expect(model.modelId).toBe('m');
-    expect(model.features).toEqual({ tools: true, streaming: false, images: false, structuredOutput: false, reasoning: false });
+    expect(model.features).toEqual({ tools: true, streaming: true, images: false, structuredOutput: false, reasoning: false });
 
     const assistant: Message = {
       id: 'a1', role: 'assistant', source: 'model', createdAt: 'now',
@@ -203,7 +203,7 @@ describe('openaiCompatProvider', () => {
         id: 'openai/gpt-4o-mini',
         name: 'GPT-4o mini',
         context_length: 128000,
-        pricing: { prompt: '0.00000015', completion: '0.0000006' },
+        pricing: { prompt: '0.00000015', completion: '0.0000006', input_cache_read: '0.000000075', input_cache_write: 'n/a' },
         supported_parameters: ['tools', 'response_format', 'reasoning'],
         architecture: { input_modalities: ['text', 'image'] },
         top_provider: { max_completion_tokens: 16384 },
@@ -229,16 +229,16 @@ describe('openaiCompatProvider', () => {
     expect(calls[0]!.init.method).toBe('GET');
     expect(calls[0]!.init.headers).toMatchObject({ authorization: 'Bearer k' });
     expect(models).toEqual([
-      { id: 'local/plain', name: 'local/plain', features: { tools: true, streaming: false, images: false, structuredOutput: false, reasoning: false } },
+      { id: 'local/plain', name: 'local/plain', features: { tools: true, streaming: true, images: false, structuredOutput: false, reasoning: false } },
       {
         id: 'openai/gpt-4o-mini',
         name: 'GPT-4o mini',
-        features: { tools: true, streaming: false, images: true, structuredOutput: true, reasoning: true },
+        features: { tools: true, streaming: true, images: true, structuredOutput: true, reasoning: true },
         contextTokens: 128000,
         maxOutputTokens: 16384,
-        pricing: { inputPerMillion: 0.15, outputPerMillion: 0.6, currency: 'USD' },
+        pricing: { inputPerMillion: 0.15, outputPerMillion: 0.6, cacheReadPerMillion: 0.075, currency: 'USD' },
       },
-      { id: 'x/no-tools', name: 'x/no-tools', features: { tools: false, streaming: false, images: false, structuredOutput: false, reasoning: false } },
+      { id: 'x/no-tools', name: 'x/no-tools', features: { tools: false, streaming: true, images: false, structuredOutput: false, reasoning: false } },
     ]);
   });
 
@@ -246,6 +246,15 @@ describe('openaiCompatProvider', () => {
     const { fetch } = stubFetch([json({ object: 'list' })]);
     const e = await codeOf(openaiCompatProvider({ baseUrl: 'http://x', fetch }).listModels());
     expect(e.code).toBe('invalid_response');
+  });
+
+  it('sets adapter.pricing from model({ pricing }) and openaiCompat({ pricing }), and leaves it absent otherwise (decision 108)', () => {
+    const pricing = { inputPerMillion: 3, outputPerMillion: 15, cacheReadPerMillion: 0.3, cacheWritePerMillion: 3.75, currency: 'USD' as const };
+    const provider = openaiCompatProvider({ baseUrl: 'http://x' });
+    expect(provider.model({ id: 'm', pricing }).pricing).toEqual(pricing);
+    expect('pricing' in provider.model({ id: 'm' })).toBe(false);
+    expect(openaiCompat({ baseUrl: 'http://x', model: 'm', pricing }).pricing).toEqual(pricing);
+    expect('pricing' in openaiCompat({ baseUrl: 'http://x', model: 'm' })).toBe(false);
   });
 
   it('builds adapters that share the endpoint, key and defaults', async () => {
@@ -467,5 +476,116 @@ describe('openaiCompat feature gates', () => {
     expect(calls).toHaveLength(0);
     await model.complete(request({ tools: [] }));
     expect(calls).toHaveLength(1);
+  });
+});
+
+describe('openaiCompat stream()', () => {
+  const sse = (lines: string[]) => new Response(lines.map((l) => `data: ${l}\n\n`).join(''), { status: 200, headers: { 'content-type': 'text/event-stream' } });
+  const chunk = (content: string, finish_reason: string | null = null) => JSON.stringify({ choices: [{ delta: { content }, finish_reason }] });
+
+  async function drain(model: ReturnType<typeof openaiCompat>, req: ModelRequest) {
+    const events: ModelStreamEvent[] = [];
+    for await (const e of model.stream!(req)) events.push(e);
+    return events;
+  }
+
+  it('is present with features.streaming true by default and sends stream: true with stream_options.include_usage', async () => {
+    const { calls, fetch } = stubFetch([sse([chunk('hi'), chunk('!', 'stop'), JSON.stringify({ choices: [], usage: { prompt_tokens: 2, completion_tokens: 1 } }), '[DONE]'])]);
+    const model = openaiCompat({ baseUrl: 'http://x', model: 'm', apiKey: 'k', fetch });
+    expect(model.features.streaming).toBe(true);
+    expect(model.stream).toBeTypeOf('function');
+    const events = await drain(model, request());
+    expect(calls[0]!.body).toMatchObject({ model: 'm', stream: true, stream_options: { include_usage: true }, prompt_cache_key: 'session-1', tool_choice: 'auto' });
+    expect(calls[0]!.init.headers).toMatchObject({ authorization: 'Bearer k' });
+    expect(events.map((e) => e.type)).toEqual(['text.delta', 'text.delta', 'done']);
+    const done = events.at(-1);
+    if (done?.type !== 'done') throw new Error('no done');
+    expect(textOf(done.reply.message)).toBe('hi!');
+    expect(done.reply.usage).toEqual({ inputTokens: 2, outputTokens: 1 });
+    expect(done.reply.finish).toBe('stop');
+  });
+
+  it('applies the feature gates before any fetch', async () => {
+    const { calls, fetch } = stubFetch([]);
+    const model = openaiCompat({ baseUrl: 'http://x', model: 'm', features: { tools: false }, fetch });
+    await expect(drain(model, request())).rejects.toMatchObject({ code: 'unsupported_feature' });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('throws invalid_response for a data payload that is not JSON', async () => {
+    const { fetch } = stubFetch([sse(['<html>'])]);
+    const e = await codeOf(drain(openaiCompat({ baseUrl: 'http://x', model: 'm', fetch }), request()));
+    expect(e.code).toBe('invalid_response');
+  });
+
+  describe('retries', () => {
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    async function settle<T>(p: Promise<T>): Promise<T> {
+      const guarded = p.catch((e: unknown) => ({ __err: e }));
+      await vi.runAllTimersAsync();
+      const r = await guarded;
+      if (r !== null && typeof r === 'object' && '__err' in r) throw r.__err;
+      return r as T;
+    }
+
+    it('retries a 429 before the body like complete() does', async () => {
+      const { calls, fetch } = stubFetch([text('slow down', 429), sse([chunk('ok', 'stop'), '[DONE]'])]);
+      const events = await settle(drain(openaiCompat({ baseUrl: 'http://x', model: 'm', fetch }), request()));
+      expect(calls).toHaveLength(2);
+      expect(events.map((e) => e.type)).toEqual(['text.delta', 'done']);
+    });
+
+    it('never retries once the body is being read: a broken stream is network and no done is yielded', async () => {
+      let pulls = 0;
+      const broken = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (pulls++ === 0) controller.enqueue(new TextEncoder().encode(`data: ${chunk('par')}\n\n`));
+          else controller.error(new Error('ECONNRESET'));
+        },
+      });
+      const { calls, fetch } = stubFetch([new Response(broken, { status: 200 }), sse([chunk('never'), '[DONE]'])]);
+      const model = openaiCompat({ baseUrl: 'http://x', model: 'm', fetch });
+      const events: ModelStreamEvent[] = [];
+      let error: unknown;
+      try { for await (const e of model.stream!(request())) events.push(e); }
+      catch (e) { error = e; }
+      await vi.runAllTimersAsync();
+      expect(error).toBeInstanceOf(ModelError);
+      expect((error as ModelError).code).toBe('network');
+      expect((error as ModelError).message).toContain('ECONNRESET');
+      expect(events).toEqual([{ type: 'text.delta', text: 'par' }]);
+      expect(calls).toHaveLength(1);
+    });
+  });
+
+  it('throws aborted when the signal fires mid-stream', async () => {
+    const controller = new AbortController();
+    const stream = new ReadableStream<Uint8Array>({
+      start(ctrl) {
+        ctrl.enqueue(new TextEncoder().encode(`data: ${chunk('first')}\n\n`));
+      },
+      pull() {
+        controller.abort();
+        throw controller.signal.reason;
+      },
+    });
+    const { fetch } = stubFetch([new Response(stream, { status: 200 })]);
+    const model = openaiCompat({ baseUrl: 'http://x', model: 'm', fetch });
+    const events: ModelStreamEvent[] = [];
+    let error: unknown;
+    try { for await (const e of model.stream!(request({ signal: controller.signal }))) events.push(e); }
+    catch (e) { error = e; }
+    expect(events).toEqual([{ type: 'text.delta', text: 'first' }]);
+    expect(error).toBeInstanceOf(ModelError);
+    expect((error as ModelError).code).toBe('aborted');
+  });
+
+  it('throws invalid_response when the response has no body', async () => {
+    const { fetch } = stubFetch([new Response(null, { status: 200 })]);
+    const e = await codeOf(drain(openaiCompat({ baseUrl: 'http://x', model: 'm', fetch }), request()));
+    expect(e.code).toBe('invalid_response');
+    expect(e.message).toBe('response has no body to stream');
   });
 });

@@ -14,6 +14,7 @@ const runRecord = (sessionId: string, runId: string, over: Partial<RunRecord> = 
   updatedAt: '2026-01-01T00:00:00.000Z',
   usage: { inputTokens: 0, outputTokens: 0 },
   steps: 0,
+  denials: [],
   ...over,
 });
 const event = (sessionId: string, runId: string, seq: number): RunEvent => ({ seq, runId, sessionId, agentId: 'a', at: 'now', type: 'model.started', step: seq });
@@ -194,6 +195,39 @@ export function describeStoreConformance(args: { name: string; create: () => Sto
         expect('pendingRequestId' in run!).toBe(false);
         expect(run?.lastMessageId).toBe('m9');
         expect(run!.updatedAt > run!.createdAt).toBe(true);
+      });
+
+      it('persists cost only when it is given (decision 109): absent means unknown, never zero', async () => {
+        await store.sessions.create({ sessionId: 's', agentId: 'a' });
+        await store.runs.create(runRecord('s', 'r'));
+        let run = await store.runs.get({ sessionId: 's', runId: 'r' });
+        expect('cost' in run!).toBe(false);
+
+        await store.runs.update({ sessionId: 's', runId: 'r', status: 'running', usage: { inputTokens: 5, outputTokens: 6 }, steps: 1 });
+        run = await store.runs.get({ sessionId: 's', runId: 'r' });
+        expect('cost' in run!).toBe(false);
+
+        await store.runs.update({ sessionId: 's', runId: 'r', status: 'completed', cost: 0.0123 });
+        run = await store.runs.get({ sessionId: 's', runId: 'r' });
+        expect(run).toMatchObject({ status: 'completed', cost: 0.0123, usage: { inputTokens: 5, outputTokens: 6 }, steps: 1 });
+
+        const created = runRecord('s', 'r2', { cost: 0.5 });
+        await store.runs.create(created);
+        expect(await store.runs.get({ sessionId: 's', runId: 'r2' })).toEqual(created);
+      });
+
+      it('persists denials: [] from create, the list written by update (cli/03 F3)', async () => {
+        await store.sessions.create({ sessionId: 's', agentId: 'a' });
+        await store.runs.create(runRecord('s', 'r'));
+        expect((await store.runs.get({ sessionId: 's', runId: 'r' }))?.denials).toEqual([]);
+
+        const denial = { callId: 'c1', name: 'rm', input: { path: '/' }, reason: 'Denied by policy: rm', by: 'policy' as const };
+        await store.runs.update({ sessionId: 's', runId: 'r', status: 'running', denials: [denial] });
+        expect((await store.runs.get({ sessionId: 's', runId: 'r' }))?.denials).toEqual([denial]);
+
+        // An update without the field leaves the list alone.
+        await store.runs.update({ sessionId: 's', runId: 'r', status: 'completed', steps: 2 });
+        expect(await store.runs.get({ sessionId: 's', runId: 'r' })).toMatchObject({ status: 'completed', steps: 2, denials: [denial] });
       });
 
       it('lists runs of a session, newest createdAt first, filtered by status', async () => {

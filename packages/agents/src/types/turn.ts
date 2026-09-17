@@ -9,7 +9,7 @@ import type { ToolCallPart, ToolResultPart } from './message.js';
 import type { Usage } from './model.js';
 import type { RunOutcome } from './outcome.js';
 import type { RunHandle } from './run.js';
-import type { PendingRequest, Store } from './store.js';
+import type { Denial, PendingRequest, Store } from './store.js';
 import type { Tool } from './tool.js';
 
 export type ToolCallResult =
@@ -28,6 +28,8 @@ export interface ToolCallDeps {
   emit: Emitter['emit'];
   /** Next StepRecord.index; the caller increments after a step is appended. */
   nextStepIndex: () => number;
+  /** Records a refused call on the run (cli/03 F3); the loop pushes into `ctx.counters.denials`. */
+  denied: (denial: Denial) => void;
   /** Names of the deferred tools whose definitions the model has this session (AGENT-02); shared with the context. */
   loaded: Set<string>;
 }
@@ -55,7 +57,8 @@ export interface TurnContext {
   handle: InternalRunHandle;
   /** Steers the handle took since the last model step; drained at the top of the next one, rejected when the run settles. */
   steering: SteerQueue;
-  counters: { usage: Usage; steps: number; stepIndex: number; toolCalls: number };
+  /** `cost` is `undefined` while the adapter has no pricing (decision 108), so an unknown price never reads as free. */
+  counters: { usage: Usage; steps: number; cost: number | undefined; denials: Denial[]; stepIndex: number; toolCalls: number };
   claimed: boolean;
   /** A `compact()` run: one summary step, no tools, then done. */
   compact: boolean;

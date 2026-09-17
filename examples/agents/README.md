@@ -17,6 +17,7 @@ pnpm --filter facio-examples-agents smoke
 | `FACIO_BASE_URL` | `http://localhost:1234/v1` | LM Studio; use `https://openrouter.ai/api/v1` for OpenRouter |
 | `FACIO_MODEL` | `qwen/qwen3-8b` | Provider model id |
 | `FACIO_API_KEY` | none | Required for OpenRouter, unused by LM Studio |
+| `FACIO_PRICING_IN`, `FACIO_PRICING_OUT` | none | USD per million input / output tokens; `lmstudio-tools` records and prints the run's `cost` when both are set |
 
 Known-good targets:
 
@@ -44,7 +45,7 @@ Expected: seq 1..9 (`run.started` ... `run.finished`) and `completed The tool sa
 
 ## lmstudio-tools
 
-The same loop against a real Chat Completions model with the `now` tool; `hooks.onEvent` prints the `tool.*` events with their payloads.
+The same loop against a real Chat Completions model with the `now` tool; `hooks.onEvent` prints the `tool.*` events with their payloads, and the answer is printed as it streams (`model.delta` events with `kind: 'text'`).
 Same env vars as `adapter-smoke`.
 
 ```bash

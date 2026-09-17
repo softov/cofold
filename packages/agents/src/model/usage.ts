@@ -8,6 +8,9 @@ export function addUsage(a: Usage, b: Usage): Usage {
     ...(a.cacheReadTokens !== undefined || b.cacheReadTokens !== undefined
       ? { cacheReadTokens: (a.cacheReadTokens ?? 0) + (b.cacheReadTokens ?? 0) }
       : {}),
+    ...(a.cacheWriteTokens !== undefined || b.cacheWriteTokens !== undefined
+      ? { cacheWriteTokens: (a.cacheWriteTokens ?? 0) + (b.cacheWriteTokens ?? 0) }
+      : {}),
     ...(a.reasoningTokens !== undefined || b.reasoningTokens !== undefined
       ? { reasoningTokens: (a.reasoningTokens ?? 0) + (b.reasoningTokens ?? 0) }
       : {}),

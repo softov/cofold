@@ -46,8 +46,8 @@ describe('createAgent', () => {
     expect(agent.context.maxTokens).toBe(32_000);
     expect(agent.context.estimateTokens('abcd')).toBe(1);
     expect(agent.context.estimateTokens('abcde')).toBe(2);
-    expect(await agent.policy.requireApproval({ tool: rm, input: {}, run: runInfo })).toBe(true);
-    expect(await agent.policy.requireApproval({ tool: echo, input: {}, run: runInfo })).toBe(false);
+    expect(await agent.policy.decide({ tool: rm, input: {}, run: runInfo })).toEqual({ behavior: 'ask' });
+    expect(await agent.policy.decide({ tool: echo, input: {}, run: runInfo })).toEqual({ behavior: 'allow' });
     expect(agent.sharedNamespace).toBe('default');
     expect(agent.hooks).toEqual({});
     expect(agent.params).toEqual({});
@@ -77,7 +77,7 @@ describe('createAgent', () => {
       capabilities: [{ id: 'skills' }, { id: 'mcp-fs' }],
       limits: { maxSteps: 3 },
       context: { maxTokens: 100, estimateTokens: (t) => t.length },
-      policy: { requireApproval: () => true },
+      policy: { decide: () => ({ behavior: 'deny', reason: 'no' }) },
       params: { temperature: 0 },
       resources: { token: 't' },
       sharedNamespace: 'team',
@@ -85,7 +85,7 @@ describe('createAgent', () => {
     });
     expect(agent.limits).toEqual({ ...DEFAULT_LIMITS, maxSteps: 3 });
     expect(agent.context.estimateTokens('abcd')).toBe(4);
-    expect(await agent.policy.requireApproval({ tool: echo, input: {}, run: runInfo })).toBe(true);
+    expect(await agent.policy.decide({ tool: echo, input: {}, run: runInfo })).toEqual({ behavior: 'deny', reason: 'no' });
     expect(agent.definition.capabilities).toEqual(['skills', 'mcp-fs']);
     expect(agent.definition.context).toEqual({ maxTokens: 100 });
     expect(agent.resources).toEqual({ token: 't' });
