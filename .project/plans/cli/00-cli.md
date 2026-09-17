@@ -17,8 +17,12 @@ The `cli` domain covers the programs a person runs against `@facio/agents`: the 
 
 | Plan | Objective |
 | --- | --- |
-| [01-papo.md](01-papo/plan.md) | papo: the service, the shell, the screen (Built) |
+| [01-papo](01-papo/plan.md) | papo: the service, the shell, the screen (built) |
+| [02-papo-commands](02-papo-commands/plan.md) | papo slash commands (built; the internal ones move to agent/03) |
+| [03-papo-claude](03-papo-claude/plan.md) | papo on the Claude Agent SDK, the harness's contra-validation (built; findings F1-F8) |
+| [04-papo-harness-adoption](04-papo-harness-adoption/plan.md) | steer and queue, partial text, the model's view, stop reasons, Claude's permission modes and rules (built) |
+| [05-papo-defaults-picker-thought](05-papo-defaults-picker-thought/plan.md) | picks written back to the configuration, provider-then-model chip, cursor bar, thought on click (active) |
 
-Next free number: `02`.
+Next free number: `06`.
 
 Later: the `facio` program (`packages/facio`: the daemon and its CLI on `@facio/terminal`, slash commands as commands, settings), once the chat has validated the harness end to end.

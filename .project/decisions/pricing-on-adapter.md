@@ -10,15 +10,19 @@ refs:
 
 ## Context
 
-OpenRouter's catalogue reports prices; LM Studio reports none; Anthropic bills cache reads and writes at their own rates. `provider.model()` is synchronous, so it cannot look prices up.
+OpenRouter's catalogue reports prices, LM Studio reports none, Anthropic bills cache reads and writes at their own rates.
+`provider.model()` is synchronous, so it cannot look prices up.
 
 ## Decision
 
-`ModelPricing { inputPerMillion, outputPerMillion, cacheReadPerMillion?, cacheWritePerMillion?, currency: 'USD' }` (named, shared with `ModelInfo.pricing`); `ModelAdapter.pricing?` is set by `provider.model({ id, pricing? })` / `openaiCompat({ pricing })`, the catalogue's value passed through by the host.
-`Usage` gains `cacheWriteTokens?`. No pricing means no cost is recorded and `maxCost` never trips.
+`ModelPricing { inputPerMillion, outputPerMillion, cacheReadPerMillion?, cacheWritePerMillion?, currency: 'USD' }`, shared with `ModelInfo.pricing`.
+`ModelAdapter.pricing?` is set by `provider.model({ id, pricing? })` / `openaiCompat({ pricing })`; the host passes the catalogue's value through.
+`Usage` gains `cacheWriteTokens?`.
+No pricing means no cost is recorded and `maxCost` never trips; a missing price is unknown, never zero.
 
 Source: user, 2026-09-16, asked "Adapter, from the catalogue, with cache rates / Adapter, input-output only / Agent options".
 
-## Consequences
+## Options
 
-`fromWireModel` maps OpenRouter's cache prices when present (field names verified at build). A missing price never looks free: `cost` is absent, not zero.
+Input-output only could not price Anthropic's cache writes.
+Agent options put a provider fact on the agent, so two agents on one model could disagree about its price.

@@ -1,16 +1,14 @@
 ---
 title: AGENT-04 - Policy rules: allow, ask or deny per tool call, recorded on the run
 domain: agent
-status: planned
+status: built
 priority: high
 created: 2026-09-16
 revalidated: 2026-09-16
 requires:
   - plans/agent/01-harness-core/plan.md
 decisions:
-  - decisions/policy-decides-allow-ask-deny.md
   - decisions/rules-are-harness-data.md
-  - decisions/run-record-denials.md
   - decisions/policy-deny-overrides-hook.md
   - decisions/no-anthropic-api-adapter.md
 refs:
@@ -57,12 +55,12 @@ The files read and the patterns to reuse are the `refs` above, each with its not
 ```
 handleToolCall(deps, call)
   validate → beforeTool hook (deny / stop end here; modify changes input)
-  → policy.decide({ tool, input, run })                         decisions 116, 119
+  → policy.decide({ tool, input, run })                         cli/03 F3, decision 119
       deny  → record Denial { by: 'policy' } + tool.denied + error result
       ask   → remembered approval? execute : { kind: 'approval' }
       allow → hook asked approval? that path : executeTool
 processCalls: max_tool_calls → Denial { by: 'limit' }; applyResolved: user deny / declined → Denial { by: 'user' }
-every Denial → ctx.counters.denials.push(...) → runs.update({ denials }) with the counters → outcome.denials   decision 118
+every Denial → ctx.counters.denials.push(...) → runs.update({ denials }) with the counters → outcome.denials   cli/03 F3
 rules({ allow, deny, ask, otherwise }) → Policy: first matching rule by list order deny, ask, allow; match on tool name and tool.subject(input)   decision 117
 ```
 
@@ -76,11 +74,16 @@ rules({ allow, deny, ask, otherwise }) → Policy: first matching rule by list o
 
 | # | Decision | Rationale / source |
 | --- | --- | --- |
-| [116](../../../decisions/policy-decides-allow-ask-deny.md) | `Policy.decide({ tool, input, run }) => { behavior: 'allow' \| 'ask' \| 'deny'; reason? }` replaces `requireApproval`; default: `ask` when `effects.destructive`, else `allow` | User (2026-09-16) |
-| [117](../../../decisions/rules-are-harness-data.md) | `rules({ allow?, deny?, ask?, otherwise? })` builds a `Policy`; `Rule = { tool, match? }`; `ToolDefinition.subject?(input) => string`; `@facio/tools` declares subjects | User (2026-09-16) |
-| [118](../../../decisions/run-record-denials.md) | `RunRecord.denials: Denial[]` and `denials?` on every outcome; `by: 'policy' \| 'hook' \| 'user' \| 'invalid' \| 'limit'` | User (2026-09-16); `user` defaulted in the file |
-| [119](../../../decisions/policy-deny-overrides-hook.md) | Hook first; a policy `deny` wins over hook allow/modify/approval and over a remembered approval; `ask` wins over a hook allow; the remembered approval skips only an `ask` | User (2026-09-16) |
+| [117](../../../decisions/rules-are-harness-data.md) | Permission rules are data the harness evaluates (`rules()`, `Rule { tool, match? }`); a tool names its `subject` | User (2026-09-16) |
+| [119](../../../decisions/policy-deny-overrides-hook.md) | Hook first; a policy `deny` wins over the hook and a remembered approval; `ask` wins over a hook allow | User (2026-09-16) |
 | [112](../../../decisions/no-anthropic-api-adapter.md) | This plan exists because papo's contra-validation found F3; Claude is the reference, never a dependency | User (2026-09-16) |
+
+Settled without a decision, because the reference and facio's no-boilerplate rule leave no fork (details in the task steps):
+
+| What | Source | Task |
+| --- | --- | --- |
+| `Policy.decide({ tool, input, run }) => { behavior: 'allow' \| 'ask' \| 'deny'; reason? }` replaces `requireApproval` (removed, not kept beside: one method answers one question); default `ask` when `effects.destructive`, else `allow` | cli/03 F3; Claude's `PermissionBehavior` | 01 |
+| `RunRecord.denials: Denial[]` and `denials?` on every outcome; `by: 'policy' \| 'hook' \| 'user' \| 'invalid' \| 'limit'` | cli/03 F3; Claude's `permission_denials` is "the authoritative record"; `(defaulted: the `user` kind, so the record is complete)` | 02 |
 
 ## Proposed architecture
 
@@ -93,10 +96,10 @@ rules({ allow, deny, ask, otherwise }) → Policy: first matching rule by list o
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - decide() and the precedence](task-01-decide-and-precedence.md) | todo | - |
-| [02 - Denials on the run record](task-02-denials-record.md) | todo | 01 |
-| [03 - rules() and Tool.subject](task-03-rules-and-subject.md) | todo | 01 |
-| [04 - Subjects on @facio/tools; papo's policyOf](task-04-tools-subjects-papo-policy.md) | todo | 03 |
+| [01 - decide() and the precedence](task-01-decide-and-precedence.md) | done | - |
+| [02 - Denials on the run record](task-02-denials-record.md) | done | 01 |
+| [03 - rules() and Tool.subject](task-03-rules-and-subject.md) | done | 01 |
+| [04 - Subjects on @facio/tools; papo's policyOf](task-04-tools-subjects-papo-policy.md) | done | 03 |
 
 ## Risks and tradeoffs
 
@@ -106,16 +109,16 @@ rules({ allow, deny, ask, otherwise }) → Policy: first matching rule by list o
 
 ## Resume state
 
-- **Done so far:** planned 2026-09-16; decisions 116-119 as files.
-- **Next action:** [task-01-decide-and-precedence.md](task-01-decide-and-precedence.md).
+- **Done so far:** planned 2026-09-16; decisions 117, 119 as files; F3 is the finding tasks 01 and 02 fix. Task 01 done (2026-09-16): `Policy.decide`, the precedence in `handleToolCall`, papo's `policyOf` on `decide` (pulled from task 04 so papo keeps compiling). Task 03 done (2026-09-16): `Tool.subject`, `types/policy.ts`, `policy/rules.ts` (`DEFAULT_DECIDE`, `matchGlob`, `rules`), README "Rules". Task 04 done (2026-09-16): `subject` on `shell_exec` and the five file tools, READMEs of `@facio/tools` and `@facio/papo`. Task 02 done (2026-09-16, after agent/01-p5 task 07): `Denial`, `RunRecord.denials`, `tally()` with `denials`, both stores, `run/denials.test.ts`. Every task done; the plan is built: see [implemented.md](implemented.md).
+- **Next action:** none here; papo's rule lists in its config and the permission mode set (cli/03 F8) are [cli/04](../../cli/04-papo-harness-adoption/plan.md) task 04.
 - **Open questions:** none.
-- **Watch out for:** papo's config gaining `permissions.rules` (allow/deny/ask lists) is a `cli` plan, not this one; the ahpd findings (cancel denies the pending approval; the compaction notice carries before and after tokens) are not in any plan yet.
+- **Watch out for:** papo's config gaining `permissions.rules` (allow/deny/ask lists) is a `cli` plan, not this one; the ahpd findings F6, F7 are in agent/01-p5 task 08; the permission mode set (cli/03 F8) is open.
 
 ## Final verification checklist
 
-- [ ] `pnpm check` green.
-- [ ] A `deny` decision refuses a call a `beforeTool` hook allowed, and one the session had remembered as always-approved.
-- [ ] `rules({ deny: [{ tool: 'shell_exec', match: 'rm *' }] })` refuses `rm -rf /` and lets `ls` through; a tool without `subject` matches on name only.
-- [ ] `RunRecord.denials` lists every denial of a run with its `by`; the outcome carries the same list; `resume()` keeps it.
-- [ ] papo over `@facio/agents` with `permissions: ask | destructive | auto` behaves as before.
-- [ ] `plans/index.md` updated.
+- [x] `pnpm check` green (2026-09-16, 67 test files, 745 tests).
+- [x] A `deny` decision refuses a call a `beforeTool` hook allowed, and one the session had remembered as always-approved.
+- [x] `rules({ deny: [{ tool: 'shell_exec', match: 'rm *' }] })` refuses `rm -rf /` and lets `ls` through; a tool without `subject` matches on name only.
+- [x] `RunRecord.denials` lists every denial of a run with its `by`; the outcome carries the same list; `resume()` keeps it. (2026-09-16: `run/denials.test.ts`; conformance case on both stores).
+- [x] papo over `@facio/agents` with `permissions: ask | destructive | auto` behaves as before.
+- [x] `plans/index.md` updated.

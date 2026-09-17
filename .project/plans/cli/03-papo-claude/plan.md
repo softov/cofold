@@ -1,7 +1,7 @@
 ---
 title: CLI-03 - papo on the Claude Agent SDK: the same screen, Claude Code's runtime
 domain: cli
-status: active
+status: built
 priority: high
 created: 2026-09-16
 revalidated: 2026-09-16
@@ -89,19 +89,24 @@ packages/papo/
 | [01 - the SDK boundary and the projection](task-01-sdk-boundary-projection.md) | done | - |
 | [02 - the service](task-02-service.md) | done | 01 |
 | [03 - wiring and the contract](task-03-wiring-contract.md) | done | 02 |
-| [04 - the review's fixes: counting, API errors, the CLI's ask options, durable settings](task-04-review-fixes.md) | todo | 03 |
+| [04 - the review's fixes: counting, API errors, the CLI's ask options, durable settings](task-04-review-fixes.md) | done | 03 |
 
 ## Findings: where the harness differs from Claude's runtime
 
-Per decision 10 these are things to check against the harness, not decisions; Claude's runtime is the reference.
+Per decision 10 these are things to check against the harness, not decisions; Claude's runtime is the reference (decision 112).
+A finding is fixed in a plan task and cited by number (`cli/03 F2`) in code and plans; it never gets a decision file.
+F1-F5 came from running papo on both backends; F6-F8 from reading ahpd (`ahpd/packages/agent-claude/src/session.ts`) and the SDK's types on 2026-09-16.
 
-| # | Claude's runtime | The harness (papo over `@facio/agents`) | To check |
-| --- | --- | --- | --- |
-| F1 | After `/compact` the transcript is the summary, the retained tail and the command's echo; what came before is gone from the view | The store keeps every turn and appends a summary turn (`Summarize the conversation so far.`) at the end; the screen still shows the whole history | Whether papo's transcript after `/compact` should show what the model no longer sees; the harness's `contextOf` already feeds only the summary |
-| F2 | The prompt's uuid is the client's (`SDKUserMessage.uuid`), echoed on every reply frame as `user_message_uuid` and kept as the transcript record's id | The harness mints the input message id on `run()`; `Started.runId` is the run, not the message | Whether `say` should take the message id from the caller, so a client can match a reply to its send without waiting |
-| F3 | A tool the runtime refuses before asking (deny rules) is a `permission_denials` entry on the result, not a decision | The harness has no rule layer: `policy` decides ask/allow only | Whether `policy` should carry deny rules (`@facio/tools` may want them for `shell_exec`) |
-| F4 | An interrupted turn leaves a marker in the transcript (`[Request interrupted by user]`) and the tool results it cut are marked as such | The harness's cancelled run leaves the run record `cancelled` and no message | Whether the harness should write a `notice`-like message on cancel, so a transcript read later says what happened |
-| F5 | The CLI writes its transcript after it answers: a read right after the result can miss the turn | The harness writes the store before it answers | Nothing to change in the harness; the Claude backend keeps what the stream delivered until the store has it |
+| # | Claude's runtime | The harness (papo over `@facio/agents`) | To check | Where |
+| --- | --- | --- | --- | --- |
+| F1 | After `/compact` the transcript is the summary, the retained tail and the command's echo; what came before is gone from the view | The store keeps every turn and appends a summary turn (`Summarize the conversation so far.`) at the end; the screen still shows the whole history | Whether papo's transcript after `/compact` should show what the model no longer sees; the harness's `contextOf` already feeds only the summary | agent/01-p5 task 08 (the tail, `contextOf` exported); cli/04 task 03 (the view) |
+| F2 | The prompt's uuid is the client's (`SDKUserMessage.uuid`), echoed on every reply frame as `user_message_uuid` and kept as the transcript record's id | The harness mints the input message id on `run()`; `Started.runId` is the run, not the message | Whether `say` should take the message id from the caller, so a client can match a reply to its send without waiting | agent/01-p5 task 08 (`RunArgs.messageId?`) |
+| F3 | A tool the runtime refuses before asking (deny rules) is a `permission_denials` entry on the result, not a decision | The harness has no rule layer: `policy` decides ask/allow only | Whether `policy` should carry deny rules (`@facio/tools` may want them for `shell_exec`) | agent/04 tasks 01, 02 (`decide()`, the denials record) |
+| F4 | An interrupted turn leaves a marker in the transcript (`[Request interrupted by user]`) and the tool results it cut are marked as such | The harness's cancelled run leaves the run record `cancelled` and no message | Whether the harness should write a `notice`-like message on cancel, so a transcript read later says what happened | agent/01-p5 task 08 (the marker and the cut results) |
+| F5 | The CLI writes its transcript after it answers: a read right after the result can miss the turn | The harness writes the store before it answers | Nothing to change in the harness; the Claude backend keeps what the stream delivered until the store has it | nothing |
+| F6 | A cancel on a turn waiting for a confirmation settles it `deny 'The turn was stopped'` and ends the turn (`session.ts:2420-2445`) | A cancel on an `awaiting` run detaches the handle and leaves the request open (decision 86); papo denies it itself (cli/01 decision 6) | Whether the harness should deny the pending request on cancel | [decision 120](../../../decisions/cancel-denies-pending-request.md) (it supersedes 86); agent/01-p5 task 08; papo's own deny removed in cli/04 task 03 |
+| F7 | The compaction notice reports before and after tokens (`compact_boundary` `pre_tokens` / `post_tokens`, `session.ts:1735-1750`) | `context.compacted` reports `estimatedTokens` before only | Whether the event should carry the after estimate and the number of messages kept | agent/01-p5 task 08 |
+| F8 | Permission modes are `default \| acceptEdits \| plan \| bypassPermissions \| dontAsk \| auto` (`sdk.d.ts:2333`); `always` on a confirmation is an `addRules` update with destination `session` (`sdk.d.ts:221-224`) | papo's modes are `ask \| destructive \| auto`; `always` writes the harness's `alwaysApprove` | Whether papo's mode set should be Claude's, mapped onto `decide()` and `ToolEffects` | cli/04 task 04: `default | acceptEdits | bypassPermissions | dontAsk` mapped onto `decide()`, `ToolEffects` and `rules()`; `plan` (a prompt-level mode in Claude) waits for a later plan; `auto` not offered (user, 2026-09-16) |
 
 ## Risks and tradeoffs
 
@@ -113,13 +118,16 @@ Per decision 10 these are things to check against the harness, not decisions; Cl
 ## Resume state
 
 - **Done so far:** recon and plan 2026-09-16; Task 1 (SDK boundary, projection, fixtures), Task 2 (`createClaudeChat`, `permissions.ts`, the fake SDK, 12 tests) and Task 3 (`config.backend`, `--backend` / `PAPO_BACKEND`, `openPapo`, the optional peer in `package.json`, `chat-contract.test.ts` with 8 scenarios on both backends, README) built 2026-09-16. Verified on the real CLI (0.3.273, the user's login): `models`, a text turn, a `Write` that asks and is approved with `always`, an `AskUserQuestion` answered through the form's shape, `/compact` and a turn after it, `interrupt` mid-reply, `auto` running a `Write` without a decision. `papo say` that stops at a decision denies it on exit and says so (the decision lives in the process). A workspace that is not a directory is refused up front (the CLI reports a binary that "failed to launch" otherwise).
-- **Next action:** [task-04-review-fixes.md](task-04-review-fixes.md), from the review of 2026-09-16 (R1-R9, verified: R1 on 2986 replies of this machine's sessions, R2 in the SDK's doc, R3 in `CanUseTool`'s options). Then `implemented.md` gains the departures (R3 title, R4 session destination) and `status: built` again.
+  Task 4 (the review's fixes R1-R9: a reply counted once by `message.id`, `success` with `is_error` as a failed turn, the CLI's `title` and `suppressAlwaysAllowRule` on the block, `always` as session rules, settings in the file store's kv under `home`, `papo say` denying every decision, no stale error after `remove`, no duplicated prompt, `snapshot` off one file) built 2026-09-16; `implemented.md` amended, 88 papo tests.
+- **Next action:** none; the plan is built. What the harness owes it is in the findings table (F1-F8), built by agent/01-p5 task 08, agent/04 and cli/04.
 - **Open questions:** none.
-- **Watch out for:** `getSessionMessages` needs the same `dir` the session was created under; `listSessions` without `dir` searches every project; the SDK moves weekly, `pnpm check` after a bump.
+- **Watch out for:** `getSessionMessages` needs the same `dir` the session was created under; `listSessions` without `dir` searches every project, and lists a session only after its first result (papo adds the ones live here); the SDK moves weekly, `pnpm check` after a bump.
 
 ## Final verification checklist
 
 - [x] `pnpm check` green with the SDK present (610 tests); the absent path is `loadClaudeSdk`'s test (an importer that fails as Node does) - the SDK is a devDependency of the workspace, so it is never absent there.
 - [x] The contract scenarios pass on both backends (`chat-contract.test.ts`, 16 tests).
 - [x] Manual run against the real CLI, as Task 3 says (the screen itself was driven through `createClaudeChat`, the same calls it makes).
+- [x] Task 4: the split fixture counts once (`project.test.ts`), the API error fails the turn, `title` and `suppressAlways` reach the block, `always` sends `destination: 'session'`, settings survive a second `createClaudeChat` over the same `home`, `remove` mid-turn leaves no error, the echoed prompt shows once, `papo say` denies two decisions in a row (`claude/chat.test.ts` 18, `commands.test.ts` 7); 88 papo tests.
+- [ ] Task 4's manual run against the real CLI with reasoning on, then `/cost` after a `thinking + text + tool_use` reply (owed; not run in the session that built it).
 - [x] `index.md` updated.

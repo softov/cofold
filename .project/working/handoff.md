@@ -8,6 +8,7 @@ Written for: the next session, cold. Read this, then `.project/plans/index.md`, 
 
 ## Rules the user set this day (follow them before anything else)
 
+   **A decision needs a real fork** (two options that both work, a nameable rejected alternative). A gap against Claude is a finding (`cli/03 F<n>`), fixed in a task and cited by number; a spec requirement is a task step. Neither gets a decision file (user, 2026-09-16, on the former decision 114: "it's not a decision, it's a defect"). A plan lists what it settled without a decision in a second table under *Decisions locked in*.
 1. **Every decision is a file** in `.project/decisions/<slug>.md`; no file, no decision. A plan's table only links them. Each file names its source: the user's answer with the question quoted, a `code://` line, or `(defaulted: ...)` for something the writer chose and the user may erase. Written into `.agents/skills/do-spec/SKILL.md`.
 2. **A decision that conflicts with the work means stop and ask** with `AskUserQuestion`, batched. Never resolve a fork silently, never narrow an outline while writing.
 3. **Claude is contra-validation only.** papo runs on our harness (cli/01) and on the Claude Agent SDK (cli/03); every difference is a finding presumed to be the harness's bug. The harness is never a Claude API call; no `@facio/model-anthropic` ([decision 112](../decisions/no-anthropic-api-adapter.md)).
@@ -18,12 +19,13 @@ Written for: the next session, cold. Read this, then `.project/plans/index.md`, 
 
 | Plan | Status | Next |
 | --- | --- | --- |
-| [agent/01-p5](../plans/agent/01-harness-core-p5-streaming-context-usage/plan.md) | active; tasks 01-04, 06 built; 05, 07, 08 planned | `/dooit` [task-05-streaming.md](../plans/agent/01-harness-core-p5-streaming-context-usage/task-05-streaming.md), then 07, then 08 (F1, F2, F4, F5, F6) |
-| [agent/04-policy-rules](../plans/agent/04-policy-rules/plan.md) | planned (F3: decide(), rules(), denials record, precedence) | task 01; independent of p5 |
-| [cli/04-papo-harness-adoption](../plans/cli/04-papo-harness-adoption/plan.md) | planned (steer and queue, draft, model's view, stop reasons, rules) | task 01 now (needs only p5 task 02, built); 02-04 wait for p5 05-08 and agent/04 |
-| cli/03-papo-claude | active; task 04 (review fixes) todo | unchanged this day |
+| [agent/01-p5](../plans/agent/01-harness-core-p5-streaming-context-usage/plan.md) | built 2026-09-16 (tasks 05, 07, 08 built this day; [implemented.md](../plans/agent/01-harness-core-p5-streaming-context-usage/implemented.md)) | nothing; cli/04 adopts `model.delta`, `contextOf`, the marker, `cost`, the stop reasons |
+| [agent/04-policy-rules](../plans/agent/04-policy-rules/plan.md) | built 2026-09-16 (task 02 built after p5 task 07; [implemented.md](../plans/agent/04-policy-rules/implemented.md)) | nothing; papo's rule lists and the mode set are cli/04 task 04 |
+| [cli/04-papo-harness-adoption](../plans/cli/04-papo-harness-adoption/plan.md) | built 2026-09-16 (tasks 01-04; [implemented.md](../plans/cli/04-papo-harness-adoption/implemented.md), [deferred.md](../plans/cli/04-papo-harness-adoption/deferred.md)) | the terminal runs (LM Studio, the real CLI); the user's word on `deferred.md`'s open rows (`memory_write` by default, the `rules` key, the `steer` name); `pnpm check` 67 files, 761 tests green |
+| cli/03-papo-claude | built; task 04 (review fixes R1-R9) done 2026-09-16, `implemented.md` amended | the manual run on the real CLI with reasoning on (`/cost` after a split reply) is owed |
+| [cli/05-papo-defaults-picker-thought](../plans/cli/05-papo-defaults-picker-thought/plan.md) | built 2026-09-16 (tasks 01-05; [implemented.md](../plans/cli/05-papo-defaults-picker-thought/implemented.md)); textui changed with it (`choices(collected)`, the thought's click and divider, the cursor bar) on the linked checkout | the runs by hand (two providers on the chip, arrowing through a transcript, a thought's click); publish textui 0.6.0; `pnpm check` 67 files, 775 tests green |
 
-Decisions written this day: harness 102-121 (`.project/decisions/`, one file each, titles start with the number) and CLI-04.1-5 (`papo-*.md`). 116-119 are agent/04's; 120-121 came from reading ahpd.
+Decisions on disk after the review of 2026-09-16 (25 files reduced to 12, then CLI-04.6 added: 13): harness 102, 104, 105, 108, 109, 112, 117, 119, 120 and CLI-04.1, CLI-04.2, CLI-04.5, CLI-04.6 (`tool-subject-normalized-path.md`: a path tool's subject is the resolved path; `acceptEdits` is a mode check). The former 103, 106, 107, 110, 111, 113, 114, 115, 116, 118, 121, CLI-04.3, CLI-04.4 were gaps, spec items or scope, and live as task steps and as findings F1-F8 in cli/03's table (numbers 103-121 are not reused).
 
 ## Code changed this day (uncommitted; the user owns git)
 
@@ -33,19 +35,25 @@ Decisions written this day: harness 102-121 (`.project/decisions/`, one file eac
 ## What the next session should do, in order
 
 1. Run `pnpm check` once (the renames were verified per package only).
-2. `/dooit` p5 task 05 (streaming). Its decisions: 102-107. Watch: `toolCall.delta` stays in the adapter union (the user restored it); `DEFAULT_FEATURES.streaming` flips to true.
-3. Then p5 task 07 (usage, decisions 108-110), then task 08 (F1, F2, F4, F5, F6; decisions 113-115, 120, 121).
-4. agent/04 can be built in parallel by another session (no overlap with p5 files except `run/tools.ts` and `types/store.ts`; coordinate the `tally()` helper that both p5 task 07 and agent/04 task 02 introduce; whoever is second reuses it).
-5. cli/04 task 01 can be built now; the rest after the harness tasks.
+2. p5 task 05 (streaming): built 2026-09-16. `toolCall.delta` is in the union, `DEFAULT_FEATURES.streaming` is true, `model.delta` carries `kind`.
+3. p5 task 07 (usage, cost, `maxCost`, `tally()`) and task 08 (F1, F2, F4, F6, F7): built 2026-09-16; the plan is `built`.
+4. agent/04 is built: task 02 extended p5's `tally()` with `denials` (`run/turn.ts`, `run/tools.ts` `deny(reason, by)`).
+5. cli/04 is built (tasks 01-04, 2026-09-16); `@facio/tools`' file tools changed their `subject` with it (CLI-04.6). What waits is in its `deferred.md`.
 
 ## Things found and not yet acted on
 
 - `list_files` / `search_files` take a `pattern`, not a path; decision 117 says so.
-- The harness's `cancel` before `resume()` has read the run still detaches (decision 120 covers the awaiting case only; documented in p5 task 08 step 4).
+- The harness's `cancel` before `resume()` has read the run still detaches (decision 120 covers the awaiting case only; documented in p5 task 08 step 5). papo's `cancel` (cli/04 task 03) cancels the handle `handleFor` returns, which for a session left by another process is a fresh `resume()`; in the tests the deny lands, since `waitForCommand` checks the abort flag when it installs its listener.
+- papo's Claude backend `cancel` on a pending decision denied it and let the turn go on; ahpd denies and interrupts. Fixed in cli/04 task 03 (the backend and the fake SDK); the real CLI was not run.
 - The p2/p3 plan files were removed when they shipped, so decisions 46-94 exist only as numbers in code comments and in the parent plan's table; the user knows and did not ask for a backfill.
+- cli/03 F8 answered (user, 2026-09-16) and built in cli/04 task 04: papo's permission modes are Claude's `default | acceptEdits | bypassPermissions | dontAsk` over `decide()`, `ToolEffects` and `rules()`; `plan` waits for a later plan after agent/03; `auto` is not offered. Open for the user (cli/04 `deferred.md`): whether `memory_write` should be allowed by default (it asks under `default` now; Claude writes its own memory unasked), the config key `rules` next to `permissions` (defaulted), the `steer` part name.
+- cli/04's queue is in memory (CLI-04.1, user 2026-09-16), not kv as first drafted; task 01 says so.
+  A message queued while the session is idle starts at once (user, 2026-09-16, "Start at once when idle"; CLI-04.1 amended, built 2026-09-16 with task 02).
 
 ## How to verify what this handoff claims
 
 - `git status` in `f:\github\facio` shows the modified and new files listed above.
-- `ls .project/decisions` shows 25 files.
-- `rg -n "requireApproval" packages` shows the three consumers agent/04 task 01 moves.
+- `ls .project/decisions` shows 13 files.
+- `rg -n "requireApproval" packages examples docs` finds nothing (agent/04 task 01 moved the three consumers to `decide`).
+- `pnpm check` is green: 67 test files, 761 tests (2026-09-16, run three times after cli/04 closed).
+- `rg -n "cli/03 F[0-9]" .project` shows every place a finding is cited; `rg -n "decision 1(0[367]|1[013456]|18|21)\b" .project packages` should find nothing (those numbers are retired).

@@ -11,4 +11,4 @@ Left out on purpose; each has a home.
 | one `/compact` per backend (`commands()` from `supportedCommands()`) | the harness has no command concept | [agent/03 task 07](../../agent/03-slash-commands/task-07-claude-backend.md) |
 | subagent transcripts | skipped in the projection; no UI for them | unplanned |
 | Claude's hooks and MCP configuration from papo | the CLI reads its own settings; papo adds nothing | unplanned |
-| findings F1-F4 against the harness | each is a harness change to check | agent/01-p5 (F1, F2, F4); agent/04-policy-rules (F3) |
+| findings F1-F8 against the harness | each is a harness or papo change to check; the table in `plan.md` says where each went | agent/01-p5 task 08 (F1, F2, F4, F6, F7); agent/04 (F3); cli/04 (F1 view, F6 papo side, F8 `always`); F8 modes in cli/04 task 04 |

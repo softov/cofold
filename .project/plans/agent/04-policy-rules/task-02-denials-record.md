@@ -1,6 +1,6 @@
 ---
 title: Every denial is on the run record and the outcome
-status: todo
+status: done
 depends: [task-01-decide-and-precedence.md]
 layer: agents
 refs:
@@ -16,7 +16,7 @@ refs:
 
 ## Objective
 
-`RunRecord.denials` lists every refused call with why and by whom, and every outcome carries the same list ([118](../../../decisions/run-record-denials.md)).
+`RunRecord.denials` lists every refused call with why and by whom, and every outcome carries the same list (cli/03 F3; Claude's `permission_denials` is "the authoritative record").
 
 ## Files
 
@@ -35,7 +35,7 @@ refs:
 1. `types/store.ts`:
 
    ```ts
-   /** One refused tool call (decision 118). `by` says who refused: the policy, a hook, the person, the validator or a limit. */
+   /** One refused tool call (cli/03 F3). `by` says who refused: the policy, a hook, the person, the validator or a limit. */
    export interface Denial { callId: string; name: string; input: unknown; reason: string; by: 'policy' | 'hook' | 'user' | 'invalid' | 'limit' }
    ```
 
@@ -55,3 +55,19 @@ refs:
 
 ## Resume
 
+Built 2026-09-16, after agent/01-p5 task 07 (its `tally()` is reused, not re-introduced).
+
+- Contracts: `types/store.ts` `Denial { callId, name, input, reason, by }`, `RunRecord.denials: Denial[]` (required; `runs.create` starts it at `[]`), `runs.update({ denials? })`; `types/outcome.ts` `RunTally.denials?: Denial[]`, so every `RunOutcome` variant carries it through the one intersection p5 task 07 introduced; `types/turn.ts` `ToolCallDeps.denied(denial)`, `TurnContext.counters.denials`.
+- `run/tools.ts`: `deny(reason, by)` records through `deps.denied` before `tool.denied`; `invalid` for an unknown tool, arguments that are not JSON, a schema failure and a failed hook modify; `hook` for the hook's deny and stop; `policy` for a `deny` decision.
+- `run/turn.ts`: `deps.denied` pushes into `counters.denials`; the `max_tool_calls` branch records `by: 'limit'` with the reason the model reads (`Tool call limit reached`); `applyResolved` records `by: 'user'` for a denied approval (`command.reason ?? 'Denied by the user'`, the input from the request payload) and a declined question (the decline text); `tally()` returns `{ usage, steps, cost?, denials }` with a copy of the list; `finishRun` and `pause` pass it to `runs.update`.
+- `run/run.ts`: counters start with `denials: []`, `runs.create` writes `denials: []`, the setup-failure outcome carries `denials: []`. `run/resume.ts`: `countersOf` returns a copy of `record.denials` for both the paused and the dead run; the three detached failure outcomes carry `record.denials` (and `record.cost` when present).
+- Stores: `store/memory.ts` and `store-file/src/store.ts` `update` write `denials` when given; the file store's `readRun` fills `denials: []` for a `run.json` written before this task. Conformance gained "persists denials: [] from create, the list written by update", proven on both stores; the `runRecord` helpers of the conformance suite and `store-file/src/store.test.ts` default `denials: []`.
+- Tests: `run/denials.test.ts` (6: validator, hook, policy and limit refusals in order with the right `by` on the outcome and the record; a raw non-JSON call; a hook stop; the person's deny through `resume()` with the outcome, the record and a later `resume()` agreeing; a declined input; no refusal records `[]` and a paused run's list is carried on); `contracts.test-d.ts` gained the `Denial['by']` / `RunRecord.denials` / `RunTally.denials` case; `run/tools.test.ts` (`setup()` supplies `denied` and exposes `denials`), `run/resume.test.ts` and `run/cost.test.ts` adjusted for the required field and the outcome shape.
+- README: `@facio/agents` (the denial record under the loop description; `deny` records `by: 'user'`).
+
+Evidence: full `pnpm check` green on 2026-09-16 (67 test files, 745 tests, no type errors); `@facio/agents` alone 20 files, 200 tests.
+
+Deviations and findings:
+- `packages/agents/src/run/tools.test.ts` (agent/04 task 01's file) and `packages/papo/src/turns.test.ts:15` each needed `denials` added to a literal that builds the changed contract (`ToolCallDeps`, `RunRecord`); nothing else in papo changed.
+- The user's deny of an approval records the request payload's input (the validated call input), not `call.input`, so an edited input shows what was refused.
+- A refusal's `input` for a call whose arguments were not JSON is `undefined`, as `ToolCallPart.input` is; the record keeps the reason.

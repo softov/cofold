@@ -58,6 +58,7 @@ To close a plan: every task `done` or `dropped`, `implemented.md` written, `defe
 
 - A decision that replaces another is a new file with `supersedes`; the old one gets `status: superseded` and `superseded-by`, body untouched; rules and specs that pointed at the old one move to the new one unless the old rationale still holds.
 - Every decision is a file in `.project/decisions/` from the moment it is made; no file, no decision. A plan's *Decisions locked in* table only links them (`[<title>](../../decisions/<slug>.md)`) and a row without a file is not a decision. The file names its source: the user's answer with the question quoted, a `code://` line, or `(defaulted: ...)` when the writer chose and the user may erase it.
+- A decision needs a fork: two options that both work and a nameable rejected alternative (the `Options` section). A gap against the reference (Claude's runtime, decision 112) is a finding in cli/03's table, fixed in a task and cited as `cli/03 F<n>`; a spec requirement is a task step; scope is the plan's intro. None of these gets a decision file. What a plan settled without a decision goes in a second table under *Decisions locked in* (`What | Source | Task`).
 - A rule restating another is removed, not added. To retire one: `status: retired` and one line at the top saying why.
 - A spec is corrected in place when behaviour changes; if the change contradicts a listed decision, a new decision comes first.
 

@@ -1,6 +1,6 @@
 ---
 title: rules() builds a Policy from allow, ask and deny lists; a tool names its subject
-status: todo
+status: done
 depends: [task-01-decide-and-precedence.md]
 layer: agents
 refs:
@@ -48,7 +48,7 @@ refs:
      deny?: Rule[];
      ask?: Rule[];
      allow?: Rule[];
-     /** Decides when no rule matches; default: ask when destructive, allow otherwise (decision 116). */
+     /** Decides when no rule matches; default: ask when destructive, allow otherwise (task 01). */
      otherwise?: Policy['decide'];
    }
    ```
@@ -88,4 +88,9 @@ refs:
 - `pnpm --filter @facio/agents typecheck` and `rules.test.ts`.
 
 ## Resume
+
+- **Done (2026-09-16):** `ToolDefinition.subject?(input)` after `effects` in `types/tool.ts` (`createTool`'s spread carries it, no copy needed); `types/policy.ts` with `Rule` and `RulesOptions`, exported from `types/index.ts`; `policy/rules.ts` with `DEFAULT_DECIDE`, `matchGlob()` and `rules()`; `create-agent.ts` imports `DEFAULT_DECIDE` from `policy/rules.js` (one home for the default, no `policy/default.ts`); `index.ts` exports `rules` and `matchGlob`; README gained a "Rules" section.
+- **Evidence:** `rules.test.ts` 10 tests green (glob: `rm *` vs `rm -rf /` and `ls`, anchoring, `?`, regex metacharacters, empty pattern, `*` across newlines; lists: deny before ask before allow, name-only rule, `*` tool, `match` on a tool without `subject` never matches, `otherwise` gets the same args and is not called when a rule matched, the default `otherwise` asks for a destructive tool; `createTool` keeps `subject`); `tools.test.ts` 20 and `create-agent.test.ts` 4 still green. `tsc -p tsconfig.test.json` reports errors only in `src/testing/fake-model.ts`, another session's in-progress edit (agent/01-p5 task 05); none in the files of this task.
+- **Deviations:** `matchGlob` is exported from the package too (the plan exports `rules` only): a host that wants to test its own rule lists against a subject needs the same dialect; no second definition. The deny reason reads `Denied by rule: <tool>(<match>)`, as in the plan's code block.
+- **Found:** nothing the plan did not know.
 

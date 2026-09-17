@@ -1,6 +1,6 @@
 ---
 title: Streaming
-status: todo
+status: done
 depends: [task-04-provider-effort-levels-budgets-dynamic.md]
 layer: agents
 refs:
@@ -41,7 +41,7 @@ A stream that ends early fails the step; no partial tool call is ever validated 
 
 ## Steps
 
-1. Contracts (decisions 103, 105). In `types/model.ts`:
+1. Contracts (decision 105; the `model.delta` shape follows the harness spec). In `types/model.ts`:
 
    ```ts
    /**
@@ -68,7 +68,7 @@ A stream that ends early fails the step; no partial tool call is ever validated 
 
    In `types/event.ts`: `| { type: 'model.delta'; step: number; kind: 'text' | 'reasoning'; text: string }`.
 
-2. The loop (decisions 102, 104, 106). In `run/turn.ts`, replace lines 202-210 (`let reply: ModelReply; try { reply = await agent.model.complete(request); } catch ...`) with a call to a new function and keep the catch as it is:
+2. The loop (decisions 102, 104; an early end fails the step per the harness spec). In `run/turn.ts`, replace lines 202-210 (`let reply: ModelReply; try { reply = await agent.model.complete(request); } catch ...`) with a call to a new function and keep the catch as it is:
 
    ```ts
    let reply: ModelReply;
@@ -104,7 +104,7 @@ A stream that ends early fails the step; no partial tool call is ever validated 
    6. `compact()` on a streaming fake: no `model.delta` (the summary step does not stream).
    7. A `resume()` on a finished streamed run replays the deltas in order (decision 102).
 
-5. openai-compat SSE (decision 107). `sse.ts`:
+5. openai-compat SSE (own parser: zero deps, parent decision 6). `sse.ts`:
 
    ```ts
    /** SSE per the WHATWG spec: `data:` lines joined with '\n' per event, `event:` kept, comments skipped; the reader is released on return. */
@@ -129,7 +129,7 @@ A stream that ends early fails the step; no partial tool call is ever validated 
 
    Rules: `delta.reasoning` / `delta.reasoning_content` → `reasoning.delta`; each `tool_calls` fragment → one `toolCall.delta { index, callId?, name?, arguments }` as received; `delta.content` → `text.delta`, except that while no reasoning field has been seen, a leading `<think>` (after optional whitespace) switches the splitter to reasoning until `</think>`, and the text after it resumes as `text.delta` (same result as `fromWireResponse`'s `THINK_BLOCK`); the splitter buffers at most the bytes needed to decide whether `<think>` is starting. `tool_calls` fragments append `function.arguments` per `index`; `id` and `function.name` are taken from the first fragment that carries them. `usage` arrives on the last chunk with `stream_options: { include_usage: true }` (OpenRouter and LM Studio); without it, `ZERO_USAGE`-shaped usage. `done.reply` is built by the same rules as `fromWireResponse` (parts order: reasoning, text, tool calls; `input` parsed from the accumulated arguments, `undefined` when not JSON; `finish` via `mapFinish`); `raw` is the list of chunks. `data: [DONE]` ends the stream; a stream that ends without a `finish_reason` still yields `done` (LM Studio sends `[DONE]` after a finished choice; a truly cut connection throws from the reader and no `done` is yielded).
 
-   `index.ts`: `DEFAULT_FEATURES.streaming` becomes `true`. `sendStream(url, body, signal)` shares the attempt loop with `send` up to the response check: connection errors and retryable statuses before the body are retried per decision 32; once the body is being read nothing is retried (decision 106). It returns `res.body` (or throws `invalid_response` when there is none). The adapter's `stream(request)` sends the same body as `complete` plus `stream: true, stream_options: { include_usage: true }` and yields `streamChunks(parse(parseSse(res.body)))`, where a non-JSON `data` line throws `invalid_response`. A reader error while streaming becomes `ModelError { code: 'network' }` (or `aborted` when the signal is aborted).
+   `index.ts`: `DEFAULT_FEATURES.streaming` becomes `true` (decision 104). `sendStream(url, body, signal)` shares the attempt loop with `send` up to the response check: connection errors and retryable statuses before the body are retried per decision 32; once the body is being read nothing is retried (harness spec: no partial call executed on retry). It returns `res.body` (or throws `invalid_response` when there is none). The adapter's `stream(request)` sends the same body as `complete` plus `stream: true, stream_options: { include_usage: true }` and yields `streamChunks(parse(parseSse(res.body)))`, where a non-JSON `data` line throws `invalid_response`. A reader error while streaming becomes `ModelError { code: 'network' }` (or `aborted` when the signal is aborted).
 
 6. Tests: `sse.test.ts` (multi-line data, comments, CRLF line ends, an event split across reads, `[DONE]`); `stream.test.ts` (text in three chunks; a tool call whose arguments span four chunks with `id`/`name` only on the first; two parallel tool calls interleaved by index; `reasoning_content` deltas then text; inline `<think>` split at chunk boundaries including `<thi` + `nk>`; usage on the last chunk; no usage → zeros). `index.test.ts` gains: `stream()` sends `stream: true` and `stream_options`; a 429 before the body is retried, an error mid-body is not; abort mid-stream → `aborted`.
 
@@ -141,3 +141,21 @@ A stream that ends early fails the step; no partial tool call is ever validated 
 
 ## Resume
 
+Built 2026-09-16.
+
+- Contracts: `types/model.ts` has `ModelStreamEvent` (`text.delta | reasoning.delta | toolCall.delta | done`, decision 105) and `ModelAdapter.stream?`; `types/event.ts` `model.delta` carries `kind: 'text' | 'reasoning'`; `types/contracts.test-d.ts` proves the union has exactly the four kinds.
+- Loop: `run/turn.ts` `callModel(ctx, request)` streams when `agent.model.stream` exists and `features.streaming` is true (decision 104), emits one persisted `model.delta` per text or reasoning fragment before reading the next (decision 102), skips `toolCall.delta`, returns `done.reply`; a stream that ends without `done` throws `ModelError('invalid_response')`, which the existing catch turns into a failed step and a failed run. `writeSummary` in `run/compact.ts` is untouched and keeps calling `complete()`.
+- Fake model: `FakeStep` text steps gained `reasoning?`, `chunks?`, `interrupt?`; tool steps gained `reasoning?` (needed so the streamed and the whole reply match); `createFakeModel({ stream: true })` adds `stream()` and sets `features.streaming`. Default behaviour is unchanged (no `stream`, `streaming: false`).
+- `run/stream.test.ts`: the seven planned cases plus `features: { streaming: false }` on a streaming fake (8 tests).
+- openai-compat: `src/sse.ts` `parseSse` (own WHATWG parser: multi-line data, comments, CR / LF / CRLF, splits across reads, trailing event, cancels the body when the consumer stops early); `src/stream.ts` `parseChunks` (`[DONE]`, non-JSON is `invalid_response`) and `streamChunks` (text as it arrives, `<think>` splitter that buffers only the bytes needed to decide, reasoning fields, tool-call fragments accumulated by index and whole only in `done`, usage from the chunk that carries it); `src/index.ts` `attempt()` is the shared retry loop, `send()` and `sendStream()` sit on it, `bodyOf(request)` is the shared body, `stream()` on the adapter sends `stream: true, stream_options: { include_usage: true }`, `DEFAULT_FEATURES.streaming: true` (decision 104); `usageOf` and `mapFinish` exported from `wire.ts` so both forms share them; `types/wire.ts` `WireChunk`.
+- Tests: `sse.test.ts` (8), `stream.test.ts` (13), `index.test.ts` gained a `stream()` block (7: default features, gates before fetch, non-JSON payload, 429 before the body retried, error mid-body not retried and no `done`, abort mid-stream, no body).
+- READMEs: `@facio/agents` (`model.delta` in the handle list, when a step streams, fake `stream: true`, `ModelAdapter.stream`), `@facio/model-openai-compat` (intro, `features` default, a streaming behaviour line), `examples/agents/README.md`; `examples/agents/lmstudio-tools.ts` prints `model.delta` text as it arrives.
+
+Evidence: `pnpm --filter @facio/agents build` and `typecheck` green; `vitest --project @facio/agents` 17 files, 166 tests; `vitest --project @facio/model-openai-compat` 4 files, 66 tests; `@facio/store-file` and `@facio/tools` green against the new build; examples typecheck green. Not run against a live LM Studio (manual check left to the user).
+
+Deviations and findings:
+- `SseEvent` lives in `packages/model-openai-compat/src/types/sse.ts`, not in `sse.ts` (rule: exported types live in `src/types/`); `parseSse` is not exported from the package entry (the plan did not ask for it).
+- `parseSse` cancels the body when the consumer stops before the stream ends (the plan said "the reader is released"); without it a connection stays open until the server closes it.
+- Erroring a `ReadableStream` in `start()` drops what is still queued (Streams spec), so the "error mid-body" tests enqueue on the first `pull()` and error on the second.
+- An unterminated inline `<think>` stays reasoning in the streamed form, where `fromWireResponse`'s regex would have left everything as text; deltas already published cannot be reclassified. Noted in `stream.ts`.
+- `mapFinish` now accepts `null` (a chunk's `finish_reason` is `null` until the last one).

@@ -1,6 +1,6 @@
 ---
 title: Usage accounting
-status: todo
+status: done
 depends: [task-05-streaming.md]
 layer: agents
 refs:
@@ -45,7 +45,7 @@ Pricing lives on the adapter, taken from the provider's catalogue or given by th
 
 ## Steps
 
-1. Contracts (decisions 108-110). In `types/model.ts`:
+1. Contracts (decisions 108, 109; `maxCost` per the harness spec). In `types/model.ts`:
 
    ```ts
    export interface Usage {
@@ -70,7 +70,7 @@ Pricing lives on the adapter, taken from the provider's catalogue or given by th
 
    `ModelAdapter` gains `/** Absent means unknown: no cost is recorded and maxCost never trips (decision 108). */ pricing?: ModelPricing;`.
    `types/provider.ts`: `ModelInfo.pricing?: ModelPricing` and `model(args: { id: string; features?: Partial<ModelFeatures>; params?: ModelParams; pricing?: ModelPricing }): ModelAdapter`.
-   `types/limits.ts`: `/** USD per run; 0 = no limit (decision 110). */ maxCost: number;` with `DEFAULT_LIMITS.maxCost: 0`.
+   `types/limits.ts`: `/** USD per run; 0 = no limit (harness spec: cost limits enforced by the runtime). */ maxCost: number;` with `DEFAULT_LIMITS.maxCost: 0`.
    `types/outcome.ts`: `StopReason` gains `'max_cost'`; each `RunOutcome` variant gains `cost?: number` after `usage`.
    `types/store.ts`: `RunRecord.cost?: number` after `usage`; `update(args: ... & { cost?: number })`.
 
@@ -114,3 +114,21 @@ Pricing lives on the adapter, taken from the provider's catalogue or given by th
 
 ## Resume
 
+Built 2026-09-16.
+
+- Contracts: `types/model.ts` `Usage.cacheWriteTokens?`, `ModelPricing`, `ModelAdapter.pricing?` (decision 108); `types/provider.ts` `ModelInfo.pricing?: ModelPricing`, `model({ id, features?, params?, pricing? })`; `types/limits.ts` `maxCost` with `DEFAULT_LIMITS.maxCost: 0`; `types/outcome.ts` `StopReason` `'max_cost'` and `RunTally { usage, steps, cost? }`, which every `RunOutcome` variant intersects; `types/store.ts` `RunRecord.cost?`, `runs.update({ cost? })`; `types/turn.ts` `counters.cost: number | undefined`.
+- `model/cost.ts` `costOf(usage, pricing)` per decision 109 (cache reads and writes taken out of `inputTokens`, priced at their rates or the input rate, micro-dollar rounding); `addUsage` carries `cacheWriteTokens`; `costOf` exported from the package entry.
+- Loop: `run/turn.ts` `tally(ctx): RunTally` (exported) is what every outcome literal, `fail()`, `abortOutcome()`, `finishRun`'s and `pause`'s `runs.update` spread; cost accumulates after `addUsage` in `turn.ts` and `compact.ts`'s `writeSummary`; the `maxCost` check sits after the `maxSteps` check at the loop top. `run/run.ts` initialises `counters.cost` to `0` with pricing and `undefined` without (and the setup-failure outcome carries `cost: 0` when pricing is known). `run/resume.ts` `countersOf(record, steps, pricing)` carries a paused run's `record.cost` on and recomputes a dead run's from the step log's replies.
+- Stores: `store/memory.ts` and `store-file/src/store.ts` `update` write `cost` when given; the conformance suite gained "persists cost only when it is given" (absent stays absent, `0.0123` round-trips, a record created with `cost` reads back equal); it ran against both stores.
+- openai-compat: `openaiCompat({ pricing })` and `provider.model({ id, pricing })` set `adapter.pricing`; `fromWireModel` maps `input_cache_read` / `input_cache_write` (field names verified against the live `GET https://openrouter.ai/api/v1/models` on 2026-09-16, USD per token as decimal strings) to `cacheReadPerMillion` / `cacheWritePerMillion` when finite; `WireModel.pricing` and `OpenAICompatOptions.pricing` typed.
+- Fake model: `createFakeModel({ pricing })`.
+- Tests: `run/cost.test.ts` (11: `costOf` x4, `DEFAULT_LIMITS.maxCost`, two-step sum on outcome / event / record, no pricing means no cost and `maxCost` never trips, `maxCost` stop after the crossing step with the next never started, paused run carries cost through `resume()`, dead run recomputed from the step log, `compact()` cost); `contracts.test-d.ts` gained the tally / pricing / `max_cost` case; `index.test.ts` gained the catalogue cache rates and the `pricing` pass-through case; the conformance case above.
+- READMEs: `@facio/agents` (outcome `cost`, `maxCost`, pricing on the adapter, `costOf` in the layout), `@facio/model-openai-compat` (`listModels()` cache rates, `pricing` option), `examples/agents/README.md` (`FACIO_PRICING_IN` / `FACIO_PRICING_OUT`); `examples/agents/lmstudio-tools.ts` passes them as `pricing` and prints `usage` and `cost`.
+
+Evidence: `@facio/agents` build and typecheck green; `vitest --project @facio/agents` 18 files, 178 tests; `@facio/model-openai-compat` 4 files, 67 tests; `@facio/store-file` (28 in `store.test.ts`), `@facio/tools`, `@facio/papo` tests green against the new build (15 files, 144 tests); examples typecheck green. Not run against a live server (manual).
+
+Deviations and findings:
+- `RunTally` is a named interface in `types/outcome.ts` that every outcome variant intersects, instead of `cost?: number` repeated in five literals: one definition, and agent/04 task 02 extends it in one place.
+- `countersOf` takes the adapter's pricing as a parameter (it is a module-level function without access to the agent).
+- `run.ts`'s setup-failure outcome carries `cost: 0` when the adapter has pricing (nothing was spent and the price is known); the plan did not mention that literal.
+- `packages/papo` typecheck fails on `Snapshot.queued` (`src/claude/chat.ts`, `src/turns.test.ts`); that is cli/04 task 01 in progress in another session, not this contract. papo's tests pass.

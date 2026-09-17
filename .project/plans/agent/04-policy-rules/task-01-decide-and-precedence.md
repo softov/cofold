@@ -1,6 +1,6 @@
 ---
 title: The policy decides allow, ask or deny, and a deny beats the hook
-status: todo
+status: done
 depends: []
 layer: agents
 refs:
@@ -13,7 +13,7 @@ refs:
 
 ## Objective
 
-`Policy.decide` answers `allow`, `ask` or `deny` per call ([116](../../../decisions/policy-decides-allow-ask-deny.md)); `handleToolCall` applies it after the hook with Claude's precedence ([119](../../../decisions/policy-deny-overrides-hook.md)).
+`Policy.decide` answers `allow`, `ask` or `deny` per call (cli/03 F3); `handleToolCall` applies it after the hook with Claude's precedence ([119](../../../decisions/policy-deny-overrides-hook.md)).
 
 ## Files
 
@@ -29,11 +29,11 @@ refs:
 1. `types/agent.ts`:
 
    ```ts
-   /** What the policy says about one call (decision 116). `reason` is what the model and the person read on a deny. */
+   /** What the policy says about one call (cli/03 F3). `reason` is what the model and the person read on a deny. */
    export interface PolicyDecision { behavior: 'allow' | 'ask' | 'deny'; reason?: string }
 
    /**
-    * The run-level authorization policy (decisions 46, 116, 119). A hook runs first and may raise a call to `ask`
+    * The run-level authorization policy (decisions 46, 119; cli/03 F3). A hook runs first and may raise a call to `ask`
     * or refuse it; the policy then decides on the possibly modified input, and its `deny` wins over the hook.
     */
    export interface Policy {
@@ -41,7 +41,7 @@ refs:
    }
    ```
 
-   `AgentOptions.policy?: Partial<Policy>` keeps its shape; its comment becomes `/** Default: ask when tool.effects.destructive is true, allow otherwise (decision 116). */`.
+   `AgentOptions.policy?: Partial<Policy>` keeps its shape; its comment becomes `/** Default: ask when tool.effects.destructive is true, allow otherwise (cli/03 F3). */`.
 
 2. `create-agent.ts`: `const DEFAULT_POLICY: Policy = { decide: ({ tool }) => ({ behavior: tool.effects.destructive === true ? 'ask' : 'allow' }) };`.
 
@@ -77,4 +77,9 @@ refs:
 - `pnpm --filter @facio/agents typecheck` and the two test files; `pnpm check` is green only after task 04 (papo's `policyOf` compiles against `decide`).
 
 ## Resume
+
+- **Done (2026-09-16):** `Policy { decide }` and `PolicyDecision { behavior, reason? }` in `types/agent.ts`; `DEFAULT_POLICY.decide` in `create-agent.ts` (`ask` when destructive, else `allow`); `handleToolCall` restructured around one `decision` after the hook (hook `deny`/`stop` end first; a policy `deny` returns through the `deny` helper with `reason ?? "Denied by policy: <tool>"`; `ask` or a hook `approval` consults the remembered approval; `allow` executes).
+- **Evidence:** `pnpm --filter @facio/agents build` and `typecheck` clean; `tools.test.ts` 20 tests (6 new precedence cases: deny over hook allow, deny without reason, deny over remembered approval, ask over hook allow, allow leaves hook approval with prompt, policy sees the modified input), `create-agent.test.ts` 4 tests, `contracts.test-d.ts` 15 tests (new: `keyof Policy` is exactly `decide`; `behavior` is the three values); all green.
+- **Deviation:** papo's `policyOf` (task 04 step 2, exact code) was moved to `decide` in this task, because the plan's Risks say the three consumers move in the same change and leaving `@facio/papo` not compiling would block the agent editing papo in parallel; `pnpm --filter @facio/papo typecheck` clean. Task 04 keeps the rest of its scope.
+- **Found:** `requireApproval` had no mention in `examples/agents/**` or `docs/agents/**`; `examples/agents/pause-resume.ts:21` says "policy floor: approval required" in a comment, still true in behavior (destructive → `ask`), left as is. No `Denial` record yet: task 02.
 

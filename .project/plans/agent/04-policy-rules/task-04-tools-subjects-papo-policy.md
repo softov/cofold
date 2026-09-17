@@ -1,6 +1,6 @@
 ---
 title: The standard tools declare their subjects; papo's permission mode maps to decide()
-status: todo
+status: done
 depends: [task-03-rules-and-subject.md]
 layer: tools
 refs:
@@ -12,7 +12,7 @@ refs:
 
 ## Objective
 
-Rules can name what `@facio/tools`' tools act on, and papo compiles and behaves as before on `decide()` ([117](../../../decisions/rules-are-harness-data.md), [116](../../../decisions/policy-decides-allow-ask-deny.md)).
+Rules can name what `@facio/tools`' tools act on, and papo compiles and behaves as before on `decide()` ([117](../../../decisions/rules-are-harness-data.md); `decide()` per cli/03 F3).
 
 ## Files
 
@@ -39,7 +39,7 @@ Rules can name what `@facio/tools`' tools act on, and papo compiles and behaves 
    }
    ```
 
-   Rule lists in papo's config (`permissions.rules`) are a `cli` plan, not this task.
+   This `policyOf` keeps papo's three modes compiling; cli/04 task 04 replaces them with Claude's four (cli/03 F8) and adds the rule lists. Not this task.
 
 3. Tests: `chat.test.ts`'s permission scenarios (`read_file` answers, `shell_exec` asks under `destructive` and runs under `auto`) pass unchanged.
 
@@ -49,4 +49,10 @@ Rules can name what `@facio/tools`' tools act on, and papo compiles and behaves 
 - papo over `@facio/agents`: `permissions: ask` asks for `read_file`; `destructive` asks for `shell_exec` only; `auto` asks nothing (manual, or the existing `chat.test.ts` scenarios).
 
 ## Resume
+
+- **Done (2026-09-16):** `subject` next to `effects` on `shell_exec` (the `command`), `read_file`, `write_file`, `edit_file` (the `path`), `list_files`, `search_files` (the `pattern`); the memory and web tools declare none. One `subject` assertion per tool in `files.test.ts` and `shell.test.ts`. papo's `policyOf` on `decide` was already moved in task 01 (same code as step 2 here, with the comment that cli/04 task 04 replaces the three modes). READMEs: `@facio/tools` names the subjects (files paragraph and the `shell()` section), `@facio/papo` says each mode is one `decide` answer and rule lists are not in its configuration yet.
+- **Evidence:** `pnpm --filter @facio/tools typecheck` clean; `files.test.ts` 8 tests, `shell.test.ts` 6 tests green; papo `chat.test.ts` 13 tests green unchanged (`read_file` answers, `shell_exec` asks under `destructive` and runs under `auto`; `auto` runs a destructive tool without asking and `ask` asks for everything). `@facio/agents` and `@facio/papo` `tsc` report errors only in `src/testing/fake-model.ts` and `src/claude/chat.ts`, other sessions' in-progress edits; the dist still emits (no `noEmitOnError`), so the cross-package tests ran against the new types.
+- **Deviations:** none beyond the task 01 pull of `policyOf`.
+- **Found:** nothing the plan did not know.
+
 

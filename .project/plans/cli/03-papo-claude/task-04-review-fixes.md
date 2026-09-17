@@ -1,6 +1,6 @@
 ---
 title: The review's fixes - counting, API errors, the CLI's ask options, durable settings
-status: todo
+status: done
 depends: [task-03-wiring-contract.md]
 layer: papo
 refs:
@@ -43,4 +43,20 @@ A reply split across several stored entries counts once; an API error is a faile
 - `pnpm check`; the manual list of `implemented.md` with reasoning on, then `/cost` after a `thinking + text + tool_use` reply.
 
 ## Resume
+
+- **Done (2026-09-16):** every file in *Files* changed as written.
+  `ClaudeMessage.id`, `ClaudeDecision.title` and `suppressAlways`; `projectSession` counts a reply once by `message.id` (`counted` beside `calls`); `outcomeOf` maps `success` with `is_error` to `failed { code: 'api_error' }`; the callback carries `title` and `suppressAlwaysAllowRule`; `pendingOf` shows the CLI's sentence and withholds `always`; `approval()` rewrites every suggestion to `destination: 'session'`; `ended` records nothing for a session this service let go of; `handle` drops a uuid `seen` already holds; `snapshot` reads one file (title from the first input that is not the compaction marker, dates from the first and last timestamps); `sessions` sorts with `localeCompare`; settings live in `createFileStore({ root: home }).kv({ kind: 'workspace', workspace })` under `settingsKey`, now exported from `src/chat.ts` so both backends share the one key, and are deleted in `remove`.
+  `ClaudeChatOptions` moved to `src/types/chat.ts` (the rule: exported interfaces live in `types/`) and gained `home`; `openPapo` passes it.
+  `papo say` loops `while (awaiting && backend === 'claude')`.
+  The fake stores and streams one entry per block sharing a `message.id`, echoes the prompt on the stream under the client's uuid, writes its store at the result (as the CLI does, F5), takes `title` and `suppressAlways`, answers `{ apiError }` as `success` with `is_error`, records every `PermissionResult` in `decisions`, and `then` may be a second ask (`FakeToolReply`), which is how a turn that stops twice is scripted.
+  Fixture `claude/fixtures/split-reply.json`: one reply over `thinking`, `text`, `tool_use` entries sharing `msg_01SplitReplyAcrossEntries`, its tool result, and a second one-entry reply.
+- **Evidence:** `pnpm vitest run --project @facio/papo`: 8 files, 88 tests green (was 81); `project.test.ts` 7, `claude/chat.test.ts` 18, `chat-contract.test.ts` 16, `commands.test.ts` 7.
+  The split reply alone gives `steps: 1` and `usage { 29263, 212 }`; with the second reply `steps: 2`, `usage { 58620, 230 }`.
+  `pnpm --filter @facio/papo typecheck` clean.
+- **Deviations:** `ended` does not merely return when the entry was let go of: it settles the turn `cancelled` (reason `the session was removed`) so a `wait()` on it resolves instead of hanging; it records no error, which is what the step asked for.
+  `sessions()` adds the sessions live here that `listSessions` does not return yet: once the fake wrote its store at the result, as the CLI does, a session started here was absent from the catalogue until its first result ended (a real gap the old fake hid); the row is read off `seen`.
+  The split fixture holds a second, one-entry reply after the tool result, as a real session does; the test asserts `steps: 1` on the first five entries and `steps: 2` on the whole.
+- **Found, not acted on:** the SDK's `defaultToNo` (the ask must not be approvable by one keystroke) is not read; papo's block has no such affordance to withhold.
+  `shortTitle` was split out of `titleOf` in `src/turns.ts` so both backends shorten a title the same way.
+- **Manual run against the real CLI** (the last line of *Validation*): not done in this session; the fake's stream and store shapes are the ones recorded from real sessions (fixtures) and the SDK's types.
 

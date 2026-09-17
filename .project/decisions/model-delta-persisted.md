@@ -9,18 +9,21 @@ refs:
 
 ## Context
 
-A streamed answer produces many small deltas. Decision 61 says every event takes the next seq, is stored and replayed by `resume()`; deltas could have been an exception.
+A streamed answer is many small deltas.
+Decision 61 gives every event the next seq, stores it and replays it in `resume()`; deltas could have been the one exception.
 
 ## Decision
 
-`model.delta` events are persisted and replayed like every other event. No separate live-only channel, no coalescing.
+`model.delta` events are persisted and replayed like every other event: no live-only channel, no coalescing.
 
 Source: user, 2026-09-16, asked "Persist every delta / Live only, no seq / Coalesce per step".
 
 ## Consequences
 
-One contract; a reconnecting observer sees partial text. `events.jsonl` grows by one line per chunk; a later store may index by seq without changing the contract.
+One contract; a reconnecting observer sees partial text.
+`events.jsonl` grows by one line per chunk; a later store may index by seq without changing the contract.
 
 ## Options
 
-Live-only through `handle.deltas` kept the log small but split the event contract in two. Coalescing per step needed a seq-gap rule in the store.
+Live-only through `handle.deltas` kept the log small but split the event contract in two.
+Coalescing per step needed a seq-gap rule in the store.
