@@ -131,10 +131,8 @@ export const ChatScreen: (props: Record<string, never>) => RenderOutput =
           options={options}
           onOption={(option, anchorId) => {
             if (option.commandId === undefined) return;
-            // A chip that asks nothing runs; the settings chips open the picker of their one argument.
-            const command = app.commands.get(option.commandId);
-            if (command && argumentOf(command)) openPicker(app, { commandId: option.commandId, anchorId, descriptions: 'below' });
-            else void app.execute(option.commandId, undefined, 'palette');
+            // The settings chips open the picker of their one argument; a chip that asks nothing (Queue) is run by the picker itself.
+            openPicker(app, { commandId: option.commandId, anchorId, descriptions: 'below' });
           }}
           placeholder={pending !== null ? 'Answer the block above first' : 'Say something, or / for a skill or a command'}
           commands={commands}

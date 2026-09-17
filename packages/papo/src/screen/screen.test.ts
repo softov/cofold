@@ -438,7 +438,8 @@ describe('the screen', () => {
       expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({ permissions: 'bypassPermissions' });
       expect(config.permissions).toBe('bypassPermissions');
       // Back to the catalogue and into another new conversation: it starts from the remembered mode, not the built-in default.
-      t.pressAll('escape', 'escape');
+      // Three steps out: the picker closed onto the chip, escape there is back to the field, the field's is the transcript, and the transcript's is the screen.
+      t.pressAll('escape', 'escape', 'escape');
       await settle(t);
       expect(t.hasText('No sessions here yet')).toBe(true);
       t.press('n');
