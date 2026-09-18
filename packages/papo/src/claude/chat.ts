@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { CanUseTool, Options, SDKMessage, SDKResultMessage, SDKSessionInfo, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { RunOutcome, SkillIndexEntry, Usage } from '@facio/agents';
-import { AgentError, newId } from '@facio/agents';
+import type { RunOutcome, RunUsage, SessionUsage, SkillIndexEntry, Usage } from '@facio/agents';
+import { AgentError, ZERO_USAGE, addUsage, newId } from '@facio/agents';
 import { createFileStore } from '@facio/store-file';
 import { settingsKey } from '../chat.js';
 import { DEFAULT_INSTRUCTIONS } from '../config.js';
@@ -377,6 +377,37 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
         rows.push({ id: sessionId, title: shortTitle(text, sessionId), activity: activityOf(held), workspace, createdAt: first.timestamp ?? '', updatedAt: held.seen.at(-1)?.timestamp ?? '' });
       }
       return rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    },
+
+    /**
+     * What the CLI reported per turn, summed (CLI-06.1): its result frame's usage and `num_turns` are the
+     * turn's tokens and steps, and every tool part is a call. A call the CLI refused comes back as a tool
+     * result with an error, the same as a tool that ran and failed, so `denials` is 0 on this backend.
+     */
+    async usage(sessionId) {
+      const messages = await messagesOf(sessionId);
+      if (messages.length === 0) throw new AgentError({ code: 'not_found', message: `session ${sessionId} is not there` });
+      const held = live.get(sessionId);
+      const { turns } = projectSession(messages, { running: held?.running === true, pending: null, errors: errorsOf(sessionId) });
+      const runs: RunUsage[] = turns.map((turn) => {
+        return {
+          runId: turn.id,
+          status: turn.state === 'running' ? 'running' : turn.state === 'complete' ? 'completed' : turn.state,
+          createdAt: turn.startedAt,
+          usage: turn.usage,
+          steps: turn.steps,
+          toolCalls: turn.parts.filter((part) => part.kind === 'tool').length,
+          denials: 0,
+        };
+      });
+      return {
+        sessionId,
+        runs,
+        usage: runs.reduce((sum, run) => addUsage(sum, run.usage), ZERO_USAGE),
+        steps: runs.reduce((sum, run) => sum + run.steps, 0),
+        toolCalls: runs.reduce((sum, run) => sum + run.toolCalls, 0),
+        denials: runs.reduce((sum, run) => sum + run.denials, 0),
+      } satisfies SessionUsage;
     },
 
     /** One session's file, not the folder: the row is read off the messages themselves (CLI-03 decision 4). */

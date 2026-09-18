@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { RunOutcome } from '@facio/agents';
+import type { RunOutcome, SessionUsage } from '@facio/agents';
 import { AgentError } from '@facio/agents';
 import type { CommandContext, OptionSpec } from '@facio/commands';
 import { ArgumentError, createRegistry, output } from '@facio/commands';
@@ -349,6 +349,21 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
   });
 
   registry.action({
+    id: 'usage',
+    group: 'sessions',
+    summary: 'What a session used: tokens by kind, steps, tool calls and refusals, per turn and in total',
+    description: 'From the runtime\'s own records; counts are what the provider reported, and there is no price here.',
+    needs: ['papo'],
+    input: { session: { type: 'string', description: 'The session', minLength: 1 } },
+    required: ['session'],
+    surfaces: { cli: { pattern: ['usage', ':session'] }, mcp: true },
+    run: async ({ input, papo }) => {
+      const used = await withAgentErrors(() => papo.chat.usage(input.session));
+      return output(used, () => renderUsage(used));
+    },
+  });
+
+  registry.action({
     id: 'session.list',
     group: 'sessions',
     summary: 'The sessions of this workspace, newest first',
@@ -575,6 +590,29 @@ function renderOutcome(snapshot: Snapshot, outcome: RunOutcome | undefined, abou
   }
   lines.push(`session ${snapshot.session.id}`);
   return `${lines.join('\n')}\n`;
+}
+
+/**
+ * The usage table: one row per run, the sums under it. A count the provider never reported (cache,
+ * reasoning) is left out as a column rather than shown as zeros, so what is there is what was measured.
+ */
+export function renderUsage(used: SessionUsage): string {
+  if (used.runs.length === 0) return 'Nothing said yet.\n';
+  const maybe = (value: number | undefined): string => (value === undefined ? '' : String(value));
+  const header = ['turn', 'state', 'in', 'out', 'cache read', 'cache write', 'reasoning', 'steps', 'tools', 'refused'];
+  const rows = used.runs.map((run, index) => [
+    String(index + 1), run.status, String(run.usage.inputTokens), String(run.usage.outputTokens),
+    maybe(run.usage.cacheReadTokens), maybe(run.usage.cacheWriteTokens), maybe(run.usage.reasoningTokens),
+    String(run.steps), String(run.toolCalls), String(run.denials),
+  ]);
+  rows.push([
+    'total', '', String(used.usage.inputTokens), String(used.usage.outputTokens),
+    maybe(used.usage.cacheReadTokens), maybe(used.usage.cacheWriteTokens), maybe(used.usage.reasoningTokens),
+    String(used.steps), String(used.toolCalls), String(used.denials),
+  ]);
+  const kept = header.map((_name, column) => column < 4 || column > 6 || rows.some((row) => row[column] !== ''));
+  const pick = (row: string[]): string[] => row.filter((_cell, column) => kept[column]);
+  return renderTable(pick(header), rows.map(pick));
 }
 
 function renderPending(snapshot: Snapshot): string[] {

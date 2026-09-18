@@ -92,6 +92,7 @@ deny <session> [-r TEXT]        refuse it
 answer <session> id=value...    answer the agent's questions; repeat an id for a multi-select
 cancel <session>                stop the turn: a running one is aborted; one waiting on a decision has it denied and ends cancelled
 compact <session>               fold the conversation so far into a summary
+usage <session>                 what it used: tokens by kind, steps, tool calls and refusals, per turn and in total; no prices
 session list | show [--all] | delete   show prints what the model sees; --all every turn, the compacted ones included
 session export <session> [-o FILE]   the conversation as Markdown
 skills                          the skills the agent may read; `say "/name ..."` invokes one
@@ -125,7 +126,7 @@ Queued while nothing runs (`/queue`, `papo queue`), a message is the next turn a
 | `/model`, `/permissions`, `/thinking` | The three settings, as pickers. |
 | `/compact` | Fold the conversation so far into a summary the model continues from. Afterwards the transcript is the model's view: the compaction turn first (`(context compacted)`, with `Context compacted: N tokens to M.`), then the turns the compaction kept verbatim, then what follows; the folded turns are in the store and `papo session show --all` prints them. |
 | `/autocompact` | Switch the automatic version for this session: the same fold, done before a turn once the conversation passes 80% of `context.maxTokens`. |
-| `/status`, `/cost` | The session, model, mode, folders and token totals; the tokens per turn. |
+| `/status`, `/usage` | The session, model, mode, folders and token totals; what each turn used (tokens by kind, steps, tool calls, refusals), never a price. |
 | `/skill` | Pick a skill from the list. `/init` writes or refreshes `AGENTS.md`; `/review` reviews the working tree; both ship with papo, and a skill of the same name under `~/.facio/skills` or `<workspace>/.agents/skills` replaces it. |
 | `/memory` | What the agent remembers about this workspace (`~/.facio/memory/<workspace>/MEMORY.md`), with a button that opens it in `$VISUAL`, `$EDITOR`, or the platform's editor. |
 | `/export` | The conversation as Markdown, to `<workspace>/papo-<session>.md`. |
@@ -151,7 +152,7 @@ papo --backend claude                            # the screen, over Claude Code
 papo --backend claude say -p auto "Run the tests and fix what fails"
 ```
 
-What is the same: the transcript, the confirmation block (the CLI's `canUseTool` becomes it, under the CLI's own sentence when it sends one; `Always, this session` sends the CLI's suggested rules back with every destination rewritten to `session`, so the rule holds for the rest of the session and nothing is written into a settings file; the option is withheld when the CLI says the rule would grant more than the ask), the question form (`AskUserQuestion`), `/compact`, `/cost`, `/status`, the session list, `session show` and `session export`.
+What is the same: the transcript, the confirmation block (the CLI's `canUseTool` becomes it, under the CLI's own sentence when it sends one; `Always, this session` sends the CLI's suggested rules back with every destination rewritten to `session`, so the rule holds for the rest of the session and nothing is written into a settings file; the option is withheld when the CLI says the rule would grant more than the ask), the question form (`AskUserQuestion`), `/compact`, `/usage`, `/status`, the session list, `session show` and `session export`.
 Settings (`model`, `permissions`, `reasoning`) are kept per session in the file store under `--home`, at the same key the facio backend uses, so they survive a restart and `session set` reads the same thing on both backends.
 What differs, because it is the CLI's:
 
@@ -163,7 +164,7 @@ What differs, because it is the CLI's:
 - A message said while a turn runs is pushed to the CLI, which takes it into the running turn as its own client does; the CLI records it as a user message, so the transcript shows it as a turn boundary after the tool result. The queue is papo's, the same as on the facio backend.
 - `session delete` removes the CLI's session file; `session list` is the workspace's sessions in `~/.claude/projects/`.
 - Failed turns are the CLI's result (`error_*`, or a `success` carrying `is_error` when the API refused) and are kept only in the process that saw them; the CLI's transcript has no record of them.
-- `/cost` counts a reply once however many entries the CLI stored it as (it writes one per content block, so thinking, text and a tool call of one reply share an id).
+- `/usage` counts a reply once however many entries the CLI stored it as (it writes one per content block, so thinking, text and a tool call of one reply share an id).
 
 The harness's own tools, skills and memory are not involved; the CLI brings its own.
 

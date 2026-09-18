@@ -11,7 +11,7 @@ import { createChat } from '../chat.js';
 import { rememberInto } from '../commands.js';
 import { deleteFileTool, fakeProvider, gateTool, testChat, testConfig } from '../testing.js';
 import { registerPapo } from './app.js';
-import { DRAFT } from './state.js';
+import { DRAFT, OPEN } from './state.js';
 
 async function settle(t: Harness, times = 12): Promise<void> {
   for (let i = 0; i < times; i++) await t.settle();
@@ -261,7 +261,26 @@ describe('the screen', () => {
     await t.unmount();
   });
 
-  it('answers /status, /cost, /config and /help from the store, in one overlay that esc closes', async () => {
+  it('heads the conversation with what the session is: title and state, settings, place, when, id, turns and tokens (CLI-06.2)', async () => {
+    const { t } = await screen({ script: [{ text: 'Hello back.' }] });
+    t.press('n');
+    await settle(t);
+    expect(t.hasText('A new conversation. Say something below.')).toBe(true);
+    expect(t.hasText('Session')).toBe(false);
+    t.type('Hello there');
+    t.press('enter');
+    await settle(t, 30);
+    const shown = t.text();
+    const id = t.app.store.get<string>(OPEN) ?? '';
+    expect(id).not.toBe('');
+    for (const piece of ['Hello there', 'idle', 'fake/scripted', 'Permissions', 'Ask before changes', 'Thinking     No thinking', 'Auto-compact off', 'Turns        1', 'Tokens       1 in, 1 out', 'Home         /nowhere', 'Workspace    /work', 'Started', `Session      ${id}`]) {
+      expect(shown, piece).toContain(piece);
+    }
+    expect(shown).not.toContain('A new conversation.');
+    await t.unmount();
+  });
+
+  it('answers /status, /usage, /config and /help from the store, in one overlay that esc closes', async () => {
     const { t } = await screen({ script: [{ text: 'Hello back.' }] });
     t.press('n');
     await settle(t);
@@ -278,11 +297,17 @@ describe('the screen', () => {
     await settle(t);
     expect(t.hasText('workspace    /work')).toBe(false);
 
-    t.type('/cost');
+    t.type('/usage');
     t.press('enter');
     await settle(t);
+    // The runtime's table: the turn's row, the sums, and what was asked; never a price.
+    console.log('USAGE', t.text());
     expect(t.hasText('Hello there')).toBe(true);
-    expect(t.hasText('total  ')).toBe(true);
+    expect(t.hasText('turn')).toBe(true);
+    expect(t.hasText('total')).toBe(true);
+    expect(t.hasText('refused')).toBe(true);
+    expect(t.hasText('$')).toBe(false);
+    expect(t.hasText('Cost')).toBe(false);
     t.press('escape');
     await settle(t);
 

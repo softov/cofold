@@ -21,7 +21,7 @@ const MAX_LINES = 40;
 const WIDTH = 78;
 
 /**
- * The one overlay behind `/status`, `/cost`, `/config`, `/help`, `/memory`: a dialog over `$/papo/info`.
+ * The one overlay behind `/status`, `/usage`, `/config`, `/help`, `/memory`: a dialog over `$/papo/info`.
  * `esc` closes it; an action, when the command gave one, is a button along the bottom.
  */
 export const PapoInfo = defineComponent<{ actions?: InfoAction[] }>('PapoInfo', (props): RenderOutput => {

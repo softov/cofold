@@ -40,6 +40,12 @@ Decisions on disk after the review of 2026-09-16 (25 files reduced to 12, then C
 4. agent/04 is built: task 02 extended p5's `tally()` with `denials` (`run/turn.ts`, `run/tools.ts` `deny(reason, by)`).
 5. cli/04 is built (tasks 01-04, 2026-09-16); `@facio/tools`' file tools changed their `subject` with it (CLI-04.6). What waits is in its `deferred.md`.
 
+## 2026-09-18: usage and the session head (cli/06), the deferred audit
+
+- [cli/06](../plans/cli/06-papo-usage-and-session-head/plan.md) built: `sessionUsage` in `@facio/agents`, `Chat.usage` on both backends, `papo usage <session>`, `/chat.usage` in place of `/chat.cost`, the `ChatSessionHead` at the top of a conversation (CLI-06.1, CLI-06.2). `pnpm check` 68 files, 783 tests.
+- cli/04 `deferred.md` audited against the transcripts: `auto` and `steer` were the assistant's defaults recorded as the user's; `alt+enter` and `memory_write` were never asked. Rows corrected; the rule (one decision per option, the clicked label is the answer) is in memory.
+- textui 0.6.1 is published; papo and ahpc depend on it from the registry. `@textui/chat@0.6.0` is deprecated (published with `workspace:` ranges).
+
 ## 2026-09-17: the stuck session (papo, harness)
 
 - The user's session `27bbb76f` stuck: a message typed while a tool ran (a steer) met a turn that then asked permission; the harness rejected the steer `not_running`, papo started a new run, it failed `writer_busy` against the paused one and hid it. Decision [CLI-05.4](../decisions/papo-holds-a-steer-across-a-decision.md): papo holds the steer (`Queued.steer`, `Started.held`) and steers it into the resumed turn; harness decision 95 amended (a steer on a resumed handle waits while the request is open); `newest` reads the writer holder (`inForce`); `startHead` one at a time. Tests: `chat.test.ts` three new cases, `steering.test.ts` 5 and 5b. Committed (c82239d, 646bfbf).

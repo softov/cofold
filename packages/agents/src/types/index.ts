@@ -15,3 +15,4 @@ export type * from './run.js';
 export type { JsonSchema, JsonSchemaType, SchemaIssue, SchemaResult, StandardIssue, StandardResult, StandardSchema } from '@facio/sdk';
 export type * from './store.js';
 export type * from './tool.js';
+export type * from './usage.js';

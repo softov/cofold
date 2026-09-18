@@ -41,8 +41,9 @@ Reference: [00-cli.md](cli/00-cli.md)
 | [04 - papo adopts the harness: steer and queue, partial text, the model's view, stop reasons, rules](cli/04-papo-harness-adoption/plan.md) | high | built 2026-09-16 ([implemented.md](cli/04-papo-harness-adoption/implemented.md), [deferred.md](cli/04-papo-harness-adoption/deferred.md)) | cli/01, agent/01-p5, agent/04 | - |
 
 | [05 - papo remembers what a person chooses, asks the provider before the model, marks the cursor, opens a thought on click](cli/05-papo-defaults-picker-thought/plan.md) | high | built 2026-09-16 (tasks 01-05; [implemented.md](cli/05-papo-defaults-picker-thought/implemented.md)) | cli/01, cli/04, textui (linked) | - |
+| [06 - papo says what a session used, in tokens, and heads the conversation with what the session is](cli/06-papo-usage-and-session-head/plan.md) | high | built 2026-09-18 ([implemented.md](cli/06-papo-usage-and-session-head/implemented.md)) | cli/04, cli/05, textui 0.6.1 | - |
 
-Next free number in `cli`: `06`.
+Next free number in `cli`: `07`.
 
 ## tools
 

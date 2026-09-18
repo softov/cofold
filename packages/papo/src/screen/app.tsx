@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import type { AskAnswers, SkillIndexEntry } from '@facio/agents';
+import type { AskAnswers, RunUsage, SkillIndexEntry } from '@facio/agents';
 import { workspaceSlug } from '@facio/store-file';
 import type { ChatAnswer, ChatSendStatus } from '@textui/chat';
 import {
@@ -12,7 +12,7 @@ import { createBag, defineComponent, serviceKey, useApp, useStoreValue, useTheme
 import { KeyHints, Row, registerBuiltins } from '@textui/widgets';
 import type { Papo } from '../commands.js';
 import { AUTO_COMPACT_AT } from '../agent.js';
-import { redactedConfig, rememberedOf } from '../commands.js';
+import { redactedConfig, rememberedOf, renderUsage } from '../commands.js';
 import { splitModel } from '../config.js';
 import { exportPath, toMarkdown } from '../export.js';
 import { toAskAnswers } from '../questions.js';
@@ -23,10 +23,7 @@ import type { Snapshot, Turn } from '../types/turn.js';
 import { ChatScreen } from './chat.js';
 import { PapoInfo, showInfo } from './info.js';
 import { SessionsScreen } from './sessions.js';
-import {
-  ANSWERS, CHAT_SCOPE, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, PROVIDERS, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SKILLS,
-  SNAPSHOT,
-} from './state.js';
+import { ANSWERS, CHAT_SCOPE, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, PLACE, PROVIDERS, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SKILLS, SNAPSHOT } from './state.js';
 
 /** The words on the chips and in the picker, for the values the configuration spells: Claude Code's four modes (cli/03 F8). */
 export const PERMISSION_LABELS: Record<Settings['permissions'], { label: string; description: string }> = {
@@ -534,8 +531,8 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
       run: () => showInfo(app, { title: 'Status', lines: statusLines() }),
     },
     {
-      id: 'chat.cost', title: 'Cost', category: 'Chat', slots: ['palette'], description: 'Tokens per turn and in total',
-      run: () => showInfo(app, { title: 'Cost', lines: costLines() }),
+      id: 'chat.usage', title: 'Usage', category: 'Chat', slots: ['palette'], description: 'Tokens by kind, steps, tool calls and refusals, per turn and in total',
+      run: () => { void usageLines().then((lines) => showInfo(app, { title: 'Usage', lines })).catch((error: unknown) => app.store.set(ERROR, error instanceof Error ? error.message : String(error))); },
     },
     {
       id: 'chat.skill', title: 'Skill', category: 'Chat', slots: ['palette'], description: 'Put /<skill> in the field',
@@ -629,12 +626,18 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
     ];
   }
 
-  function costLines(): string[] {
+  /** The runtime's own sum (CLI-06.1), the same table the shell prints, plus what each turn asked. */
+  async function usageLines(): Promise<string[]> {
+    const current = open();
+    if (current === null) return ['Nothing said yet.'];
+    const used = await papo.chat.usage(current);
+    if (used.runs.length === 0) return ['Nothing said yet.'];
     const turns = snapshot()?.turns ?? [];
-    if (turns.length === 0) return ['Nothing said yet.'];
-    const sum = total(turns);
-    const rows = turns.map((turn, index) => `${String(index + 1).padStart(3)}  ${String(turn.usage.inputTokens).padStart(7)} in  ${String(turn.usage.outputTokens).padStart(7)} out  ${String(turn.steps).padStart(2)} steps  ${turn.input.replace(/\s+/g, ' ').slice(0, 30)}`);
-    return [...rows, '', `total  ${sum.input} in, ${sum.output} out, ${turns.length} turns`, 'Counts are what the provider reported; a provider that reports nothing shows zeros.'];
+    const asked = used.runs.map((_run: RunUsage, index: number) => {
+      const turn = turns[index];
+      return `${String(index + 1).padStart(3)}  ${turn === undefined ? '' : turn.input.replace(/\s+/g, ' ').slice(0, 60)}`;
+    });
+    return [...renderUsage(used).trimEnd().split('\n'), '', ...asked, '', 'Counts are what the provider reported; a count it did not report is blank.'];
   }
 
   function helpLines(): string[] {
@@ -689,6 +692,7 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
   ];
   for (const binding of keys) bag.add(app.keybindings.register(binding));
 
+  app.store.set(PLACE, { workspace: options.papo.workspace, home: options.papo.home });
   // The skills, once: what the slash menu offers beside the palette's commands.
   void options.papo.chat.skills()
     .then((rows) => app.store.set(SKILLS, rows))

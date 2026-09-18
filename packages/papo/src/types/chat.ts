@@ -1,4 +1,4 @@
-import type { AskAnswers, ModelInfo, ModelProvider, RunOutcome, SkillIndexEntry, Store, Tool } from '@facio/agents';
+import type { AskAnswers, ModelInfo, ModelProvider, RunOutcome, SessionUsage, SkillIndexEntry, Store, Tool } from '@facio/agents';
 import type { ClaudeSdkSubset } from './claude.js';
 import type { PapoConfig } from './config.js';
 import type { Settings } from './settings.js';
@@ -176,6 +176,12 @@ export interface Chat {
   cancel(sessionId: string): Promise<void>;
   /** Fold the conversation so far into a summary, as a run of its own; `wait` sees it end. Refused while a turn runs or waits. */
   compact(sessionId: string): Promise<Started>;
+  /**
+   * What the session used, run by run and in total, from the runtime's own records (CLI-06.1): tokens
+   * by kind, model steps, tool calls that ran and calls refused. Never a price. AgentError('not_found')
+   * when the session is not there.
+   */
+  usage(sessionId: string): Promise<SessionUsage>;
   remove(sessionId: string): Promise<void>;
   /** Called with the session whose state changed; returns the unsubscribe. */
   subscribe(listener: ChatListener): () => void;

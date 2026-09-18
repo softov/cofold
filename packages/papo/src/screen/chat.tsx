@@ -1,5 +1,5 @@
 import type { ChatAnswer, ChatCommand, ChatSendStatus, ComposerOption } from '@textui/chat';
-import { ChatComposer, ChatHitl, ChatInputStatus, ChatTranscript, openPicker, settingIcon, valueIcon } from '@textui/chat';
+import { ChatComposer, ChatHitl, ChatInputStatus, ChatSessionHead, ChatTranscript, openPicker, settingIcon, valueIcon } from '@textui/chat';
 import type { BindingPath, RenderOutput } from '@textui/core';
 import { defineComponent, useApp, useCapabilities, useFocusScope, useMemo, useRequiredService, useStore, useStoreValue } from '@textui/core';
 import type { SkillIndexEntry } from '@facio/agents';
@@ -8,7 +8,8 @@ import { QUEUED_BLOCK, toBlocks } from '../blocks.js';
 import type { Settings } from '../types/settings.js';
 import type { Snapshot } from '../types/turn.js';
 import { CONTROLLER, PERMISSION_LABELS, REASONING_LABELS } from './app.js';
-import { ANSWERS, CHAT_SCOPE, DRAFT, EXPANDED, INPUT_STATUS, MARKDOWN, SETTINGS, SKILLS, SNAPSHOT } from './state.js';
+import { ANSWERS, CHAT_SCOPE, DRAFT, EXPANDED, INPUT_STATUS, MARKDOWN, PLACE, SETTINGS, SKILLS, SNAPSHOT } from './state.js';
+import { sessionView } from './sessions.js';
 
 /**
  * What a slash offers: the skills first (a `session` command is sent as `/<name> ...`, which is how
@@ -60,6 +61,12 @@ const NONE_EXPANDED: Record<string, boolean> = {};
  * Everything drawn is a snapshot the controller wrote; the screen holds only what is its own, which
  * is the cursor, what is folded open and the draft.
  */
+/** The session's tokens so far as the head says them; nothing while no turn has reported any. */
+function tokensOf(turns: Snapshot['turns']): string {
+  const sum = turns.reduce((total, turn) => ({ input: total.input + turn.usage.inputTokens, output: total.output + turn.usage.outputTokens }), { input: 0, output: 0 });
+  return sum.input === 0 && sum.output === 0 ? '' : `${String(sum.input)} in, ${String(sum.output)} out`;
+}
+
 export const ChatScreen: (props: Record<string, never>) => RenderOutput =
   defineComponent<Record<string, never>>('ChatScreen', () => {
     const app = useApp();
@@ -79,13 +86,31 @@ export const ChatScreen: (props: Record<string, never>) => RenderOutput =
     const blocks = useMemo(() => toBlocks(snapshot?.turns ?? [], model, snapshot?.queued ?? []), [snapshot, model]);
     const options = useComposerOptions(snapshot?.running ?? false);
     const commands = useSlashCommands();
-    // Only before anything is said: once there is a conversation, the header names it.
-    const head = useMemo(() => (snapshot === null ? (
+    const place = useStoreValue<{ workspace: string; home: string } | null>(PLACE, null) ?? null;
+    /*
+     * What this conversation is, at the top of it (CLI-06.2): the session's title and state, the model
+     * and the settings in force, where it runs, when, its id, and what it used so far. Scrolled with the
+     * transcript, as the component is designed; `/status` has the same facts once it is out of view.
+     * Rebuilt only when what it says changes: the parts are new objects every render, the caption is not.
+     */
+    const headRows = snapshot === null ? [] : [
+      { label: 'Permissions', value: PERMISSION_LABELS[snapshot.settings.permissions].label },
+      { label: 'Thinking', value: REASONING_LABELS[snapshot.settings.reasoning] },
+      { label: 'Auto-compact', value: snapshot.settings.autoCompact ? 'on' : 'off' },
+      { label: 'Turns', value: `${String(snapshot.turns.length)}${snapshot.running ? ', one running' : ''}${snapshot.queued.length > 0 ? `, ${String(snapshot.queued.length)} queued` : ''}` },
+      { label: 'Tokens', value: tokensOf(snapshot.turns) },
+      // Last, so it sits next to the Workspace row the component draws after the settings.
+      ...(place !== null ? [{ label: 'Home', value: place.home }] : []),
+    ];
+    const headSignature = JSON.stringify([snapshot?.session, model, headRows]);
+    const head = useMemo(() => (
       <Column padding={[0, 0, 1, 0]}>
-        <text content="A new conversation. Say something below." fg="muted" truncate="end" />
+        {snapshot === null
+          ? <text content="A new conversation. Say something below." fg="muted" truncate="end" />
+          : <ChatSessionHead session={sessionView(snapshot.session)} {...(model ? { model } : {})} settings={headRows} />}
         <Divider dim />
       </Column>
-    ) : undefined), [snapshot === null]);
+    ), [headSignature]);
 
     const onToggle = useMemo(() => (id: string) => {
       // `enter` on a queued row drops it; on anything else it folds the row open or shut.
@@ -97,7 +122,7 @@ export const ChatScreen: (props: Record<string, never>) => RenderOutput =
     return (
       <Column flex={1} gap={1}>
         <ChatTranscript
-          {...(head !== undefined ? { head } : {})}
+          head={head}
           flex={1}
           blocks={blocks}
           expanded={expanded}

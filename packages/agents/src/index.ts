@@ -17,4 +17,5 @@ export { costOf } from './model/cost.js';
 export { createTool } from './tool/create-tool.js';
 export { createAskUserTool, renderAnswers, validateAnswers } from './tool/ask-user.js';
 export { createMemoryStore } from './store/memory.js';
+export { sessionUsage } from './store/usage.js';
 export { skills, listSkills } from './capabilities/skills.js';

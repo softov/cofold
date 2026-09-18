@@ -71,6 +71,18 @@ describe('the shell', () => {
     expect(shown.out).toContain('Hello back.');
     expect(shown.out).toContain('> And again');
 
+    // What it used, from the runtime's records: two turns, one model step each, no tools, no price.
+    const used = await run('usage', sessionId, '--json');
+    expect(used.code).toBe(0);
+    expect(JSON.parse(used.out)).toMatchObject({ sessionId, steps: 2, toolCalls: 0, denials: 0, runs: [{ status: 'completed', steps: 1 }, { status: 'completed', steps: 1 }] });
+    const usage = await run('usage', sessionId);
+    expect(usage.out).toContain('turn');
+    expect(usage.out).toContain('total');
+    expect(usage.out).not.toContain('$');
+    const nobody = await run('usage', 'nope');
+    expect(nobody.code).not.toBe(0);
+    expect(nobody.err).toContain('is not there');
+
     const exported = await run('session', 'export', sessionId, '-o', join(tmpdir(), `papo-export-${sessionId}.md`));
     expect(exported.code).toBe(0);
     const file = exported.out.trim();

@@ -402,6 +402,30 @@ describe('createChat', () => {
     expect(await chat.wait(started.sessionId)).toBeUndefined();
   });
 
+  it('usage: what the session used, run by run and in total, from the runtime records (CLI-06.1)', async () => {
+    const { tool, executions } = deleteFileTool();
+    const { chat } = testChat({
+      script: [{ toolCalls: [{ name: 'delete_file', input: { path: 'a' } }, { name: 'nope', input: {} }] }, { text: 'Done.' }, { text: 'Again.' }],
+      tools: [tool],
+      config: { permissions: 'bypassPermissions' },
+    });
+    const started = await chat.say({ text: 'Delete a' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    expect(executions()).toBe(1);
+    const second = await chat.say({ sessionId: started.sessionId, text: 'Once more' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+
+    const used = await chat.usage(started.sessionId);
+    expect(used.runs.map((run) => [run.runId, run.status, run.steps, run.toolCalls, run.denials])).toEqual([
+      [started.runId, 'completed', 2, 1, 1],
+      [second.runId, 'completed', 1, 0, 0],
+    ]);
+    expect(used).toMatchObject({ sessionId: started.sessionId, steps: 3, toolCalls: 1, denials: 1 });
+    expect(used.usage.inputTokens).toBeGreaterThan(0);
+    expect('cost' in used).toBe(false);
+    await expect(chat.usage('nope')).rejects.toMatchObject({ code: 'not_found' });
+  });
+
   it('a turn a limit stops is failed and says which limit', async () => {
     const gate = gateTool();
     const { chat } = testChat({

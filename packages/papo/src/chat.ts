@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Agent, ApprovalPayload, Message, ModelInfo, PendingRequest, RunHandle, RunRecord, StopReason } from '@facio/agents';
-import { AgentError, compact, contextOf, listSkills, newId, resume, run } from '@facio/agents';
+import { AgentError, compact, contextOf, listSkills, newId, resume, run, sessionUsage } from '@facio/agents';
 import { fileSkillSource } from '@facio/store-file';
 import { AGENT_ID, buildAgent } from './agent.js';
 import { providerFor, splitModel } from './config.js';
@@ -441,6 +441,11 @@ export function createChat(options: ChatOptions): Chat {
       attach(sessionId, { handle, agent });
       notify(sessionId);
       return { sessionId, runId: handle.runId } satisfies Started;
+    },
+
+    async usage(sessionId) {
+      await requireSession(sessionId);
+      return sessionUsage({ store, sessionId });
     },
 
     wait: async (sessionId) => {

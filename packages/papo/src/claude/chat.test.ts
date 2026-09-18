@@ -65,6 +65,12 @@ describe('createClaudeChat', () => {
     await chat.wait(started.sessionId);
     expect(sdk.queries).toHaveLength(1);
     expect((await chat.snapshot(started.sessionId)).turns.map((turn) => turn.input)).toEqual(['Hello there', 'Again']);
+
+    // What it used, summed from what the CLI reported per turn (CLI-06.1); no price anywhere.
+    const used = await chat.usage(started.sessionId);
+    expect(used.runs.map((run) => [run.status, run.steps, run.toolCalls, run.denials])).toEqual([['completed', 1, 0, 0], ['completed', 1, 0, 0]]);
+    expect(used).toMatchObject({ sessionId: started.sessionId, usage: { inputTokens: 20, outputTokens: 10 }, steps: 2, toolCalls: 0, denials: 0 });
+    await expect(chat.usage('nope')).rejects.toMatchObject({ code: 'not_found' });
   });
 
   it('stops at canUseTool, shows the confirmation, and lets the tool run when approved', async () => {

@@ -26,11 +26,13 @@ export const MARKDOWN = '$/papo/markdown' as BindingPath;
 export const SETTINGS = '$/papo/settings' as BindingPath;
 /** The providers a model may be chosen from, as `chat.providers()` answered at start. */
 export const PROVIDERS = '$/papo/providers' as BindingPath;
+/** Where papo runs: `{ workspace, home }`, set once at boot; the session head's Place rows (CLI-06.2). */
+export const PLACE = '$/papo/place' as BindingPath;
 /** The models listed so far, per provider: `chat.models({ provider })` is asked when a provider is chosen, once. */
 export const MODELS = '$/papo/models' as BindingPath;
 /** The skills a slash may name, as `chat.skills()` last answered. */
 export const SKILLS = '$/papo/skills' as BindingPath;
-/** What the information overlay shows (`/status`, `/cost`, `/config`, `/help`, `/memory`). */
+/** What the information overlay shows (`/status`, `/usage`, `/config`, `/help`, `/memory`). */
 export const INFO = '$/papo/info' as BindingPath;
 
 /** textui's own: which screen is current, and which node holds the keyboard. */
