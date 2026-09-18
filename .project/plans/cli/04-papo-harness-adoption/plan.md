@@ -88,7 +88,7 @@ Settled without a decision, because the harness already has it or the reference 
 | `say` during a running turn sends `submit({ type: 'steer' })`; `not_running` → a new run | decision 95 (the harness takes steers; papo refusing `writer_busy` was the gap) | 01 |
 | `projectTurns` projects `contextOf`, the model's view; `session show --all` prints everything | cli/03 F1 | 03 |
 | `stopped { reason: 'hook' }` → `complete`; every other `stopped` → `failed` with `stopped: <reason>` | decision 97 gave `stopped` a reason; mapping every `stopped` to `cancelled` was wrong since | 03 |
-| papo's permission modes become Claude's `default \| acceptEdits \| bypassPermissions \| dontAsk`, mapped onto `decide()`, `ToolEffects` and `rules()`; `plan` waits for a later plan (prompt-level, needs agent/03), `auto` is not offered; papo's `ask`, `destructive`, `auto` go | cli/03 F8 (user, 2026-09-16, chose the four) | 04 |
+| papo's permission modes become Claude's `default \| acceptEdits \| bypassPermissions \| dontAsk`, mapped onto `decide()`, `ToolEffects` and `rules()`; `plan` waits for a later plan (prompt-level, needs agent/03), `auto` left out (the assistant's recommended option, not the user's ask; open in `deferred.md`); papo's `ask`, `destructive`, `auto` go | cli/03 F8 (user, 2026-09-16, chose the recommended four) | 04 |
 
 ## Proposed architecture
 
