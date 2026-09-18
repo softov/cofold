@@ -104,7 +104,7 @@ Settled without a decision (a defect, or the user's ask with one workable shape)
 
 - papo now edits a file the person also edits by hand: only the fields chosen are rewritten and the indentation is kept (JSON has no comments to lose); a write failure is reported on the status row and the pick still applies to the session.
 - `bypassPermissions` chosen once is remembered for every next conversation (the user's choice); the permissions chip shows it, and `default` is one pick away.
-- textui changes ride on the linked checkout until 0.6.0; facio's `pnpm check` runs against the local build, so textui must be rebuilt before papo's tests.
+- textui changes rode on the linked checkout until textui 0.6.1 (2026-09-17); papo now depends on `^0.6.1` from the registry.
 
 ## Resume state
 

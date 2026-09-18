@@ -135,24 +135,24 @@ importers:
         specifier: workspace:^
         version: link:../tools
       '@textui/chat':
-        specifier: link:../../../textui/packages/chat
-        version: link:../../../textui/packages/chat
+        specifier: ^0.6.1
+        version: 0.6.1
       '@textui/core':
-        specifier: link:../../../textui/packages/core
-        version: link:../../../textui/packages/core
+        specifier: ^0.6.1
+        version: 0.6.1
       '@textui/terminal':
-        specifier: link:../../../textui/packages/terminal
-        version: link:../../../textui/packages/terminal
+        specifier: ^0.6.1
+        version: 0.6.1
       '@textui/widgets':
-        specifier: link:../../../textui/packages/widgets
-        version: link:../../../textui/packages/widgets
+        specifier: ^0.6.1
+        version: 0.6.1
     devDependencies:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.3.273
         version: 0.3.273(@anthropic-ai/sdk@0.126.0(zod@4.3.6))(@modelcontextprotocol/sdk@1.30.0(zod@4.3.6))(zod@4.3.6)
       '@textui/testing':
-        specifier: link:../../../textui/packages/testing
-        version: link:../../../textui/packages/testing
+        specifier: ^0.6.1
+        version: 0.6.1
 
   packages/remote:
     dependencies:
@@ -585,6 +585,26 @@ packages:
 
   '@stablelib/base64@1.0.1':
     resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
+
+  '@textui/chat@0.6.1':
+    resolution: {integrity: sha512-9aPpB7KVazK+Y1i0xuUcAYF3EUX0lzeF3pSX6aQbzAPYd79iNYSohi+nhZCEw92a3/FzRDaBuO7CgVaGw8iTHQ==}
+    engines: {node: '>=22'}
+
+  '@textui/core@0.6.1':
+    resolution: {integrity: sha512-FuBY63CU7oJKE75Q/gBu8TBd4n1RfCOo13W/vGTStdpcTbfdebiUgVHM/KgO1UHAj99SR9K36Y4HfTMKaD5B3A==}
+    engines: {node: '>=22'}
+
+  '@textui/terminal@0.6.1':
+    resolution: {integrity: sha512-VfMphbc8SDGIuVR7puZ6YXXRWRtFDNc530xRskHOJXwGWoyyDQKXMzUazkQiIHLh9AqzxeWCY0EPsv75dQEQ5A==}
+    engines: {node: '>=22'}
+
+  '@textui/testing@0.6.1':
+    resolution: {integrity: sha512-Cg7Dgei/lhgJbnsW1GWNVCmS1cW2W0cUKu0zTeBFxl20S6siEVERssw5HuJP1XlCpbpDEZs0jQaLzeDJb18+3w==}
+    engines: {node: '>=22'}
+
+  '@textui/widgets@0.6.1':
+    resolution: {integrity: sha512-bRUHTHn1r86gw0JOVSU8DC0o/+oRQ9Cc82uhjTOm9vD0BkDoO6BY+oi+CvIBGOEu6KkBxaNGVm9kS4uBFz+zJQ==}
+    engines: {node: '>=22'}
 
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
@@ -1599,6 +1619,27 @@ snapshots:
     optional: true
 
   '@stablelib/base64@1.0.1': {}
+
+  '@textui/chat@0.6.1':
+    dependencies:
+      '@textui/core': 0.6.1
+      '@textui/widgets': 0.6.1
+
+  '@textui/core@0.6.1': {}
+
+  '@textui/terminal@0.6.1':
+    dependencies:
+      '@textui/core': 0.6.1
+
+  '@textui/testing@0.6.1':
+    dependencies:
+      '@textui/core': 0.6.1
+      '@textui/terminal': 0.6.1
+      '@textui/widgets': 0.6.1
+
+  '@textui/widgets@0.6.1':
+    dependencies:
+      '@textui/core': 0.6.1
 
   '@types/estree@1.0.9': {}
 
