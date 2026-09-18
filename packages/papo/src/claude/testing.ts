@@ -41,6 +41,8 @@ export interface FakeToolReply {
   output?: string;
   /** The tool runs until this resolves, with its value as the output: what a message is pushed during. */
   waitFor?: Promise<string>;
+  /** Called when the tool starts waiting on `waitFor`: the moment a test can call "while the tool runs". */
+  onWait?: () => void;
   then?: string | FakeToolReply;
 }
 
@@ -222,6 +224,7 @@ export function fakeClaudeSdk(): FakeClaudeSdk {
       let output: string;
       if (reply.waitFor !== undefined) {
         // The tool runs until released, or until `interrupt()` cuts it, as the CLI cuts a running tool.
+        reply.onWait?.();
         const got: string | typeof ABORTED = await Promise.race([reply.waitFor, interrupted().then((): typeof ABORTED => ABORTED)]);
         if (got === ABORTED) {
           record_({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: INTERRUPTED_TOOL, is_error: true }] }, parent_tool_use_id: null });

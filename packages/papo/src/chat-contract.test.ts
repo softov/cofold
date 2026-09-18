@@ -15,7 +15,14 @@ type Beat = 'text' | 'tool' | 'ask' | 'wait';
 
 interface Rig {
   name: string;
-  open(story: Beat[]): { chat: Chat; release(): void };
+  open(story: Beat[]): {
+    chat: Chat;
+    release(): void;
+    /** Resolves once the held tool is running: what a timer used to stand in for, and lost under load. */
+    entered(): Promise<void>;
+    /** Resolves once a `say` made while the tool runs has handed its text to the turn, so a `release` after it finds the steer in place. */
+    taken(): Promise<void>;
+  };
 }
 
 const QUESTION = 'Which one?';
@@ -33,7 +40,14 @@ const facio: Rig = {
       if (beat === 'wait') return [{ toolCalls: [{ name: 'wait_for', input: {} }] }, { text: 'Done.' }];
       return [{ toolCalls: [{ name: 'ask_user', input: { questions: [{ id: 'which', question: QUESTION, options: [{ label: 'A' }, { label: 'B' }] }] } }] }, { text: 'Done.' }];
     });
-    return { chat: testChat({ script, tools: [tool, gate.tool] }).chat, release: () => gate.release('waited') };
+    return {
+      chat: testChat({ script, tools: [tool, gate.tool] }).chat,
+      release: () => gate.release('waited'),
+      entered: () => gate.entered(),
+      // `say` reaches the harness's `submit` through the memory store alone, which is microtasks, and a
+      // timer cannot fire before those drain.
+      taken: () => tick(0),
+    };
   },
 };
 
@@ -44,14 +58,23 @@ const claude: Rig = {
     const sdk = fakeClaudeSdk();
     let release!: (output: string) => void;
     const waitFor = new Promise<string>((resolve) => { release = resolve; });
+    let onWait!: () => void;
+    const waiting = new Promise<void>((resolve) => { onWait = resolve; });
     sdk.replies = story.map((beat): FakeReply => {
       if (beat === 'text') return { text: 'Reply.' };
       if (beat === 'tool') return { tool: 'Bash', input: { command: 'rm a' }, output: 'deleted a', then: 'Done.' };
-      if (beat === 'wait') return { tool: 'Bash', input: { command: 'sleep 5' }, waitFor, then: 'Done.' };
+      if (beat === 'wait') return { tool: 'Bash', input: { command: 'sleep 5' }, waitFor, onWait, then: 'Done.' };
       return { tool: 'AskUserQuestion', input: { questions: [{ question: QUESTION, header: 'Pick', options: [{ label: 'A' }, { label: 'B' }] }] }, then: 'Done.' };
     });
     const chat = createClaudeChat({ config: testConfig({ model: undefined }), workspace: 'C:\\work', home: join(tmpdir(), `papo-contract-${randomUUID()}`), sdk, warn: () => {} });
-    return { chat, release: () => release('waited') };
+    return {
+      chat,
+      release: () => release('waited'),
+      entered: () => waiting,
+      // The backend reads the session's settings from the kv file first, then pushes the text into the
+      // CLI's feed and notifies: that notification is the steer in place.
+      taken: () => new Promise<void>((resolve) => { const off = chat.subscribe(() => { off(); resolve(); }); }),
+    };
   },
 };
 
@@ -186,12 +209,13 @@ describe.each([facio, claude])('the chat contract on $name', (rig) => {
   });
 
   it('steer: a message said while a tool runs lands after the tool result, and the turn goes on to its reply', async () => {
-    const { chat, release } = rig.open(['wait']);
+    const { chat, release, entered, taken } = rig.open(['wait']);
     const started = await chat.say({ text: 'Wait', settings: { permissions: 'bypassPermissions' } });
-    await tick();
+    await entered();
     expect((await chat.snapshot(started.sessionId)).running).toBe(true);
+    const taking = taken();
     const steering = chat.say({ sessionId: started.sessionId, text: 'Also this' });
-    await tick();
+    await taking;
     release();
     expect(await steering).toEqual({ sessionId: started.sessionId, runId: started.runId, steered: true });
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
@@ -207,9 +231,9 @@ describe.each([facio, claude])('the chat contract on $name', (rig) => {
   });
 
   it('queue: the head starts when the turn settles, never after a cancel; unqueue drops one', async () => {
-    const { chat, release } = rig.open(['wait', 'text']);
+    const { chat, release, entered } = rig.open(['wait', 'text']);
     const started = await chat.say({ text: 'Wait', settings: { permissions: 'bypassPermissions' } });
-    await tick();
+    await entered();
     const next = await chat.queue({ sessionId: started.sessionId, text: 'Next' });
     const dropped = await chat.queue({ sessionId: started.sessionId, text: 'Dropped' });
     expect((await chat.snapshot(started.sessionId)).queued).toEqual([next, dropped]);
@@ -242,9 +266,9 @@ describe.each([facio, claude])('the chat contract on $name', (rig) => {
   });
 
   it('queue after cancel: what waits stays waiting', async () => {
-    const { chat } = rig.open(['wait']);
+    const { chat, entered } = rig.open(['wait']);
     const started = await chat.say({ text: 'Wait', settings: { permissions: 'bypassPermissions' } });
-    await tick();
+    await entered();
     await chat.queue({ sessionId: started.sessionId, text: 'Later' });
     await chat.cancel(started.sessionId);
     expect((await chat.wait(started.sessionId))?.status).toBe('cancelled');

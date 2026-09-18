@@ -182,12 +182,11 @@ describe('the screen', () => {
     await settle(t);
     expect(t.hasText('ECONNREFUSED')).toBe(true);
     expect(t.hasText('The other one')).toBe(false);
+    // Escape is one question back: the providers again, and the live one lists as if the other did not exist.
     t.press('escape');
     await settle(t);
-    // The live one lists as if the other did not exist (escape left the focus on the chip, so enter reopens it).
-    t.press('enter');
-    await settle(t);
     expect(t.hasText('Which provider')).toBe(true);
+    // The highlight opens on the provider in force, which is the live one.
     t.press('enter');
     await settle(t);
     expect(t.hasText('The other one')).toBe(true);
