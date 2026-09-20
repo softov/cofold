@@ -55,9 +55,18 @@ export async function readJson<T>(file: string): Promise<T | undefined> {
  * within milliseconds; the rename is retried for up to a second before the error is the answer.
  */
 export async function writeAtomic(file: string, value: unknown): Promise<void> {
+  await writeTextAtomic(file, JSON.stringify(value, null, 2));
+}
+
+/** Rewrites a whole JSONL file (the cut in p4 fork/rewind); the same tmp + rename as `writeAtomic`. */
+export async function writeLines(file: string, values: unknown[]): Promise<void> {
+  await writeTextAtomic(file, values.map((value) => JSON.stringify(value)).join('\n') + (values.length > 0 ? '\n' : ''));
+}
+
+async function writeTextAtomic(file: string, text: string): Promise<void> {
   await mkdir(dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
-  await writeFile(tmp, JSON.stringify(value, null, 2), 'utf8');
+  await writeFile(tmp, text, 'utf8');
   const deadline = Date.now() + 1_000;
   for (let wait = 5; ; wait = Math.min(wait * 2, 100)) {
     try { await rename(tmp, file); return; }

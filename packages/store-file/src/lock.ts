@@ -74,6 +74,12 @@ export async function release(sessionDir: string, runId: string): Promise<void> 
   if (current && current.runId === runId && current.pid === process.pid) await rm(lockFile(sessionDir), { force: true });
 }
 
+/** Removes the lock when `runId` holds it, whatever process wrote it: a cut drops the run that held it (p4 fork/rewind). */
+export async function clear(sessionDir: string, runId: string): Promise<void> {
+  const current = await readLock(sessionDir);
+  if (current && current.runId === runId) await rm(lockFile(sessionDir), { force: true });
+}
+
 /**
  * Fences a run whose lock was taken over by another process (a zombie): its run-level writes must not land on
  * top of the recovery. A run with no lock, or a lock held by a different run, is not fenced here.

@@ -19,6 +19,34 @@ const runRecord = (sessionId: string, runId: string, over: Partial<RunRecord> = 
 });
 const event = (sessionId: string, runId: string, seq: number): RunEvent => ({ seq, runId, sessionId, agentId: 'a', at: 'now', type: 'model.started', step: seq });
 
+/**
+ * A session with three completed turns and one never-terminal run: messages m1..m5, r1 (m1-m2) and
+ * r2 (m3-m4) completed with a log, r3 (m5) completed, r4 (m1-m2) still `running`, and requests on
+ * r1 and r3. A cut at m4 keeps r1 and r2 and drops r3 and r4.
+ */
+async function seedCut(store: Store): Promise<void> {
+  await store.sessions.create({ sessionId: 's', agentId: 'a', workspace: 'w' });
+  await store.sessions.claimWriter({ sessionId: 's', runId: 'r1' });
+  await store.sessions.appendMessages({ sessionId: 's', runId: 'r1', messages: [msg('m1'), msg('m2')] });
+  await store.runs.create(runRecord('s', 'r1', { status: 'completed', inputMessageId: 'm1', lastMessageId: 'm2', usage: { inputTokens: 11, outputTokens: 12 }, steps: 2 }));
+  await store.runs.appendEvent(event('s', 'r1', 1));
+  await store.runs.appendStep({ kind: 'model', sessionId: 's', runId: 'r1', index: 0, invocationId: 'i1', status: 'completed', startedAt: 'now' });
+  await store.requests.create({ requestId: 'q1', sessionId: 's', runId: 'r1', kind: 'approval', callId: 'c1', payload: { name: 'rm' }, createdAt: 'now' });
+  await store.sessions.releaseWriter({ sessionId: 's', runId: 'r1' });
+  await store.sessions.claimWriter({ sessionId: 's', runId: 'r2' });
+  await store.sessions.appendMessages({ sessionId: 's', runId: 'r2', messages: [msg('m3'), msg('m4')] });
+  await store.runs.create(runRecord('s', 'r2', { status: 'completed', inputMessageId: 'm3', lastMessageId: 'm4' }));
+  await store.runs.appendStep({ kind: 'tool', sessionId: 's', runId: 'r2', index: 0, invocationId: 'i2', status: 'completed', callId: 'c2', name: 'echo', input: {}, startedAt: 'now' });
+  await store.sessions.releaseWriter({ sessionId: 's', runId: 'r2' });
+  await store.sessions.claimWriter({ sessionId: 's', runId: 'r3' });
+  await store.sessions.appendMessages({ sessionId: 's', runId: 'r3', messages: [msg('m5')] });
+  await store.runs.create(runRecord('s', 'r3', { status: 'completed', inputMessageId: 'm5', lastMessageId: 'm5' }));
+  await store.requests.create({ requestId: 'q3', sessionId: 's', runId: 'r3', kind: 'approval', callId: 'c3', payload: { name: 'rm' }, createdAt: 'now' });
+  await store.sessions.releaseWriter({ sessionId: 's', runId: 'r3' });
+  // Never terminal, over r1's span, and not the claim holder: a cut never keeps it.
+  await store.runs.create(runRecord('s', 'r4', { status: 'running', inputMessageId: 'm1', lastMessageId: 'm2' }));
+}
+
 async function codeOf(p: Promise<unknown>): Promise<string | undefined> {
   try {
     await p;
@@ -59,6 +87,24 @@ export function describeStoreConformance(args: { name: string; create: () => Sto
         await store.sessions.appendMessages({ sessionId: 's', runId: 'r2', messages: [msg('y')] });
         expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.id)).toEqual(['x', 'y']);
         expect((await store.sessions.listMessages({ sessionId: 's', limit: 1 })).map((m) => m.id)).toEqual(['y']);
+      });
+
+      it('advances the run\'s lastMessageId with every message it appends', async () => {
+        await store.sessions.create({ sessionId: 's', agentId: 'a' });
+        await store.runs.create(runRecord('s', 'r', { inputMessageId: 'm1' }));
+        await store.sessions.claimWriter({ sessionId: 's', runId: 'r' });
+        expect((await store.runs.get({ sessionId: 's', runId: 'r' }))?.lastMessageId).toBeUndefined();
+
+        await store.sessions.appendMessages({ sessionId: 's', runId: 'r', messages: [msg('m1')] });
+        expect((await store.runs.get({ sessionId: 's', runId: 'r' }))?.lastMessageId).toBe('m1');
+        await store.sessions.appendMessages({ sessionId: 's', runId: 'r', messages: [msg('m2'), msg('m3')] });
+        expect((await store.runs.get({ sessionId: 's', runId: 'r' }))?.lastMessageId).toBe('m3');
+
+        // A session with no record for the run still takes the messages.
+        await store.sessions.releaseWriter({ sessionId: 's', runId: 'r' });
+        await store.sessions.claimWriter({ sessionId: 's', runId: 'loose' });
+        await store.sessions.appendMessages({ sessionId: 's', runId: 'loose', messages: [msg('m4')] });
+        expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.id)).toEqual(['m1', 'm2', 'm3', 'm4']);
       });
 
       it('stores no workspace key when none is given and never exposes messages', async () => {
@@ -271,6 +317,83 @@ export function describeStoreConformance(args: { name: string; create: () => Sto
         const r1 = await store.runs.get({ sessionId: 's', runId: 'r' });
         r1!.status = 'failed';
         expect((await store.runs.get({ sessionId: 's', runId: 'r' }))!.status).toBe('running');
+      });
+    });
+
+    describe('cut', () => {
+      it('truncate keeps the turns through the cut and drops the rest with their logs', async () => {
+        await seedCut(store);
+        const before = (await store.sessions.get({ sessionId: 's' }))!;
+        const result = await store.sessions.truncate({ sessionId: 's', throughMessageId: 'm4' });
+        expect(result).toEqual({ remainingMessages: 4, removedMessages: 1, removedRuns: 2 });
+        expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.id)).toEqual(['m1', 'm2', 'm3', 'm4']);
+        expect((await store.runs.list({ sessionId: 's' })).map((r) => r.runId).sort()).toEqual(['r1', 'r2']);
+        // A kept turn keeps its usage, its steps and its events.
+        expect(await store.runs.get({ sessionId: 's', runId: 'r1' })).toMatchObject({ status: 'completed', usage: { inputTokens: 11, outputTokens: 12 }, steps: 2, inputMessageId: 'm1', lastMessageId: 'm2' });
+        expect((await store.runs.listSteps({ sessionId: 's', runId: 'r1' })).map((s) => s.invocationId)).toEqual(['i1']);
+        expect((await store.runs.listEvents({ sessionId: 's', runId: 'r1' })).map((e) => e.seq)).toEqual([1]);
+        expect(await store.requests.get({ sessionId: 's', runId: 'r1', requestId: 'q1' })).toBeDefined();
+        // A removed turn answers nothing any more: r3's messages went with it, r4 was never terminal.
+        for (const runId of ['r3', 'r4']) {
+          expect(await store.runs.get({ sessionId: 's', runId })).toBeUndefined();
+          expect(await codeOf(store.runs.listEvents({ sessionId: 's', runId }))).toBe('not_found');
+          expect(await codeOf(store.runs.listSteps({ sessionId: 's', runId }))).toBe('not_found');
+        }
+        expect(await store.requests.get({ sessionId: 's', runId: 'r3', requestId: 'q3' })).toBeUndefined();
+        expect((await store.sessions.get({ sessionId: 's' }))!.updatedAt >= before.updatedAt).toBe(true);
+      });
+
+      it('truncate refuses not_found and writer_busy, and a paused holder does not block', async () => {
+        await store.sessions.create({ sessionId: 's', agentId: 'a' });
+        expect(await codeOf(store.sessions.truncate({ sessionId: 'missing', throughMessageId: 'm' }))).toBe('not_found');
+        await store.runs.create(runRecord('s', 'r', { status: 'running', inputMessageId: 'm1', lastMessageId: 'm2' }));
+        await store.sessions.claimWriter({ sessionId: 's', runId: 'r' });
+        await store.sessions.appendMessages({ sessionId: 's', runId: 'r', messages: [msg('m1'), msg('m2')] });
+        // A running holder is writing: the cut is refused before the message is even looked up.
+        expect(await codeOf(store.sessions.truncate({ sessionId: 's', throughMessageId: 'nope' }))).toBe('writer_busy');
+        // Paused: it keeps the claim but writes nothing, so it does not block; the cut then drops it and frees the claim.
+        await store.runs.update({ sessionId: 's', runId: 'r', status: 'awaiting' });
+        expect(await codeOf(store.sessions.truncate({ sessionId: 's', throughMessageId: 'nope' }))).toBe('not_found');
+        expect(await store.sessions.truncate({ sessionId: 's', throughMessageId: 'm2' })).toEqual({ remainingMessages: 2, removedMessages: 0, removedRuns: 1 });
+        expect(await store.runs.get({ sessionId: 's', runId: 'r' })).toBeUndefined();
+        expect((await store.sessions.get({ sessionId: 's' }))?.activeWriterRunId).toBeUndefined();
+        expect(await store.sessions.claimWriter({ sessionId: 's', runId: 'next' })).toBe(true);
+      });
+
+      it('fork copies the cut into a new session and leaves the source whole', async () => {
+        await seedCut(store);
+        const sourceMessages = (await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.id);
+        const sourceRuns = (await store.runs.list({ sessionId: 's' })).map((r) => r.runId).sort();
+        const target = await store.sessions.fork({ fromSessionId: 's', throughMessageId: 'm4', sessionId: 'f' });
+        expect(target).toMatchObject({ sessionId: 'f', agentId: 'a', workspace: 'w' });
+        expect((await store.sessions.listMessages({ sessionId: 'f' })).map((m) => m.id)).toEqual(['m1', 'm2', 'm3', 'm4']);
+        expect((await store.runs.list({ sessionId: 'f' })).map((r) => r.runId).sort()).toEqual(['r1', 'r2']);
+        // Events and steps come with the kept runs, on the target's session id.
+        expect(await store.runs.get({ sessionId: 'f', runId: 'r1' })).toMatchObject({ sessionId: 'f', status: 'completed' });
+        expect((await store.runs.listEvents({ sessionId: 'f', runId: 'r1' })).map((e) => e.seq)).toEqual([1]);
+        expect((await store.runs.listEvents({ sessionId: 'f', runId: 'r1' }))[0]!.sessionId).toBe('f');
+        expect((await store.runs.listSteps({ sessionId: 'f', runId: 'r1' }))[0]!.sessionId).toBe('f');
+        // A never-terminal run is not a run of the target's, and requests are not copied.
+        expect(await store.runs.get({ sessionId: 'f', runId: 'r4' })).toBeUndefined();
+        expect(await store.requests.get({ sessionId: 'f', runId: 'r1', requestId: 'q1' })).toBeUndefined();
+        // The source is untouched.
+        expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.id)).toEqual(sourceMessages);
+        expect((await store.runs.list({ sessionId: 's' })).map((r) => r.runId).sort()).toEqual(sourceRuns);
+        expect(await store.requests.get({ sessionId: 's', runId: 'r3', requestId: 'q3' })).toBeDefined();
+        expect(await store.runs.get({ sessionId: 's', runId: 'r1' })).toMatchObject({ sessionId: 's' });
+      });
+
+      it('fork refuses a taken target, an absent source or message, and a running writer', async () => {
+        await seedCut(store);
+        await store.sessions.create({ sessionId: 'taken', agentId: 'b' });
+        expect(await codeOf(store.sessions.fork({ fromSessionId: 's', throughMessageId: 'm2', sessionId: 'taken' }))).toBe('already_exists');
+        expect(await codeOf(store.sessions.fork({ fromSessionId: 'missing', throughMessageId: 'm2', sessionId: 'new' }))).toBe('not_found');
+        expect(await codeOf(store.sessions.fork({ fromSessionId: 's', throughMessageId: 'nope', sessionId: 'new' }))).toBe('not_found');
+        expect(await store.sessions.get({ sessionId: 'new' })).toBeUndefined();
+        await store.sessions.claimWriter({ sessionId: 's', runId: 'r1' });
+        await store.runs.update({ sessionId: 's', runId: 'r1', status: 'running' });
+        expect(await codeOf(store.sessions.fork({ fromSessionId: 's', throughMessageId: 'm2', sessionId: 'new' }))).toBe('writer_busy');
+        expect(await store.sessions.get({ sessionId: 'new' })).toBeUndefined();
       });
     });
 

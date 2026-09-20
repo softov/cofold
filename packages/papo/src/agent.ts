@@ -1,6 +1,6 @@
 import { join } from 'node:path';
-import type { Agent, Capability, ModelProvider, Policy, Rule, SkillSource, Store, Tool } from '@facio/agents';
-import { createAgent, createAskUserTool, rules, skills } from '@facio/agents';
+import type { Agent, Capability, ModelProvider, Rule, SkillSource, Store, Tool } from '@facio/agents';
+import { createAgent, createAskUserTool, policyOf, rules, skills } from '@facio/agents';
 import { workspaceSlug } from '@facio/store-file';
 import type { SearchProvider } from '@facio/tools';
 import { brave, duckduckgo, files, memory, resolveWithin, shell, tavily, web } from '@facio/tools';
@@ -31,37 +31,6 @@ export interface AgentArgs {
 
 /** The file tools whose target `acceptEdits` lets through when it is inside the workspace (`filesystem.ts`, decision CLI-04.6). */
 const EDITS = new Set(['write_file', 'edit_file']);
-
-/**
- * Claude's default: a tool that only reads, or declares no effect at all (`ask_user`, `load_tools`), runs; one that
- * writes, destroys or reaches the network asks (cli/03 F8).
- */
-const byEffects: Policy['decide'] = ({ tool }) => {
-  const { writes, destructive, network } = tool.effects;
-  return { behavior: writes === true || destructive === true || network === true ? 'ask' : 'allow' };
-};
-
-/**
- * The permission mode as what decides when no rule matches (cli/03 F8): Claude's four, mapped onto the tools'
- * declared effects. Deny and ask rules run before this inside `rules()`, so under `bypassPermissions` a rule still
- * wins, as in Claude's `permissions.ts`. `acceptEdits` is a check on where the edit goes, not a rule (decision
- * CLI-04.6); `dontAsk` turns only the mode's own ask into a deny, an explicit ask rule still asks.
- */
-export function policyOf(mode: PermissionMode, workspace: string): Policy['decide'] {
-  switch (mode) {
-    case 'default': return byEffects;
-    case 'acceptEdits': return (args) => {
-      const path = (args.input as { path?: unknown } | undefined)?.path;
-      if (EDITS.has(args.tool.name) && typeof path === 'string' && resolveWithin(workspace, path).inside) return { behavior: 'allow' };
-      return byEffects(args);
-    };
-    case 'bypassPermissions': return () => ({ behavior: 'allow' });
-    case 'dontAsk': return async (args) => {
-      const decision = await byEffects(args);
-      return decision.behavior === 'ask' ? { behavior: 'deny', reason: `${args.tool.name} would need approval and the mode is dontAsk` } : decision;
-    };
-  }
-}
 
 /** The session's rules before the configuration's, per list (decision CLI-04.5); what `rules()` is built from. */
 export function mergedRules(session: RuleLists | undefined, config: RuleLists | undefined): Required<RuleLists> {
@@ -108,7 +77,13 @@ export function buildAgent(args: AgentArgs): Agent {
       skills({ sources: args.skills, warn: args.warn }),
     ],
     store: args.store,
-    policy: rules({ ...mergedRules(settings.rules, config.rules), otherwise: policyOf(settings.permissions, args.workspace) }),
+    policy: rules({
+      ...mergedRules(settings.rules, config.rules),
+      otherwise: policyOf(settings.permissions, {
+        inside: (path) => resolveWithin(args.workspace, path).inside,
+        isEdit: (tool) => EDITS.has(tool.name),
+      }),
+    }),
     ...(config.limits !== undefined ? { limits: config.limits } : {}),
     warn: args.warn,
   });

@@ -1,9 +1,10 @@
 import type { FileStoreOptions } from './types/store.js';
+import type { WriterLock } from './types/lock.js';
 import { readdir, rm, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { StoreError } from '@facio/agents';
+import { StoreError, selectCut } from '@facio/agents';
 import type { KvScope, KvScopeKey, Message, PendingRequest, RunEvent, RunRecord, RunRef, SessionRecord, StepRecord, Store } from '@facio/agents';
-import { appendLine, readJson, readLines, writeAtomic } from './jsonl.js';
+import { appendLine, readJson, readLines, writeAtomic, writeLines } from './jsonl.js';
 import * as lock from './lock.js';
 import { decodeSegment, encodeSegment } from './paths.js';
 import { workspaceSlug } from './slug.js';
@@ -72,6 +73,23 @@ export function createFileStore(options: FileStoreOptions): Store {
     return record && !Array.isArray(record.denials) ? { ...record, denials: [] } : record;
   };
   const requestFile = (runDir: string, requestId: string) => join(runDir, 'requests', `${encodeSegment(requestId)}.json`);
+  /** Every run of a session, for a cut to decide over (p4 fork/rewind). */
+  const readRuns = async (sessionDir: string): Promise<RunRecord[]> => {
+    const records: RunRecord[] = [];
+    for (const name of await listDir(join(sessionDir, 'runs'))) {
+      const record = await readRun(join(sessionDir, 'runs', name));
+      if (record) records.push(record);
+    }
+    return records;
+  };
+  /** The claim holder, unless it is a `running` run: that one is writing and refuses a cut, as it refuses delete. */
+  async function writerHolder(dir: string, sessionId: string): Promise<WriterLock | undefined> {
+    const holder = await lock.readLock(dir);
+    if (holder && (await readRun(runDirOf(dir, holder.runId)))?.status === 'running') {
+      throw new StoreError({ code: 'writer_busy', message: `session ${sessionId} is being written by run ${holder.runId}` });
+    }
+    return holder;
+  }
 
   return {
     sessions: {
@@ -106,13 +124,59 @@ export function createFileStore(options: FileStoreOptions): Store {
       },
       async delete({ sessionId }) {
         const dir = await requireSessionDir(sessionId);
-        const holder = await lock.readLock(dir);
-        if (holder && (await readRun(runDirOf(dir, holder.runId)))?.status === 'running') {
-          throw new StoreError({ code: 'writer_busy', message: `session ${sessionId} is being written by run ${holder.runId}` });
-        }
+        await writerHolder(dir, sessionId);
         await rm(dir, { recursive: true, force: true });
         sessionDirs.delete(sessionId);
         for (const key of [...lastSeq.keys()]) if (key.startsWith(dir)) lastSeq.delete(key);
+      },
+      async truncate({ sessionId, throughMessageId }) {
+        const dir = await requireSessionDir(sessionId);
+        const holder = await writerHolder(dir, sessionId);
+        const messages = await readLines<Message>(join(dir, 'messages.jsonl'));
+        const cut = selectCut({ sessionId, messages, runs: await readRuns(dir), throughMessageId });
+        await writeLines(join(dir, 'messages.jsonl'), cut.messages);
+        for (const runId of cut.removedRunIds) {
+          const runDir = runDirOf(dir, runId);
+          await rm(runDir, { recursive: true, force: true });
+          for (const key of [...lastSeq.keys()]) if (key.startsWith(runDir)) lastSeq.delete(key);
+        }
+        const record = await readJson<SessionRecord>(join(dir, 'session.json'));
+        if (record) await writeAtomic(join(dir, 'session.json'), { ...record, updatedAt: now() });
+        if (holder && cut.removedRunIds.includes(holder.runId)) await lock.clear(dir, holder.runId);
+        return { remainingMessages: cut.messages.length, removedMessages: messages.length - cut.messages.length, removedRuns: cut.removedRunIds.length };
+      },
+      async fork({ fromSessionId, throughMessageId, sessionId }) {
+        const sourceDir = await requireSessionDir(fromSessionId);
+        await writerHolder(sourceDir, fromSessionId);
+        if (await findSessionDir(sessionId)) throw new StoreError({ code: 'already_exists', message: `session ${sessionId}` });
+        const source = await readSession(sourceDir);
+        if (!source) throw new StoreError({ code: 'not_found', message: `session ${fromSessionId}` });
+        const messages = await readLines<Message>(join(sourceDir, 'messages.jsonl'));
+        const cut = selectCut({ sessionId: fromSessionId, messages, runs: await readRuns(sourceDir), throughMessageId });
+        const segment = encodeSegment(sessionId);
+        const targetDir = source.workspace !== undefined
+          ? join(workspacesRoot, workspaceSlug({ workspace: source.workspace }), 'sessions', segment)
+          : join(sessionsRoot, segment);
+        const record: SessionRecord = {
+          sessionId,
+          agentId: source.agentId,
+          ...(source.workspace !== undefined ? { workspace: source.workspace } : {}),
+          createdAt: now(),
+          updatedAt: now(),
+        };
+        await writeAtomic(join(targetDir, 'session.json'), record);
+        await writeLines(join(targetDir, 'messages.jsonl'), cut.messages);
+        for (const run of cut.runs) {
+          const sourceRunDir = runDirOf(sourceDir, run.runId);
+          const targetRunDir = runDirOf(targetDir, run.runId);
+          await writeAtomic(join(targetRunDir, 'run.json'), { ...run, sessionId });
+          const events = await readLines<RunEvent>(join(sourceRunDir, 'events.jsonl'));
+          if (events.length > 0) await writeLines(join(targetRunDir, 'events.jsonl'), events.map((event) => ({ ...event, sessionId })));
+          const steps = await readLines<StepRecord>(join(sourceRunDir, 'steps.jsonl'));
+          if (steps.length > 0) await writeLines(join(targetRunDir, 'steps.jsonl'), steps.map((step) => ({ ...step, sessionId })));
+        }
+        remember(sessionId, targetDir);
+        return { ...record };
       },
       async appendMessages({ sessionId, runId, messages }) {
         const dir = await requireSessionDir(sessionId);
@@ -120,6 +184,15 @@ export function createFileStore(options: FileStoreOptions): Store {
         for (const m of messages) await appendLine(join(dir, 'messages.jsonl'), m);
         const record = await readJson<SessionRecord>(join(dir, 'session.json'));
         if (record) await writeAtomic(join(dir, 'session.json'), { ...record, updatedAt: now() });
+        // The run's span ends at the last message it appended, so the record a
+        // cut reads says where this run ended (p4 fork/rewind). The claim above
+        // is what makes this writer the only one moving the same run.
+        const last = messages.at(-1);
+        if (last !== undefined) {
+          const runDir = runDirOf(dir, runId);
+          const run = await readRun(runDir);
+          if (run) await writeAtomic(join(runDir, 'run.json'), { ...run, lastMessageId: last.id, updatedAt: now() });
+        }
       },
       async listMessages({ sessionId, limit }) {
         const dir = await requireSessionDir(sessionId);

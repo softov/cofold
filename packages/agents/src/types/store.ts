@@ -50,7 +50,12 @@ export interface RunRecord {
   steps: number;
   /** Every refused tool call of the run, in order (cli/03 F3): the authoritative record, `[]` from `runs.create`. */
   denials: Denial[];
-  /** Message ids of this turn's input and last appended message; p4 fork/rewind slots. */
+  /**
+   * The span of the run, and the slots a cut keeps it by (p4 fork/rewind): the id of its input
+   * message and the id of the last message it appended. `runs.create` sets `inputMessageId`,
+   * and `appendMessages` advances `lastMessageId` with every message written under the run, so
+   * the two are exact for any run that appended at least its input.
+   */
   inputMessageId?: string;
   lastMessageId?: string;
 }
@@ -113,6 +118,32 @@ export interface PendingRequest {
   resolution?: unknown;
 }
 
+/**
+ * What `sessions.truncate` left behind (p4 fork/rewind): the transcript is a prefix of what it was,
+ * and the turns that went with the tail are gone with their runs, events, steps and requests.
+ */
+export interface TruncationResult {
+  /** How many messages remain: `throughMessageId` and everything before it. */
+  remainingMessages: number;
+  /** How many messages the cut dropped. */
+  removedMessages: number;
+  /** How many runs, with their events, steps and requests, the cut dropped. */
+  removedRuns: number;
+}
+
+/**
+ * The cut itself, before a store writes it: the messages that remain and the runs kept with them.
+ * `selectCut` (in the store runtime) is the one place both stores decide this.
+ */
+export interface SessionCut {
+  /** The messages that remain, in order; `throughMessageId` is the last. */
+  messages: Message[];
+  /** The terminal runs whose whole span remains, in the order they were given. */
+  runs: RunRecord[];
+  /** The ids of the runs the cut drops, with their events, steps and requests. */
+  removedRunIds: string[];
+}
+
 export interface KvScope {
   get<T = unknown>(key: string): Promise<T | undefined>;
   set(key: string, value: unknown): Promise<void>;
@@ -138,7 +169,34 @@ export interface Store {
      * A paused run keeps its claim (it is still the writer) but writes nothing, so it does not block.
      */
     delete(args: { sessionId: string }): Promise<void>;
-    /** Fails with StoreError('writer_mismatch') unless runId holds the claim. */
+    /**
+     * Cuts the conversation after `throughMessageId` (the message itself is kept; p4 fork/rewind). The
+     * messages after it go, and with them the runs, events, steps and requests of the turns that went with
+     * them: a run is kept only when it is terminal and both its `inputMessageId` and its `lastMessageId` are
+     * among the messages that remain, so a kept turn keeps its usage, step log and tool timings. A terminal
+     * run missing either slot is dropped: its span cannot be proven to survive the cut. A non-terminal run at
+     * the tail (`running`, `awaiting`) is dropped too and its writer claim is cleared, so the session is free
+     * to continue; the caller cancels before a rewind, so the common path is that there is none.
+     * StoreError('not_found') for an absent session or a message the session does not hold;
+     * StoreError('writer_busy') while the claim holder is a run whose status is 'running' (a paused holder
+     * keeps its claim but writes nothing, so it does not block, as `delete` documents).
+     */
+    truncate(args: { sessionId: string; throughMessageId: string }): Promise<TruncationResult>;
+    /**
+     * Copies into a new session `sessionId` the source's messages through `throughMessageId`, and the runs
+     * kept by the same rule as `truncate` with their events and steps (p4 fork/rewind). The target takes the
+     * source's `agentId` and workspace; the source is not modified and its requests are never copied. A
+     * `running` or `awaiting` run is never copied. StoreError('already_exists') when the target is taken;
+     * StoreError('not_found') for an absent source or a message it does not hold; StoreError('writer_busy')
+     * under the same rule as `truncate`.
+     */
+    fork(args: { fromSessionId: string; throughMessageId: string; sessionId: string }): Promise<SessionRecord>;
+    /**
+     * Writes the messages and advances the run's `lastMessageId` to the last of them, which is
+     * what makes a run's span readable by a cut (p4 fork/rewind). Fails with
+     * StoreError('writer_mismatch') unless runId holds the claim; a session whose run record is
+     * gone still takes the messages, it just has no span to advance.
+     */
     appendMessages(args: { sessionId: string; runId: string; messages: Message[] }): Promise<void>;
     listMessages(args: { sessionId: string; limit?: number }): Promise<Message[]>;
     /**

@@ -49,9 +49,17 @@ Every write of a run whose lock was taken over by another `pid` fails with `writ
 
 ## Logs
 
-`events.jsonl` and `messages.jsonl` are append-only; a torn last line from a crash is skipped on read and closed off before the next append.
+`events.jsonl` and `messages.jsonl` are append-only, but for a cut rewriting the transcript (see "Cutting a conversation"); a torn last line from a crash is skipped on read and closed off before the next append.
 `steps.jsonl` gets one line per `appendStep` and per `updateStep` (the merged record); `listSteps` keeps the last line per `invocationId` in order of first appearance.
 A step `detail` larger than 256 KB when serialized is replaced by `{ truncated: true, bytes }`.
+
+## Cutting a conversation
+
+`sessions.truncate({ sessionId, throughMessageId })` and `sessions.fork({ fromSessionId, throughMessageId, sessionId })` implement p4 fork/rewind.
+A cut keeps the messages through `throughMessageId`, and a run only when it is terminal and both its `inputMessageId` and `lastMessageId` are among them; every other run goes with its `runs/<runId>/` folder, so a kept turn keeps its step log and tool timings.
+`truncate` rewrites `messages.jsonl` (tmp + rename, like `session.json`) and removes the dropped run folders, releasing a paused holder's `writer.lock`; `fork` writes a new session folder under the same workspace, copying the kept messages, runs, events and steps (never requests) and rewriting their `sessionId`.
+Neither touches a session whose `writer.lock` is held by a `running` run.
+`lastMessageId` is not something a caller writes: `sessions.appendMessages` advances it to the last message written under the run, so any run the loop drove carries the span a cut reads.
 
 ## Skills
 

@@ -10,22 +10,24 @@ import type {
   Store,
 } from '../types/store.js';
 import { StoreError } from '../errors.js';
+import { selectCut } from './cut.js';
+
+type StoredRun = RunRecord & { events: RunEvent[]; stepLog: StepRecord[] };
 
 export function createMemoryStore(): Store {
   const sessions = new Map<string, SessionRecord & { messages: Message[] }>();
   // `stepLog`, not `steps`: RunRecord.steps is the loop's counter (decision 73).
-  const runs = new Map<string, RunRecord & { events: RunEvent[]; stepLog: StepRecord[] }>();
+  // Keyed by session and run: a fork may copy a run id into another session (p4 fork/rewind).
+  const runs = new Map<string, StoredRun>();
   const requests = new Map<string, PendingRequest>();
   /** One entry map per kv scope, keyed "agent:<agentId>", "shared:<namespace>" or "workspace:<workspace>". */
   const scopes = new Map<string, Map<string, unknown>>();
   const now = () => new Date().toISOString();
+  const runKey = (sessionId: string, runId: string) => `${sessionId}\u0000${runId}`;
 
-  /** Runs are keyed by runId here; the sessionId check mirrors the file store, which can only find a run through its session. */
   const requireRun = (ref: RunRef) => {
-    const run = runs.get(ref.runId);
-    if (!run || run.sessionId !== ref.sessionId) {
-      throw new StoreError({ code: 'not_found', message: `run ${ref.runId} in session ${ref.sessionId}` });
-    }
+    const run = runs.get(runKey(ref.sessionId, ref.runId));
+    if (!run) throw new StoreError({ code: 'not_found', message: `run ${ref.runId} in session ${ref.sessionId}` });
     return run;
   };
   const requireSession = (sessionId: string) => {
@@ -39,6 +41,12 @@ export function createMemoryStore(): Store {
       throw new StoreError({ code: 'writer_mismatch', message: `run ${runId} is not the writer of session ${sessionId}` });
     }
     return s;
+  };
+  /** A `running` claim holder is writing; refuses the same way a cut does for `delete`. A paused holder does not. */
+  const requireFreeWriter = (s: SessionRecord & { messages: Message[] }, sessionId: string) => {
+    if (s.activeWriterRunId !== undefined && runs.get(runKey(sessionId, s.activeWriterRunId))?.status === 'running') {
+      throw new StoreError({ code: 'writer_busy', message: `session ${sessionId} is being written by run ${s.activeWriterRunId}` });
+    }
   };
 
   return {
@@ -69,17 +77,62 @@ export function createMemoryStore(): Store {
       },
       async delete({ sessionId }) {
         const s = requireSession(sessionId);
-        if (s.activeWriterRunId !== undefined && runs.get(s.activeWriterRunId)?.status === 'running') {
-          throw new StoreError({ code: 'writer_busy', message: `session ${sessionId} is being written by run ${s.activeWriterRunId}` });
-        }
-        for (const [runId, run] of runs) if (run.sessionId === sessionId) runs.delete(runId);
+        requireFreeWriter(s, sessionId);
+        for (const [key, run] of runs) if (run.sessionId === sessionId) runs.delete(key);
         for (const [requestId, request] of requests) if (request.sessionId === sessionId) requests.delete(requestId);
         sessions.delete(sessionId);
+      },
+      async truncate({ sessionId, throughMessageId }) {
+        const s = requireSession(sessionId);
+        requireFreeWriter(s, sessionId);
+        const cut = selectCut({ sessionId, messages: s.messages, runs: [...runs.values()].filter((run) => run.sessionId === sessionId), throughMessageId });
+        const removedMessages = s.messages.length - cut.messages.length;
+        s.messages.splice(cut.messages.length);
+        for (const runId of cut.removedRunIds) {
+          runs.delete(runKey(sessionId, runId));
+          for (const [requestId, request] of requests) if (request.sessionId === sessionId && request.runId === runId) requests.delete(requestId);
+        }
+        if (s.activeWriterRunId !== undefined && cut.removedRunIds.includes(s.activeWriterRunId)) delete s.activeWriterRunId;
+        s.updatedAt = now();
+        return { remainingMessages: cut.messages.length, removedMessages, removedRuns: cut.removedRunIds.length };
+      },
+      async fork({ fromSessionId, throughMessageId, sessionId }) {
+        const source = requireSession(fromSessionId);
+        requireFreeWriter(source, fromSessionId);
+        if (sessions.has(sessionId)) throw new StoreError({ code: 'already_exists', message: `session ${sessionId}` });
+        const cut = selectCut({ sessionId: fromSessionId, messages: source.messages, runs: [...runs.values()].filter((run) => run.sessionId === fromSessionId), throughMessageId });
+        const record: SessionRecord & { messages: Message[] } = {
+          sessionId,
+          agentId: source.agentId,
+          ...(source.workspace !== undefined ? { workspace: source.workspace } : {}),
+          createdAt: now(),
+          updatedAt: now(),
+          messages: structuredClone(cut.messages),
+        };
+        sessions.set(sessionId, record);
+        for (const run of cut.runs) {
+          const stored = runs.get(runKey(fromSessionId, run.runId)) as StoredRun;
+          runs.set(runKey(sessionId, run.runId), {
+            ...structuredClone(stripRun(stored)),
+            sessionId,
+            events: structuredClone(stored.events).map((event) => ({ ...event, sessionId })),
+            stepLog: structuredClone(stored.stepLog).map((step) => ({ ...step, sessionId })),
+          });
+        }
+        return stripSession(record);
       },
       async appendMessages({ sessionId, runId, messages }) {
         const s = requireWriter(sessionId, runId);
         s.messages.push(...messages.map((m) => structuredClone(m)));
         s.updatedAt = now();
+        // The run's span ends at the last message it appended, so the record a
+        // cut reads says where this run ended (p4 fork/rewind).
+        const run = runs.get(runKey(sessionId, runId));
+        const last = messages.at(-1);
+        if (run !== undefined && last !== undefined) {
+          run.lastMessageId = last.id;
+          run.updatedAt = now();
+        }
       },
       async listMessages({ sessionId, limit }) {
         const all = requireSession(sessionId).messages;
@@ -102,12 +155,13 @@ export function createMemoryStore(): Store {
     runs: {
       async create(record) {
         requireSession(record.sessionId);
-        if (runs.has(record.runId)) throw new StoreError({ code: 'already_exists', message: `run ${record.runId}` });
-        runs.set(record.runId, { ...structuredClone(record), events: [], stepLog: [] });
+        const key = runKey(record.sessionId, record.runId);
+        if (runs.has(key)) throw new StoreError({ code: 'already_exists', message: `run ${record.runId}` });
+        runs.set(key, { ...structuredClone(record), events: [], stepLog: [] });
       },
       async get(ref) {
-        const r = runs.get(ref.runId);
-        return r && r.sessionId === ref.sessionId ? stripRun(r) : undefined;
+        const r = runs.get(runKey(ref.sessionId, ref.runId));
+        return r ? stripRun(r) : undefined;
       },
       async list({ sessionId, status }) {
         requireSession(sessionId);

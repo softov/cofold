@@ -153,6 +153,36 @@ describe('createFileStore layout', () => {
     expect(await codeOf(kv.set('k'.repeat(300), 1))).toBe('invalid_options');
     expect(await codeOf(store.sessions.create({ sessionId: 'x'.repeat(201), agentId: 'a' }))).toBe('invalid_options');
   });
+
+  it('truncate rewrites messages.jsonl and removes the dropped run folders and a paused lock; fork writes a new folder', async () => {
+    const root = await tempRoot();
+    const store = createFileStore({ root });
+    const line = (id: string) => ({ id, role: 'user' as const, source: 'input' as const, parts: [{ type: 'text' as const, text: id }], createdAt: 'now' });
+    await store.sessions.create({ sessionId: 's', agentId: 'a', workspace: 'F:/proj' });
+    await store.sessions.claimWriter({ sessionId: 's', runId: 'r1' });
+    await store.sessions.appendMessages({ sessionId: 's', runId: 'r1', messages: [line('m1')] });
+    await store.runs.create(runRecord('s', 'r1', { status: 'completed', inputMessageId: 'm1', lastMessageId: 'm1' }));
+    await store.sessions.releaseWriter({ sessionId: 's', runId: 'r1' });
+    await store.sessions.claimWriter({ sessionId: 's', runId: 'r2' });
+    await store.sessions.appendMessages({ sessionId: 's', runId: 'r2', messages: [line('m2'), line('m3')] });
+    await store.runs.create(runRecord('s', 'r2', { status: 'awaiting', inputMessageId: 'm2', lastMessageId: 'm3' }));
+
+    const slug = workspaceSlug({ workspace: 'F:/proj' });
+    const sessionDir = join(root, 'workspaces', slug, 'sessions', encodeSegment('s'));
+    expect(await store.sessions.truncate({ sessionId: 's', throughMessageId: 'm1' })).toEqual({ remainingMessages: 1, removedMessages: 2, removedRuns: 1 });
+    expect((await readFile(join(sessionDir, 'messages.jsonl'), 'utf8')).trim().split('\n')).toHaveLength(1);
+    expect(await exists(join(sessionDir, 'runs', 'r2'))).toBe(false);
+    expect(await exists(join(sessionDir, 'runs', 'r1', 'run.json'))).toBe(true);
+    // The paused holder was dropped with the cut, so its claim is gone with it.
+    expect(await exists(join(sessionDir, 'writer.lock'))).toBe(false);
+
+    await store.sessions.fork({ fromSessionId: 's', throughMessageId: 'm1', sessionId: 'f' });
+    const forkDir = join(root, 'workspaces', slug, 'sessions', encodeSegment('f'));
+    expect(await exists(join(forkDir, 'session.json'))).toBe(true);
+    expect((await readFile(join(forkDir, 'messages.jsonl'), 'utf8')).trim().split('\n')).toHaveLength(1);
+    expect(await exists(join(forkDir, 'runs', 'r1', 'run.json'))).toBe(true);
+    expect(await exists(join(forkDir, 'runs', 'r2'))).toBe(false);
+  });
 });
 
 describe('createFileStore end to end', () => {
@@ -196,5 +226,25 @@ describe('createFileStore end to end', () => {
     const storeA = createFileStore({ root: rootA });
     expect(await storeA.runs.get({ sessionId: 'sess', runId: first.runId })).toMatchObject({ status: 'awaiting', pendingRequestId: requestId });
     expect((await storeA.sessions.get({ sessionId: 'sess' }))?.activeWriterRunId).toBe(first.runId);
+  });
+
+  it('a rewind truncates the transcript, and the next run() continues from the cut', async () => {
+    const root = await tempRoot();
+    const store = createFileStore({ root });
+    const model = createFakeModel({ script: [{ text: 'one' }, { text: 'two' }] });
+    const agent = createAgent({ id: 'a', instructions: 'x', model, store });
+    const first = await run({ agent, session: 'sess', input: 'hello' }).outcome;
+    expect(first.status).toBe('completed');
+    const [input] = await store.sessions.listMessages({ sessionId: 'sess' });
+    expect((await store.sessions.listMessages({ sessionId: 'sess' }))).toHaveLength(2);
+
+    // The rewind cuts back to the input: the assistant message and the run that wrote it go.
+    expect(await store.sessions.truncate({ sessionId: 'sess', throughMessageId: input!.id })).toMatchObject({ remainingMessages: 1, removedMessages: 1 });
+    expect((await store.sessions.listMessages({ sessionId: 'sess' })).map((m) => m.id)).toEqual([input!.id]);
+
+    // run() reads the session, so it continues from exactly what the cut left.
+    const second = await run({ agent, session: 'sess', input: 'again' }).outcome;
+    expect(second.status).toBe('completed');
+    expect((await store.sessions.listMessages({ sessionId: 'sess' })).map((m) => m.role)).toEqual(['user', 'user', 'assistant']);
   });
 });
