@@ -1,6 +1,6 @@
 {
   "name": "@facio/store-file",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "File-backed Store for @facio/agents: JSONL per session and run, writer.lock with a heartbeat, plus fileSkillSource.",
   "license": "MIT",
   "type": "module",

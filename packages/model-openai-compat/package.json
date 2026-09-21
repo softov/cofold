@@ -1,6 +1,6 @@
 {
   "name": "@facio/model-openai-compat",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Chat Completions model adapter for @facio/agents (OpenRouter, LM Studio, any compatible server).",
   "license": "MIT",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@facio/agents",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Agent runtime: contracts, loop, run handle, step log.",
   "license": "MIT",
   "type": "module",
