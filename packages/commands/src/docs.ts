@@ -1,4 +1,4 @@
-import type { DocumentOptions } from "./types/document.js";
+import type { DocumentOptions } from "./types/docs.js";
 import {
   argumentFields,
   commandPattern,
@@ -14,12 +14,12 @@ import {
   type OptionNote,
   type OptionSpec,
   type Runner,
-} from "@cofold/commands";
+} from "./index.js";
 
-export type { DocumentOptions } from "./types/document.js";
+export type { DocumentOptions } from "./types/docs.js";
 
 /**
- * @cofold/docs - the registry, written down.
+ * The registry, written down.
  *
  * Two readings, and the difference between them is the point. The reference is
  * for a person and lists everything. The skill is for an agent and lists only

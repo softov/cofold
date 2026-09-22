@@ -6,7 +6,7 @@ revalidated: 2026-09-16
 
 # Commands domain - current state
 
-The `commands` domain is the command framework: `@cofold/commands` (the declaration, the registry, input, argv grammar, coercion, schema) and its surfaces `@cofold/terminal`, `@cofold/mcp`, `@cofold/remote`, `@cofold/config`, `@cofold/yaml`, `@cofold/docs`; what they share (`JsonSchema`, the validator, Standard Schema) is `@cofold/sdk`.
+The `commands` domain is the command framework: `@cofold/commands` (the declaration, the registry, input, argv grammar, coercion, schema) and its surfaces `@cofold/terminal`, `@cofold/mcp`, `@cofold/remote`, `@cofold/config`, `@cofold/yaml`, and the generated reference at `@cofold/commands/docs`; what they share (`JsonSchema`, the validator, Standard Schema) is `@cofold/sdk`.
 
 ## What exists today (2026-09-16)
 

@@ -2,7 +2,7 @@
 import { pathToFileURL } from "node:url";
 import { coerce, createRegistry, output } from "@cofold/commands";
 import { globalOptions, Program, renderTable, runEntry } from "@cofold/terminal";
-import { agentSkill, reference } from "@cofold/docs";
+import { agentSkill, reference } from "@cofold/commands/docs";
 import { listTools } from "@cofold/mcp";
 import {
   defaultStorePath,

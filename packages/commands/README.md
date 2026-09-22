@@ -8,7 +8,7 @@
 [![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#packages)
 [![license](https://img.shields.io/npm/l/@cofold/commands.svg)](LICENSE)
 
-The command framework of the [cofold](https://github.com/softov/cofold) family: this package is the declaration, the registry and the input every surface shares; the surfaces are sibling packages, listed under [Packages](#packages).
+The command framework of the [cofold](https://github.com/softov/cofold) family: this package is the declaration, the registry and the input every surface shares; the surfaces are listed under [Packages](#packages), all but the generated reference as sibling packages.
 
 ## What it is
 
@@ -226,7 +226,7 @@ This keeps actions declarative without turning the registry into a global bag of
 
 ## Packages
 
-One package per surface, each with a single entry point (`@cofold/mcp` has three).
+One package per surface, each with a single entry point (`@cofold/mcp` has three), except the generated reference, which is this package's `./docs` entry point.
 
 | Package                         | Purpose                                                          |
 | ------------------------------ | ---------------------------------------------------------------- |
@@ -235,7 +235,7 @@ One package per surface, each with a single entry point (`@cofold/mcp` has three
 | [`@cofold/mcp`](../mcp)       | Expose actions as MCP tools without an MCP SDK dependency        |
 | [`@cofold/mcp/stdio`](../mcp/src/stdio.ts) | Serve those tools over stdio. Still no SDK, still no dependencies |
 | [`@cofold/mcp/server`](../mcp/src/server) | Optional SDK-backed Streamable HTTP, for mounting in an existing server |
-| [`@cofold/docs`](../docs)     | Generate Markdown references for people and agents               |
+| [`@cofold/commands/docs`](src/docs.ts) | Generate Markdown references for people and agents |
 | [`@cofold/remote`](../remote) | Materialise commands from remote manifests or OpenAPI            |
 | [`@cofold/yaml`](../yaml) | Parse a YAML subset into plain data, with source-aware errors |
 | [`@cofold/config`](../config) | Find the configuration file, and say which one a value came from |

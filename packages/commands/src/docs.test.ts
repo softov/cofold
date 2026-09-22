@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { coerce, createRegistry, output } from "@cofold/commands";
-import { agentSkill, reference } from "./index.js";
+import { coerce, createRegistry, output } from "./index.js";
+import { agentSkill, reference } from "./docs.js";
 
 function build() {
   const registry = createRegistry({

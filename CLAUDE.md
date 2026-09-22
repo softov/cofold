@@ -26,8 +26,8 @@ pnpm only (`packageManager` is pinned). Node >= 22. ESM only. No bundler. Tests 
 packages/sdk/               @cofold/sdk - what commands and agents share: JsonSchema, the one validator (validateSchema, assertSupportedSchema), SchemaResult, StandardSchema; one thing per file
 packages/commands/          @cofold/commands - the declaration, registry, input, argv grammar, coercion, the sentence a validation failure becomes
   src/types/                contracts only, grouped by concept: coerce, field, command, input, argv, context, registry, errors, compact
-  src/<name>.ts             runtime by domain (command, registry, context, input, coerce, schema, argv, errors, compact, display, suggest)
-packages/{terminal,mcp,remote,config,yaml,docs}/   the surfaces; each depends on @cofold/commands (mcp: optional SDK peer)
+  src/<name>.ts             runtime by domain (command, registry, context, input, coerce, schema, argv, errors, compact, display, suggest, docs)
+packages/{terminal,mcp,remote,config,yaml}/   the surfaces; each depends on @cofold/commands (mcp: optional SDK peer)
 packages/agents/            @cofold/agents  - contracts, loop, run handle, step log, memory store, fake model
   src/types/                contracts only, grouped by concept
   src/{agent,message,model,store,tool,run,capabilities,testing}/   runtime code by domain

@@ -24,7 +24,6 @@ For an agent, the surface is a run: a model proposes, the harness authorizes and
 | [`@cofold/remote`](packages/remote) | Commands over HTTP: manifests, OpenAPI, authentication, the remote client. |
 | [`@cofold/config`](packages/config) | Layered configuration as a capability, each value saying which file set it. |
 | [`@cofold/yaml`](packages/yaml) | A documented YAML subset and a document loader with references. |
-| [`@cofold/docs`](packages/docs) | Markdown references for people and agents, generated from the declaration. |
 
 ### Agents
 

@@ -36,6 +36,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./docs": {
+      "types": "./dist/docs.d.ts",
+      "default": "./dist/docs.js"
     }
   },
   "files": [

@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@cofold/commands": "workspace:*",
-    "@cofold/docs": "workspace:*",
     "@cofold/mcp": "workspace:*",
     "@cofold/remote": "workspace:*",
     "@cofold/terminal": "workspace:*"

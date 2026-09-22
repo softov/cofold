@@ -13,7 +13,6 @@ export default defineWorkspace([
   { test: { name: '@cofold/remote', root: 'packages/remote', typecheck } },
   { test: { name: '@cofold/config', root: 'packages/config', typecheck } },
   { test: { name: '@cofold/yaml', root: 'packages/yaml', typecheck } },
-  { test: { name: '@cofold/docs', root: 'packages/docs', typecheck } },
   { test: { name: '@cofold/agents', root: 'packages/agents', typecheck } },
   { test: { name: '@cofold/model-openai-compat', root: 'packages/model-openai-compat', typecheck } },
   { test: { name: '@cofold/store-file', root: 'packages/store-file', typecheck } },
