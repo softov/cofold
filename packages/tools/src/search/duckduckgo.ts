@@ -11,7 +11,7 @@ export function duckduckgo(options: DuckDuckGoOptions = {}): SearchProvider {
     id: 'duckduckgo',
     async search({ query, count, signal }) {
       const url = `${ENDPOINT}?${new URLSearchParams({ q: query })}`;
-      const response = await checked('duckduckgo', doFetch(url, { signal, headers: { accept: 'text/html', 'user-agent': 'Mozilla/5.0 (compatible; doopx/0.1)' } }));
+      const response = await checked('duckduckgo', doFetch(url, { signal, headers: { accept: 'text/html', 'user-agent': 'Mozilla/5.0 (compatible; cofold/0.1)' } }));
       return parseResults(await response.text()).slice(0, count);
     },
   };

@@ -1,5 +1,5 @@
-import type { Command, RequestContext } from "@doopx/commands";
-import type { JsonSchema } from "@doopx/sdk";
+import type { Command, RequestContext } from "@cofold/commands";
+import type { JsonSchema } from "@cofold/sdk";
 import type { McpBinding } from "./binding.js";
 
 export interface ToolDefinition {

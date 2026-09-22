@@ -1,7 +1,7 @@
 import type { CallToolResult, ServerNotification, ServerRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Command, RequestContext } from "@doopx/commands";
+import type { Command, RequestContext } from "@cofold/commands";
 import type { PromptDefinition, ResourceDefinition, ResourceTemplateDefinition } from "./resources.js";
 import type { ToolDefinition } from "./tool.js";
 
@@ -28,7 +28,7 @@ export interface McpServerOptions {
   mapError?(error: unknown): CallToolResult | undefined;
   onSuccess?(event: ToolEvent): void | Promise<void>;
   onFailure?(error: unknown, context: McpRequestContext): void | Promise<void>;
-  /** Application-owned diagnostics; never written to stdout by Doopx. */
+  /** Application-owned diagnostics; never written to stdout by Cofold. */
   onDiagnostic?(error: unknown): void;
   /** Enable explicit tools/list_changed notifications on this connection. */
   toolListChanged?: boolean;

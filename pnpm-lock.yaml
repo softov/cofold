@@ -23,31 +23,31 @@ importers:
 
   examples/agents:
     dependencies:
-      '@doopx/agents':
+      '@cofold/agents':
         specifier: workspace:*
         version: link:../../packages/agents
-      '@doopx/model-openai-compat':
+      '@cofold/model-openai-compat':
         specifier: workspace:*
         version: link:../../packages/model-openai-compat
-      '@doopx/store-file':
+      '@cofold/store-file':
         specifier: workspace:*
         version: link:../../packages/store-file
 
   examples/commands:
     dependencies:
-      '@doopx/commands':
+      '@cofold/commands':
         specifier: workspace:*
         version: link:../../packages/commands
-      '@doopx/docs':
+      '@cofold/docs':
         specifier: workspace:*
         version: link:../../packages/docs
-      '@doopx/mcp':
+      '@cofold/mcp':
         specifier: workspace:*
         version: link:../../packages/mcp
-      '@doopx/remote':
+      '@cofold/remote':
         specifier: workspace:*
         version: link:../../packages/remote
-      '@doopx/terminal':
+      '@cofold/terminal':
         specifier: workspace:*
         version: link:../../packages/terminal
     devDependencies:
@@ -60,13 +60,13 @@ importers:
 
   packages/agents:
     dependencies:
-      '@doopx/sdk':
+      '@cofold/sdk':
         specifier: workspace:^
         version: link:../sdk
 
   packages/commands:
     dependencies:
-      '@doopx/sdk':
+      '@cofold/sdk':
         specifier: workspace:^
         version: link:../sdk
     devDependencies:
@@ -76,22 +76,22 @@ importers:
 
   packages/config:
     dependencies:
-      '@doopx/commands':
+      '@cofold/commands':
         specifier: workspace:^
         version: link:../commands
 
   packages/docs:
     dependencies:
-      '@doopx/commands':
+      '@cofold/commands':
         specifier: workspace:^
         version: link:../commands
 
   packages/mcp:
     dependencies:
-      '@doopx/commands':
+      '@cofold/commands':
         specifier: workspace:^
         version: link:../commands
-      '@doopx/sdk':
+      '@cofold/sdk':
         specifier: workspace:^
         version: link:../sdk
     devDependencies:
@@ -104,34 +104,34 @@ importers:
 
   packages/model-openai-compat:
     devDependencies:
-      '@doopx/agents':
+      '@cofold/agents':
         specifier: workspace:*
         version: link:../agents
 
   packages/papo:
     dependencies:
-      '@doopx/agents':
+      '@cofold/agents':
         specifier: workspace:^
         version: link:../agents
-      '@doopx/commands':
+      '@cofold/commands':
         specifier: workspace:^
         version: link:../commands
-      '@doopx/config':
+      '@cofold/config':
         specifier: workspace:^
         version: link:../config
-      '@doopx/model-openai-compat':
+      '@cofold/model-openai-compat':
         specifier: workspace:^
         version: link:../model-openai-compat
-      '@doopx/sdk':
+      '@cofold/sdk':
         specifier: workspace:^
         version: link:../sdk
-      '@doopx/store-file':
+      '@cofold/store-file':
         specifier: workspace:^
         version: link:../store-file
-      '@doopx/terminal':
+      '@cofold/terminal':
         specifier: workspace:^
         version: link:../terminal
-      '@doopx/tools':
+      '@cofold/tools':
         specifier: workspace:^
         version: link:../tools
       '@textui/chat':
@@ -156,11 +156,11 @@ importers:
 
   packages/remote:
     dependencies:
-      '@doopx/commands':
+      '@cofold/commands':
         specifier: workspace:^
         version: link:../commands
     devDependencies:
-      '@doopx/terminal':
+      '@cofold/terminal':
         specifier: workspace:^
         version: link:../terminal
 
@@ -168,19 +168,19 @@ importers:
 
   packages/store-file:
     devDependencies:
-      '@doopx/agents':
+      '@cofold/agents':
         specifier: workspace:*
         version: link:../agents
 
   packages/terminal:
     dependencies:
-      '@doopx/commands':
+      '@cofold/commands':
         specifier: workspace:^
         version: link:../commands
 
   packages/tools:
     devDependencies:
-      '@doopx/agents':
+      '@cofold/agents':
         specifier: workspace:*
         version: link:../agents
 

@@ -1,5 +1,5 @@
 {
-  "name": "doopx-examples-commands",
+  "name": "cofold-examples-commands",
   "private": true,
   "type": "module",
   "engines": {
@@ -11,11 +11,11 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@doopx/commands": "workspace:*",
-    "@doopx/docs": "workspace:*",
-    "@doopx/mcp": "workspace:*",
-    "@doopx/remote": "workspace:*",
-    "@doopx/terminal": "workspace:*"
+    "@cofold/commands": "workspace:*",
+    "@cofold/docs": "workspace:*",
+    "@cofold/mcp": "workspace:*",
+    "@cofold/remote": "workspace:*",
+    "@cofold/terminal": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

@@ -18,7 +18,7 @@ import {
   type JsonSchema,
   type OptionSpec,
   type Runner,
-} from "@doopx/commands";
+} from "@cofold/commands";
 
 /**
  * A command, over the wire.
@@ -37,7 +37,7 @@ import {
 export const MANIFEST_VERSION = 1;
 
 /** How one command becomes one request. Ordinary REST, described. */
-declare module "@doopx/commands" {
+declare module "@cofold/commands" {
   /**
    * HTTP as a surface an action declares, on the same footing as `cli` and
    * `mcp`. The key is owned here, so the core carries a binding it never reads.
@@ -47,7 +47,7 @@ declare module "@doopx/commands" {
   }
 
   interface CommandMeta {
-    /** How this command becomes one request. Read by `@doopx/remote` alone. */
+    /** How this command becomes one request. Read by `@cofold/remote` alone. */
     http?: HttpBinding;
     /** The program a command was built from, on the commands `commandsFrom` returns. */
     remote?: string;
@@ -96,7 +96,7 @@ export function manifestFrom(
     });
   }
   return {
-    doopx: MANIFEST_VERSION,
+    cofold: MANIFEST_VERSION,
     program,
     commands,
     ...compact({ groups: registry.groups.length === 0 ? undefined : registry.groups }),
@@ -122,10 +122,10 @@ function describeOption(option: OptionSpec): ManifestOption {
 export function parseManifest(value: unknown): ProgramManifest {
   if (typeof value !== "object" || value === null) throw new ManifestError("The manifest is not an object");
   const manifest = value as ProgramManifest;
-  if (typeof manifest.doopx !== "number") throw new ManifestError("The manifest has no version");
-  if (manifest.doopx > MANIFEST_VERSION) {
+  if (typeof manifest.cofold !== "number") throw new ManifestError("The manifest has no version");
+  if (manifest.cofold > MANIFEST_VERSION) {
     throw new ManifestError(
-      `This manifest is version ${manifest.doopx} and this client understands ${MANIFEST_VERSION}. Upgrade the client.`,
+      `This manifest is version ${manifest.cofold} and this client understands ${MANIFEST_VERSION}. Upgrade the client.`,
     );
   }
   if (!Array.isArray(manifest.commands)) throw new ManifestError("The manifest lists no commands");

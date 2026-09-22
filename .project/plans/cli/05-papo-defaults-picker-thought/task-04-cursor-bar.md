@@ -31,12 +31,12 @@ Arrow up and down show which block they are on, on every block kind: an accent b
 1. `Gutter` as in Files; the `borderChars` fallback is checked against `BorderStyle` in `types/theme.ts` (add nothing to the theme; use `'┃'` when `heavy` is not a style).
 2. The transcript as in Files: one `Row gap={1}` per block with the gutter first, so every block's text starts at the same column.
 3. Inverted text on the selected tool row and thought as in Files.
-4. Tests and docs; rebuild textui; `pnpm --filter @doopx/papo build` and the screen tests (snapshots of the transcript will shift by two cells for tool rows and headers: update them and say so in the Resume).
+4. Tests and docs; rebuild textui; `pnpm --filter @cofold/papo build` and the screen tests (snapshots of the transcript will shift by two cells for tool rows and headers: update them and say so in the Resume).
 
 ## Validation
 
 - textui: `pnpm build && pnpm typecheck && pnpm test`; `pnpm docs:check`.
-- doopx: `pnpm vitest run --project @doopx/papo`; `pnpm check`.
+- cofold: `pnpm vitest run --project @cofold/papo`; `pnpm check`.
 - By hand: arrow through a transcript in `papo`: the bar follows on prose, on the user's lines, on tool rows and thoughts; the selected tool row's text is readable on the blue.
 
 ## Resume

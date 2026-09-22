@@ -1,6 +1,6 @@
-# @doopx/sdk
+# @cofold/sdk
 
-**What the doopx packages share.** A JSON Schema, the one validator that holds a value to it, and the Standard Schema interface. No dependencies.
+**What the cofold packages share.** A JSON Schema, the one validator that holds a value to it, and the Standard Schema interface. No dependencies.
 
 | Type | File | What |
 | --- | --- | --- |
@@ -14,7 +14,7 @@
 | `StandardResult` | `standard-result.ts` | What its `validate` returns |
 | `StandardIssue` | `standard-issue.ts` | One issue it reports |
 
-Used by [`@doopx/commands`](../commands) and [`@doopx/agents`](../agents). Part of the [doopx](https://github.com/softov/doopx) family.
+Used by [`@cofold/commands`](../commands) and [`@cofold/agents`](../agents). Part of the [cofold](https://github.com/softov/cofold) family.
 
 ## License
 

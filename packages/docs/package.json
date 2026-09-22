@@ -1,14 +1,14 @@
 {
-  "name": "@doopx/docs",
+  "name": "@cofold/docs",
   "version": "0.2.0",
   "type": "module",
   "description": "Generated Markdown references for people and agents, from the command declaration.",
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "funding": "https://github.com/sponsors/softov",
-  "homepage": "https://github.com/softov/doopx#readme",
+  "homepage": "https://github.com/softov/cofold#readme",
   "bugs": {
-    "url": "https://github.com/softov/doopx/issues"
+    "url": "https://github.com/softov/cofold/issues"
   },
   "engines": {
     "node": ">=22"
@@ -16,7 +16,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/softov/doopx.git",
+    "url": "git+https://github.com/softov/cofold.git",
     "directory": "packages/docs"
   },
   "keywords": [
@@ -51,6 +51,6 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@doopx/commands": "workspace:^"
+    "@cofold/commands": "workspace:^"
   }
 }

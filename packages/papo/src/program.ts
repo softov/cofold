@@ -1,6 +1,6 @@
-import type { Io } from '@doopx/commands';
-import { matchCommand, optionTable, tokenize } from '@doopx/commands';
-import { Program } from '@doopx/terminal';
+import type { Io } from '@cofold/commands';
+import { matchCommand, optionTable, tokenize } from '@cofold/commands';
+import { Program } from '@cofold/terminal';
 import { GLOBALS, createPapoRegistry } from './commands.js';
 import type { RegistryOptions } from './commands.js';
 

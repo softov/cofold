@@ -22,12 +22,12 @@ A host can refuse a tool call before anyone is asked, as Claude's runtime does w
 
 ## Verified
 
-- `run/tools.test.ts` 20 (six precedence cases), `policy/rules.test.ts` 10, `run/denials.test.ts` 6, `create-agent.test.ts` 4, `contracts.test-d.ts` 18; the conformance suite's `denials` case on the memory and file stores; `@doopx/tools` `files.test.ts` 8 and `shell.test.ts` 6 (one `subject` assertion per tool); papo `chat.test.ts` unchanged in behaviour under `ask | destructive | auto`.
+- `run/tools.test.ts` 20 (six precedence cases), `policy/rules.test.ts` 10, `run/denials.test.ts` 6, `create-agent.test.ts` 4, `contracts.test-d.ts` 18; the conformance suite's `denials` case on the memory and file stores; `@cofold/tools` `files.test.ts` 8 and `shell.test.ts` 6 (one `subject` assertion per tool); papo `chat.test.ts` unchanged in behaviour under `ask | destructive | auto`.
 - Full `pnpm check` green on 2026-09-16: 67 test files, 745 tests, no type errors.
 
 ## Departures from the plan
 
-- papo's `policyOf` moved to `decide` in task 01 rather than task 04, so `@doopx/papo` kept compiling while another session edited it.
+- papo's `policyOf` moved to `decide` in task 01 rather than task 04, so `@cofold/papo` kept compiling while another session edited it.
 - `matchGlob` is exported from the package next to `rules`, so a host can test a rule list against a subject with the same dialect.
 - Task 02 reused the `tally()` agent/01-p5 task 07 introduced and its `RunTally` interface; `denials` is optional on the outcome (`RunTally.denials?`) and required on the record, as the task wrote.
 - The user's deny of an approval records the request payload's input (validated, possibly edited), not the model's raw `call.input`.

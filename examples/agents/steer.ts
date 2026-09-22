@@ -1,6 +1,6 @@
-import type { RunHandle } from '@doopx/agents';
-import { createAgent, createTool, run, textOf } from '@doopx/agents';
-import { createFakeModel, createMemoryStore } from '@doopx/agents/testing';
+import type { RunHandle } from '@cofold/agents';
+import { createAgent, createTool, run, textOf } from '@cofold/agents';
+import { createFakeModel, createMemoryStore } from '@cofold/agents/testing';
 
 // A person types while the turn is running: the message steers the run instead of cancelling it.
 // The steer is appended after the tool result and before the next model step (decisions 95-96).

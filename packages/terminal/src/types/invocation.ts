@@ -1,4 +1,4 @@
-import type { Command } from "@doopx/commands";
+import type { Command } from "@cofold/commands";
 export interface Invocation {
   command: Command | null;
   slots: Record<string, string | string[]>;

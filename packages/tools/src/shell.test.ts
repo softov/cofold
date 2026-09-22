@@ -2,8 +2,8 @@ import { mkdtemp, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { CapabilityArgs, Tool, ToolContext } from '@doopx/agents';
-import { createMemoryStore } from '@doopx/agents';
+import type { CapabilityArgs, Tool, ToolContext } from '@cofold/agents';
+import { createMemoryStore } from '@cofold/agents';
 import { DEFAULT_SHELL, execShell, shell } from './shell.js';
 
 const WINDOWS = process.platform === 'win32';
@@ -18,7 +18,7 @@ const call = (input: unknown, signal = new AbortController().signal) => Promise.
 const slashes = (path: string) => path.toLowerCase().replaceAll('\\', '/');
 
 beforeAll(async () => {
-  workspace = await realpath(await mkdtemp(join(tmpdir(), 'doopx-shell-')));
+  workspace = await realpath(await mkdtemp(join(tmpdir(), 'cofold-shell-')));
   [tool] = await shell({ timeoutMs: 1500, maxOutputChars: 400 }).tools!(argsFor(workspace)) as [Tool<any, any>];
 });
 afterAll(() => rm(workspace, { recursive: true, force: true }));

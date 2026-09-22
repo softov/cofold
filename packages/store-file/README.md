@@ -1,20 +1,20 @@
-# @doopx/store-file
+# @cofold/store-file
 
-The first durable `Store` for `@doopx/agents`: one folder per session, JSONL logs per run, a `writer.lock` with a heartbeat as the fence.
+The first durable `Store` for `@cofold/agents`: one folder per session, JSONL logs per run, a `writer.lock` with a heartbeat as the fence.
 Also `fileSkillSource`, the on-disk `SkillSource` for `skills()`.
 Zero dependencies beyond `node:fs`, `node:path`, `node:os`.
 
 ## Use
 
 ```ts
-import { createAgent } from '@doopx/agents';
-import { createFileStore, resolveHome } from '@doopx/store-file';
+import { createAgent } from '@cofold/agents';
+import { createFileStore, resolveHome } from '@cofold/store-file';
 
-const store = createFileStore({ root: resolveHome({ name: 'doopx' }) });   // $FACIO_HOME or ~/.doopx
+const store = createFileStore({ root: resolveHome({ name: 'cofold' }) });   // $FACIO_HOME or ~/.cofold
 const agent = createAgent({ id: 'cli', instructions, model, tools, store });
 ```
 
-`createFileStore({ root, staleAfterMs? })` passes the `@doopx/agents` Store conformance suite; `staleAfterMs` (default 60 s) is how old a `running` run's heartbeat must be before another claim takes its lock.
+`createFileStore({ root, staleAfterMs? })` passes the `@cofold/agents` Store conformance suite; `staleAfterMs` (default 60 s) is how old a `running` run's heartbeat must be before another claim takes its lock.
 
 ## Layout
 
@@ -64,8 +64,8 @@ Neither touches a session whose `writer.lock` is held by a `running` run.
 ## Skills
 
 ```ts
-import { skills } from '@doopx/agents';
-import { fileSkillSource } from '@doopx/store-file';
+import { skills } from '@cofold/agents';
+import { fileSkillSource } from '@cofold/store-file';
 
 createAgent({ ..., capabilities: [skills({ sources: [fileSkillSource({ root })] })] });
 ```

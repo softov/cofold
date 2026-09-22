@@ -13,22 +13,22 @@ import { fileURLToPath } from "node:url";
  * imported from there.
  */
 it("keeps every entry point but the SDK server importable with no dependencies installed", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "doopx-mcp-package-"));
+  const directory = await mkdtemp(join(tmpdir(), "cofold-mcp-package-"));
   try {
     const packages = fileURLToPath(new URL("../../../", import.meta.url));
     await cp(join(packages, "mcp", "dist"), join(directory, "dist"), { recursive: true });
     await writeFile(join(directory, "package.json"), await readFile(join(packages, "mcp", "package.json")));
     for (const name of ["commands", "sdk"]) {
-      const staged = join(directory, "node_modules", "@doopx", name);
+      const staged = join(directory, "node_modules", "@cofold", name);
       await mkdir(staged, { recursive: true });
       await cp(join(packages, name, "dist"), join(staged, "dist"), { recursive: true });
       await writeFile(join(staged, "package.json"), await readFile(join(packages, name, "package.json")));
     }
     const result = execFileSync(process.execPath, ["--input-type=module", "-e", `
-      for (const name of ['@doopx/mcp', '@doopx/mcp/stdio']) await import(name);
-      const { serveStdio } = await import('@doopx/mcp/stdio');
+      for (const name of ['@cofold/mcp', '@cofold/mcp/stdio']) await import(name);
+      const { serveStdio } = await import('@cofold/mcp/stdio');
       if (typeof serveStdio !== 'function') process.exit(3);
-      try { await import('@doopx/mcp/server'); process.exit(2); }
+      try { await import('@cofold/mcp/server'); process.exit(2); }
       catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; }
       process.stdout.write('ok');
     `], { cwd: directory, encoding: "utf8" });

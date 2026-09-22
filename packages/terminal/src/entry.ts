@@ -1,6 +1,6 @@
 import type { EntryOptions } from "./types/entry.js";
 import { stderr } from "node:process";
-import { exitCodeFor, DoopxError } from "@doopx/commands";
+import { exitCodeFor, CofoldError } from "@cofold/commands";
 import type { Program } from "./program.js";
 
 /**
@@ -31,9 +31,9 @@ export async function runEntry(
     process.exitCode = await program.run(argv);
   } catch (error: unknown) {
     options.onError?.(error);
-    const expected = error instanceof DoopxError;
+    const expected = error instanceof CofoldError;
     const raw = expected
-      ? (error as DoopxError).message
+      ? (error as CofoldError).message
       : `${error instanceof Error ? error.message : "Unexpected failure"}`;
     let secrets: readonly (string | undefined)[] = [];
     try {

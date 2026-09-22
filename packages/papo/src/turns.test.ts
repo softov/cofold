@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Message, RunRecord } from '@doopx/agents';
+import type { Message, RunRecord } from '@cofold/agents';
 import { toBlocks } from './blocks.js';
 import { parseAnswers, toAskAnswers, toChatQuestion } from './questions.js';
 import { toMarkdown } from './export.js';

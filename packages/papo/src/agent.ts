@@ -1,9 +1,9 @@
 import { join } from 'node:path';
-import type { Agent, Capability, ModelProvider, Rule, SkillSource, Store, Tool } from '@doopx/agents';
-import { createAgent, createAskUserTool, policyOf, rules, skills } from '@doopx/agents';
-import { workspaceSlug } from '@doopx/store-file';
-import type { SearchProvider } from '@doopx/tools';
-import { brave, duckduckgo, files, memory, resolveWithin, shell, tavily, web } from '@doopx/tools';
+import type { Agent, Capability, ModelProvider, Rule, SkillSource, Store, Tool } from '@cofold/agents';
+import { createAgent, createAskUserTool, policyOf, rules, skills } from '@cofold/agents';
+import { workspaceSlug } from '@cofold/store-file';
+import type { SearchProvider } from '@cofold/tools';
+import { brave, duckduckgo, files, memory, resolveWithin, shell, tavily, web } from '@cofold/tools';
 import type { PapoConfig, PermissionMode, RuleLists, ToolsConfig } from './types/config.js';
 import type { Settings } from './types/settings.js';
 
@@ -38,7 +38,7 @@ export function mergedRules(session: RuleLists | undefined, config: RuleLists | 
   return { deny: both('deny'), ask: both('ask'), allow: both('allow') };
 }
 
-/** The `@doopx/tools` capabilities the configuration turns on (decision 9), in a fixed order. */
+/** The `@cofold/tools` capabilities the configuration turns on (decision 9), in a fixed order. */
 export function capabilitiesOf(tools: ToolsConfig, args: { home: string; workspace: string }): Capability[] {
   const search: SearchProvider[] = [];
   if (typeof tools.web === 'object' && tools.web.search !== undefined) {

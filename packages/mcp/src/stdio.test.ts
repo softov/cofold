@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { createRegistry, output, ArgumentError } from "@doopx/commands";
+import { createRegistry, output, ArgumentError } from "@cofold/commands";
 import { serveStdio } from "./stdio.js";
 
 /**
@@ -258,13 +258,13 @@ describe("conformance", () => {
     });
     try {
       await client.connect(transport);
-      expect(client.getServerVersion()?.name).toBe("doopx-example");
+      expect(client.getServerVersion()?.name).toBe("cofold-example");
       const listed = await client.listTools();
       expect(listed.tools[0]?.name).toBe("greet");
       expect(listed.tools[0]?.annotations?.readOnlyHint).toBe(true);
       expect(listed.tools[0]?.outputSchema?.type).toBe("object");
-      const result = await client.callTool({ name: "greet", arguments: { name: "Doopx" } });
-      expect(result.structuredContent).toEqual({ greeting: "Hello, Doopx" });
+      const result = await client.callTool({ name: "greet", arguments: { name: "Cofold" } });
+      expect(result.structuredContent).toEqual({ greeting: "Hello, Cofold" });
       expect((await client.callTool({ name: "greet", arguments: { name: "" } })).isError).toBe(true);
       await expect(client.callTool({ name: "absent" })).rejects.toThrow();
       // Still answering after a refusal and a protocol error: stdout was never corrupted.

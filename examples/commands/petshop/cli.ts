@@ -10,11 +10,11 @@
  */
 
 import { createServer } from "node:http";
-import { createRegistry, output, ArgumentError } from "@doopx/commands";
-import { Program, renderTable, runEntry } from "@doopx/terminal";
-import { listTools } from "@doopx/mcp";
-import { canonicalFromObject } from "@doopx/commands";
-import { manifestFrom } from "@doopx/remote";
+import { createRegistry, output, ArgumentError } from "@cofold/commands";
+import { Program, renderTable, runEntry } from "@cofold/terminal";
+import { listTools } from "@cofold/mcp";
+import { canonicalFromObject } from "@cofold/commands";
+import { manifestFrom } from "@cofold/remote";
 
 export interface Pet {
   id: string;

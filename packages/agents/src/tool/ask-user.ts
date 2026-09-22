@@ -1,7 +1,7 @@
 import type { AskAnswers, AskQuestion } from '../types/ask.js';
 import type { Tool } from '../types/tool.js';
 import { pauseForInput } from '../run/pause.js';
-import type { JsonSchema } from '@doopx/sdk';
+import type { JsonSchema } from '@cofold/sdk';
 import { createTool } from './create-tool.js';
 
 const QUESTION_SCHEMA: JsonSchema = {

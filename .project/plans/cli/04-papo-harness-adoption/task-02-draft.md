@@ -40,7 +40,7 @@ Decision [CLI-04.2](../../../decisions/papo-draft-from-handle.md): the running t
   `testing.ts`: `fakeProvider(script, modelId, { stream, afterDelta })` and `testChat({ stream, afterDelta })` over `createFakeModel({ stream: true })`; `afterDelta` is awaited after each delta the harness took, so a test can look at the draft mid-step.
   README: the *What is kept, and where* paragraph on streaming.
 - **Evidence:** `turns.test.ts` "appends the draft to the running turn as streaming parts" (10 tests in the file); `chat.test.ts` "shows the answer as it streams, and only here" (17): the paused stream shows `[reasoning 'A greeting.', text 'Hello ']` streaming in the running turn, a second `createChat` on the same store shows `[]`, both show the two stored parts once complete with no `:draft:` id, and the three `model.delta` events are in the store.
-  `pnpm vitest run --project @doopx/papo`: 8 files, 103 tests green; `@doopx/papo` build and typecheck green.
+  `pnpm vitest run --project @cofold/papo`: 8 files, 103 tests green; `@cofold/papo` build and typecheck green.
 - **Deviations:** the plan's `entry.draft = undefined` is `delete entry.draft` (`exactOptionalPropertyTypes`).
   How `toBlocks` knows a part is the draft: the `text` and `reasoning` variants of `TurnPart` gained `streaming?: true`, set by `projectTurns` on the draft parts; the plan named the effect and not the carrier.
   The `last`-part heuristic in `toBlocks` stays beside it: the Claude backend has no draft, and its running turn's last part is still drawn as being written.

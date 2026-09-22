@@ -2,7 +2,7 @@ import type { ChatAnswer, ChatCommand, ChatSendStatus, ComposerOption } from '@t
 import { ChatComposer, ChatHitl, ChatInputStatus, ChatSessionHead, ChatTranscript, openPicker, settingIcon, valueIcon } from '@textui/chat';
 import type { BindingPath, RenderOutput } from '@textui/core';
 import { defineComponent, useApp, useCapabilities, useFocusScope, useMemo, useRequiredService, useStore, useStoreValue } from '@textui/core';
-import type { SkillIndexEntry } from '@doopx/agents';
+import type { SkillIndexEntry } from '@cofold/agents';
 import { Column, Divider, argumentOf } from '@textui/widgets';
 import { QUEUED_BLOCK, toBlocks } from '../blocks.js';
 import type { Settings } from '../types/settings.js';

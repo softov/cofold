@@ -16,7 +16,7 @@ requires:
 
 A person types `/` in papo and gets what every terminal agent client offers: the state of the conversation (`/status`, `/cost`), what the agent can do (`/skills`, `/memory`, `/config`, `/help`), a way to keep or redo a conversation (`/export`, `/retry`, `/clear`), the look (`/theme`), and two prompts shipped with papo (`/init`, `/review`).
 Everything is a palette command or a skill, so the `/` menu, the palette and the keys are one list, declared once.
-`/compact` and `/autocompact` are not here: context reduction is the harness's p5 Task 6, still an outline; this plan adds nothing to `@doopx/agents` beyond one exported helper.
+`/compact` and `/autocompact` are not here: context reduction is the harness's p5 Task 6, still an outline; this plan adds nothing to `@cofold/agents` beyond one exported helper.
 
 ## Reconnaissance
 
@@ -43,7 +43,7 @@ Everything is a palette command or a skill, so the `/` menu, the palette and the
 | 9 | `/theme` is `view.theme` as in ahpc, choices from `app.themes.list()`, preview while the highlight moves, `config.theme` the start value | Copied, not reinvented |
 | 10 | `/help`: every palette command with its keys, from `app.commands.list` and `app.keybindings.list`, plus the screen keys that are not commands (`tab`, `a`, `d`, `enter`) | One list, generated |
 | 11 | Shipped prompts are skills: `packages/papo/skills/init/SKILL.md` (write or refresh `AGENTS.md` from the repository) and `review/SKILL.md` (review the working tree's diff); a second `fileSkillSource({ root: <package dir> })` after the home's, so a person's skill of the same name wins; `files` in `package.json` includes `skills` | No third command kind; the `/` menu shows them like any skill |
-| 12 | `listSkills({ sources, workspace, warn? })` is exported from `@doopx/agents` and used by the `skills` capability and by `chat.skills()` | One index, one duplicate rule |
+| 12 | `listSkills({ sources, workspace, warn? })` is exported from `@cofold/agents` and used by the `skills` capability and by `chat.skills()` | One index, one duplicate rule |
 | 13 | Not added: `/rename` (no title in the store), `/undo`, `/doctor`, `/mcp` (with the MCP client), `/compact` and `/autocompact` (harness p5 Task 6) | Scope |
 
 ## Proposed architecture

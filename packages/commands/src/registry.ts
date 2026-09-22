@@ -3,10 +3,10 @@ import type { CommandContext, Output } from "./types/context.js";
 import type { Field } from "./types/field.js";
 import type { ExecuteOptions, RegistryOptions, Resolution } from "./types/registry.js";
 import { literalPrefix, parsePattern, commandFor } from "./command.js";
-import { assertSupportedSchema } from "@doopx/sdk";
+import { assertSupportedSchema } from "@cofold/sdk";
 import { compact } from "./compact.js";
 import { BaseContext, RESERVED_CONTEXT_KEYS, silentIo } from "./context.js";
-import { ArgumentError, AuthorizationError, DoopxError } from "./errors.js";
+import { ArgumentError, AuthorizationError, CofoldError } from "./errors.js";
 
 /**
  * Capabilities, and the registry that resolves them.
@@ -360,4 +360,4 @@ export function validateCommand(command: Command, groups?: readonly CommandGroup
   }
 }
 
-export { ArgumentError, DoopxError };
+export { ArgumentError, CofoldError };

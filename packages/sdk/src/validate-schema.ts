@@ -27,7 +27,7 @@ const TYPES: ReadonlySet<string> = new Set(["string", "number", "integer", "bool
 /**
  * Refuses a schema this validator cannot hold a value to, naming where.
  *
- * `$ref`, `not` and `patternProperties` are the keywords no doopx validator
+ * `$ref`, `not` and `patternProperties` are the keywords no cofold validator
  * enforces; a keyword an agent is shown and a request is not held to reads as a
  * promise, which is worse than one nobody wrote. `path` is how the declaration
  * is named in the error: `$` by default, `note.add --tag` from a registry.
@@ -38,7 +38,7 @@ export function assertSupportedSchema(args: { schema: JsonSchema; path?: string 
   const invalid = (message: string) => new Error(`${path}: ${message}`);
   if (!isPlainObject(schema)) throw invalid("schema must be an object");
   for (const key of Object.keys(schema)) {
-    if (!SUPPORTED_KEYWORDS.has(key)) throw new Error(`${path} uses ${key}, which doopx does not enforce and will not advertise`);
+    if (!SUPPORTED_KEYWORDS.has(key)) throw new Error(`${path} uses ${key}, which cofold does not enforce and will not advertise`);
   }
   const { type, pattern, properties, items } = schema;
   if (type !== undefined) {

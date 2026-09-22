@@ -1,8 +1,8 @@
 // The model asks two structured questions; the host answers from stdin and submits them on the resumed handle.
 import { createInterface } from 'node:readline/promises';
-import { createAgent, createAskUserTool, resume, run, textOf } from '@doopx/agents';
-import type { AskAnswers, AskQuestion } from '@doopx/agents';
-import { createFakeModel, createMemoryStore } from '@doopx/agents/testing';
+import { createAgent, createAskUserTool, resume, run, textOf } from '@cofold/agents';
+import type { AskAnswers, AskQuestion } from '@cofold/agents';
+import { createFakeModel, createMemoryStore } from '@cofold/agents/testing';
 
 const questions: AskQuestion[] = [
   { id: 'lang', question: 'Which language should the project use?', header: 'Language', options: [{ label: 'TypeScript', description: 'default' }, { label: 'Rust' }], allowOther: false },
@@ -26,7 +26,7 @@ const piped: string[] = [];
 if (!interactive) for await (const line of rl) piped.push(line);
 const answers: AskAnswers = {};
 for (const q of asked) {
-  const fallback = q.options?.[0]?.label ?? 'doopx-demo';
+  const fallback = q.options?.[0]?.label ?? 'cofold-demo';
   const prompt = `${q.question}${q.options ? ` [${q.options.map((o) => o.label).join(' | ')}]` : ''} (${fallback}): `;
   const line = interactive ? await rl.question(prompt) : (piped.shift() ?? '');
   answers[q.id] = line.trim() || fallback;

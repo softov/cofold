@@ -1,5 +1,5 @@
 /**
- * @doopx/commands - a command is data.
+ * @cofold/commands - a command is data.
  *
  * Nothing in this package knows what a terminal is. It holds the declaration
  * (`command.ts`), the capabilities a command declares it needs (`registry.ts`),
@@ -39,7 +39,7 @@ export {
   ArgumentError,
   AuthorizationError,
   ConfigurationError,
-  DoopxError,
+  CofoldError,
   UnavailableError,
   exitCodeFor,
 } from "./errors.js";
@@ -87,7 +87,7 @@ export type {
   StandardIssue,
   StandardResult,
   StandardSchema,
-} from "@doopx/sdk";
+} from "@cofold/sdk";
 export type {
   AuthorizeRequest,
   ExecuteOptions,

@@ -2,17 +2,17 @@ import { appendFile, cp, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { createAgent, createTool, resume, run } from '@doopx/agents';
-import type { RunRecord, Store } from '@doopx/agents';
-import { createFakeModel } from '@doopx/agents/testing';
-import { describeStoreConformance } from '@doopx/agents/testing/store-conformance';
+import { createAgent, createTool, resume, run } from '@cofold/agents';
+import type { RunRecord, Store } from '@cofold/agents';
+import { createFakeModel } from '@cofold/agents/testing';
+import { describeStoreConformance } from '@cofold/agents/testing/store-conformance';
 import { encodeSegment } from './paths.js';
 import { workspaceSlug } from './slug.js';
 import { createFileStore } from './store.js';
 
 const roots: string[] = [];
 async function tempRoot(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), 'doopx-store-'));
+  const root = await mkdtemp(join(tmpdir(), 'cofold-store-'));
   roots.push(root);
   return root;
 }

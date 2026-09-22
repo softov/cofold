@@ -5,7 +5,7 @@ export type { ClaudeSdkSubset, ClaudeQuery, ClaudeSessionMessage } from './types
 export { loadConfig, rememberConfig, userConfigPath, providersOf, providerFor, splitModel, DEFAULT_INSTRUCTIONS } from './config.js';
 export { buildAgent, AGENT_ID } from './agent.js';
 // The mode mapping moved to the harness, where a second host can share it; papo's surface keeps it.
-export { policyOf } from '@doopx/agents';
+export { policyOf } from '@cofold/agents';
 export { projectTurns, titleOf, shortTitle, inputLine, ALWAYS } from './turns.js';
 export { toBlocks, QUEUED_BLOCK } from './blocks.js';
 export { toChatQuestion, toAskAnswers, parseAnswers } from './questions.js';

@@ -37,7 +37,7 @@ refs:
 
 ## Goal
 
-papo over `@doopx/agents` feels like Claude Code for the same acts: a message typed while the model answers steers it or waits its turn; the answer appears as it is written; after a compaction the screen shows what the model sees; a turn ended by a hook is finished and one ended by a limit says which; permission modes are Claude's and rules are in the config and per session.
+papo over `@cofold/agents` feels like Claude Code for the same acts: a message typed while the model answers steers it or waits its turn; the answer appears as it is written; after a compaction the screen shows what the model sees; a turn ended by a hook is finished and one ended by a limit says which; permission modes are Claude's and rules are in the config and per session.
 
 ## Reconnaissance
 
@@ -119,7 +119,7 @@ Settled without a decision, because the harness already has it or the reference 
   Task 01 built 2026-09-16: `say` steers, `queue` / `unqueue` / `queued` on `Chat` and both backends through `src/queue.ts`, `Snapshot.queued`, the `steer` turn part, the shell actions, the Queue chip and queued rows on the screen; 101 papo tests and `pnpm check` (736) green.
   Task 02 built 2026-09-16: `Draft` folded from `model.delta` in `attach`, `ProjectionInput.draft`, the `streaming` draft parts, `testChat({ stream, afterDelta })`; with it the idle-queue answer (`queue.ts` starts the head at once while idle, both backends); 106 papo tests green.
   Task 03 built 2026-09-16: `snapshot` over `contextOf` (`--all` for everything), the compaction turn `(context compacted)` with `Context compacted: N tokens to M.`, `stateOf(run, stopped)`, the marker as a notice, `cancel` on the handle (decision 120, the Claude backend's cancel denies and interrupts as ahpd's); 111 papo tests green.
-  Task 04 built 2026-09-16 after the user answered its fork (CLI-04.6): the four modes over the tools' effects, `rules()` from the config's and the session's lists, `always` as a session allow rule, the Claude pass-through, `session set --deny/--ask/--allow`, `session rules`, the chip; the file tools' subjects normalized in `@doopx/tools`; 117 papo tests green.
+  Task 04 built 2026-09-16 after the user answered its fork (CLI-04.6): the four modes over the tools' effects, `rules()` from the config's and the session's lists, `always` as a session allow rule, the Claude pass-through, `session set --deny/--ask/--allow`, `session rules`, the chip; the file tools' subjects normalized in `@cofold/tools`; 117 papo tests green.
 - **Next action:** none; the plan is built ([implemented.md](implemented.md), [deferred.md](deferred.md)).
 - **Open questions:** the `TurnPart` name `steer` (task 01's Resume); the config key `rules` next to `permissions` where CLI-04.5 wrote `permissions.rules` (task 04's Resume, defaulted); whether `memory_write` should be allowed by default under `default` (task 04's Resume).
   A queued message on an idle session starts at once (user, 2026-09-16; CLI-04.1 amended; built with task 02, `Queues.add` async over `QueueDeps.idle`).

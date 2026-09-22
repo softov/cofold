@@ -2,8 +2,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { CapabilityArgs, Tool, ToolContext } from '@doopx/agents';
-import { createMemoryStore } from '@doopx/agents';
+import type { CapabilityArgs, Tool, ToolContext } from '@cofold/agents';
+import { createMemoryStore } from '@cofold/agents';
 import { memory } from './memory.js';
 
 const store = createMemoryStore();
@@ -16,7 +16,7 @@ let tools: Map<string, Tool<any, any>>;
 const call = (name: string, input: unknown) => Promise.resolve(tools.get(name)!.execute(input, ctx));
 
 beforeAll(async () => {
-  dir = join(await mkdtemp(join(tmpdir(), 'doopx-memory-')), 'memory', 'ws');
+  dir = join(await mkdtemp(join(tmpdir(), 'cofold-memory-')), 'memory', 'ws');
   tools = new Map((await memory({ dir, indexLines: 2 }).tools!(args)).map((t) => [t.name, t]));
 });
 afterAll(() => rm(join(dir, '..', '..'), { recursive: true, force: true }));

@@ -1,7 +1,7 @@
 {
-  "name": "@doopx/store-file",
+  "name": "@cofold/store-file",
   "version": "0.1.0",
-  "description": "File-backed Store for @doopx/agents: JSONL per session and run, writer.lock with a heartbeat, plus fileSkillSource.",
+  "description": "File-backed Store for @cofold/agents: JSONL per session and run, writer.lock with a heartbeat, plus fileSkillSource.",
   "license": "MIT",
   "type": "module",
   "engines": { "node": ">=22" },
@@ -17,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "clean": "rm -rf dist"
   },
-  "peerDependencies": { "@doopx/agents": "workspace:*" },
-  "devDependencies": { "@doopx/agents": "workspace:*" },
+  "peerDependencies": { "@cofold/agents": "workspace:*" },
+  "devDependencies": { "@cofold/agents": "workspace:*" },
   "publishConfig": { "access": "public" }
 }

@@ -1,5 +1,5 @@
 /**
- * @doopx/remote - a command surface that arrives over the wire.
+ * @cofold/remote - a command surface that arrives over the wire.
  *
  * `manifestFrom` is the server half: what is registered, as JSON. `commandsFrom`
  * is the client half: JSON, as commands. Between them a program gets a CLI for a

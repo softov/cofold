@@ -2,9 +2,9 @@
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { coerce, compact, createRegistry, output, type Command } from "@doopx/commands";
-import { Program, runEntry } from "@doopx/terminal";
-import { httpTransport, loadManifest, commandsFrom } from "@doopx/remote";
+import { coerce, compact, createRegistry, output, type Command } from "@cofold/commands";
+import { Program, runEntry } from "@cofold/terminal";
+import { httpTransport, loadManifest, commandsFrom } from "@cofold/remote";
 import { createPetServer } from "./server.js";
 
 /**

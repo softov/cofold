@@ -12,7 +12,7 @@ refs:
 
 ## Objective
 
-`Chat.commands()` returns the runtime's list; `Chat.compact()` is gone; `say('/status')` on the doopx backend writes a notice into the transcript; `say('/model x/y')` changes the session's setting the way `configure()` does; the projection shows a command run as input plus notice.
+`Chat.commands()` returns the runtime's list; `Chat.compact()` is gone; `say('/status')` on the cofold backend writes a notice into the transcript; `say('/model x/y')` changes the session's setting the way `configure()` does; the projection shows a command run as input plus notice.
 
 ## Files
 

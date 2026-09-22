@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { runEntry } from '@doopx/terminal';
+import { runEntry } from '@cofold/terminal';
 import { argvFor, createProgram } from './program.js';
 
 /**

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 import { readJson, writeAtomic } from './jsonl.js';
 
 let dir: string;
-beforeEach(async () => { dir = await mkdtemp(join(tmpdir(), 'doopx-jsonl-')); });
+beforeEach(async () => { dir = await mkdtemp(join(tmpdir(), 'cofold-jsonl-')); });
 afterEach(() => rm(dir, { recursive: true, force: true }));
 
 /**

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { CapabilityArgs, Tool, ToolContext } from '@doopx/agents';
-import { createMemoryStore } from '@doopx/agents';
+import type { CapabilityArgs, Tool, ToolContext } from '@cofold/agents';
+import { createMemoryStore } from '@cofold/agents';
 import type { SearchProvider } from './types/web.js';
 import { htmlToText, web } from './web.js';
 import { brave } from './search/brave.js';
@@ -80,9 +80,9 @@ describe('web()', () => {
       ].slice(0, count + 1),
     };
     const search = (await toolsOf(web({ search: [failing, answering] }))).get('web_search');
-    expect(await call(search, { query: 'doopx', count: 2 })).toBe('1. About doopx\n   https://a.example/\n   A snippet with space\n2. Two\n   https://b.example/');
+    expect(await call(search, { query: 'cofold', count: 2 })).toBe('1. About cofold\n   https://a.example/\n   A snippet with space\n2. Two\n   https://b.example/');
     const none = (await toolsOf(web({ search: [failing] }))).get('web_search');
-    await expect(call(none, { query: 'doopx' })).rejects.toThrow('web_search failed: first: HTTP 429 rate limited');
+    await expect(call(none, { query: 'cofold' })).rejects.toThrow('web_search failed: first: HTTP 429 rate limited');
     const empty = (await toolsOf(web({ search: [{ id: 'e', search: async () => [] }] }))).get('web_search');
     expect(await call(empty, { query: 'nothing' })).toBe('no results for "nothing" (e)');
   });

@@ -24,7 +24,7 @@ export async function listSkills(args: { sources: SkillSource[]; workspace?: str
 
 /**
  * The first core capability (decision 85): an index of the available skills in the instructions and one
- * `read_skill` tool. Sources are content providers; `@doopx/store-file` ships `fileSkillSource`.
+ * `read_skill` tool. Sources are content providers; `@cofold/store-file` ships `fileSkillSource`.
  */
 export function skills(options: { sources: SkillSource[]; warn?: (message: string) => void }): Capability {
   if (options.sources.length === 0) throw new AgentError({ code: 'invalid_options', message: 'skills(): at least one source' });

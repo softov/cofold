@@ -40,7 +40,7 @@ The files read and the patterns to reuse are the `refs` above.
 
 ### Gaps
 
-- `Not found: a sum of a session's runs in @doopx/agents`.
+- `Not found: a sum of a session's runs in @cofold/agents`.
 - `Not found: Chat.usage` on either backend.
 - `Not found: ChatSessionHead in papo`.
 
@@ -53,8 +53,8 @@ The files read and the patterns to reuse are the `refs` above.
 
 ## Proposed architecture
 
-- **Data flow** - `@doopx/agents` gains `sessionUsage({ store, sessionId })`: every run of the session in order, each with `usage`, `steps`, the count of `tool` step records and of `denials`, and the sums (`addUsage`). papo's `Chat.usage(sessionId)` returns it on the harness backend and the same shape summed from its turns on the Claude backend. The shell's `usage <session>` prints it; the screen's `/chat.usage` panel and the header's usage row read it.
-- **Layer responsibilities** - `@doopx/agents` `store/usage.ts` (the sum) · `@doopx/papo` `chat.ts`, `claude/chat.ts` (`usage`), `commands.ts` (the action), `screen/app.tsx` (`chat.usage`, the `PLACE` store key), `screen/chat.tsx` (the head).
+- **Data flow** - `@cofold/agents` gains `sessionUsage({ store, sessionId })`: every run of the session in order, each with `usage`, `steps`, the count of `tool` step records and of `denials`, and the sums (`addUsage`). papo's `Chat.usage(sessionId)` returns it on the harness backend and the same shape summed from its turns on the Claude backend. The shell's `usage <session>` prints it; the screen's `/chat.usage` panel and the header's usage row read it.
+- **Layer responsibilities** - `@cofold/agents` `store/usage.ts` (the sum) · `@cofold/papo` `chat.ts`, `claude/chat.ts` (`usage`), `commands.ts` (the action), `screen/app.tsx` (`chat.usage`, the `PLACE` store key), `screen/chat.tsx` (the head).
 - **Source-of-truth files** - `code://packages/agents/src/types/usage.ts`, `code://packages/papo/src/types/chat.ts`.
 
 ## Tasks

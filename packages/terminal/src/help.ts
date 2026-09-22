@@ -12,7 +12,7 @@ import {
   type CommandGroup,
   type OptionNote,
   type OptionSpec,
-} from "@doopx/commands";
+} from "@cofold/commands";
 import { renderDefinitions, styleFor } from "./render.js";
 
 /**

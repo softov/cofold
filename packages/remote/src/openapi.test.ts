@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { canonicalFromCli, canonicalFromObject } from "@doopx/commands";
+import { canonicalFromCli, canonicalFromObject } from "@cofold/commands";
 import { commandsFrom } from "./manifest.js";
 import { manifestFromOpenApi } from "./openapi.js";
 

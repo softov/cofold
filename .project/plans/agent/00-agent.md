@@ -11,7 +11,7 @@ Update it when a plan ships.
 
 ## Code in this repo
 
-`packages/agents` (`@doopx/agents`), `packages/store-file`, `packages/model-openai-compat`, `examples/agents`, `docs/agents`: harness phases p1-p3 of [01-harness-core.md](01-harness-core/plan.md) shipped; p5 is planned in part.
+`packages/agents` (`@cofold/agents`), `packages/store-file`, `packages/model-openai-compat`, `examples/agents`, `docs/agents`: harness phases p1-p3 of [01-harness-core.md](01-harness-core/plan.md) shipped; p5 is planned in part.
 
 ## Inputs the domain is built from
 
@@ -20,7 +20,7 @@ Update it when a plan ships.
 | Runtime specification | `.project/specs/agent-harness-spec.md` | Vocabulary (definition / session / turn / step / tool call / hook / event / command), public shape (run handle), turn lifecycle, model adapter rules, tool rules, context assembly, persistence and recovery, ahpd integration, build sequence |
 | Field survey | `.project/research/agent-harness-survey.md` | What 24 harnesses have; which features are table stakes and which are differentiators |
 | ahpd contracts | `ahpd/packages/sdk/src/types/agent.ts`, `session.ts` (softov/ahpd) | The `Agent` / `Session` / `BoundTool` / `Start` shapes the p4 adapter must implement |
-| doopx | `F:\github\doopx\src\core\command.ts` | `ActionDefinition` (id, summary, `input` as JSON Schema fields, `surfaces`, `needs`, `run`) that `fromDoopxAction()` will map onto `createTool()`; tooling style (tsc build, vitest, zero deps) |
+| cofold | `F:\github\cofold\src\core\command.ts` | `ActionDefinition` (id, summary, `input` as JSON Schema fields, `surfaces`, `needs`, `run`) that `fromCofoldAction()` will map onto `createTool()`; tooling style (tsc build, vitest, zero deps) |
 | opendoop / pood | `opendoop/pood/src/runtime/agents/agent-worker.ts`, `opendoop/packages/sdk/src/provider/tool.ts` | Reference for iteration outcomes, tool effects, loop guards, `ToolManifest` fields; not copied, read for shape |
 | Prior art (see `.project/research/agent-harness-survey.md`) | public harnesses surveyed there | Event union style, canonical-transcript vs derived-model-view split, writer fence idea |
 
@@ -43,16 +43,16 @@ Update it when a plan ships.
 
 ## Package family
 
-Published under `@doopx/*`.
-The agent core is `@doopx/agents`; `doopx` (the command framework) stays a separate package and is never imported by the core.
+Published under `@cofold/*`.
+The agent core is `@cofold/agents`; `cofold` (the command framework) stays a separate package and is never imported by the core.
 
 ```
 packages/
-  agents/                 @doopx/agents            contracts, loop, run handle, step log, memory store, fake model
-  model-openai-compat/    @doopx/model-openai-compat
-  store-file/             @doopx/store-file       (p3) first durable store: JSONL per session and run
-  store-sqlite/           @doopx/store-sqlite     later, same Store contract
-  transport-ahp/          @doopx/transport-ahp    (p4)
+  agents/                 @cofold/agents            contracts, loop, run handle, step log, memory store, fake model
+  model-openai-compat/    @cofold/model-openai-compat
+  store-file/             @cofold/store-file       (p3) first durable store: JSONL per session and run
+  store-sqlite/           @cofold/store-sqlite     later, same Store contract
+  transport-ahp/          @cofold/transport-ahp    (p4)
   tools-*/ memory-*/ mcp-*/ transport-*/           later plans
 examples/
 ```

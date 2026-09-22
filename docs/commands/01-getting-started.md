@@ -1,15 +1,15 @@
 # Getting started
 
 ```sh
-npm add doopx
+npm add cofold
 ```
 
 ## A program
 
 ```ts
 #!/usr/bin/env node
-import { createRegistry, output } from "@doopx/commands";
-import { Program, runEntry } from "@doopx/terminal";
+import { createRegistry, output } from "@cofold/commands";
+import { Program, runEntry } from "@cofold/terminal";
 
 const registry = createRegistry();
 

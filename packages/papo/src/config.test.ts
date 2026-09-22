@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ConfigurationError } from '@doopx/commands';
+import { ConfigurationError } from '@cofold/commands';
 import { indentOf, loadConfig, providerFor, providersOf, rememberConfig, splitModel, userConfigPath } from './config.js';
 
 let root: string;
@@ -20,7 +20,7 @@ afterEach(() => rm(root, { recursive: true, force: true }));
 describe('loadConfig', () => {
   it('has defaults and no provider until one is written', () => {
     const config = loadConfig({ cwd: join(root, 'work'), env });
-    expect(config).toMatchObject({ backend: 'doopx', providers: [], permissions: 'default', reasoning: 'off', theme: 'paper', shell: 'workbench' });
+    expect(config).toMatchObject({ backend: 'cofold', providers: [], permissions: 'default', reasoning: 'off', theme: 'paper', shell: 'workbench' });
     expect(config.rules).toBeUndefined();
     expect(config.tools).toEqual({ files: true, shell: true, web: true, memory: true });
     expect(config.instructions.length).toBeGreaterThan(10);
@@ -63,10 +63,10 @@ describe('loadConfig', () => {
   it('picks the backend from the file or PAPO_BACKEND, and refuses one it does not know', async () => {
     await writeFile(join(root, 'config', 'papo', 'config.json'), JSON.stringify({ backend: 'claude' }));
     expect(loadConfig({ cwd: join(root, 'work'), env }).backend).toBe('claude');
-    expect(loadConfig({ cwd: join(root, 'work'), env: { ...env, PAPO_BACKEND: 'doopx' } }).backend).toBe('doopx');
-    expect(() => loadConfig({ cwd: join(root, 'work'), env: { ...env, PAPO_BACKEND: 'gemini' } })).toThrow('PAPO_BACKEND must be doopx or claude');
+    expect(loadConfig({ cwd: join(root, 'work'), env: { ...env, PAPO_BACKEND: 'cofold' } }).backend).toBe('cofold');
+    expect(() => loadConfig({ cwd: join(root, 'work'), env: { ...env, PAPO_BACKEND: 'gemini' } })).toThrow('PAPO_BACKEND must be cofold or claude');
     await writeFile(join(root, 'config', 'papo', 'config.json'), JSON.stringify({ backend: 'gemini' }));
-    expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow('config.backend must be one of doopx, claude');
+    expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow('config.backend must be one of cofold, claude');
   });
 
   it('names the key that is wrong, and the file it read', async () => {
@@ -176,7 +176,7 @@ describe('model references', () => {
   });
 
   it('finds the provider by id and says which are configured when it is missing', () => {
-    const config = { backend: 'doopx' as const, providers: [{ id: 'a', baseUrl: 'http://a' }, { id: 'b', baseUrl: 'http://b' }], permissions: 'acceptEdits' as const, reasoning: 'off' as const, instructions: '', tools: { files: false, shell: false, web: false, memory: false }, context: { maxTokens: 32_000, autoCompact: false }, theme: 'paper', shell: 'workbench' };
+    const config = { backend: 'cofold' as const, providers: [{ id: 'a', baseUrl: 'http://a' }, { id: 'b', baseUrl: 'http://b' }], permissions: 'acceptEdits' as const, reasoning: 'off' as const, instructions: '', tools: { files: false, shell: false, web: false, memory: false }, context: { maxTokens: 32_000, autoCompact: false }, theme: 'paper', shell: 'workbench' };
     const providers = providersOf(config);
     expect(providers.map((provider) => provider.id)).toEqual(['openai-compat:a', 'openai-compat:b']);
     expect(providerFor(providers, config, 'b/m')).toEqual({ provider: providers[1], modelId: 'm' });

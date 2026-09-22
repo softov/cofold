@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { basename } from 'node:path';
-import type { Capability, Tool } from '@doopx/agents';
-import { createTool } from '@doopx/agents';
+import type { Capability, Tool } from '@cofold/agents';
+import { createTool } from '@cofold/agents';
 import type { ShellExecArgs, ShellExecInput, ShellOptions, ShellResult, ShellSpec } from './types/shell.js';
 import { resolveWithin } from './paths.js';
 

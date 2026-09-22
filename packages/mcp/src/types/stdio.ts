@@ -1,5 +1,5 @@
 import type { Readable, Writable } from "node:stream";
-import type { Command, RequestContext } from "@doopx/commands";
+import type { Command, RequestContext } from "@cofold/commands";
 export interface StdioOptions {
   /** Reported to the client as `serverInfo`. */
   name: string;
@@ -20,7 +20,7 @@ export interface StdioOptions {
   filter?(command: Command): boolean;
   /** Which failures come back as a readable tool error rather than a generic one. */
   recoverable?(error: unknown): boolean;
-  /** Stderr, a log, anything that is not stdout. Doopx never writes diagnostics itself. */
+  /** Stderr, a log, anything that is not stdout. Cofold never writes diagnostics itself. */
   onDiagnostic?(error: unknown): void;
   /** A single message this large is treated as a broken stream. */
   maxMessageBytes?: number;

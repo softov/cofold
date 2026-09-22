@@ -85,7 +85,7 @@ refs:
 
 ## Validation
 
-- `pnpm --filter @doopx/agents typecheck` and `rules.test.ts`.
+- `pnpm --filter @cofold/agents typecheck` and `rules.test.ts`.
 
 ## Resume
 

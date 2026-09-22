@@ -1,14 +1,14 @@
 {
-  "name": "@doopx/remote",
+  "name": "@cofold/remote",
   "version": "0.2.0",
   "type": "module",
   "description": "Commands over HTTP: manifests, OpenAPI, authentication and the remote client, fed from the same declaration.",
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "funding": "https://github.com/sponsors/softov",
-  "homepage": "https://github.com/softov/doopx#readme",
+  "homepage": "https://github.com/softov/cofold#readme",
   "bugs": {
-    "url": "https://github.com/softov/doopx/issues"
+    "url": "https://github.com/softov/cofold/issues"
   },
   "engines": {
     "node": ">=22"
@@ -16,7 +16,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/softov/doopx.git",
+    "url": "git+https://github.com/softov/cofold.git",
     "directory": "packages/remote"
   },
   "keywords": [
@@ -51,9 +51,9 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@doopx/commands": "workspace:^"
+    "@cofold/commands": "workspace:^"
   },
   "devDependencies": {
-    "@doopx/terminal": "workspace:^"
+    "@cofold/terminal": "workspace:^"
   }
 }

@@ -50,7 +50,7 @@ The files read and the patterns to reuse are the `refs` above, each with its not
 
 ```
 composer "/compact"  → Chat.say(text)
-  → doopx backend: run({ agent, session, input })
+  → cofold backend: run({ agent, session, input })
       → start(): parseSlash(input) matches a listed command
       → store input message { role: 'user', source: 'command', parts: [text '/compact'] }
       → command.run({ agent, session, args, store, emit })      (compact: writes the summary message)
@@ -95,7 +95,7 @@ papo `/` menu = Chat.commands() + Chat.skills() + client commands whose name the
 
 ## Proposed architecture
 
-- **Data flow** - composer or shell → `Chat.say('/name args')` → doopx: `run()` → `start()` sees a listed name → command run (messages `command`, `notice`) → store; claude: the CLI. Reads: `Chat.commands()` → doopx: `listSlashCommands(agent)`; claude: `supportedCommands()`.
+- **Data flow** - composer or shell → `Chat.say('/name args')` → cofold: `run()` → `start()` sees a listed name → command run (messages `command`, `notice`) → store; claude: the CLI. Reads: `Chat.commands()` → cofold: `listSlashCommands(agent)`; claude: `supportedCommands()`.
 - **Event flow** - `run.started` → `command.started` → (`context.compacted` for `compact`) → `command.finished` → `run.finished`; papo's `subscribe` fires on each as today.
 - **State flow** - settings changed by `/model`, `/reasoning`, `/permissions`, `/autocompact` land in the same `kv` record `configure()` writes; the next turn's agent is built from it (`agentFor`), the chips read it from the snapshot.
 - **Layer responsibilities** - agents: the type, the registry, the interception, the two message sources, the events, `compact` · papo: its own internal commands (declared on the definition), `Chat.commands()`, the menu, the projection of `command` / `notice`, the deletion of the client copies · claude backend: the list from the SDK, pass-through.
@@ -132,6 +132,6 @@ The typecheck is red between 01 and 02 (a deleted type); `pnpm check` runs after
 ## Final verification checklist
 
 - [ ] `pnpm check` green.
-- [ ] `papo` (doopx): `/compact`, `/status`, `/model` from the menu land in the transcript as input + notice; no overlay remains.
+- [ ] `papo` (cofold): `/compact`, `/status`, `/model` from the menu land in the transcript as input + notice; no overlay remains.
 - [ ] `papo --backend claude`: the `/` menu lists Claude's commands once; `/compact` runs the CLI's.
 - [ ] cli/02, cli/03, index.md updated.

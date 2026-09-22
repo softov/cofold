@@ -1,7 +1,7 @@
 import type { WireChunk } from './types/wire.js';
 import type { SseEvent } from './types/sse.js';
-import { ModelError, newId } from '@doopx/agents';
-import type { ContentPart, Message, ModelStreamEvent } from '@doopx/agents';
+import { ModelError, newId } from '@cofold/agents';
+import type { ContentPart, Message, ModelStreamEvent } from '@cofold/agents';
 import { mapFinish, usageOf } from './wire.js';
 
 const THINK_OPEN = '<think>';

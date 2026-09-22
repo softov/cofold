@@ -1,7 +1,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join, relative, resolve, sep } from 'node:path';
-import { AgentError } from '@doopx/agents';
-import type { SkillIndexEntry, SkillSource } from '@doopx/agents';
+import { AgentError } from '@cofold/agents';
+import type { SkillIndexEntry, SkillSource } from '@cofold/agents';
 
 const NAME_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 

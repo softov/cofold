@@ -1,7 +1,7 @@
 import type { WireModelList, WireResponse } from './types/wire.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ModelError, textOf, toolCallsOf } from '@doopx/agents';
-import type { Message, ModelRequest, ModelStreamEvent } from '@doopx/agents';
+import { ModelError, textOf, toolCallsOf } from '@cofold/agents';
+import type { Message, ModelRequest, ModelStreamEvent } from '@cofold/agents';
 import { openaiCompat, openaiCompatProvider } from './index.js';
 
 type Call = { url: string; init: RequestInit; body: Record<string, unknown> };

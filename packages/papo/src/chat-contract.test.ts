@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { FakeStep } from '@doopx/agents/testing';
+import type { FakeStep } from '@cofold/agents/testing';
 import { toBlocks } from './blocks.js';
 import { createClaudeChat } from './claude/chat.js';
 import type { FakeReply } from './claude/testing.js';
@@ -29,8 +29,8 @@ const QUESTION = 'Which one?';
 const tick = (ms = 15): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** The harness in this process, over a scripted model and the memory store. */
-const doopx: Rig = {
-  name: 'doopx',
+const cofold: Rig = {
+  name: 'cofold',
   open(story) {
     const { tool } = deleteFileTool();
     const gate = gateTool();
@@ -82,7 +82,7 @@ const claude: Rig = {
  * What a `Snapshot` says for the same story must not depend on the runtime (CLI-03 decision 10).
  * Where the two disagree the harness is presumed wrong; the plan's findings list says what is open.
  */
-describe.each([doopx, claude])('the chat contract on $name', (rig) => {
+describe.each([cofold, claude])('the chat contract on $name', (rig) => {
   it('say: a session appears, idle, with one complete turn of text', async () => {
     const { chat } = rig.open(['text', 'text']);
     const started = await chat.say({ text: 'Hello there' });

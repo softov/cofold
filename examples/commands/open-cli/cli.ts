@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { createRegistry } from "@doopx/commands";
-import { Program, runEntry } from "@doopx/terminal";
-import { httpTransport, manifestFromOpenApi, commandsFrom } from "@doopx/remote";
+import { createRegistry } from "@cofold/commands";
+import { Program, runEntry } from "@cofold/terminal";
+import { httpTransport, manifestFromOpenApi, commandsFrom } from "@cofold/remote";
 
 /**
  * `open-cli` - a command line for an API that never heard of this library.

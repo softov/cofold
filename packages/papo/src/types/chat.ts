@@ -1,4 +1,4 @@
-import type { AskAnswers, ModelInfo, ModelProvider, RunOutcome, SessionUsage, SkillIndexEntry, Store, Tool } from '@doopx/agents';
+import type { AskAnswers, ModelInfo, ModelProvider, RunOutcome, SessionUsage, SkillIndexEntry, Store, Tool } from '@cofold/agents';
 import type { ClaudeSdkSubset } from './claude.js';
 import type { PapoConfig } from './config.js';
 import type { Settings } from './settings.js';

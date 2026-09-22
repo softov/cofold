@@ -1,5 +1,5 @@
-import { ModelError } from '@doopx/agents';
-import type { ModelAdapter, ModelFeatures, ModelInfo, ModelProvider, ModelRequest, ModelStreamEvent } from '@doopx/agents';
+import { ModelError } from '@cofold/agents';
+import type { ModelAdapter, ModelFeatures, ModelInfo, ModelProvider, ModelRequest, ModelStreamEvent } from '@cofold/agents';
 import { fromWireModel, fromWireResponse, toWireMessages, toWireReasoning, toWireTools } from './wire.js';
 import { parseSse } from './sse.js';
 import { parseChunks, streamChunks } from './stream.js';

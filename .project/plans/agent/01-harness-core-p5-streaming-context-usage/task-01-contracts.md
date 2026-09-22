@@ -50,5 +50,5 @@ Contracts.
 Built 2026-09-16 (decisions 95-101).
 `types/command.ts` (`steer`), `types/hooks.ts` (`stop` decision, `AfterToolResult.stop`), `types/model.ts` (`ReasoningEffort`, `ModelRequest.cacheKey`), `types/outcome.ts` (`'hook'`), `types/event.ts` (`run.steered`), `types/error.ts` (`'not_running'`), `types/turn.ts` (`Steer`, `SteerQueue`, `TurnContext.steering`, `ToolCallResult` `stop`, `ResolvedRequest.command` excludes `steer`).
 Departure: the tool variant of `StepRecord` (`types/store.ts`) had no `detail` slot, so decision 97's `detail: { stoppedBy, reason }` needed `detail?: unknown` added there, mirroring the model variant.
-`ReasoningEffort` reaches `@doopx/agents` through the existing `export type *` of `types/index.ts`; `index.ts` needed no edit.
+`ReasoningEffort` reaches `@cofold/agents` through the existing `export type *` of `types/index.ts`; `index.ts` needed no edit.
 Three cases added to `types/contracts.test-d.ts`.

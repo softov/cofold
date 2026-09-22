@@ -10,7 +10,7 @@ import {
   type Command,
   type CompletionSource,
   type OptionSpec,
-} from "@doopx/commands";
+} from "@cofold/commands";
 
 /**
  * Tab completion, from the same declaration as everything else.

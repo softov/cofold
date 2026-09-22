@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import type { AskAnswers, RunUsage, SkillIndexEntry } from '@doopx/agents';
-import { workspaceSlug } from '@doopx/store-file';
+import type { AskAnswers, RunUsage, SkillIndexEntry } from '@cofold/agents';
+import { workspaceSlug } from '@cofold/store-file';
 import type { ChatAnswer, ChatSendStatus } from '@textui/chat';
 import {
   ChatBubble, ChatComposer, ChatHitl, ChatInputStatus, ChatTranscript, ReasoningBlock, SessionList, StreamingText, ToolCallRow,

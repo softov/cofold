@@ -1,4 +1,4 @@
-# @doopx/agents
+# @cofold/agents
 
 Agent runtime: contracts, JSON Schema validation, `createTool`, `createAgent`, `run`, `resume`, `createAskUserTool`, `skills`, an in-memory `Store`, and a scripted fake model.
 Zero runtime dependencies.
@@ -7,7 +7,7 @@ A model conducts a conversation, proposes tools, the runtime authorizes and exec
 ## Install
 
 ```bash
-pnpm add @doopx/agents
+pnpm add @cofold/agents
 ```
 
 Node >= 22, ESM only.
@@ -15,7 +15,7 @@ Node >= 22, ESM only.
 ## Define a tool
 
 ```ts
-import { createTool } from '@doopx/agents';
+import { createTool } from '@cofold/agents';
 
 const echo = createTool<{ text: string }>({
   name: 'echo',
@@ -33,7 +33,7 @@ It returns a `string` or `{ content, detail? }`: `content` is what the model see
 ## Validate model-supplied arguments
 
 ```ts
-import { validateSchema } from '@doopx/agents';
+import { validateSchema } from '@cofold/agents';
 
 const result = validateSchema<{ text: string }>({ schema: echo.input, value: { text: 'hi' } });
 if (result.ok) result.value.text; // typed, defaults applied
@@ -48,7 +48,7 @@ Types are never coerced: `"3"` is not an integer.
 ## Run one turn
 
 ```ts
-import { createAgent, run, textOf } from '@doopx/agents';
+import { createAgent, run, textOf } from '@cofold/agents';
 
 const agent = createAgent({ id: 'support', instructions: 'Answer briefly.', model, tools: [echo], store });
 const handle = run({ agent, session: 'sess-1', input: 'Say hello' });
@@ -87,7 +87,7 @@ The outcome is `awaiting { sessionId, runId, requestId, kind: 'approval' | 'inpu
 The process may exit here; everything needed to continue is in the store.
 
 ```ts
-import { resume } from '@doopx/agents';
+import { resume } from '@cofold/agents';
 
 const handle = resume({ agent, sessionId, runId });   // replays the stored events, then waits for a command
 await handle.submit({ type: 'approve', requestId });   // or { type: 'approve', requestId, input, alwaysApprove }
@@ -112,7 +112,7 @@ A durable store hands a `running` run's writer claim to a new process only when 
 `rules()` builds a `Policy` from lists of `Rule { tool, match? }`, the harness's counterpart to Claude's permission rules (decision 117).
 
 ```ts
-import { rules } from '@doopx/agents';
+import { rules } from '@cofold/agents';
 
 const policy = rules({
   deny: [{ tool: 'shell_exec', match: 'rm *' }],
@@ -133,7 +133,7 @@ A tool declares its subject next to `effects`: `subject: (input) => input.comman
 It is not added to any agent by default.
 
 ```ts
-import { createAskUserTool } from '@doopx/agents';
+import { createAskUserTool } from '@cofold/agents';
 
 const agent = createAgent({ ..., tools: [createAskUserTool()] });
 // the model calls ask_user({ questions: [{ id: 'lang', question: '...', options: [{ label: 'TypeScript' }, { label: 'Rust' }], allowOther: false }] })
@@ -147,12 +147,12 @@ A tool of your own can pause the same way with `pauseForInput({ questions })`.
 ## Skills
 
 `skills({ sources })` is the first core capability: it lists the available skills under `## skills` in the instructions and adds one `read_skill({ name, path? })` tool.
-A `SkillSource` is `{ list({ workspace }), read({ ref, path? }) }`; `@doopx/store-file` ships `fileSkillSource({ root })` for `<root>/skills/<name>/SKILL.md` and `<workspace>/.agents/skills/<name>/SKILL.md`.
+A `SkillSource` is `{ list({ workspace }), read({ ref, path? }) }`; `@cofold/store-file` ships `fileSkillSource({ root })` for `<root>/skills/<name>/SKILL.md` and `<workspace>/.agents/skills/<name>/SKILL.md`.
 Duplicate names across sources: the first source wins, with one warning.
 
 ```ts
-import { skills } from '@doopx/agents';
-import { fileSkillSource } from '@doopx/store-file';
+import { skills } from '@cofold/agents';
+import { fileSkillSource } from '@cofold/store-file';
 
 const agent = createAgent({ ..., capabilities: [skills({ sources: [fileSkillSource({ root })] })] });
 ```
@@ -192,7 +192,7 @@ const agent = createAgent({ ..., capabilities: [mcpServer({ ..., defer: { over: 
 ## Testing helpers
 
 ```ts
-import { createFakeModel, createMemoryStore } from '@doopx/agents/testing';
+import { createFakeModel, createMemoryStore } from '@cofold/agents/testing';
 
 const model = createFakeModel({
   script: [
@@ -209,7 +209,7 @@ The memory store is the reference `Store`: it enforces the writer claim (`writer
 Every `Store` implementation runs the same conformance suite from a vitest file:
 
 ```ts
-import { describeStoreConformance } from '@doopx/agents/testing/store-conformance';
+import { describeStoreConformance } from '@cofold/agents/testing/store-conformance';
 
 describeStoreConformance({ name: 'mine', create: () => createMyStore(), dispose: (store) => ... });
 ```

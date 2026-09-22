@@ -18,7 +18,7 @@ refs:
 ## Objective
 
 A model step streams: the loop publishes `model.delta` for text and reasoning as they arrive, persisted like every event, and assembles the reply from the adapter's `done` event.
-`@doopx/model-openai-compat` implements `stream()` over SSE with its own parser.
+`@cofold/model-openai-compat` implements `stream()` over SSE with its own parser.
 A stream that ends early fails the step; no partial tool call is ever validated or executed.
 
 ## Files
@@ -149,9 +149,9 @@ Built 2026-09-16.
 - `run/stream.test.ts`: the seven planned cases plus `features: { streaming: false }` on a streaming fake (8 tests).
 - openai-compat: `src/sse.ts` `parseSse` (own WHATWG parser: multi-line data, comments, CR / LF / CRLF, splits across reads, trailing event, cancels the body when the consumer stops early); `src/stream.ts` `parseChunks` (`[DONE]`, non-JSON is `invalid_response`) and `streamChunks` (text as it arrives, `<think>` splitter that buffers only the bytes needed to decide, reasoning fields, tool-call fragments accumulated by index and whole only in `done`, usage from the chunk that carries it); `src/index.ts` `attempt()` is the shared retry loop, `send()` and `sendStream()` sit on it, `bodyOf(request)` is the shared body, `stream()` on the adapter sends `stream: true, stream_options: { include_usage: true }`, `DEFAULT_FEATURES.streaming: true` (decision 104); `usageOf` and `mapFinish` exported from `wire.ts` so both forms share them; `types/wire.ts` `WireChunk`.
 - Tests: `sse.test.ts` (8), `stream.test.ts` (13), `index.test.ts` gained a `stream()` block (7: default features, gates before fetch, non-JSON payload, 429 before the body retried, error mid-body not retried and no `done`, abort mid-stream, no body).
-- READMEs: `@doopx/agents` (`model.delta` in the handle list, when a step streams, fake `stream: true`, `ModelAdapter.stream`), `@doopx/model-openai-compat` (intro, `features` default, a streaming behaviour line), `examples/agents/README.md`; `examples/agents/lmstudio-tools.ts` prints `model.delta` text as it arrives.
+- READMEs: `@cofold/agents` (`model.delta` in the handle list, when a step streams, fake `stream: true`, `ModelAdapter.stream`), `@cofold/model-openai-compat` (intro, `features` default, a streaming behaviour line), `examples/agents/README.md`; `examples/agents/lmstudio-tools.ts` prints `model.delta` text as it arrives.
 
-Evidence: `pnpm --filter @doopx/agents build` and `typecheck` green; `vitest --project @doopx/agents` 17 files, 166 tests; `vitest --project @doopx/model-openai-compat` 4 files, 66 tests; `@doopx/store-file` and `@doopx/tools` green against the new build; examples typecheck green. Not run against a live LM Studio (manual check left to the user).
+Evidence: `pnpm --filter @cofold/agents build` and `typecheck` green; `vitest --project @cofold/agents` 17 files, 166 tests; `vitest --project @cofold/model-openai-compat` 4 files, 66 tests; `@cofold/store-file` and `@cofold/tools` green against the new build; examples typecheck green. Not run against a live LM Studio (manual check left to the user).
 
 Deviations and findings:
 - `SseEvent` lives in `packages/model-openai-compat/src/types/sse.ts`, not in `sse.ts` (rule: exported types live in `src/types/`); `parseSse` is not exported from the package entry (the plan did not ask for it).

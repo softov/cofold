@@ -68,7 +68,7 @@ rules({ allow, deny, ask, otherwise }) → Policy: first matching rule by list o
 
 - `Not found: any refusal that is not a hook` - `policy` can only require approval.
 - `Not found: a record of denials on the run` - only `tool.denied` events and error results.
-- `Not found: a rule shape or a tool's subject` - the harness and `@doopx/tools` have neither.
+- `Not found: a rule shape or a tool's subject` - the harness and `@cofold/tools` have neither.
 
 ## Decisions locked in
 
@@ -78,7 +78,7 @@ rules({ allow, deny, ask, otherwise }) → Policy: first matching rule by list o
 | [119](../../../decisions/policy-deny-overrides-hook.md) | Hook first; a policy `deny` wins over the hook and a remembered approval; `ask` wins over a hook allow | User (2026-09-16) |
 | [112](../../../decisions/no-anthropic-api-adapter.md) | This plan exists because papo's contra-validation found F3; Claude is the reference, never a dependency | User (2026-09-16) |
 
-Settled without a decision, because the reference and doopx's no-boilerplate rule leave no fork (details in the task steps):
+Settled without a decision, because the reference and cofold's no-boilerplate rule leave no fork (details in the task steps):
 
 | What | Source | Task |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ Settled without a decision, because the reference and doopx's no-boilerplate rul
 
 - **Data flow** - `handleToolCall` computes one `decision` after the hook; `deny` short-circuits into the `deny` helper with `by: 'policy'`; `ask` becomes the approval pause unless remembered; `allow` executes. `rules()` is a pure function over `Rule[]` lists and the tool's `subject(input)`.
 - **State flow** - `TurnContext.counters.denials: Denial[]`; every denial pushes; `finishRun`, `pause` and `resume`'s `countersOf` carry it through `runs.update({ denials })` and the record.
-- **Layer responsibilities** - `@doopx/agents`: contract, default policy, `rules()`, the record · `@doopx/tools`: `subject` on its tools · `@doopx/papo`: `policyOf` moved to `decide` (rule lists in papo's config are a `cli` plan).
+- **Layer responsibilities** - `@cofold/agents`: contract, default policy, `rules()`, the record · `@cofold/tools`: `subject` on its tools · `@cofold/papo`: `policyOf` moved to `decide` (rule lists in papo's config are a `cli` plan).
 - **Source-of-truth files** - `code://packages/agents/src/types/agent.ts` (`Policy`, `PolicyDecision`), `code://packages/agents/src/types/tool.ts` (`subject`), `code://packages/agents/src/types/store.ts` (`Denial`, `RunRecord.denials`), `code://packages/agents/src/policy/rules.ts` (new).
 
 ## Tasks
@@ -99,17 +99,17 @@ Settled without a decision, because the reference and doopx's no-boilerplate rul
 | [01 - decide() and the precedence](task-01-decide-and-precedence.md) | done | - |
 | [02 - Denials on the run record](task-02-denials-record.md) | done | 01 |
 | [03 - rules() and Tool.subject](task-03-rules-and-subject.md) | done | 01 |
-| [04 - Subjects on @doopx/tools; papo's policyOf](task-04-tools-subjects-papo-policy.md) | done | 03 |
+| [04 - Subjects on @cofold/tools; papo's policyOf](task-04-tools-subjects-papo-policy.md) | done | 03 |
 
 ## Risks and tradeoffs
 
-- `requireApproval` is removed, not deprecated: one contract, one method (doopx's no-boilerplate rule); the three consumers move in the same change.
+- `requireApproval` is removed, not deprecated: one contract, one method (cofold's no-boilerplate rule); the three consumers move in the same change.
 - The glob dialect (`*`, `?`, anchored) is narrower than Claude's per-tool matchers; a rule that needs more (a path under a directory) is written with `*` today. Reversible by a later decision.
 - `denials` is written as a whole list on each update; a run with hundreds of denials rewrites the list each time. Accepted: denials are rare and the record is small.
 
 ## Resume state
 
-- **Done so far:** planned 2026-09-16; decisions 117, 119 as files; F3 is the finding tasks 01 and 02 fix. Task 01 done (2026-09-16): `Policy.decide`, the precedence in `handleToolCall`, papo's `policyOf` on `decide` (pulled from task 04 so papo keeps compiling). Task 03 done (2026-09-16): `Tool.subject`, `types/policy.ts`, `policy/rules.ts` (`DEFAULT_DECIDE`, `matchGlob`, `rules`), README "Rules". Task 04 done (2026-09-16): `subject` on `shell_exec` and the five file tools, READMEs of `@doopx/tools` and `@doopx/papo`. Task 02 done (2026-09-16, after agent/01-p5 task 07): `Denial`, `RunRecord.denials`, `tally()` with `denials`, both stores, `run/denials.test.ts`. Every task done; the plan is built: see [implemented.md](implemented.md).
+- **Done so far:** planned 2026-09-16; decisions 117, 119 as files; F3 is the finding tasks 01 and 02 fix. Task 01 done (2026-09-16): `Policy.decide`, the precedence in `handleToolCall`, papo's `policyOf` on `decide` (pulled from task 04 so papo keeps compiling). Task 03 done (2026-09-16): `Tool.subject`, `types/policy.ts`, `policy/rules.ts` (`DEFAULT_DECIDE`, `matchGlob`, `rules`), README "Rules". Task 04 done (2026-09-16): `subject` on `shell_exec` and the five file tools, READMEs of `@cofold/tools` and `@cofold/papo`. Task 02 done (2026-09-16, after agent/01-p5 task 07): `Denial`, `RunRecord.denials`, `tally()` with `denials`, both stores, `run/denials.test.ts`. Every task done; the plan is built: see [implemented.md](implemented.md).
 - **Next action:** none here; papo's rule lists in its config and the permission mode set (cli/03 F8) are [cli/04](../../cli/04-papo-harness-adoption/plan.md) task 04.
 - **Open questions:** none.
 - **Watch out for:** papo's config gaining `permissions.rules` (allow/deny/ask lists) is a `cli` plan, not this one; the ahpd findings F6, F7 are in agent/01-p5 task 08; the permission mode set (cli/03 F8) is open.
@@ -120,5 +120,5 @@ Settled without a decision, because the reference and doopx's no-boilerplate rul
 - [x] A `deny` decision refuses a call a `beforeTool` hook allowed, and one the session had remembered as always-approved.
 - [x] `rules({ deny: [{ tool: 'shell_exec', match: 'rm *' }] })` refuses `rm -rf /` and lets `ls` through; a tool without `subject` matches on name only.
 - [x] `RunRecord.denials` lists every denial of a run with its `by`; the outcome carries the same list; `resume()` keeps it. (2026-09-16: `run/denials.test.ts`; conformance case on both stores).
-- [x] papo over `@doopx/agents` with `permissions: ask | destructive | auto` behaves as before.
+- [x] papo over `@cofold/agents` with `permissions: ask | destructive | auto` behaves as before.
 - [x] `plans/index.md` updated.

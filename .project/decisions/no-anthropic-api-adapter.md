@@ -10,12 +10,12 @@ refs:
 
 ## Context
 
-A p5 outline written by an earlier session proposed `@doopx/model-anthropic`, a Messages API adapter, "to prove the contract is not shaped by Chat Completions".
+A p5 outline written by an earlier session proposed `@cofold/model-anthropic`, a Messages API adapter, "to prove the contract is not shaped by Chat Completions".
 The user's intent, stated since the beginning and repeated on 2026-09-16, is the opposite: Claude is only there to contra-validate the harness's features, through papo running the same program on the Claude Agent SDK (cli/03).
 
 ## Decision
 
-No Anthropic API adapter and no `@doopx/model-anthropic`.
+No Anthropic API adapter and no `@cofold/model-anthropic`.
 Claude's runtime is the reference the harness is checked against; every difference found through papo or ahpd is a finding presumed to be the harness's bug, recorded in cli/03's findings table and fixed in a plan task.
 A finding is not a decision: it gets no decision file, and code and plans cite it by number (`cli/03 F2`).
 

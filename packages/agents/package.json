@@ -1,17 +1,17 @@
 {
-  "name": "@doopx/agents",
+  "name": "@cofold/agents",
   "version": "0.1.0",
   "description": "Agent runtime: contracts, loop, run handle, step log.",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "license": "MIT",
-  "homepage": "https://github.com/softov/doopx#readme",
+  "homepage": "https://github.com/softov/cofold#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/softov/doopx.git",
+    "url": "git+https://github.com/softov/cofold.git",
     "directory": "packages/agents"
   },
   "bugs": {
-    "url": "https://github.com/softov/doopx/issues"
+    "url": "https://github.com/softov/cofold/issues"
   },
   "type": "module",
   "engines": {
@@ -50,6 +50,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@doopx/sdk": "workspace:^"
+    "@cofold/sdk": "workspace:^"
   }
 }

@@ -14,7 +14,7 @@ refs:
   - code://packages/papo/src/agent.ts - capabilitiesOf(config.tools)
 ---
 
-`@doopx/tools` gives every agent the tools it needs to work in a repository, as capabilities: `files()`, `shell()`, `web({ search })`, `memory({ dir })`; papo turns them on from `config.tools`.
+`@cofold/tools` gives every agent the tools it needs to work in a repository, as capabilities: `files()`, `shell()`, `web({ search })`, `memory({ dir })`; papo turns them on from `config.tools`.
 
 ## What was built
 

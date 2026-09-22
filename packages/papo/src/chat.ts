@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Agent, ApprovalPayload, Message, ModelInfo, PendingRequest, RunHandle, RunRecord, StopReason } from '@doopx/agents';
-import { AgentError, compact, contextOf, listSkills, newId, resume, run, sessionUsage } from '@doopx/agents';
-import { fileSkillSource } from '@doopx/store-file';
+import type { Agent, ApprovalPayload, Message, ModelInfo, PendingRequest, RunHandle, RunRecord, StopReason } from '@cofold/agents';
+import { AgentError, compact, contextOf, listSkills, newId, resume, run, sessionUsage } from '@cofold/agents';
+import { fileSkillSource } from '@cofold/store-file';
 import { AGENT_ID, buildAgent } from './agent.js';
 import { providerFor, splitModel } from './config.js';
 import { createQueues } from './queue.js';

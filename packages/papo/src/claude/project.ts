@@ -1,4 +1,4 @@
-import type { Usage } from '@doopx/agents';
+import type { Usage } from '@cofold/agents';
 import type { ChatPendingInput, ChatToolCall } from '@textui/chat';
 import { COMPACTED_INPUT, inputLine } from '../turns.js';
 import type { ClaudeBlock, ClaudeLive, ClaudeSessionMessage, ClaudeUsage } from '../types/claude.js';

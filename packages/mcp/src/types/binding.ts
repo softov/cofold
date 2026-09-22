@@ -1,4 +1,4 @@
-import type { JsonSchema } from "@doopx/sdk";
+import type { JsonSchema } from "@cofold/sdk";
 /** Optional tool metadata, independent of SDK types. */
 export interface McpBinding {
   name?: string;

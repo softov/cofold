@@ -63,9 +63,9 @@ Built 2026-09-16, after agent/01-p5 task 07 (its `tally()` is reused, not re-int
 - `run/run.ts`: counters start with `denials: []`, `runs.create` writes `denials: []`, the setup-failure outcome carries `denials: []`. `run/resume.ts`: `countersOf` returns a copy of `record.denials` for both the paused and the dead run; the three detached failure outcomes carry `record.denials` (and `record.cost` when present).
 - Stores: `store/memory.ts` and `store-file/src/store.ts` `update` write `denials` when given; the file store's `readRun` fills `denials: []` for a `run.json` written before this task. Conformance gained "persists denials: [] from create, the list written by update", proven on both stores; the `runRecord` helpers of the conformance suite and `store-file/src/store.test.ts` default `denials: []`.
 - Tests: `run/denials.test.ts` (6: validator, hook, policy and limit refusals in order with the right `by` on the outcome and the record; a raw non-JSON call; a hook stop; the person's deny through `resume()` with the outcome, the record and a later `resume()` agreeing; a declined input; no refusal records `[]` and a paused run's list is carried on); `contracts.test-d.ts` gained the `Denial['by']` / `RunRecord.denials` / `RunTally.denials` case; `run/tools.test.ts` (`setup()` supplies `denied` and exposes `denials`), `run/resume.test.ts` and `run/cost.test.ts` adjusted for the required field and the outcome shape.
-- README: `@doopx/agents` (the denial record under the loop description; `deny` records `by: 'user'`).
+- README: `@cofold/agents` (the denial record under the loop description; `deny` records `by: 'user'`).
 
-Evidence: full `pnpm check` green on 2026-09-16 (67 test files, 745 tests, no type errors); `@doopx/agents` alone 20 files, 200 tests.
+Evidence: full `pnpm check` green on 2026-09-16 (67 test files, 745 tests, no type errors); `@cofold/agents` alone 20 files, 200 tests.
 
 Deviations and findings:
 - `packages/agents/src/run/tools.test.ts` (agent/04 task 01's file) and `packages/papo/src/turns.test.ts:15` each needed `denials` added to a literal that builds the changed contract (`ToolCallDeps`, `RunRecord`); nothing else in papo changed.

@@ -1,6 +1,6 @@
 import type { ModelToolDefinition, Tool, ToolDefinition, ToolEffects } from '../types/tool.js';
 import { AgentError } from '../errors.js';
-import { assertSupportedSchema } from '@doopx/sdk';
+import { assertSupportedSchema } from '@cofold/sdk';
 
 const NAME_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 

@@ -1,17 +1,17 @@
 import type { StdioOptions, StdioServer } from "./types/stdio.js";
 import { StringDecoder } from "node:string_decoder";
 import type { Readable, Writable } from "node:stream";
-import type { Command, RequestContext, Runner } from "@doopx/commands";
+import type { Command, RequestContext, Runner } from "@cofold/commands";
 import { callTool, tools, UnknownToolError } from "./index.js";
 
 export type { StdioOptions, StdioServer } from "./types/stdio.js";
 
 /**
- * @doopx/mcp/stdio - the tool descriptors, spoken.
+ * @cofold/mcp/stdio - the tool descriptors, spoken.
  *
- * `@doopx/mcp` stops at descriptors, which leaves every program that wants to be
+ * `@cofold/mcp` stops at descriptors, which leaves every program that wants to be
  * an MCP server writing the same read loop. This is that loop, and it is here
- * rather than behind an SDK for the same reason `@doopx/yaml` is: the subset a
+ * rather than behind an SDK for the same reason `@cofold/yaml` is: the subset a
  * tools-only server needs is small and stable, and a dependency that drags in a
  * web framework to read newline-delimited JSON is a poor trade for a library
  * whose entire argument is that a command declaration is enough.

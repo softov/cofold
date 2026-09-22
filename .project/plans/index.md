@@ -35,7 +35,7 @@ Reference: [00-cli.md](cli/00-cli.md)
 
 | Plan | Priority | Status | Requires | Blocks |
 | --- | --- | --- | --- | --- |
-| [01 - papo: the harness in a terminal](cli/01-papo/plan.md) | high | built (manual run against a model server pending) | agent/01 (p3), textui `@textui/chat` | the `doopx` program |
+| [01 - papo: the harness in a terminal](cli/01-papo/plan.md) | high | built (manual run against a model server pending) | agent/01 (p3), textui `@textui/chat` | the `cofold` program |
 | [02 - papo slash commands](cli/02-papo-commands/plan.md) | high | built; wrong for the internal commands, superseded by agent/03 | cli/01, tools/01, agent/01-p5 task 06 | /mcp (MCP client) |
 | [03 - papo on the Claude Agent SDK](cli/03-papo-claude/plan.md) | high | built (task 04's manual run on the real CLI owed) | cli/01, cli/02 | contra-validation of the harness; eight findings logged (F1-F8) |
 | [04 - papo adopts the harness: steer and queue, partial text, the model's view, stop reasons, rules](cli/04-papo-harness-adoption/plan.md) | high | built 2026-09-16 ([implemented.md](cli/04-papo-harness-adoption/implemented.md), [deferred.md](cli/04-papo-harness-adoption/deferred.md)) | cli/01, agent/01-p5, agent/04 | - |
@@ -51,11 +51,11 @@ Reference: none yet (this plan is the domain's first).
 
 | Plan | Priority | Status | Requires | Blocks |
 | --- | --- | --- | --- | --- |
-| [01 - @doopx/tools: the tools every agent gets](tools/01-standard-tools/plan.md) | high | built (manual run owed) | agent/01 (p3), cli/01 | a useful papo |
+| [01 - @cofold/tools: the tools every agent gets](tools/01-standard-tools/plan.md) | high | built (manual run owed) | agent/01 (p3), cli/01 | a useful papo |
 
 Next free number in `tools`: `02`.
 
 ## Later domains (no plans yet)
 
 `model` · `store` · `memory` · `transport` · `network` · `testing` · `documentation`.
-Candidates already named in the parent plan's *Out of scope* list: code mode, guardrail package, subagent tool, network, SQLite and Durable Object stores (pluggable behind the `Store` contract; file store ships first in p3), JSON-RPC / WS / HTTP / MCP-server transports, `fromdoopxAction()`.
+Candidates already named in the parent plan's *Out of scope* list: code mode, guardrail package, subagent tool, network, SQLite and Durable Object stores (pluggable behind the `Store` contract; file store ships first in p3), JSON-RPC / WS / HTTP / MCP-server transports, `fromcofoldAction()`.

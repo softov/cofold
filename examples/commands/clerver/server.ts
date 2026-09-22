@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { canonicalFromObject, type Command } from "@doopx/commands";
-import { manifestFrom, type HttpBinding } from "@doopx/remote";
+import { canonicalFromObject, type Command } from "@cofold/commands";
+import { manifestFrom, type HttpBinding } from "@cofold/remote";
 import { registry, NotFound } from "./registry.js";
 
 /**

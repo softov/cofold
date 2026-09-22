@@ -70,7 +70,7 @@ A new conversation started from the screen with no configured model works (built
 
 ## Validation
 
-- `pnpm --filter @doopx/papo typecheck`; `pnpm vitest run --project @doopx/papo`; `pnpm check`.
+- `pnpm --filter @cofold/papo typecheck`; `pnpm vitest run --project @cofold/papo`; `pnpm check`.
 - By hand: two providers in `config.json`, pick `local_provider/<m>` on the chip, quit, start `papo`: the chip shows it.
 
 ## Resume
@@ -87,5 +87,5 @@ A new conversation started from the screen with no configured model works (built
   `README.md`: the Settings section says what is written where; the layout lists `rememberConfig`.
 - Tests: `config.test.ts` "rememberConfig" (7 cases: user path, indentation, fresh user file with `mkdir`, 4-space file kept, project file for `model` and user file for `permissions` in one call, `--config` file, `''` and `{}` write nothing, malformed file refused and left as it was); `commands.test.ts` "remembers -m on a new session and session set..." (three fresh programs over one store and one temp `XDG_CONFIG_HOME`; `-m` on an existing session is not remembered); `screen.test.ts` "remembers a chip's pick..." (the permissions chip, since the model picker was being rewritten concurrently under task 02 and both chips reach `controller.configure`; escape, `n` shows the remembered mode).
   The three test helpers that build a `Papo` by hand (`shell()` in `commands.test.ts`, `screen()` in `screen.test.ts`, the claude `open`) got `remember: async () => []` so no test writes the machine's own file.
-- Evidence: `pnpm --filter @doopx/papo typecheck` clean; `pnpm vitest run --project @doopx/papo` 129 tests green; `pnpm check` 67 files, 773 tests green (2026-09-16).
+- Evidence: `pnpm --filter @cofold/papo typecheck` clean; `pnpm vitest run --project @cofold/papo` 129 tests green; `pnpm check` 67 files, 773 tests green (2026-09-16).
 - Not done by hand: the two-provider pick, quit, restart check in Validation.

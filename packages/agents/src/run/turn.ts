@@ -25,7 +25,7 @@ import { toolCallsOf } from '../message/helpers.js';
 import { INTERRUPTED, INTERRUPTED_TOOL } from '../message/markers.js';
 import { costOf } from '../model/cost.js';
 import { addUsage } from '../model/usage.js';
-import { validateSchema } from '@doopx/sdk';
+import { validateSchema } from '@cofold/sdk';
 import { renderAnswers } from '../tool/ask-user.js';
 import { historyEstimate, writeSummary } from './compact.js';
 import { assembleRequest } from './context.js';

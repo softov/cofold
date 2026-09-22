@@ -1,5 +1,5 @@
 import type { PermissionResult, PermissionUpdate } from '@anthropic-ai/claude-agent-sdk';
-import type { AskAnswers, AskQuestion } from '@doopx/agents';
+import type { AskAnswers, AskQuestion } from '@cofold/agents';
 import type { ChatPendingInput, ChatToolCall } from '@textui/chat';
 import { toChatQuestion } from '../questions.js';
 import { inputLine, ALWAYS } from '../turns.js';

@@ -1,17 +1,17 @@
 {
-  "name": "@doopx/model-openai-compat",
+  "name": "@cofold/model-openai-compat",
   "version": "0.1.0",
-  "description": "Chat Completions model adapter for @doopx/agents (OpenRouter, LM Studio, any compatible server).",
+  "description": "Chat Completions model adapter for @cofold/agents (OpenRouter, LM Studio, any compatible server).",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "license": "MIT",
-  "homepage": "https://github.com/softov/doopx#readme",
+  "homepage": "https://github.com/softov/cofold#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/softov/doopx.git",
+    "url": "git+https://github.com/softov/cofold.git",
     "directory": "packages/model-openai-compat"
   },
   "bugs": {
-    "url": "https://github.com/softov/doopx/issues"
+    "url": "https://github.com/softov/cofold/issues"
   },
   "type": "module",
   "engines": {
@@ -39,10 +39,10 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "@doopx/agents": "workspace:*"
+    "@cofold/agents": "workspace:*"
   },
   "devDependencies": {
-    "@doopx/agents": "workspace:*"
+    "@cofold/agents": "workspace:*"
   },
   "publishConfig": {
     "access": "public"

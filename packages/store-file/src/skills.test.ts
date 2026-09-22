@@ -8,7 +8,7 @@ let root: string;
 let workspace: string;
 
 beforeAll(async () => {
-  root = await mkdtemp(join(tmpdir(), 'doopx-skills-'));
+  root = await mkdtemp(join(tmpdir(), 'cofold-skills-'));
   workspace = join(root, 'proj');
   const write = async (dir: string, file: string, text: string) => { await mkdir(dir, { recursive: true }); await writeFile(join(dir, file), text, 'utf8'); };
   await write(join(root, 'skills', 'deploy'), 'SKILL.md', '---\nname: deploy\ndescription: "Ship a release"\n---\n\nRun the deploy checklist.\nSee references/steps.md.\n');

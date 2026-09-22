@@ -9,7 +9,7 @@ refs:
 
 ## Objective
 
-A reader of the `@doopx/agents` README knows what a slash command is, how to declare one, which are built in, and how a command run looks in the transcript.
+A reader of the `@cofold/agents` README knows what a slash command is, how to declare one, which are built in, and how a command run looks in the transcript.
 
 ## Files
 

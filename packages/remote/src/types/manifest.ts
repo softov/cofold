@@ -1,4 +1,4 @@
-import type { CommandGroup, JsonSchema } from "@doopx/commands";
+import type { CommandGroup, JsonSchema } from "@cofold/commands";
 export interface ManifestOption {
   name: string;
   short?: string;
@@ -47,7 +47,7 @@ export interface ManifestCommand {
 }
 
 export interface ProgramManifest {
-  doopx: number;
+  cofold: number;
   program: { name: string; version: string; description?: string };
   groups?: readonly CommandGroup[];
   commands: readonly ManifestCommand[];

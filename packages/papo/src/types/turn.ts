@@ -1,4 +1,4 @@
-import type { Usage } from '@doopx/agents';
+import type { Usage } from '@cofold/agents';
 import type { ChatPendingInput, ChatToolCall } from '@textui/chat';
 import type { Queued } from './chat.js';
 import type { Settings } from './settings.js';

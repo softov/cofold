@@ -50,9 +50,9 @@ A reply split across several stored entries counts once; an API error is a faile
   `papo say` loops `while (awaiting && backend === 'claude')`.
   The fake stores and streams one entry per block sharing a `message.id`, echoes the prompt on the stream under the client's uuid, writes its store at the result (as the CLI does, F5), takes `title` and `suppressAlways`, answers `{ apiError }` as `success` with `is_error`, records every `PermissionResult` in `decisions`, and `then` may be a second ask (`FakeToolReply`), which is how a turn that stops twice is scripted.
   Fixture `claude/fixtures/split-reply.json`: one reply over `thinking`, `text`, `tool_use` entries sharing `msg_01SplitReplyAcrossEntries`, its tool result, and a second one-entry reply.
-- **Evidence:** `pnpm vitest run --project @doopx/papo`: 8 files, 88 tests green (was 81); `project.test.ts` 7, `claude/chat.test.ts` 18, `chat-contract.test.ts` 16, `commands.test.ts` 7.
+- **Evidence:** `pnpm vitest run --project @cofold/papo`: 8 files, 88 tests green (was 81); `project.test.ts` 7, `claude/chat.test.ts` 18, `chat-contract.test.ts` 16, `commands.test.ts` 7.
   The split reply alone gives `steps: 1` and `usage { 29263, 212 }`; with the second reply `steps: 2`, `usage { 58620, 230 }`.
-  `pnpm --filter @doopx/papo typecheck` clean.
+  `pnpm --filter @cofold/papo typecheck` clean.
 - **Deviations:** `ended` does not merely return when the entry was let go of: it settles the turn `cancelled` (reason `the session was removed`) so a `wait()` on it resolves instead of hanging; it records no error, which is what the step asked for.
   `sessions()` adds the sessions live here that `listSessions` does not return yet: once the fake wrote its store at the result, as the CLI does, a session started here was absent from the catalogue until its first result ended (a real gap the old fake hid); the row is read off `seen`.
   The split fixture holds a second, one-entry reply after the tool result, as a real session does; the test asserts `steps: 1` on the first five entries and `steps: 2` on the whole.

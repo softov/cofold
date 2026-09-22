@@ -1,6 +1,6 @@
 import type { Coercer } from "./coerce.js";
 import type { Command } from "./command.js";
-import type { JsonSchema } from "@doopx/sdk";
+import type { JsonSchema } from "@cofold/sdk";
 
 export interface OptionSpec<T = unknown> {
   /** The long form, with its dashes: `--limit`. */

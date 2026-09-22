@@ -22,8 +22,8 @@ A conversation opens with what the session is: its title and state, the harness 
 
 ## What changed
 
-- `@doopx/agents`: `sessionUsage` reads the session's run records and step logs (tool calls are the `tool` step records; refusals are `RunRecord.denials`) and sums with `addUsage`; `SessionUsage` / `RunUsage` in `types/usage.ts`; exported from the index. `not_found` from the store for a session that is not there.
-- `@doopx/papo`: `Chat.usage(sessionId)` on both backends. The Claude backend sums what the CLI reported per turn; every tool part is a call and `denials` is 0 there, since the CLI's refusals arrive as failed tool results like any failed tool. The shell's `usage <session>` (group `sessions`, `mcp: true`). The screen's `/chat.usage` replaces `/chat.cost`, prints the same table as the shell plus what each turn asked. `PLACE` holds `{ workspace, home }` for the head.
+- `@cofold/agents`: `sessionUsage` reads the session's run records and step logs (tool calls are the `tool` step records; refusals are `RunRecord.denials`) and sums with `addUsage`; `SessionUsage` / `RunUsage` in `types/usage.ts`; exported from the index. `not_found` from the store for a session that is not there.
+- `@cofold/papo`: `Chat.usage(sessionId)` on both backends. The Claude backend sums what the CLI reported per turn; every tool part is a call and `denials` is 0 there, since the CLI's refusals arrive as failed tool results like any failed tool. The shell's `usage <session>` (group `sessions`, `mcp: true`). The screen's `/chat.usage` replaces `/chat.cost`, prints the same table as the shell plus what each turn asked. `PLACE` holds `{ workspace, home }` for the head.
 - The head: `ChatSessionHead` with `sessionView(snapshot.session)`, the model, and rows Permissions, Thinking, Auto-compact, Turns, Tokens, Home (last, so it sits by the component's Workspace row); the "new conversation" line stays before the first message.
 
 ## Deviations from the plan

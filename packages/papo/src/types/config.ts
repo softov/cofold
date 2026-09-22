@@ -1,4 +1,4 @@
-import type { Limits, ModelParams, RulesOptions } from '@doopx/agents';
+import type { Limits, ModelParams, RulesOptions } from '@cofold/agents';
 import type { Reasoning, Settings } from './settings.js';
 
 /** One Chat Completions endpoint papo may talk to. */
@@ -23,7 +23,7 @@ export interface ProviderConfig {
 export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'dontAsk';
 
 /**
- * Rule lists for `rules()` (`@doopx/agents`, decision 117), as the configuration and a session's settings hold them
+ * Rule lists for `rules()` (`@cofold/agents`, decision 117), as the configuration and a session's settings hold them
  * (decision CLI-04.5): `deny`, then `ask`, then `allow`; a rule is `{ tool, match? }`, the glob over the tool's subject.
  */
 export type RuleLists = Pick<RulesOptions, 'deny' | 'ask' | 'allow'>;
@@ -44,7 +44,7 @@ export interface ContextConfig {
   autoCompact: boolean;
 }
 
-/** Which `@doopx/tools` capabilities the agent gets; all on by default. */
+/** Which `@cofold/tools` capabilities the agent gets; all on by default. */
 export interface ToolsConfig {
   files: boolean;
   shell: boolean;
@@ -55,7 +55,7 @@ export interface ToolsConfig {
 }
 
 /** What runs the conversation: the harness in this process, or Claude Code's runtime through its SDK. */
-export type Backend = 'doopx' | 'claude';
+export type Backend = 'cofold' | 'claude';
 
 /** `~/.config/papo/config.json`, `.papo.json`, `PAPO_CONFIG`, `--config`, and the `PAPO_*` variables, merged. */
 export interface PapoConfig {

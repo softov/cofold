@@ -1,7 +1,7 @@
 import type { WireChunk } from './types/wire.js';
 import { describe, expect, it } from 'vitest';
-import { ModelError } from '@doopx/agents';
-import type { ModelStreamEvent } from '@doopx/agents';
+import { ModelError } from '@cofold/agents';
+import type { ModelStreamEvent } from '@cofold/agents';
 import { parseChunks, streamChunks } from './stream.js';
 
 async function* iterate<T>(items: T[]): AsyncIterable<T> {

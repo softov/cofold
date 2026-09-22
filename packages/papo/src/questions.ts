@@ -1,4 +1,4 @@
-import type { AskAnswers, AskQuestion } from '@doopx/agents';
+import type { AskAnswers, AskQuestion } from '@cofold/agents';
 import type { ChatAnswer, ChatQuestion } from '@textui/chat';
 
 /** The harness's question, as the question form draws it. */

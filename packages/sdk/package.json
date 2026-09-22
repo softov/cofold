@@ -1,18 +1,18 @@
 {
-  "name": "@doopx/sdk",
+  "name": "@cofold/sdk",
   "version": "0.2.0",
   "type": "module",
-  "description": "What the doopx packages share: JSON Schema and the one validator that holds a value to it, the Standard Schema interface.",
+  "description": "What the cofold packages share: JSON Schema and the one validator that holds a value to it, the Standard Schema interface.",
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/softov/doopx.git",
+    "url": "git+https://github.com/softov/cofold.git",
     "directory": "packages/sdk"
   },
-  "homepage": "https://github.com/softov/doopx#readme",
+  "homepage": "https://github.com/softov/cofold#readme",
   "bugs": {
-    "url": "https://github.com/softov/doopx/issues"
+    "url": "https://github.com/softov/cofold/issues"
   },
   "keywords": [
     "json-schema",

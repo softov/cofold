@@ -1,5 +1,5 @@
 {
-  "name": "doopx-examples-agents",
+  "name": "cofold-examples-agents",
   "private": true,
   "type": "module",
   "engines": {
@@ -15,8 +15,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@doopx/agents": "workspace:*",
-    "@doopx/model-openai-compat": "workspace:*",
-    "@doopx/store-file": "workspace:*"
+    "@cofold/agents": "workspace:*",
+    "@cofold/model-openai-compat": "workspace:*",
+    "@cofold/store-file": "workspace:*"
   }
 }

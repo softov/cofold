@@ -8,7 +8,7 @@
  * library has made the choice for every program built on it.
  */
 
-import type { StandardIssue, StandardSchema } from "@doopx/sdk";
+import type { StandardIssue, StandardSchema } from "@cofold/sdk";
 
 
 export function isStandardSchema(value: unknown): value is StandardSchema {

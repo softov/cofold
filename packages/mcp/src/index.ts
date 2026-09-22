@@ -10,14 +10,14 @@ import {
   type Command,
   type JsonSchema,
   type Runner,
-} from "@doopx/commands";
-import { assertSupportedSchema } from "@doopx/sdk";
+} from "@cofold/commands";
+import { assertSupportedSchema } from "@cofold/sdk";
 
 export type { McpBinding } from "./types/binding.js";
 export type { ToolDefinition, ToolOptions } from "./types/tool.js";
 
 /**
- * @doopx/mcp - the same registry, read by an agent.
+ * @cofold/mcp - the same registry, read by an agent.
  *
  * This package is small on purpose, and its size is the argument for the whole
  * library: a tool is a name, a description, and an input schema, and a command
@@ -31,7 +31,7 @@ export type { ToolDefinition, ToolOptions } from "./types/tool.js";
  * program's choice.
  */
 
-declare module "@doopx/commands" {
+declare module "@cofold/commands" {
   interface CommandMeta { mcp?: McpBinding }
 }
 

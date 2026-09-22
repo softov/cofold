@@ -82,7 +82,7 @@ This task holds the harness changes that contra-validation found; F3 (deny rules
 ## Validation
 
 - `pnpm check`.
-- papo over `@doopx/agents` after this task: `/compact` then a turn shows the summary, the tail and the ask; an `interrupt` shows the same notice papo already renders for the Claude backend (manual, `cli` plan adopts `contextOf` for the view).
+- papo over `@cofold/agents` after this task: `/compact` then a turn shows the summary, the tail and the ask; an `interrupt` shows the same notice papo already renders for the Claude backend (manual, `cli` plan adopts `contextOf` for the view).
 
 ## Resume
 
@@ -94,9 +94,9 @@ Built 2026-09-16.
 - F4: `message/markers.ts` `INTERRUPTED`, `INTERRUPTED_TOOL` (exported from `index.ts`); `run/turn.ts` `interrupt(ctx, calls, from)` answers the cut calls, appends the `role: 'user'`, `source: 'system'` marker and returns `abortOutcome(ctx)`; every abort exit goes through it: the loop top, the `writeSummary` abort catch, the model-call abort catch, `processCalls` before a call and after a `result.kind === 'aborted'`.
 - F6 (decision 120): `run/resume.ts` `waitForCommand` shares one `apply(command)` between `accept` and `onAbort`; a cancel applies `{ type: 'deny', requestId, reason: 'The turn was stopped' }` (persisted, `approval.resolved deny` or `input.declined`, `run.resumed`) and the turn continues into `runTurn`, where `processCalls` applies a persisted decision before its abort check so `applyResolved` writes the call's error result, and the next abort check writes the marker and finishes `cancelled`. A cancel before `attach()` has read the run keeps today's behaviour (nothing to deny yet).
 - Tests: `run/compact.test.ts` (10: the existing cases pinned to `compactKeepTokens: 0`, plus default and validation, tail kept with summary / tail / input order across `contextOf` and the next request, a unit never split at three budgets, `0` covers everything, an auto-compaction with a tail); `run/interrupt.test.ts` (5: cancel during the first of two calls, cancel between steps, timeout, an abort already set at the start, cancel mid model call); `run/run.test.ts` gained the three F2 cases (id on `run.started` / record / transcript, duplicate fails `already_exists` with nothing written, `compact({ messageId })`); `run/resume.test.ts` case 11 became "cancel while waiting denies" plus 11b for an input request.
-- README: `@doopx/agents` (`messageId`, cancel marker, cancel-while-waiting denies, compaction tail and `contextOf`, `context.compacted` fields, layout line).
+- README: `@cofold/agents` (`messageId`, cancel marker, cancel-while-waiting denies, compaction tail and `contextOf`, `context.compacted` fields, layout line).
 
-Evidence: `@doopx/agents` build and typecheck green; `vitest --project @doopx/agents` 19 files, 193 tests; `@doopx/model-openai-compat` (4 files, 67), `@doopx/store-file` (3 files, 32), `@doopx/tools` (4 files, 24), `@doopx/papo` (8 files) green against the new build; every package typecheck green except papo (`Snapshot.queued`, cli/04 task 01 in progress elsewhere). Not run: papo over the harness by hand (`/compact` then a turn; an interrupt) - the cli plan adopts `contextOf` for the view.
+Evidence: `@cofold/agents` build and typecheck green; `vitest --project @cofold/agents` 19 files, 193 tests; `@cofold/model-openai-compat` (4 files, 67), `@cofold/store-file` (3 files, 32), `@cofold/tools` (4 files, 24), `@cofold/papo` (8 files) green against the new build; every package typecheck green except papo (`Snapshot.queued`, cli/04 task 01 in progress elsewhere). Not run: papo over the harness by hand (`/compact` then a turn; an interrupt) - the cli plan adopts `contextOf` for the view.
 
 Deviations and findings:
 - The marker constants live in `packages/agents/src/message/markers.ts`, not `types/message.ts`: a types file never exports a const.

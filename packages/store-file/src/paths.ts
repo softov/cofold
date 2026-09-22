@@ -1,4 +1,4 @@
-import { StoreError } from '@doopx/agents';
+import { StoreError } from '@cofold/agents';
 
 const SAFE = /[^A-Za-z0-9._-]/g;
 

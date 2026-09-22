@@ -9,7 +9,7 @@ import {
   tokenize,
   type Command,
   type OptionSpec,
-} from "@doopx/commands";
+} from "@cofold/commands";
 
 /**
  * One command line, in two passes.
@@ -24,7 +24,7 @@ import {
  * the same option name with different shapes, and the collision was silent -
  * whichever registered last won for everybody.
  *
- * The grammar both passes run on is `@doopx/commands`'s, not this package's: the words
+ * The grammar both passes run on is `@cofold/commands`'s, not this package's: the words
  * and flags of a command line mean the same thing whoever typed them. What is
  * here is the policy on top - the standard globals, which are parsed even when
  * no command matched, and a required option that was never given.

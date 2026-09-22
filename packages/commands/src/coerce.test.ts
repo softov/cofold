@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { assertSupportedSchema } from "@doopx/sdk";
+import { assertSupportedSchema } from "@cofold/sdk";
 import * as coerce from "./coerce.js";
 import { check, coerceValue, decode, expectationOf } from "./coerce.js";
 

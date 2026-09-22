@@ -1,5 +1,5 @@
-import { createRegistry, output } from "@doopx/commands";
-import { listenMcpHttp } from "@doopx/mcp/server";
+import { createRegistry, output } from "@cofold/commands";
+import { listenMcpHttp } from "@cofold/mcp/server";
 
 const registry = createRegistry();
 registry.action({ id: "greet", summary: "Greet someone", surfaces: { mcp: true },
@@ -7,6 +7,6 @@ registry.action({ id: "greet", summary: "Greet someone", surfaces: { mcp: true }
   run: ({ input }) => output({ greeting: `Hello, ${input.name}` }),
 });
 // Explicitly anonymous, loopback-only demonstration. Applications supply authentication.
-const listener = await listenMcpHttp(registry, { name: "doopx-example", version: "1.0.0", port: 8794, authenticate: () => ({}) });
+const listener = await listenMcpHttp(registry, { name: "cofold-example", version: "1.0.0", port: 8794, authenticate: () => ({}) });
 process.stderr.write(`MCP endpoint: ${listener.url}\n`);
 for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, () => { void listener.close(); });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coerce, createRegistry, output, type Io } from "@doopx/commands";
+import { coerce, createRegistry, output, type Io } from "@cofold/commands";
 import { Program } from "./program.js";
 
 function build() {

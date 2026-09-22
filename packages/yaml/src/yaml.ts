@@ -1,7 +1,7 @@
 import type { YamlParseOptions } from "./types/parse.js";
 
 /**
- * @doopx/yaml reads a documented YAML subset as plain data, without I/O or dependencies.
+ * @cofold/yaml reads a documented YAML subset as plain data, without I/O or dependencies.
  * Unsupported syntax is rejected rather than interpreted approximately.
  * File loading, document composition, and reference resolution belong to callers.
  */

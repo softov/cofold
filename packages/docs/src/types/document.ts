@@ -1,4 +1,4 @@
-import type { OptionSpec } from "@doopx/commands";
+import type { OptionSpec } from "@cofold/commands";
 export interface DocumentOptions {
   name: string;
   version?: string;

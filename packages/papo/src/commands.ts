@@ -1,12 +1,12 @@
 import { statSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { RunOutcome, SessionUsage } from '@doopx/agents';
-import { AgentError } from '@doopx/agents';
-import type { CommandContext, OptionSpec } from '@doopx/commands';
-import { ArgumentError, createRegistry, output } from '@doopx/commands';
-import { createFileStore, resolveHome } from '@doopx/store-file';
-import { renderTable } from '@doopx/terminal';
+import type { RunOutcome, SessionUsage } from '@cofold/agents';
+import { AgentError } from '@cofold/agents';
+import type { CommandContext, OptionSpec } from '@cofold/commands';
+import { ArgumentError, createRegistry, output } from '@cofold/commands';
+import { createFileStore, resolveHome } from '@cofold/store-file';
+import { renderTable } from '@cofold/terminal';
 import { compactedNotice } from './blocks.js';
 import { createChat } from './chat.js';
 import { createClaudeChat } from './claude/chat.js';
@@ -83,9 +83,9 @@ function appendRules(held: RuleLists | undefined, added: RuleLists): RuleLists {
 /** What every command shares: where the agent works, where sessions live, which file, which model. */
 export const GLOBALS: readonly OptionSpec[] = [
   { name: '--workspace', short: '-w', value: 'DIR', description: 'Where the agent works; sessions are kept per workspace', env: 'PAPO_WORKSPACE' },
-  { name: '--home', value: 'DIR', description: 'Where sessions and skills are stored (default ~/.doopx)', env: 'FACIO_HOME' },
+  { name: '--home', value: 'DIR', description: 'Where sessions and skills are stored (default ~/.cofold)', env: 'FACIO_HOME' },
   { name: '--config', short: '-c', value: 'FILE', description: 'Read this configuration file on top of the others' },
-  { name: '--backend', short: '-b', value: 'NAME', description: 'What runs the conversation: doopx (the harness here) or claude (Claude Code, through its SDK)' },
+  { name: '--backend', short: '-b', value: 'NAME', description: 'What runs the conversation: cofold (the harness here) or claude (Claude Code, through its SDK)' },
 ];
 
 /** Everything a front needs, built once from the program-wide options. */
@@ -129,11 +129,11 @@ export function openPapo(globals: Readonly<Record<string, unknown>>): Papo {
   const workspace = resolve(typeof globals['workspace'] === 'string' ? globals['workspace'] : process.cwd());
   // Checked here because the runtimes fail obscurely without it (the CLI reports a binary that "failed to launch").
   if (!isDirectory(workspace)) throw new ArgumentError(`workspace ${workspace} is not a directory`);
-  const home = typeof globals['home'] === 'string' ? resolve(globals['home']) : resolveHome({ name: 'doopx' });
+  const home = typeof globals['home'] === 'string' ? resolve(globals['home']) : resolveHome({ name: 'cofold' });
   const path = typeof globals['config'] === 'string' ? globals['config'] : undefined;
   const config = loadConfig({ cwd: workspace, ...(path !== undefined ? { path } : {}) });
   if (typeof globals['backend'] === 'string') {
-    if (globals['backend'] !== 'doopx' && globals['backend'] !== 'claude') throw new ArgumentError(`--backend must be doopx or claude, not "${globals['backend']}"`);
+    if (globals['backend'] !== 'cofold' && globals['backend'] !== 'claude') throw new ArgumentError(`--backend must be cofold or claude, not "${globals['backend']}"`);
     config.backend = globals['backend'];
   }
   const chat = config.backend === 'claude'

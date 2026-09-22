@@ -1,7 +1,7 @@
-import type { ModelInfo, ModelParams, ModelProvider, Store, Tool } from '@doopx/agents';
-import { createMemoryStore, createTool } from '@doopx/agents';
-import { createFakeModel } from '@doopx/agents/testing';
-import type { FakeStep } from '@doopx/agents/testing';
+import type { ModelInfo, ModelParams, ModelProvider, Store, Tool } from '@cofold/agents';
+import { createMemoryStore, createTool } from '@cofold/agents';
+import { createFakeModel } from '@cofold/agents/testing';
+import type { FakeStep } from '@cofold/agents/testing';
 import { createChat } from './chat.js';
 import { DEFAULT_INSTRUCTIONS } from './config.js';
 import type { Chat } from './types/chat.js';
@@ -91,7 +91,7 @@ export function gateTool(): { tool: Tool<Record<string, never>>; release: (outpu
 /** `model: undefined` in the overrides means no model configured, which the type of the field cannot say. */
 export function testConfig(overrides: Partial<PapoConfig> | { model: undefined } = {}): PapoConfig {
   const config: PapoConfig = {
-    backend: 'doopx',
+    backend: 'cofold',
     providers: [{ id: 'fake', baseUrl: 'http://fake.invalid/v1' }],
     model: 'fake/scripted',
     permissions: 'default',

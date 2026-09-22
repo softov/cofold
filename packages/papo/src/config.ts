@@ -1,12 +1,12 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { ModelProvider } from '@doopx/agents';
-import { AgentError } from '@doopx/agents';
-import { ArgumentError, ConfigurationError, check } from '@doopx/commands';
-import { resolveConfig } from '@doopx/config';
-import { openaiCompatProvider } from '@doopx/model-openai-compat';
-import type { JsonSchema } from '@doopx/sdk';
+import type { ModelProvider } from '@cofold/agents';
+import { AgentError } from '@cofold/agents';
+import { ArgumentError, ConfigurationError, check } from '@cofold/commands';
+import { resolveConfig } from '@cofold/config';
+import { openaiCompatProvider } from '@cofold/model-openai-compat';
+import type { JsonSchema } from '@cofold/sdk';
 import type { PapoConfig, ProviderConfig, RememberedSettings } from './types/config.js';
 
 const PROVIDER: JsonSchema = {
@@ -33,7 +33,7 @@ const RULE: JsonSchema = {
 const SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
-    backend: { type: 'string', enum: ['doopx', 'claude'] },
+    backend: { type: 'string', enum: ['cofold', 'claude'] },
     providers: { type: 'array', items: PROVIDER },
     model: { type: 'string', minLength: 1 },
     permissions: { type: 'string', enum: ['default', 'acceptEdits', 'bypassPermissions', 'dontAsk'] },
@@ -111,7 +111,7 @@ const SCHEMA: JsonSchema = {
 export const DEFAULT_INSTRUCTIONS = 'You are a careful assistant working in the user\'s project. Answer plainly; use the tools you are given when they help.';
 
 const BASE = {
-  backend: 'doopx', providers: [], permissions: 'default', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS,
+  backend: 'cofold', providers: [], permissions: 'default', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS,
   tools: { files: true, shell: true, web: true, memory: true },
   context: { maxTokens: 32_000, autoCompact: true },
   theme: 'paper', shell: 'workbench',
@@ -120,7 +120,7 @@ const BASE = {
 /**
  * The configuration, from every place it may be written.
  *
- * `@doopx/config` walks the layers (`~/.config/papo/config.json`, the nearest `.papo.json`,
+ * `@cofold/config` walks the layers (`~/.config/papo/config.json`, the nearest `.papo.json`,
  * `$PAPO_CONFIG`, `--config`); on top of them `PAPO_BASE_URL`, `PAPO_API_KEY` and `PAPO_MODEL` (or the
  * family's `FACIO_*`, which the examples read too) add or replace a provider called `default`, which
  * is how a first run needs no file at all. A `FACIO_MODEL` with no slash names a model of `default`.
@@ -154,7 +154,7 @@ export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: 
   if (model !== undefined) config.model = model.includes('/') ? model : `default/${model}`;
   const backend = env['PAPO_BACKEND'];
   if (backend !== undefined && backend !== '') {
-    if (backend !== 'doopx' && backend !== 'claude') throw new ConfigurationError(`PAPO_BACKEND must be doopx or claude, not "${backend}"`);
+    if (backend !== 'cofold' && backend !== 'claude') throw new ConfigurationError(`PAPO_BACKEND must be cofold or claude, not "${backend}"`);
     config.backend = backend;
   }
   return config;

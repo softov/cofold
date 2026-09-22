@@ -60,7 +60,7 @@ async function codeOf(p: Promise<unknown>): Promise<string | undefined> {
 /**
  * Every behavior a Store must have (decision 84). Call it from a test file; `create` runs before each case.
  * Store-specific tests (file layout, lock staleness) live next to the store, never here.
- * Published as `@doopx/agents/testing/store-conformance`, apart from `./testing`: this module imports vitest,
+ * Published as `@cofold/agents/testing/store-conformance`, apart from `./testing`: this module imports vitest,
  * which throws when loaded outside a vitest run.
  */
 export function describeStoreConformance(args: { name: string; create: () => Store | Promise<Store>; dispose?: (store: Store) => Promise<void> | void }): void {

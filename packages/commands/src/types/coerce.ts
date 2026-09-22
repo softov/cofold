@@ -1,4 +1,4 @@
-import type { JsonSchema } from "@doopx/sdk";
+import type { JsonSchema } from "@cofold/sdk";
 
 /**
  * How a word becomes a value, and what shape that value has.

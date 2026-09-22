@@ -96,7 +96,7 @@ describe('assertSupportedSchema', () => {
 
   it('refuses $ref and patternProperties, naming the path', () => {
     const withRef = { type: 'object', properties: { a: { $ref: '#/x' } } } as unknown as JsonSchema;
-    expect(() => assertSupportedSchema({ schema: withRef })).toThrow('$.a uses $ref, which doopx does not enforce and will not advertise');
+    expect(() => assertSupportedSchema({ schema: withRef })).toThrow('$.a uses $ref, which cofold does not enforce and will not advertise');
     const withPattern = { type: 'object', patternProperties: {} } as unknown as JsonSchema;
     expect(() => assertSupportedSchema({ schema: withPattern })).toThrow(/uses patternProperties/);
   });

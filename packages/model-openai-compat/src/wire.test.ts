@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ReasoningEffort } from '@doopx/agents';
+import type { ReasoningEffort } from '@cofold/agents';
 import { toWireReasoning } from './wire.js';
 
 const LEVELS: ReasoningEffort[] = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];

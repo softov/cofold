@@ -1,4 +1,4 @@
-import type { Command, Io, OptionSpec, Runner } from "@doopx/commands";
+import type { Command, Io, OptionSpec, Runner } from "@cofold/commands";
 export interface ProgramOptions {
   name: string;
   version: string;

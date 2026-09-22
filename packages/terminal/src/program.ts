@@ -16,7 +16,7 @@ import {
   type OptionSpec,
   type Output,
   type Runner,
-} from "@doopx/commands";
+} from "@cofold/commands";
 import { completeWords, completionScript, COMPLETION_SHELLS } from "./completion.js";
 import { GLOBAL_NAMES, globalOptions } from "./globals.js";
 import { help } from "./help.js";

@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { configProvider, environmentNameOf, resolveConfig } from "./index.js";
-import type { CommandContext } from "@doopx/commands";
+import type { CommandContext } from "@cofold/commands";
 import { resolve } from "node:path";
 
 /** The fixtures are POSIX in the source; the resolver speaks the platform's paths, so the test does too. */

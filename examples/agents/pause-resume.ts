@@ -2,11 +2,11 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAgent, createTool, resume, run, textOf } from '@doopx/agents';
-import { createFakeModel } from '@doopx/agents/testing';
-import { createFileStore } from '@doopx/store-file';
+import { createAgent, createTool, resume, run, textOf } from '@cofold/agents';
+import { createFakeModel } from '@cofold/agents/testing';
+import { createFileStore } from '@cofold/store-file';
 
-const root = await mkdtemp(join(tmpdir(), 'doopx-pause-resume-'));
+const root = await mkdtemp(join(tmpdir(), 'cofold-pause-resume-'));
 let executions = 0;
 const deleteFile = createTool<{ path: string }>({
   name: 'delete_file',

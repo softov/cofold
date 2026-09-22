@@ -1,4 +1,4 @@
-import type { ModelFeatures, ModelParams, ModelPricing, ReasoningEffort } from '@doopx/agents';
+import type { ModelFeatures, ModelParams, ModelPricing, ReasoningEffort } from '@cofold/agents';
 
 export interface OpenAICompatProviderOptions {
   /** e.g. 'http://localhost:1234/v1' or 'https://openrouter.ai/api/v1' */

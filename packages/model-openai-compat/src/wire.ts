@@ -1,6 +1,6 @@
 import type { WireImagePart, WireMessage, WireModel, WireResponse, WireTextPart } from './types/wire.js';
-import { newId } from '@doopx/agents';
-import type { ContentPart, FinishReason, ImagePart, Message, ModelInfo, ModelFeatures, ModelPricing, ModelReply, ModelRequest, ReasoningEffort, TextPart, ToolCallPart, Usage } from '@doopx/agents';
+import { newId } from '@cofold/agents';
+import type { ContentPart, FinishReason, ImagePart, Message, ModelInfo, ModelFeatures, ModelPricing, ModelReply, ModelRequest, ReasoningEffort, TextPart, ToolCallPart, Usage } from '@cofold/agents';
 
 export function toWireMessages(request: ModelRequest, features: { images: boolean }): WireMessage[] {
   const out: WireMessage[] = [{ role: 'system', content: request.instructions }];

@@ -1,5 +1,5 @@
 import type { Style } from "./types/output.js";
-import { displayValue } from "@doopx/commands";
+import { displayValue } from "@cofold/commands";
 
 /**
  * Turning values into something to read.

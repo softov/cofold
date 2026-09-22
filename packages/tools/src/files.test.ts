@@ -2,8 +2,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { CapabilityArgs, Tool, ToolContext } from '@doopx/agents';
-import { createMemoryStore } from '@doopx/agents';
+import type { CapabilityArgs, Tool, ToolContext } from '@cofold/agents';
+import { createMemoryStore } from '@cofold/agents';
 import { files } from './files.js';
 import { displayPath, resolveWithin } from './paths.js';
 
@@ -21,7 +21,7 @@ const call = (name: string, input: unknown) => {
 };
 
 beforeAll(async () => {
-  workspace = await mkdtemp(join(tmpdir(), 'doopx-tools-'));
+  workspace = await mkdtemp(join(tmpdir(), 'cofold-tools-'));
   await mkdir(join(workspace, 'src', 'deep'), { recursive: true });
   await mkdir(join(workspace, 'node_modules', 'dep'), { recursive: true });
   await writeFile(join(workspace, 'src', 'a.ts'), 'const a = 1;\nexport const b = a + 1;\n// TODO later\n');

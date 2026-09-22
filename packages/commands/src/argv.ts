@@ -11,7 +11,7 @@ import { didYouMean } from "./suggest.js";
  * Words, options, clusters, negations and everything after `--`, with no
  * terminal anywhere: the lexer a command line shares with anything else that
  * hands a program a line of arguments. What a terminal adds on top of it -
- * help, colour, completion, exit codes - is `@doopx/terminal`.
+ * help, colour, completion, exit codes - is `@cofold/terminal`.
  *
  * Two commands may declare the same option name with different shapes, so a
  * table is built per command rather than once per program. `permissive` is for

@@ -1,5 +1,5 @@
 import type { OutputMode } from "./types/output.js";
-import { displayValue, type Io, type Output } from "@doopx/commands";
+import { displayValue, type Io, type Output } from "@cofold/commands";
 import { renderDocument, renderJson, renderTable } from "./render.js";
 
 /**

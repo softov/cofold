@@ -1,9 +1,9 @@
-# @doopx/papo
+# @cofold/papo
 
 Talk to an agent that runs in this process.
-`papo` is a screen (the transcript, a composer, the block that asks before a destructive tool runs) and a shell (`papo say`, `papo approve`, `papo session list`) over the same conversations, kept on disk under `~/.doopx` per workspace.
-The agent reads and edits files, runs commands, fetches the web and keeps notes across sessions (`@doopx/tools`), and asks before anything destructive.
-It is the first program on `@doopx/agents`, and the way a person checks what the harness does.
+`papo` is a screen (the transcript, a composer, the block that asks before a destructive tool runs) and a shell (`papo say`, `papo approve`, `papo session list`) over the same conversations, kept on disk under `~/.cofold` per workspace.
+The agent reads and edits files, runs commands, fetches the web and keeps notes across sessions (`@cofold/tools`), and asks before anything destructive.
+It is the first program on `@cofold/agents`, and the way a person checks what the harness does.
 
 ## Try it
 
@@ -47,15 +47,15 @@ The family's `FACIO_BASE_URL`, `FACIO_API_KEY` and `FACIO_MODEL`, which the exam
 
 | Key | Meaning |
 | --- | --- |
-| `backend` | `doopx` (the harness in this process, the default) or `claude` (Claude Code's runtime through its SDK; see below). `--backend` and `PAPO_BACKEND` override it. |
+| `backend` | `cofold` (the harness in this process, the default) or `claude` (Claude Code's runtime through its SDK; see below). `--backend` and `PAPO_BACKEND` override it. |
 | `providers[].id` | How a model is named: `<id>/<model>`; `papo providers` lists them, `papo models <id>` what one offers. |
 | `model` | `<provider>/<model>`; the first the first provider lists when absent. |
 | `permissions` | Claude Code's modes: `default` (reads run; a tool that writes, destroys or reaches the network asks), `acceptEdits` (as `default`, and `write_file` / `edit_file` inside the workspace run unasked), `bypassPermissions` (everything runs; a deny or ask rule still wins), `dontAsk` (what would ask is denied instead). See below. |
 | `rules` | `deny`, `ask` and `allow` lists of `{ "tool", "match"? }`, applied to every session before the mode decides; `match` is a glob (`*`, `?`) over what the tool touches: the command for `shell_exec`, the path for the file tools (relative to the workspace when inside it, absolute outside), the pattern for `list_files` / `search_files`. |
 | `reasoning` | `off`, `low`, `medium`, `high`: the thinking level, sent as `params.reasoning.effort` to a model that has it. |
 | `instructions` | The system prompt; `<workspace>/AGENTS.md` is appended when present. |
-| `limits`, `params` | `@doopx/agents` `Limits` and `ModelParams` (without `reasoning`, which is the setting above). |
-| `tools` | The `@doopx/tools` capabilities, all on by default: `files` (`read_file`, `write_file`, `edit_file`, `list_files`, `search_files`), `shell` (`shell_exec`), `web` (`web_fetch`; an object with `search` adds `web_search` over `brave`, `tavily`, `duckduckgo`, asked in that order), `memory` (`memory_read`, `memory_write` under `<home>/memory/<workspace slug>/`). `false` turns one off. |
+| `limits`, `params` | `@cofold/agents` `Limits` and `ModelParams` (without `reasoning`, which is the setting above). |
+| `tools` | The `@cofold/tools` capabilities, all on by default: `files` (`read_file`, `write_file`, `edit_file`, `list_files`, `search_files`), `shell` (`shell_exec`), `web` (`web_fetch`; an object with `search` adds `web_search` over `brave`, `tavily`, `duckduckgo`, asked in that order), `memory` (`memory_read`, `memory_write` under `<home>/memory/<workspace slug>/`). `false` turns one off. |
 | `context` | `maxTokens`: what a request may carry, instructions and history, as the harness estimates it (32 000 by default; set it to what the model has). `autoCompact`: fold the conversation into a summary before a turn once it passes 80% of that (on by default; each session may switch it). |
 | `theme`, `shell` | What the screen opens with. |
 
@@ -70,7 +70,7 @@ The modes are Claude Code's, read off what each tool declares (`effects`):
 `dontAsk` denies, with the reason in the tool's result, what `default` would have asked about, so a turn never waits.
 Claude's `plan` mode is not offered yet (it is a prompt-level mode there) and `auto` (a classifier) is not offered.
 
-Rules run before the mode decides, `deny`, then `ask`, then `allow` (`rules()` in `@doopx/agents`): a deny rule refuses the call under every mode, `bypassPermissions` included, with `Denied by rule: shell_exec(rm *)` as the tool's result; an ask rule asks under every mode; an allow rule runs the call under every mode but where a deny or ask rule matched first.
+Rules run before the mode decides, `deny`, then `ask`, then `allow` (`rules()` in `@cofold/agents`): a deny rule refuses the call under every mode, `bypassPermissions` included, with `Denied by rule: shell_exec(rm *)` as the tool's result; an ask rule asks under every mode; an allow rule runs the call under every mode but where a deny or ask rule matched first.
 They live in the configuration (`rules`, every session) and per session (`papo session set <id> --deny 'shell_exec(rm *)' --ask web_fetch --allow 'edit_file(src/*)'`, each flag repeatable; `Tool` or `Tool(match)`), the session's before the configuration's; `papo session rules <id>` lists the mode and every rule with its origin.
 `approve --always` (or the `Always, this session` option on the screen) adds `{ "tool": <name> }` to the session's allow list, where `session rules` shows it, and that tool runs without asking for the rest of the session.
 
@@ -106,9 +106,9 @@ chat [-s ID]                    the screen (what a bare `papo` does)
 ```
 
 `--json` on any of them gives the record; `session show --json` is the whole projection the screen draws.
-Every command is a `@doopx/commands` action, so the same declarations are an MCP tool set and an HTTP surface when a program wants them.
+Every command is a `@cofold/commands` action, so the same declarations are an MCP tool set and an HTTP surface when a program wants them.
 
-Global options: `--workspace DIR` (`PAPO_WORKSPACE`, default the current directory), `--home DIR` (`FACIO_HOME`, default `~/.doopx`), `--config FILE`.
+Global options: `--workspace DIR` (`PAPO_WORKSPACE`, default the current directory), `--home DIR` (`FACIO_HOME`, default `~/.cofold`), `--config FILE`.
 
 ## The screen
 
@@ -127,8 +127,8 @@ Queued while nothing runs (`/queue`, `papo queue`), a message is the next turn a
 | `/compact` | Fold the conversation so far into a summary the model continues from. Afterwards the transcript is the model's view: the compaction turn first (`(context compacted)`, with `Context compacted: N tokens to M.`), then the turns the compaction kept verbatim, then what follows; the folded turns are in the store and `papo session show --all` prints them. |
 | `/autocompact` | Switch the automatic version for this session: the same fold, done before a turn once the conversation passes 80% of `context.maxTokens`. |
 | `/status`, `/usage` | The session, model, mode, folders and token totals; what each turn used (tokens by kind, steps, tool calls, refusals), never a price. |
-| `/skill` | Pick a skill from the list. `/init` writes or refreshes `AGENTS.md`; `/review` reviews the working tree; both ship with papo, and a skill of the same name under `~/.doopx/skills` or `<workspace>/.agents/skills` replaces it. |
-| `/memory` | What the agent remembers about this workspace (`~/.doopx/memory/<workspace>/MEMORY.md`), with a button that opens it in `$VISUAL`, `$EDITOR`, or the platform's editor. |
+| `/skill` | Pick a skill from the list. `/init` writes or refreshes `AGENTS.md`; `/review` reviews the working tree; both ship with papo, and a skill of the same name under `~/.cofold/skills` or `<workspace>/.agents/skills` replaces it. |
+| `/memory` | What the agent remembers about this workspace (`~/.cofold/memory/<workspace>/MEMORY.md`), with a button that opens it in `$VISUAL`, `$EDITOR`, or the platform's editor. |
 | `/export` | The conversation as Markdown, to `<workspace>/papo-<session>.md`. |
 | `/retry` | The last message again, as a new turn. |
 | `/clear`, `/new` | A new conversation; the current one stays in the catalogue. |
@@ -153,7 +153,7 @@ papo --backend claude say -p auto "Run the tests and fix what fails"
 ```
 
 What is the same: the transcript, the confirmation block (the CLI's `canUseTool` becomes it, under the CLI's own sentence when it sends one; `Always, this session` sends the CLI's suggested rules back with every destination rewritten to `session`, so the rule holds for the rest of the session and nothing is written into a settings file; the option is withheld when the CLI says the rule would grant more than the ask), the question form (`AskUserQuestion`), `/compact`, `/usage`, `/status`, the session list, `session show` and `session export`.
-Settings (`model`, `permissions`, `reasoning`) are kept per session in the file store under `--home`, at the same key the doopx backend uses, so they survive a restart and `session set` reads the same thing on both backends.
+Settings (`model`, `permissions`, `reasoning`) are kept per session in the file store under `--home`, at the same key the cofold backend uses, so they survive a restart and `session set` reads the same thing on both backends.
 What differs, because it is the CLI's:
 
 - Models are `claude/<name>` as `supportedModels()` lists them; a `model` of another provider in the configuration is ignored with a warning, and the CLI's default is used.
@@ -161,7 +161,7 @@ What differs, because it is the CLI's:
 - `reasoning` is the CLI's `effort` (`off` sends none); changing it on a session with a live process restarts that process on the same session.
 - `autoCompact` stays on: the CLI compacts on its own; `/autocompact` off is refused with that sentence. `/compact` sends the CLI its own command; afterwards the transcript is what the CLI keeps, the summary first (shown as a `(context compacted)` turn) and the turns after it.
 - A decision waits in the process that asked, not on disk: `papo say` that stops at a tool denies it (and every further one the turn stops at) and says so; approvals and answers happen on the screen (`papo chat`), where the process lives.
-- A message said while a turn runs is pushed to the CLI, which takes it into the running turn as its own client does; the CLI records it as a user message, so the transcript shows it as a turn boundary after the tool result. The queue is papo's, the same as on the doopx backend.
+- A message said while a turn runs is pushed to the CLI, which takes it into the running turn as its own client does; the CLI records it as a user message, so the transcript shows it as a turn boundary after the tool result. The queue is papo's, the same as on the cofold backend.
 - `session delete` removes the CLI's session file; `session list` is the workspace's sessions in `~/.claude/projects/`.
 - Failed turns are the CLI's result (`error_*`, or a `success` carrying `is_error` when the API refused) and are kept only in the process that saw them; the CLI's transcript has no record of them.
 - `/usage` counts a reply once however many entries the CLI stored it as (it writes one per content block, so thinking, text and a tool call of one reply share an id).
@@ -170,7 +170,7 @@ The harness's own tools, skills and memory are not involved; the CLI brings its 
 
 ## What is kept, and where
 
-Sessions, runs, events, steps and requests are the file store's (`@doopx/store-file`), under `<home>/workspaces/<slug>/sessions/<id>/`.
+Sessions, runs, events, steps and requests are the file store's (`@cofold/store-file`), under `<home>/workspaces/<slug>/sessions/<id>/`.
 Nothing is cached in the process but the handle of a run it started and the queue of next turns: every screen and every command reads the store and projects it, so `papo session show` in another terminal shows the same thing the screen does, and a session left waiting by a process that died is resumed by whichever process next answers it.
 The queue is the one thing that is not in the store: it lives in the process that holds it (as Claude Code's does) and is gone with it; the screen lists what waits so nothing is lost unseen.
 
@@ -194,7 +194,7 @@ src/
   claude/                       the claude backend: sdk.ts (the optional peer), project.ts (the CLI's transcript as Turn[]),
                                 permissions.ts (canUseTool as the block), chat.ts (createClaudeChat), testing.ts (the fake SDK)
   chat-contract.test.ts         the scenarios both backends must agree on
-  commands.ts  program.ts       the actions and the @doopx/terminal program
+  commands.ts  program.ts       the actions and the @cofold/terminal program
   main.ts                       the binary: screen or shell
   screen/{state,app,sessions,chat,tui}                  the textui application
   testing.ts                    a scripted provider and a destructive tool, for tests

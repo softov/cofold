@@ -1,5 +1,5 @@
-import type { Capability, Tool } from '@doopx/agents';
-import { createTool } from '@doopx/agents';
+import type { Capability, Tool } from '@cofold/agents';
+import { createTool } from '@cofold/agents';
 import type { SearchProvider, WebFetchInput, WebOptions, WebSearchInput } from './types/web.js';
 
 const DEFAULT_TIMEOUT_MS = 20_000;

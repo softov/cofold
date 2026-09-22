@@ -22,9 +22,9 @@ The glob dialect (`*`, `?`, anchored) cannot say "relative and not climbing out"
 `read_file`, `write_file` and `edit_file` declare `subject: (input) => displayPath(workspace, resolveWithin(workspace, input.path).absolute)`: the path resolved against the workspace, relative with forward slashes when inside it (`src/a.ts`, whatever the model wrote), absolute when outside.
 `list_files` and `search_files` keep the `pattern`.
 papo's `acceptEdits` is not an allow rule but the mode's `otherwise`: for `write_file` and `edit_file`, `resolveWithin(workspace, input.path).inside` allows, anything else falls to the effects check; `session rules` shows the mode as the mode, its grant being behaviour, not a rule.
-`resolveWithin` is exported from `@doopx/tools` and used by papo; it is not duplicated.
+`resolveWithin` is exported from `@cofold/tools` and used by papo; it is not duplicated.
 
-Source: user, 2026-09-16, asked "cli/04 task 04 (acceptEdits and path rules): @doopx/tools' file tools declare `subject: input.path` (raw). A rule `write_file(<workspace>/*)` cannot tell inside from outside (`src/a.ts` misses, `/work/../etc/passwd` matches). How should the subject and the acceptEdits grant work?": "Normalized subject + mode check".
+Source: user, 2026-09-16, asked "cli/04 task 04 (acceptEdits and path rules): @cofold/tools' file tools declare `subject: input.path` (raw). A rule `write_file(<workspace>/*)` cannot tell inside from outside (`src/a.ts` misses, `/work/../etc/passwd` matches). How should the subject and the acceptEdits grant work?": "Normalized subject + mode check".
 
 ## Consequences
 

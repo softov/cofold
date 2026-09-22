@@ -26,12 +26,12 @@ A thought toggles on a mouse click like a tool row does, and an open thought end
 1. `ReasoningBlock`: `const { content, expanded, streaming, summary, markdown, onToggle, ...rest } = props;`; the summary `Row` gains `{...(onToggle ? { onClick: onToggle } : {})}` and `style={{ hover: { bg: 'hover' } }}` (the tool row's comment applies: the row is the thing that opens).
    When `expanded`, after the text `Row`: `<Divider />` (the widgets' one; if it needs a width, `flex={1}` inside a `Row` with the same one-cell lead as the text so it lines up under it).
 2. `transcript.tsx`: `<ReasoningBlock ... onToggle={onToggle} />`.
-3. Tests and docs as in Files. Rebuild textui; papo needs no source change, only the rebuilt link (`pnpm --filter @doopx/papo build` then its tests).
+3. Tests and docs as in Files. Rebuild textui; papo needs no source change, only the rebuilt link (`pnpm --filter @cofold/papo build` then its tests).
 
 ## Validation
 
 - textui: `pnpm build && pnpm typecheck && pnpm test`; `pnpm docs:check` if it covers the props.
-- doopx: `pnpm vitest run --project @doopx/papo` (screen tests) green.
+- cofold: `pnpm vitest run --project @cofold/papo` (screen tests) green.
 - By hand: in `papo`, click a "thought, N words" row: it opens; click again: it closes; open, a rule under the text.
 
 ## Resume

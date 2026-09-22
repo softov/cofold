@@ -16,11 +16,11 @@ The harness had no rule shape, so every host would invent one.
 
 ## Decision
 
-`@doopx/agents` exports `rules({ allow?, deny?, ask?, otherwise? })` returning a `Policy`, with `Rule = { tool: string; match?: string }`.
+`@cofold/agents` exports `rules({ allow?, deny?, ask?, otherwise? })` returning a `Policy`, with `Rule = { tool: string; match?: string }`.
 `tool` is a tool name or `*`; `match` is a glob (`*` any run of characters, `?` one, anchored to the whole subject) checked against what the tool declares as its subject.
 `ToolDefinition.subject?(input) => string` is the new slot; a tool without one matches on name only.
 Evaluation order: `deny`, then `ask`, then `allow`; when nothing matches, `otherwise` decides (default: the default policy, agent/04 task 01).
-`@doopx/tools` declares `subject` on `shell_exec` (the command), on `read_file`, `write_file`, `edit_file` (the path) and on `list_files`, `search_files` (the pattern; those two take no path).
+`@cofold/tools` declares `subject` on `shell_exec` (the command), on `read_file`, `write_file`, `edit_file` (the path) and on `list_files`, `search_files` (the pattern; those two take no path).
 
 Source: user, 2026-09-16, asked "Harness ships rules() (Claude) / Function only".
 `(defaulted: the glob dialect, two wildcards, anchored)`; reversible by a later decision.

@@ -6,7 +6,7 @@ import type {
   OpenApiOptions,
   OpenApiParameter,
 } from "./types/openapi.js";
-import { compact, type JsonSchema, type OptionSpec } from "@doopx/commands";
+import { compact, type JsonSchema, type OptionSpec } from "@cofold/commands";
 
 /**
  * An OpenAPI document, read as a command surface.
@@ -215,7 +215,7 @@ export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiO
   }
 
   return {
-    doopx: 1,
+    cofold: 1,
     program: options.program ?? {
       name: document.info?.title ?? "api",
       version: document.info?.version ?? "0.0.0",

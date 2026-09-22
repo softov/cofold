@@ -85,7 +85,7 @@ Settled without a decision (a defect, or the user's ask with one workable shape)
 
 - **Data flow** - `config.ts` gains `rememberConfig({ cwd, env?, path?, patch })`: resolves the layers again, groups the patch's fields by target file, reads each (or `{}`), sets the fields, writes with the file's indentation, returns the paths written. `Papo` gains `remember(patch): Promise<string[]>` (built in `openPapo`) that calls it and mutates `papo.config` (the object both backends hold). The screen's `controller.configure` and the shell's `session.set` / `say` (new session with `-m/-p/-t`) call `papo.remember` with the model / permissions / reasoning part of the patch.
 - **State flow** - the harness backend's `modelRef()` reads `config.model` live (the `listedModel` cache holds only the listed answer); the Claude backend's `defaults()` reads `config.model`, `permissions` and `reasoning` each time it is called (task 01 made the model part live: it was computed once at start).
-- **Layer responsibilities** - `@doopx/papo` `config.ts`: the write · `commands.ts`: `Papo.remember` · `screen/app.tsx`: the chips call it; `compose.model` with two arguments · textui `@textui/core`, `@textui/widgets`: `choices(collected)` · textui `@textui/chat`: the thought's click and divider.
+- **Layer responsibilities** - `@cofold/papo` `config.ts`: the write · `commands.ts`: `Papo.remember` · `screen/app.tsx`: the chips call it; `compose.model` with two arguments · textui `@textui/core`, `@textui/widgets`: `choices(collected)` · textui `@textui/chat`: the thought's click and divider.
 - **Source-of-truth files** - `code://packages/papo/src/config.ts`, `code://packages/papo/src/commands.ts` (`Papo`), `code://textui/packages/core/src/types/command.ts`, `code://textui/packages/chat/src/bubble.tsx`.
 
 ## Tasks
@@ -122,5 +122,5 @@ Settled without a decision (a defect, or the user's ask with one workable shape)
 - [x] A thought opens and closes on a mouse click and shows a divider under its text when open (textui `bubble.test.tsx`, `transcript.test.tsx`).
 - [x] The cursor bar follows arrow up/down on prose, user lines, headers, tool rows and thoughts; a selected tool row's text is `inverted` on the blue (textui `transcript.test.tsx` "the cursor"; the arrowing itself by hand, owed).
 - [x] With `local_provider` down and `open_router` up, the chip offers both, lists OpenRouter's models, and says why the local one cannot be listed; `papo providers` lists both, `papo models local_provider` fails with the provider's error (`screen.test.ts`, `commands.test.ts`, `chat.test.ts`).
-- [x] `pnpm check` green in doopx (67 files, 776 tests after task 05); textui's `build`, `typecheck`, `test`, `lint`, `docs:check`, `check:exports` green.
+- [x] `pnpm check` green in cofold (67 files, 776 tests after task 05); textui's `build`, `typecheck`, `test`, `lint`, `docs:check`, `check:exports` green.
 - [x] `plans/index.md` updated.

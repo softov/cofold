@@ -7,9 +7,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { canonicalFromCli, canonicalFromObject, check, expectationOf } from "@doopx/commands";
-import { callTool, listTools } from "@doopx/mcp";
-import { manifestFrom } from "@doopx/remote";
+import { canonicalFromCli, canonicalFromObject, check, expectationOf } from "@cofold/commands";
+import { callTool, listTools } from "@cofold/mcp";
+import { manifestFrom } from "@cofold/remote";
 import { registry } from "./cli.js";
 
 const add = registry.find("pet.add")!;
