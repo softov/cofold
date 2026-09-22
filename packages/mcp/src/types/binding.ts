@@ -1,4 +1,4 @@
-import type { JsonSchema } from "@facio/sdk";
+import type { JsonSchema } from "@doopx/sdk";
 /** Optional tool metadata, independent of SDK types. */
 export interface McpBinding {
   name?: string;

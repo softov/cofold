@@ -10,7 +10,7 @@ import { AgentError } from '../errors.js';
 import { toolCallsOf } from '../message/helpers.js';
 import { costOf } from '../model/cost.js';
 import { ZERO_USAGE, addUsage } from '../model/usage.js';
-import { validateSchema } from '@facio/sdk';
+import { validateSchema } from '@doopx/sdk';
 import { validateAnswers } from '../tool/ask-user.js';
 import { createRunAbort } from './abort.js';
 import { createEmitter } from './events.js';

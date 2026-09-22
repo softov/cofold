@@ -10,7 +10,7 @@ export interface SkillIndexEntry {
 
 /**
  * Where skills come from (parent decision 31). Not part of Store: skills are content, the store is runtime state.
- * `@facio/store-file` ships `fileSkillSource`; a DB or an AHP host implements the same two methods.
+ * `@doopx/store-file` ships `fileSkillSource`; a DB or an AHP host implements the same two methods.
  */
 export interface SkillSource {
   /** Skills visible to this session: global ones plus the workspace's own when `workspace` is set. */

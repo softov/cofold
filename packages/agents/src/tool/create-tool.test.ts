@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AgentError } from '../errors.js';
-import type { JsonSchema } from '@facio/sdk';
+import type { JsonSchema } from '@doopx/sdk';
 import { createTool } from './create-tool.js';
 
 const input: JsonSchema = {

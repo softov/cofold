@@ -1,4 +1,4 @@
-import type { JsonSchema } from "@facio/sdk";
+import type { JsonSchema } from "@doopx/sdk";
 
 /**
  * How a word becomes a value, and what shape that value has.

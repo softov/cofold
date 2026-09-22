@@ -1,5 +1,5 @@
 import type { Style } from "./types/output.js";
-import { displayValue } from "@facio/commands";
+import { displayValue } from "@doopx/commands";
 
 /**
  * Turning values into something to read.

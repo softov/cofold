@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { CanUseTool, Options, SDKMessage, SDKResultMessage, SDKSessionInfo, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { RunOutcome, RunUsage, SessionUsage, SkillIndexEntry, Usage } from '@facio/agents';
-import { AgentError, ZERO_USAGE, addUsage, newId } from '@facio/agents';
-import { createFileStore } from '@facio/store-file';
+import type { RunOutcome, RunUsage, SessionUsage, SkillIndexEntry, Usage } from '@doopx/agents';
+import { AgentError, ZERO_USAGE, addUsage, newId } from '@doopx/agents';
+import { createFileStore } from '@doopx/store-file';
 import { settingsKey } from '../chat.js';
 import { DEFAULT_INSTRUCTIONS } from '../config.js';
 import { createQueues } from '../queue.js';

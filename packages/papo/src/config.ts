@@ -1,12 +1,12 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { ModelProvider } from '@facio/agents';
-import { AgentError } from '@facio/agents';
-import { ArgumentError, ConfigurationError, check } from '@facio/commands';
-import { resolveConfig } from '@facio/config';
-import { openaiCompatProvider } from '@facio/model-openai-compat';
-import type { JsonSchema } from '@facio/sdk';
+import type { ModelProvider } from '@doopx/agents';
+import { AgentError } from '@doopx/agents';
+import { ArgumentError, ConfigurationError, check } from '@doopx/commands';
+import { resolveConfig } from '@doopx/config';
+import { openaiCompatProvider } from '@doopx/model-openai-compat';
+import type { JsonSchema } from '@doopx/sdk';
 import type { PapoConfig, ProviderConfig, RememberedSettings } from './types/config.js';
 
 const PROVIDER: JsonSchema = {
@@ -120,7 +120,7 @@ const BASE = {
 /**
  * The configuration, from every place it may be written.
  *
- * `@facio/config` walks the layers (`~/.config/papo/config.json`, the nearest `.papo.json`,
+ * `@doopx/config` walks the layers (`~/.config/papo/config.json`, the nearest `.papo.json`,
  * `$PAPO_CONFIG`, `--config`); on top of them `PAPO_BASE_URL`, `PAPO_API_KEY` and `PAPO_MODEL` (or the
  * family's `FACIO_*`, which the examples read too) add or replace a provider called `default`, which
  * is how a first run needs no file at all. A `FACIO_MODEL` with no slash names a model of `default`.

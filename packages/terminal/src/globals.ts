@@ -1,4 +1,4 @@
-import type { OptionSpec } from "@facio/commands";
+import type { OptionSpec } from "@doopx/commands";
 
 /**
  * The options every program on this framework has.

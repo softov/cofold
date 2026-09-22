@@ -1,12 +1,12 @@
 import { statSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { RunOutcome, SessionUsage } from '@facio/agents';
-import { AgentError } from '@facio/agents';
-import type { CommandContext, OptionSpec } from '@facio/commands';
-import { ArgumentError, createRegistry, output } from '@facio/commands';
-import { createFileStore, resolveHome } from '@facio/store-file';
-import { renderTable } from '@facio/terminal';
+import type { RunOutcome, SessionUsage } from '@doopx/agents';
+import { AgentError } from '@doopx/agents';
+import type { CommandContext, OptionSpec } from '@doopx/commands';
+import { ArgumentError, createRegistry, output } from '@doopx/commands';
+import { createFileStore, resolveHome } from '@doopx/store-file';
+import { renderTable } from '@doopx/terminal';
 import { compactedNotice } from './blocks.js';
 import { createChat } from './chat.js';
 import { createClaudeChat } from './claude/chat.js';

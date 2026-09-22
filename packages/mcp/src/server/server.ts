@@ -7,7 +7,7 @@ import {
   type ServerRequest, type ServerNotification,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
-import { FacioError, compact, type Command, type RequestContext, type Runner } from "@facio/commands";
+import { FacioError, compact, type Command, type RequestContext, type Runner } from "@doopx/commands";
 import { tools, validateToolOutput } from "../index.js";
 import { registerResourcesAndPrompts } from "./resources.js";
 

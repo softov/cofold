@@ -1,6 +1,6 @@
-import type { ReasoningEffort } from '@facio/agents';
-import { createTool, newId, textOf, toolCallsOf } from '@facio/agents';
-import { openaiCompat } from '@facio/model-openai-compat';
+import type { ReasoningEffort } from '@doopx/agents';
+import { createTool, newId, textOf, toolCallsOf } from '@doopx/agents';
+import { openaiCompat } from '@doopx/model-openai-compat';
 
 // `--effort <level>` asks for that reasoning level (decision 98) and prints the wire body the adapter sends.
 const effortAt = process.argv.indexOf('--effort');

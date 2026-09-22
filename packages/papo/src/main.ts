@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { runEntry } from '@facio/terminal';
+import { runEntry } from '@doopx/terminal';
 import { argvFor, createProgram } from './program.js';
 
 /**

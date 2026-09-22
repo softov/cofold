@@ -1,5 +1,5 @@
 {
-  "name": "@facio/commands",
+  "name": "@doopx/commands",
   "version": "0.2.0",
   "type": "module",
   "description": "A command is data: the declaration, the registry, input, the argv grammar, coercion and schema, rendered by every surface.",
@@ -8,7 +8,7 @@
   "funding": "https://github.com/sponsors/softov",
   "homepage": "https://github.com/softov/facio#readme",
   "bugs": {
-    "url": "https://github.com/softov/facio/issues"
+    "url": "https://github.com/softov/doopx/issues"
   },
   "engines": {
     "node": ">=22"
@@ -54,7 +54,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@facio/sdk": "workspace:^"
+    "@doopx/sdk": "workspace:^"
   },
   "devDependencies": {
     "zod": "4.3.6"

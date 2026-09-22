@@ -3,7 +3,7 @@ import type { ProgramManifest } from "./types/manifest.js";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { UnavailableError } from "@facio/commands";
+import { UnavailableError } from "@doopx/commands";
 import { parseManifest } from "./manifest.js";
 
 /**

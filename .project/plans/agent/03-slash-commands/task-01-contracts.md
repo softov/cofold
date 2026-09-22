@@ -10,7 +10,7 @@ refs:
 
 ## Objective
 
-`SlashCommand`, `SlashCommandContext` and `SlashCommandInfo` exist in `@facio/agents`, an agent definition and a capability can carry commands, a message can be a `command` or a `notice`, and the two events are typed. Nothing runs yet.
+`SlashCommand`, `SlashCommandContext` and `SlashCommandInfo` exist in `@doopx/agents`, an agent definition and a capability can carry commands, a message can be a `command` or a `notice`, and the two events are typed. Nothing runs yet.
 
 ## Files
 

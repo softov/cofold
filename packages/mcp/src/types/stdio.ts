@@ -1,5 +1,5 @@
 import type { Readable, Writable } from "node:stream";
-import type { Command, RequestContext } from "@facio/commands";
+import type { Command, RequestContext } from "@doopx/commands";
 export interface StdioOptions {
   /** Reported to the client as `serverInfo`. */
   name: string;

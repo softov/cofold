@@ -10,14 +10,14 @@ import {
   type Command,
   type JsonSchema,
   type Runner,
-} from "@facio/commands";
-import { assertSupportedSchema } from "@facio/sdk";
+} from "@doopx/commands";
+import { assertSupportedSchema } from "@doopx/sdk";
 
 export type { McpBinding } from "./types/binding.js";
 export type { ToolDefinition, ToolOptions } from "./types/tool.js";
 
 /**
- * @facio/mcp - the same registry, read by an agent.
+ * @doopx/mcp - the same registry, read by an agent.
  *
  * This package is small on purpose, and its size is the argument for the whole
  * library: a tool is a name, a description, and an input schema, and a command
@@ -31,7 +31,7 @@ export type { ToolDefinition, ToolOptions } from "./types/tool.js";
  * program's choice.
  */
 
-declare module "@facio/commands" {
+declare module "@doopx/commands" {
   interface CommandMeta { mcp?: McpBinding }
 }
 

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { createRegistry, output, ArgumentError } from "@facio/commands";
+import { createRegistry, output, ArgumentError } from "@doopx/commands";
 import { serveStdio } from "./stdio.js";
 
 /**

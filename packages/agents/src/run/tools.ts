@@ -3,7 +3,7 @@ import type { Denial, StepRecord } from '../types/store.js';
 import type { Tool, ToolContext, ToolOutput } from '../types/tool.js';
 import type { ToolCallDeps, ToolCallResult } from '../types/turn.js';
 import { newId } from '../ids.js';
-import { validateSchema } from '@facio/sdk';
+import { validateSchema } from '@doopx/sdk';
 import { markLoaded } from './deferred.js';
 import { PauseSignal } from './pause.js';
 

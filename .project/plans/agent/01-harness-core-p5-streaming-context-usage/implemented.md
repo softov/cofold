@@ -34,9 +34,9 @@ Long answers stream as persisted `model.delta` events, a compaction keeps a verb
 
 ## Verified
 
-- `@facio/agents`: 19 test files, 193 tests (`run/steering.test.ts`, `hook-stop.test.ts`, `stream.test.ts` 8, `cost.test.ts` 11, `compact.test.ts` 10, `interrupt.test.ts` 5, `run.test.ts` 26, `resume.test.ts` 16, `contracts.test-d.ts` 17, the rest unchanged); build and typecheck green.
-- `@facio/model-openai-compat`: 4 test files, 67 tests (`sse.test.ts` 8, `stream.test.ts` 13, `index.test.ts` 43, `wire.test.ts` 3); typecheck green.
-- `@facio/store-file` (32 tests, the conformance suite with the `cost` case), `@facio/tools` (24), `@facio/papo` (8 files) green against the new build; every package and the examples typecheck green except `@facio/papo`, whose `Snapshot.queued` errors are cli/04 task 01 in progress in another session.
+- `@doopx/agents`: 19 test files, 193 tests (`run/steering.test.ts`, `hook-stop.test.ts`, `stream.test.ts` 8, `cost.test.ts` 11, `compact.test.ts` 10, `interrupt.test.ts` 5, `run.test.ts` 26, `resume.test.ts` 16, `contracts.test-d.ts` 17, the rest unchanged); build and typecheck green.
+- `@doopx/model-openai-compat`: 4 test files, 67 tests (`sse.test.ts` 8, `stream.test.ts` 13, `index.test.ts` 43, `wire.test.ts` 3); typecheck green.
+- `@doopx/store-file` (32 tests, the conformance suite with the `cost` case), `@doopx/tools` (24), `@doopx/papo` (8 files) green against the new build; every package and the examples typecheck green except `@doopx/papo`, whose `Snapshot.queued` errors are cli/04 task 01 in progress in another session.
 - Full `pnpm check` run at the close of task 08: see the report of 2026-09-16; not run against a live LM Studio or OpenRouter (the `lmstudio-tools` and `adapter-smoke` examples are the manual checks).
 - OpenRouter's catalogue field names for the cache rates were verified against the live `GET /models` on 2026-09-16.
 
@@ -57,4 +57,4 @@ Long answers stream as persisted `model.delta` events, a compaction keeps a verb
 - papo reads `model.delta`, `contextOf`, the marker, `cost` and the stop reasons: [cli/04-papo-harness-adoption](../../cli/04-papo-harness-adoption/plan.md).
 - `tally()` gains `denials`: [agent/04-policy-rules](../04-policy-rules/plan.md) task 02.
 - An unterminated inline `<think>` stays reasoning in the streamed form where the whole-response form kept it as text; and when every unit fits in `compactKeepTokens` the summary stands for the ask alone: both noted in the task Resumes, neither decided.
-- `@facio/chat` decision 12 (queue) and papo's `turns.ts` mapping of every `stopped` outcome to `cancelled` (the plan's *Watch out for*): the cli plans.
+- `@doopx/chat` decision 12 (queue) and papo's `turns.ts` mapping of every `stopped` outcome to `cancelled` (the plan's *Watch out for*): the cli plans.

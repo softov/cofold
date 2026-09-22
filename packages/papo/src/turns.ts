@@ -1,5 +1,5 @@
-import type { ApprovalPayload, InputPayload, Message, PendingRequest, RunRecord, StopReason, ToolCallPart } from '@facio/agents';
-import { INTERRUPTED, ZERO_USAGE, textOf } from '@facio/agents';
+import type { ApprovalPayload, InputPayload, Message, PendingRequest, RunRecord, StopReason, ToolCallPart } from '@doopx/agents';
+import { INTERRUPTED, ZERO_USAGE, textOf } from '@doopx/agents';
 import type { ChatPendingInput, ChatToolCall } from '@textui/chat';
 import { toChatQuestion } from './questions.js';
 import type { Compaction, Draft, Turn, TurnPart, TurnState } from './types/turn.js';

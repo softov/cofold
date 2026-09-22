@@ -12,7 +12,7 @@ refs:
   - code://packages/tools/src/files.ts - the path tools' normalized `subject` (decision CLI-04.6)
 ---
 
-papo over `@facio/agents` now does what Claude Code does for the same acts: a message typed while the model answers steers it or waits its turn (and a message queued while nothing runs starts at once); the answer appears as it is written; after a compaction the screen shows what the model sees, with the tokens before and after; a turn a hook ended reads as finished and one a limit ended says which; a cancel on a waiting decision ends the turn with the harness's marker; the permission modes are Claude's four, over the tools' declared effects, and rules live in the configuration and per session, `always` being a session allow rule.
+papo over `@doopx/agents` now does what Claude Code does for the same acts: a message typed while the model answers steers it or waits its turn (and a message queued while nothing runs starts at once); the answer appears as it is written; after a compaction the screen shows what the model sees, with the tokens before and after; a turn a hook ended reads as finished and one a limit ended says which; a cancel on a waiting decision ends the turn with the harness's marker; the permission modes are Claude's four, over the tools' declared effects, and rules live in the configuration and per session, `always` being a session allow rule.
 
 ## What was built
 
@@ -29,8 +29,8 @@ papo over `@facio/agents` now does what Claude Code does for the same acts: a me
 
 ## Verified
 
-- `@facio/papo`: 8 test files, 117 tests (`chat.test.ts` 22, `chat-contract.test.ts` 24 on both backends, `commands.test.ts` 11, `turns.test.ts` 13, `screen.test.ts` 10, `claude/chat.test.ts` 20, `claude/project.test.ts` 7, `config.test.ts` 10); build and typecheck green.
-- `@facio/tools`: 4 files, 24 tests (the subject assertions).
+- `@doopx/papo`: 8 test files, 117 tests (`chat.test.ts` 22, `chat-contract.test.ts` 24 on both backends, `commands.test.ts` 11, `turns.test.ts` 13, `screen.test.ts` 10, `claude/chat.test.ts` 20, `claude/project.test.ts` 7, `config.test.ts` 10); build and typecheck green.
+- `@doopx/tools`: 4 files, 24 tests (the subject assertions).
 - Full `pnpm check` on 2026-09-16: 67 test files, 761 tests, no type errors; run twice more after the `wait` fix below, green both times.
 - A flake seen once under the full workspace's load (`claude/chat.test.ts`, the queue scenario: `wait` right after a settle found no turn because the head's `say` was still awaiting the settings): `Queues.starting(sessionId)` now exposes the head's start in flight and both backends' `wait` take the attached turn synchronously, then await a starting head before looking again; the tests' bridging sleeps are gone.
 - Not run: papo in a terminal against LM Studio (typing during an answer, the stream, `/compact`, `session set --deny` on a real shell); the real Claude CLI for the cancel and the mode pass-through.
@@ -40,7 +40,7 @@ papo over `@facio/agents` now does what Claude Code does for the same acts: a me
 - CLI-04.1 - a message queued while the session is idle starts at once (user, 2026-09-16), where task 01 had it wait for the next settle; `Queues.add` is async over `QueueDeps.idle`.
 - CLI-04.2 - `TurnPart` text and reasoning carry `streaming?: true` for the draft parts; the plan named the effect, not the carrier.
 - Task 03 - `compactions` is keyed by the summary message's id and carries `runId` (messages have no run id); the compaction turn's input is `(context compacted)`, the Claude backend's words, so both backends read alike; the Claude backend's cancel on a pending decision now denies and interrupts (a gap against ahpd in cli/03's backend, fixed here).
-- CLI-04.6 - `acceptEdits` is the mode's own check, not an allow rule, so `policyOf` returns the `decide` alone; the path tools' subject changed in `@facio/tools`.
+- CLI-04.6 - `acceptEdits` is the mode's own check, not an allow rule, so `policyOf` returns the `decide` alone; the path tools' subject changed in `@doopx/tools`.
 - Task 04 - `byEffects` allows a tool that declares no effect at all (`ask_user`, `load_tools`), where the plan's block required `reads === true`; the config key is `rules` next to `permissions` where CLI-04.5 wrote `permissions.rules` (`permissions` is the mode string in the file and in `Settings`); the Claude backend restarts the process on a mode change instead of `setPermissionMode`, since `bypassPermissions` needs an option the SDK takes only at start.
 - `alt+enter` does not queue (textui's `TextArea` takes it as a newline); the Queue chip and `/queue` do.
 - `Queues` gained `starting(sessionId)` and `Chat.wait` covers a queued head that is starting (the flake above); not in the plan.

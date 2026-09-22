@@ -1,5 +1,5 @@
 ---
-title: TOOLS-01 - `@facio/tools`: the tools every agent gets
+title: TOOLS-01 - `@doopx/tools`: the tools every agent gets
 domain: tools
 status: built
 priority: high
@@ -10,11 +10,11 @@ requires:
   - plans/cli/01-papo/plan.md
 ---
 
-# TOOLS-01 - `@facio/tools`: the tools every agent gets
+# TOOLS-01 - `@doopx/tools`: the tools every agent gets
 
 ## Goal
 
-An agent on `@facio/agents` can read and change files, run a command, fetch and search the web, and keep notes across sessions, out of the box.
+An agent on `@doopx/agents` can read and change files, run a command, fetch and search the web, and keep notes across sessions, out of the box.
 papo turns all of it on; the permission mode already decides what stops to ask.
 Nothing here is a second registry or a second tool contract: every tool is `createTool`, every group is a `Capability`, and a search backend is a provider handed to the web capability.
 
@@ -51,7 +51,7 @@ Two families: PascalCase (Claude Code alone) and snake_case (everyone else, and 
 
 | # | Decision | Rationale / source |
 | --- | --- | --- |
-| 1 | Package `@facio/tools` in `packages/tools/`, zero runtime dependencies, depends on `@facio/agents` (and `@facio/sdk` for `JsonSchema`). Four capabilities: `files()`, `shell()`, `web()`, `memory()`; each contributes its tools and one instruction section | Capabilities are the harness's unit of "a group of tools plus what to tell the model about them" |
+| 1 | Package `@doopx/tools` in `packages/tools/`, zero runtime dependencies, depends on `@doopx/agents` (and `@doopx/sdk` for `JsonSchema`). Four capabilities: `files()`, `shell()`, `web()`, `memory()`; each contributes its tools and one instruction section | Capabilities are the harness's unit of "a group of tools plus what to tell the model about them" |
 | 2 | Names, snake_case, verb_object: `read_file`, `write_file`, `edit_file`, `list_files`, `search_files`, `shell_exec`, `web_fetch`, `web_search`, `memory_read`, `memory_write`. No `list_tools` (the model holds every definition in every request) and no `list_skills` (the skills index is in the instructions) | User (2026-09-16): `shell_exec` because it executes once, it is not a session; the rest follow the family the model sees most |
 | 3 | Paths: any path, relative ones against the workspace; reads anywhere; writes inside the workspace follow the mode; a write or edit whose resolved path is outside the workspace asks unless the mode is `auto`. Done with `Tool.effects` (write/edit are `destructive`) plus a `Policy.requireApproval` papo installs that returns true for a write outside the workspace in `ask` and `destructive` | User: "there is a folder instruction, but you can mostly write everywhere" - Claude Code reads anywhere, edits in the cwd freely under its mode, asks outside it |
 | 4 | `shell_exec({ command, cwd?, timeoutMs? })`: one command through `sh -c` on POSIX and `powershell.exe -NoProfile -NonInteractive -Command` on Windows, `cwd` defaulting to the workspace, timeout 120 s (max 600), stdout and stderr each capped at 64 KiB with a `[output truncated]` marker, result `exit <code>` header then the streams. Killed on the run's `signal`. The description names the shell so the model writes the right dialect. `effects.destructive` | The opendoop windows-shell runner, generalised |
@@ -85,7 +85,7 @@ packages/papo/src/agent.ts          UPDATE: capabilities from config.tools; the 
 packages/papo/src/config.ts         UPDATE: schema for tools
 ```
 
-- **Import rules.** `@facio/tools` imports `@facio/agents` only; papo imports `@facio/tools`.
+- **Import rules.** `@doopx/tools` imports `@doopx/agents` only; papo imports `@doopx/tools`.
 - **Effects.** `read_file`, `list_files`, `search_files`, `memory_read`: `{ reads }`; `write_file`, `edit_file`, `shell_exec`: `{ writes, destructive }`; `memory_write`: `{ writes }`; `web_*`: `{ network }`.
 
 ## Tasks
@@ -108,7 +108,7 @@ packages/papo/src/config.ts         UPDATE: schema for tools
 
 - **Done so far:** plan written 2026-09-16; Task 1 built 2026-09-16 (`packages/tools`: `files()`, `resolveWithin`, `displayPath`; 7 tests). `search_files` also takes `ignoreCase`; `read_file` cuts lines at 2000 characters. Task 2 built 2026-09-16 (`shell()`, `execShell`, `DEFAULT_SHELL`; the kill reaches the process tree: a process group on POSIX, `taskkill /t` on Windows; `shell.shell` option chooses another shell; 5 tests).
 Task 3 built 2026-09-16 (`web()`, `htmlToText`, `brave`, `tavily`, `duckduckgo`; failover on any provider error, not only network ones; providers and `web` take an injectable `fetch`; 7 tests).
-Task 4 built 2026-09-16 (`memory({ dir, indexLines? })`: the folder is the program's to choose, since the workspace slug is `@facio/store-file`'s and `@facio/tools` imports `@facio/agents` only; 3 tests).
+Task 4 built 2026-09-16 (`memory({ dir, indexLines? })`: the folder is the program's to choose, since the workspace slug is `@doopx/store-file`'s and `@doopx/tools` imports `@doopx/agents` only; 3 tests).
 Task 5 built 2026-09-16 (`config.tools`, `capabilitiesOf` in `agent.ts`, papo README; 2 tests). Decision 3's extra `Policy` was not written: `write_file` and `edit_file` declare `effects.destructive`, so under `destructive` they ask everywhere already, and a workspace-boundary rule would have caught `memory_write`, whose folder is outside the workspace by design. `resolveWithin` stays exported for a program that wants the rule. A timed-out model listing now reads `cannot reach <url>: no answer in time` (`network`), not `request aborted`.
 - **Next action:** AGENT-02 Task 1. The manual turn against LM Studio is still owed: the server at 10.255.10.10:1235 did not answer on 2026-09-16.
 - **Open questions:** none.

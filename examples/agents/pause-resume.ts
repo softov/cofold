@@ -2,9 +2,9 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAgent, createTool, resume, run, textOf } from '@facio/agents';
-import { createFakeModel } from '@facio/agents/testing';
-import { createFileStore } from '@facio/store-file';
+import { createAgent, createTool, resume, run, textOf } from '@doopx/agents';
+import { createFakeModel } from '@doopx/agents/testing';
+import { createFileStore } from '@doopx/store-file';
 
 const root = await mkdtemp(join(tmpdir(), 'facio-pause-resume-'));
 let executions = 0;

@@ -1,5 +1,5 @@
 import type { KvScope } from './store.js';
-import type { JsonSchema } from '@facio/sdk';
+import type { JsonSchema } from '@doopx/sdk';
 
 export interface ToolEffects {
   reads?: boolean;

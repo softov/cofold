@@ -1,4 +1,4 @@
-import type { Command } from "@facio/commands";
+import type { Command } from "@doopx/commands";
 export interface Invocation {
   command: Command | null;
   slots: Record<string, string | string[]>;

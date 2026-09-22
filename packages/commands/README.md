@@ -1,18 +1,18 @@
-# @facio/commands
+# @doopx/commands
 
 **Declare a command once. Run it anywhere.**
 
-[![npm](https://img.shields.io/npm/v/@facio/commands.svg)](https://www.npmjs.com/package/@facio/commands)
-[![node](https://img.shields.io/node/v/@facio/commands.svg)](https://www.npmjs.com/package/@facio/commands)
-[![types](https://img.shields.io/npm/types/@facio/commands.svg)](https://www.npmjs.com/package/@facio/commands)
+[![npm](https://img.shields.io/npm/v/@doopx/commands.svg)](https://www.npmjs.com/package/@doopx/commands)
+[![node](https://img.shields.io/node/v/@doopx/commands.svg)](https://www.npmjs.com/package/@doopx/commands)
+[![types](https://img.shields.io/npm/types/@doopx/commands.svg)](https://www.npmjs.com/package/@doopx/commands)
 [![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#packages)
-[![license](https://img.shields.io/npm/l/@facio/commands.svg)](LICENSE)
+[![license](https://img.shields.io/npm/l/@doopx/commands.svg)](LICENSE)
 
 The command framework of the [facio](https://github.com/softov/facio) family: this package is the declaration, the registry and the input every surface shares; the surfaces are sibling packages, listed under [Packages](#packages).
 
 ## What it is
 
-`@facio/commands` is a TypeScript command framework where commands are reusable definitions rather than CLI-only handlers. 
+`@doopx/commands` is a TypeScript command framework where commands are reusable definitions rather than CLI-only handlers. 
 
 The same declaration can be exposed through CLI, HTTP endpoint, an MCP tool, generated documentation, shell completion, an agent-facing skill, or other adapters without redefining its inputs and behavior.
 
@@ -107,7 +107,7 @@ flowchart TD
   cli --> completion["completion"]
 ```
 
-The action remains a plain object. The different parts of `@facio/commands` decide how to expose it.
+The action remains a plain object. The different parts of `@doopx/commands` decide how to expose it.
 
 ## One schema
 
@@ -141,7 +141,7 @@ There is only one copy of the rules to keep correct.
 
 ## One action, several surfaces
 
-From the declaration above, `@facio/commands` can provide:
+From the declaration above, `@doopx/commands` can provide:
 
 | Surface                          | Result                                       |
 | -------------------------------- | -------------------------------------------- |
@@ -226,23 +226,23 @@ This keeps actions declarative without turning the registry into a global bag of
 
 ## Packages
 
-One package per surface, each with a single entry point (`@facio/mcp` has three).
+One package per surface, each with a single entry point (`@doopx/mcp` has three).
 
 | Package                         | Purpose                                                          |
 | ------------------------------ | ---------------------------------------------------------------- |
-| [`@facio/commands`](src)          | Actions, schemas, capabilities, registry. No terminal knowledge. |
-| [`@facio/terminal`](../terminal)       | argv parsing, help, completion, output contracts and exit codes  |
-| [`@facio/mcp`](../mcp)       | Expose actions as MCP tools without an MCP SDK dependency        |
-| [`@facio/mcp/stdio`](../mcp/src/stdio.ts) | Serve those tools over stdio. Still no SDK, still no dependencies |
-| [`@facio/mcp/server`](../mcp/src/server) | Optional SDK-backed Streamable HTTP, for mounting in an existing server |
-| [`@facio/docs`](../docs)     | Generate Markdown references for people and agents               |
-| [`@facio/remote`](../remote) | Materialise commands from remote manifests or OpenAPI            |
-| [`@facio/yaml`](../yaml) | Parse a YAML subset into plain data, with source-aware errors |
-| [`@facio/config`](../config) | Find the configuration file, and say which one a value came from |
+| [`@doopx/commands`](src)          | Actions, schemas, capabilities, registry. No terminal knowledge. |
+| [`@doopx/terminal`](../terminal)       | argv parsing, help, completion, output contracts and exit codes  |
+| [`@doopx/mcp`](../mcp)       | Expose actions as MCP tools without an MCP SDK dependency        |
+| [`@doopx/mcp/stdio`](../mcp/src/stdio.ts) | Serve those tools over stdio. Still no SDK, still no dependencies |
+| [`@doopx/mcp/server`](../mcp/src/server) | Optional SDK-backed Streamable HTTP, for mounting in an existing server |
+| [`@doopx/docs`](../docs)     | Generate Markdown references for people and agents               |
+| [`@doopx/remote`](../remote) | Materialise commands from remote manifests or OpenAPI            |
+| [`@doopx/yaml`](../yaml) | Parse a YAML subset into plain data, with source-aware errors |
+| [`@doopx/config`](../config) | Find the configuration file, and say which one a value came from |
 
-There are **zero runtime dependencies** in every package, including a working MCP server: `npm install @facio/commands @facio/terminal` installs two packages and nothing else. [`@facio/mcp/server`](../../docs/commands/07-mcp.md) is the single exception and is opt-in, because Streamable HTTP is worth an SDK where stdio is not. It declares the official MCP SDK as an optional peer, so nothing installs it unless you ask for it.
+There are **zero runtime dependencies** in every package, including a working MCP server: `npm install @doopx/commands @doopx/terminal` installs two packages and nothing else. [`@doopx/mcp/server`](../../docs/commands/07-mcp.md) is the single exception and is opt-in, because Streamable HTTP is worth an SDK where stdio is not. It declares the official MCP SDK as an optional peer, so nothing installs it unless you ask for it.
 
-Validation is optional and uses [Standard Schema](https://standardschema.dev), so libraries such as Zod, Valibot and ArkType can be used without `@facio/commands` depending on any of them.
+Validation is optional and uses [Standard Schema](https://standardschema.dev), so libraries such as Zod, Valibot and ArkType can be used without `@doopx/commands` depending on any of them.
 
 ## Try it
 
@@ -287,7 +287,7 @@ node examples/commands/dist/clerver/cli.js pet add Rex --species dog --age 3
 
 ### Turn an OpenAPI document into a CLI
 
-The API does not need to know that `@facio/commands` exists.
+The API does not need to know that `@doopx/commands` exists.
 
 ```sh
 # any server that answers the document. clerver happens to be one
@@ -387,7 +387,7 @@ Declared per surface, that agreement is written several times and maintained sev
 
 The callers are no longer only people. An agent has to be told what a command accepts, as a schema, before it can call anything. The information that `.action(handler)` throws away is exactly the information the agent era needs kept.
 
-`@facio/commands` keeps that information alive.
+`@doopx/commands` keeps that information alive.
 
 ```ts
 const action = {
@@ -406,7 +406,7 @@ So is MCP.
 
 The cost is one constraint on handlers: a handler receives a canonical input object and returns a value, rather than reading `process.argv` and printing. That is the whole discipline, and everything else follows from it, because a handler that never touches the terminal can be run by something that is not a terminal.
 
-[`@facio/mcp`](../mcp) is the test of that. A complete MCP surface, JSON Schema generation included, with no dependencies, because it had nothing to invent: the actions already knew. [`@facio/mcp/stdio`](../mcp/src/stdio.ts) is the read loop that speaks it, and it is hand-written for the same reason the YAML subset is - newline-delimited JSON-RPC over two pipes is not worth a web framework.
+[`@doopx/mcp`](../mcp) is the test of that. A complete MCP surface, JSON Schema generation included, with no dependencies, because it had nothing to invent: the actions already knew. [`@doopx/mcp/stdio`](../mcp/src/stdio.ts) is the read loop that speaks it, and it is hand-written for the same reason the YAML subset is - newline-delimited JSON-RPC over two pipes is not worth a web framework.
 
 **The command is the data. The interfaces are adapters.**
 

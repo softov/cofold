@@ -1,5 +1,5 @@
 {
-  "name": "@facio/mcp",
+  "name": "@doopx/mcp",
   "version": "0.2.0",
   "type": "module",
   "description": "Serve a command registry as MCP tools: over stdio with no dependencies, or Streamable HTTP through the official SDK.",
@@ -8,7 +8,7 @@
   "funding": "https://github.com/sponsors/softov",
   "homepage": "https://github.com/softov/facio#readme",
   "bugs": {
-    "url": "https://github.com/softov/facio/issues"
+    "url": "https://github.com/softov/doopx/issues"
   },
   "engines": {
     "node": ">=22"
@@ -58,8 +58,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@facio/commands": "workspace:^",
-    "@facio/sdk": "workspace:^"
+    "@doopx/commands": "workspace:^",
+    "@doopx/sdk": "workspace:^"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",

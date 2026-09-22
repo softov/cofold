@@ -1,7 +1,7 @@
 import type { HttpTransportOptions } from "./types/http.js";
 import type { HttpBinding, Transport } from "./types/manifest.js";
 import { basicAuthorization, type CookieJar } from "./auth.js";
-import { compact, UnavailableError, FacioError } from "@facio/commands";
+import { compact, UnavailableError, FacioError } from "@doopx/commands";
 import { bodyFields, expandPath, placementOf } from "./manifest.js";
 
 /**

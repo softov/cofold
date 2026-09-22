@@ -1,8 +1,8 @@
 import type { WriterLock } from './types/lock.js';
 import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { StoreError } from '@facio/agents';
-import type { RunStatus } from '@facio/agents';
+import { StoreError } from '@doopx/agents';
+import type { RunStatus } from '@doopx/agents';
 import { readJson, writeAtomic } from './jsonl.js';
 
 const lockFile = (sessionDir: string) => join(sessionDir, 'writer.lock');

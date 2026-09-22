@@ -12,7 +12,7 @@ export type * from './outcome.js';
 export type * from './policy.js';
 export type * from './provider.js';
 export type * from './run.js';
-export type { JsonSchema, JsonSchemaType, SchemaIssue, SchemaResult, StandardIssue, StandardResult, StandardSchema } from '@facio/sdk';
+export type { JsonSchema, JsonSchemaType, SchemaIssue, SchemaResult, StandardIssue, StandardResult, StandardSchema } from '@doopx/sdk';
 export type * from './store.js';
 export type * from './tool.js';
 export type * from './usage.js';

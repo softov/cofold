@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coerce, matchCommand, type Command } from "@facio/commands";
+import { coerce, matchCommand, type Command } from "@doopx/commands";
 import { globalOptions } from "./globals.js";
 import { parse } from "./parse.js";
 

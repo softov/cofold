@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import type { Capability, Tool } from '@facio/agents';
-import { createTool } from '@facio/agents';
+import type { Capability, Tool } from '@doopx/agents';
+import { createTool } from '@doopx/agents';
 import type { MemoryOptions, MemoryReadInput, MemoryWriteInput } from './types/memory.js';
 import { displayPath, resolveWithin } from './paths.js';
 

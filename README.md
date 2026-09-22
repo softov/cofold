@@ -2,8 +2,8 @@
 
 **Declare once. Run it anywhere: a terminal, an agent, a daemon.**
 
-[![license](https://img.shields.io/npm/l/@facio/commands.svg)](LICENSE)
-[![node](https://img.shields.io/node/v/@facio/commands.svg)](https://www.npmjs.com/package/@facio/commands)
+[![license](https://img.shields.io/npm/l/@doopx/commands.svg)](LICENSE)
+[![node](https://img.shields.io/node/v/@doopx/commands.svg)](https://www.npmjs.com/package/@doopx/commands)
 
 facio is one family of TypeScript packages, zero runtime dependencies each, that share a rule: a thing is declared once and every surface is a rendering of that declaration.
 For a command, the surfaces are the terminal, MCP, HTTP and a generated reference.
@@ -17,29 +17,29 @@ For an agent, the surface is a run: a model proposes, the harness authorizes and
 
 | Package | Purpose |
 | --- | --- |
-| [`@facio/sdk`](packages/sdk) | What the packages share: `JsonSchema` and the one validator that holds a value to it, its result, the Standard Schema interface. No dependencies. |
-| [`@facio/commands`](packages/commands) | A command is data: the declaration, the registry, input, the argv grammar, coercion and schema. The whole framework is described here. |
-| [`@facio/terminal`](packages/terminal) | The terminal rendering: argv parsing, help, completion, output modes, exit codes. |
-| [`@facio/mcp`](packages/mcp) | Actions as MCP tools; `./stdio` serves them with no dependencies, `./server` through the official SDK (optional peer). |
-| [`@facio/remote`](packages/remote) | Commands over HTTP: manifests, OpenAPI, authentication, the remote client. |
-| [`@facio/config`](packages/config) | Layered configuration as a capability, each value saying which file set it. |
-| [`@facio/yaml`](packages/yaml) | A documented YAML subset and a document loader with references. |
-| [`@facio/docs`](packages/docs) | Markdown references for people and agents, generated from the declaration. |
+| [`@doopx/sdk`](packages/sdk) | What the packages share: `JsonSchema` and the one validator that holds a value to it, its result, the Standard Schema interface. No dependencies. |
+| [`@doopx/commands`](packages/commands) | A command is data: the declaration, the registry, input, the argv grammar, coercion and schema. The whole framework is described here. |
+| [`@doopx/terminal`](packages/terminal) | The terminal rendering: argv parsing, help, completion, output modes, exit codes. |
+| [`@doopx/mcp`](packages/mcp) | Actions as MCP tools; `./stdio` serves them with no dependencies, `./server` through the official SDK (optional peer). |
+| [`@doopx/remote`](packages/remote) | Commands over HTTP: manifests, OpenAPI, authentication, the remote client. |
+| [`@doopx/config`](packages/config) | Layered configuration as a capability, each value saying which file set it. |
+| [`@doopx/yaml`](packages/yaml) | A documented YAML subset and a document loader with references. |
+| [`@doopx/docs`](packages/docs) | Markdown references for people and agents, generated from the declaration. |
 
 ### Agents
 
 | Package | Purpose |
 | --- | --- |
-| [`@facio/agents`](packages/agents) | The harness: contracts, `createAgent`, `run`, `resume`, tools, capabilities, the step log, the in-memory store, a fake model for tests. |
-| [`@facio/store-file`](packages/store-file) | The durable `Store` on the filesystem: sessions, runs, requests, a writer lease. |
-| [`@facio/tools`](packages/tools) | The tools every agent gets, as capabilities: `files()` today; shell, web, memory next. |
-| [`@facio/model-openai-compat`](packages/model-openai-compat) | Chat Completions adapter (OpenRouter, LM Studio, any compatible server) with a model catalogue and reasoning. |
+| [`@doopx/agents`](packages/agents) | The harness: contracts, `createAgent`, `run`, `resume`, tools, capabilities, the step log, the in-memory store, a fake model for tests. |
+| [`@doopx/store-file`](packages/store-file) | The durable `Store` on the filesystem: sessions, runs, requests, a writer lease. |
+| [`@doopx/tools`](packages/tools) | The tools every agent gets, as capabilities: `files()` today; shell, web, memory next. |
+| [`@doopx/model-openai-compat`](packages/model-openai-compat) | Chat Completions adapter (OpenRouter, LM Studio, any compatible server) with a model catalogue and reasoning. |
 
 ### Programs
 
 | Package | Purpose |
 | --- | --- |
-| [`@facio/papo`](packages/papo) | `papo`: talk to an agent that runs in this process. A screen drawn with [`@textui/chat`](https://github.com/softov/textui) and a shell of `@facio/commands` actions over the same sessions on disk; `--backend claude` runs both over Claude Code's runtime through its SDK. |
+| [`@doopx/papo`](packages/papo) | `papo`: talk to an agent that runs in this process. A screen drawn with [`@textui/chat`](https://github.com/softov/textui) and a shell of `@doopx/commands` actions over the same sessions on disk; `--backend claude` runs both over Claude Code's runtime through its SDK. |
 
 ## Try it
 

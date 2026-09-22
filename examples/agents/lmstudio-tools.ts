@@ -1,6 +1,6 @@
-import { createAgent, createTool, run, textOf } from '@facio/agents';
-import { createMemoryStore } from '@facio/agents/testing';
-import { openaiCompat } from '@facio/model-openai-compat';
+import { createAgent, createTool, run, textOf } from '@doopx/agents';
+import { createMemoryStore } from '@doopx/agents/testing';
+import { openaiCompat } from '@doopx/model-openai-compat';
 
 // USD per million tokens; when both are set the run records its cost (a real host passes the catalogue's pricing through).
 const pricingIn = Number(process.env.FACIO_PRICING_IN);

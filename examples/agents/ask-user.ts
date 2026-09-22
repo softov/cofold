@@ -1,8 +1,8 @@
 // The model asks two structured questions; the host answers from stdin and submits them on the resumed handle.
 import { createInterface } from 'node:readline/promises';
-import { createAgent, createAskUserTool, resume, run, textOf } from '@facio/agents';
-import type { AskAnswers, AskQuestion } from '@facio/agents';
-import { createFakeModel, createMemoryStore } from '@facio/agents/testing';
+import { createAgent, createAskUserTool, resume, run, textOf } from '@doopx/agents';
+import type { AskAnswers, AskQuestion } from '@doopx/agents';
+import { createFakeModel, createMemoryStore } from '@doopx/agents/testing';
 
 const questions: AskQuestion[] = [
   { id: 'lang', question: 'Which language should the project use?', header: 'Language', options: [{ label: 'TypeScript', description: 'default' }, { label: 'Rust' }], allowOther: false },

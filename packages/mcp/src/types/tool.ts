@@ -1,5 +1,5 @@
-import type { Command, RequestContext } from "@facio/commands";
-import type { JsonSchema } from "@facio/sdk";
+import type { Command, RequestContext } from "@doopx/commands";
+import type { JsonSchema } from "@doopx/sdk";
 import type { McpBinding } from "./binding.js";
 
 export interface ToolDefinition {

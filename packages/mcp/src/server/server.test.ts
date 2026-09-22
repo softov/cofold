@@ -4,7 +4,7 @@ import { z } from "zod";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createRegistry, output, AuthorizationError } from "@facio/commands";
+import { createRegistry, output, AuthorizationError } from "@doopx/commands";
 import { createMcpServer } from "./server.js";
 
 const cleanup: (() => Promise<void>)[] = [];

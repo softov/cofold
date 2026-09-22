@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coerce, createRegistry, output } from "@facio/commands";
+import { coerce, createRegistry, output } from "@doopx/commands";
 import { agentSkill, reference } from "./index.js";
 
 function build() {

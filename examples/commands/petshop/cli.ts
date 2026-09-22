@@ -10,11 +10,11 @@
  */
 
 import { createServer } from "node:http";
-import { createRegistry, output, ArgumentError } from "@facio/commands";
-import { Program, renderTable, runEntry } from "@facio/terminal";
-import { listTools } from "@facio/mcp";
-import { canonicalFromObject } from "@facio/commands";
-import { manifestFrom } from "@facio/remote";
+import { createRegistry, output, ArgumentError } from "@doopx/commands";
+import { Program, renderTable, runEntry } from "@doopx/terminal";
+import { listTools } from "@doopx/mcp";
+import { canonicalFromObject } from "@doopx/commands";
+import { manifestFrom } from "@doopx/remote";
 
 export interface Pet {
   id: string;

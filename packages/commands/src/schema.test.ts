@@ -7,7 +7,7 @@
  * anything that implements `~standard` works, which is the whole claim.
  */
 
-import type { StandardIssue, StandardSchema } from "@facio/sdk";
+import type { StandardIssue, StandardSchema } from "@doopx/sdk";
 import { describe, expect, it } from "vitest";
 import { canonicalFromCli, canonicalFromObject } from "./input.js";
 import { createRegistry } from "./registry.js";

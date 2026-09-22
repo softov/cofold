@@ -15,7 +15,7 @@ The fork: replace the panel, or keep `Cost` beside a new `Usage` for the day dol
 
 ## Decision
 
-`/chat.usage` replaces `/chat.cost`: one panel named for what it shows, from `sessionUsage` in `@facio/agents` (per run: tokens by kind, steps, tool calls, denials; and the sums).
+`/chat.usage` replaces `/chat.cost`: one panel named for what it shows, from `sessionUsage` in `@doopx/agents` (per run: tokens by kind, steps, tool calls, denials; and the sums).
 `Chat.usage(sessionId)` exists on both backends; the shell has `papo usage <session>`.
 Dollars stay in cli/04's `deferred.md`.
 

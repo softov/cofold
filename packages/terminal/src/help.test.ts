@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { createRegistry, type Command } from "@facio/commands";
+import { createRegistry, type Command } from "@doopx/commands";
 import { globalOptions } from "./globals.js";
 import { styleFor } from "./render.js";
 import { help, helpForCommand, helpForProgram } from "./help.js";

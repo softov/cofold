@@ -35,7 +35,7 @@ With two providers configured and one of them down, the screen and the shell sti
 
 ## Validation
 
-- `pnpm vitest run --project @facio/papo`; `pnpm check`.
+- `pnpm vitest run --project @doopx/papo`; `pnpm check`.
 - By hand: the user's configuration with `local_provider` down: the chip lists `open_router`'s models; `papo models local_provider` says why it cannot; `papo providers` lists both.
 
 ## Resume

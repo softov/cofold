@@ -2,9 +2,9 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { AgentError } from '@facio/agents';
-import type { ModelProvider } from '@facio/agents';
-import type { FakeModel } from '@facio/agents/testing';
+import { AgentError } from '@doopx/agents';
+import type { ModelProvider } from '@doopx/agents';
+import type { FakeModel } from '@doopx/agents/testing';
 import { deleteFileTool, gateTool, testChat } from './testing.js';
 
 const ECHO = [{ text: 'Hello back.' }];

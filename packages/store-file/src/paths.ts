@@ -1,4 +1,4 @@
-import { StoreError } from '@facio/agents';
+import { StoreError } from '@doopx/agents';
 
 const SAFE = /[^A-Za-z0-9._-]/g;
 

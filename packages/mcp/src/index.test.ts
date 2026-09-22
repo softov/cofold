@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ArgumentError, coerce, createRegistry, output } from "@facio/commands";
+import { ArgumentError, coerce, createRegistry, output } from "@doopx/commands";
 import { callTool, listTools, tools } from "./index.js";
 
 function build() {

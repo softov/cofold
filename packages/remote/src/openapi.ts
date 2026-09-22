@@ -6,7 +6,7 @@ import type {
   OpenApiOptions,
   OpenApiParameter,
 } from "./types/openapi.js";
-import { compact, type JsonSchema, type OptionSpec } from "@facio/commands";
+import { compact, type JsonSchema, type OptionSpec } from "@doopx/commands";
 
 /**
  * An OpenAPI document, read as a command surface.

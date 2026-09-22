@@ -11,7 +11,7 @@ Written for: the next session, cold. Read this, then `.project/plans/index.md`, 
    **A decision needs a real fork** (two options that both work, a nameable rejected alternative). A gap against Claude is a finding (`cli/03 F<n>`), fixed in a task and cited by number; a spec requirement is a task step. Neither gets a decision file (user, 2026-09-16, on the former decision 114: "it's not a decision, it's a defect"). A plan lists what it settled without a decision in a second table under *Decisions locked in*.
 1. **Every decision is a file** in `.project/decisions/<slug>.md`; no file, no decision. A plan's table only links them. Each file names its source: the user's answer with the question quoted, a `code://` line, or `(defaulted: ...)` for something the writer chose and the user may erase. Written into `.agents/skills/do-spec/SKILL.md`.
 2. **A decision that conflicts with the work means stop and ask** with `AskUserQuestion`, batched. Never resolve a fork silently, never narrow an outline while writing.
-3. **Claude is contra-validation only.** papo runs on our harness (cli/01) and on the Claude Agent SDK (cli/03); every difference is a finding presumed to be the harness's bug. The harness is never a Claude API call; no `@facio/model-anthropic` ([decision 112](../decisions/no-anthropic-api-adapter.md)).
+3. **Claude is contra-validation only.** papo runs on our harness (cli/01) and on the Claude Agent SDK (cli/03); every difference is a finding presumed to be the harness's bug. The harness is never a Claude API call; no `@doopx/model-anthropic` ([decision 112](../decisions/no-anthropic-api-adapter.md)).
 4. Read the plans that already exist before proposing anything as new; say plainly what was not read or verified.
 5. `.project/` is searched by refs: `rg -n "code://<path>" .project/` finds what is decided or planned for a file (see the skill).
 
@@ -30,7 +30,7 @@ Decisions on disk after the review of 2026-09-16 (25 files reduced to 12, then C
 ## Code changed this day (uncommitted; the user owns git)
 
 - p5 tasks 01-04 built and green: steering, hook stop, effort levels, dynamic key, cache key (`packages/agents`, `packages/model-openai-compat`, `examples/agents/steer.ts`, `adapter-smoke.ts --effort`). `pnpm check`: 60 test files.
-- Two renames at the user's ask, after that check: `execute` → `executeTool` (`run/tools.ts`, `run/turn.ts`); `compact()` moved from `run/run.ts` to `run/compact.ts` (`start()` exported from `run.ts`; `index.ts` and `compact.test.ts` updated). `@facio/agents` build, typecheck and 15 test files green; full `pnpm check` not re-run after the renames.
+- Two renames at the user's ask, after that check: `execute` → `executeTool` (`run/tools.ts`, `run/turn.ts`); `compact()` moved from `run/run.ts` to `run/compact.ts` (`start()` exported from `run.ts`; `index.ts` and `compact.test.ts` updated). `@doopx/agents` build, typecheck and 15 test files green; full `pnpm check` not re-run after the renames.
 
 ## What the next session should do, in order
 
@@ -38,11 +38,11 @@ Decisions on disk after the review of 2026-09-16 (25 files reduced to 12, then C
 2. p5 task 05 (streaming): built 2026-09-16. `toolCall.delta` is in the union, `DEFAULT_FEATURES.streaming` is true, `model.delta` carries `kind`.
 3. p5 task 07 (usage, cost, `maxCost`, `tally()`) and task 08 (F1, F2, F4, F6, F7): built 2026-09-16; the plan is `built`.
 4. agent/04 is built: task 02 extended p5's `tally()` with `denials` (`run/turn.ts`, `run/tools.ts` `deny(reason, by)`).
-5. cli/04 is built (tasks 01-04, 2026-09-16); `@facio/tools`' file tools changed their `subject` with it (CLI-04.6). What waits is in its `deferred.md`.
+5. cli/04 is built (tasks 01-04, 2026-09-16); `@doopx/tools`' file tools changed their `subject` with it (CLI-04.6). What waits is in its `deferred.md`.
 
 ## 2026-09-18: usage and the session head (cli/06), the deferred audit
 
-- [cli/06](../plans/cli/06-papo-usage-and-session-head/plan.md) built: `sessionUsage` in `@facio/agents`, `Chat.usage` on both backends, `papo usage <session>`, `/chat.usage` in place of `/chat.cost`, the `ChatSessionHead` at the top of a conversation (CLI-06.1, CLI-06.2). `pnpm check` 68 files, 783 tests.
+- [cli/06](../plans/cli/06-papo-usage-and-session-head/plan.md) built: `sessionUsage` in `@doopx/agents`, `Chat.usage` on both backends, `papo usage <session>`, `/chat.usage` in place of `/chat.cost`, the `ChatSessionHead` at the top of a conversation (CLI-06.1, CLI-06.2). `pnpm check` 68 files, 783 tests.
 - cli/04 `deferred.md` audited against the transcripts: `auto` and `steer` were the assistant's defaults recorded as the user's; `alt+enter` and `memory_write` were never asked. Rows corrected; the rule (one decision per option, the clicked label is the answer) is in memory.
 - textui 0.6.1 is published; papo and ahpc depend on it from the registry. `@textui/chat@0.6.0` is deprecated (published with `workspace:` ranges).
 

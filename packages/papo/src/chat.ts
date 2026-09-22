@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Agent, ApprovalPayload, Message, ModelInfo, PendingRequest, RunHandle, RunRecord, StopReason } from '@facio/agents';
-import { AgentError, compact, contextOf, listSkills, newId, resume, run, sessionUsage } from '@facio/agents';
-import { fileSkillSource } from '@facio/store-file';
+import type { Agent, ApprovalPayload, Message, ModelInfo, PendingRequest, RunHandle, RunRecord, StopReason } from '@doopx/agents';
+import { AgentError, compact, contextOf, listSkills, newId, resume, run, sessionUsage } from '@doopx/agents';
+import { fileSkillSource } from '@doopx/store-file';
 import { AGENT_ID, buildAgent } from './agent.js';
 import { providerFor, splitModel } from './config.js';
 import { createQueues } from './queue.js';

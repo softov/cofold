@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { type RequestContext, type Runner } from "@facio/commands";
+import { type RequestContext, type Runner } from "@doopx/commands";
 import { createMcpServer, diagnose } from "./server.js";
 
 function answer(response: ServerResponse, status: number, message: string): void {

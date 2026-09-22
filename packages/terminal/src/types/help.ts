@@ -1,4 +1,4 @@
-import type { Command, CommandGroup, OptionSpec } from "@facio/commands";
+import type { Command, CommandGroup, OptionSpec } from "@doopx/commands";
 import type { Style } from "./output.js";
 
 export interface HelpOptions {

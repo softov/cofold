@@ -1,7 +1,7 @@
 # Generated documentation
 
 ```ts
-import { reference, agentSkill } from "@facio/docs";
+import { reference, agentSkill } from "@doopx/docs";
 
 reference(registry, { name: "notes", version, description, globals: globalOptions });
 agentSkill(registry, { name: "notes", description: "Read and write the notes on this machine." });

@@ -8,12 +8,12 @@ import type {
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { ConfigurationError, type CommandContext, type OptionSpec } from "@facio/commands";
+import { ConfigurationError, type CommandContext, type OptionSpec } from "@doopx/commands";
 
 export type { ConfigLayerKind, ConfigLayer, ConfigOptions, ResolvedConfig, ConfigProviderOptions } from "./types/config.js";
 
 /**
- * @facio/config - finding the configuration, not parsing it.
+ * @doopx/config - finding the configuration, not parsing it.
  *
  * The boring resolution order everybody implements slightly differently and
  * slightly wrong: an explicit path over an environment variable over a project
@@ -25,7 +25,7 @@ export type { ConfigLayerKind, ConfigLayer, ConfigOptions, ResolvedConfig, Confi
  * Reading a file is not parsing one. `parse` is injected and defaults to JSON,
  * which every runtime already has, so this package stays at zero dependencies
  * and a program that wants YAML or TOML brings its own reader. That is the same
- * seam `@facio/remote` uses for a manifest: the shape is ours, the syntax is
+ * seam `@doopx/remote` uses for a manifest: the shape is ours, the syntax is
  * somebody else's problem.
  */
 

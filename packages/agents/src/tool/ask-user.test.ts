@@ -2,7 +2,7 @@ import type { AskQuestion } from '../types/ask.js';
 import type { ToolContext } from '../types/tool.js';
 import { describe, expect, it } from 'vitest';
 import { PauseSignal } from '../run/pause.js';
-import { validateSchema } from '@facio/sdk';
+import { validateSchema } from '@doopx/sdk';
 import { createAskUserTool, renderAnswers, validateAnswers } from './ask-user.js';
 
 const tool = createAskUserTool();

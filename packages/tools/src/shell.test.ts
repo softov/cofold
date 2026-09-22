@@ -2,8 +2,8 @@ import { mkdtemp, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { CapabilityArgs, Tool, ToolContext } from '@facio/agents';
-import { createMemoryStore } from '@facio/agents';
+import type { CapabilityArgs, Tool, ToolContext } from '@doopx/agents';
+import { createMemoryStore } from '@doopx/agents';
 import { DEFAULT_SHELL, execShell, shell } from './shell.js';
 
 const WINDOWS = process.platform === 'win32';

@@ -56,7 +56,7 @@ export function createAgent<Resources = Record<string, unknown>>(options: AgentO
     store = createMemoryStore();
     if (!warnedMemoryStore) {
       warnedMemoryStore = true;
-      warn(`@facio/agents: agent "${options.id}" has no store; using an in-memory store (nothing persists). Pass store: createFileStore(...) for anything but tests.`);
+      warn(`@doopx/agents: agent "${options.id}" has no store; using an in-memory store (nothing persists). Pass store: createFileStore(...) for anything but tests.`);
     }
   }
 

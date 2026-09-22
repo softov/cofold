@@ -1,11 +1,11 @@
-# @facio/model-openai-compat
+# @doopx/model-openai-compat
 
-Chat Completions adapter for `@facio/agents`, streaming by default.
+Chat Completions adapter for `@doopx/agents`, streaming by default.
 `openaiCompatProvider({...})` returns a `ModelProvider` (catalog + adapter factory); `openaiCompat({...})` is the one-model shortcut.
 The target server is configuration only.
 
 ```ts
-import { openaiCompat } from '@facio/model-openai-compat';
+import { openaiCompat } from '@doopx/model-openai-compat';
 
 // LM Studio (no key)
 const local = openaiCompat({ baseUrl: 'http://localhost:1234/v1', model: 'qwen/qwen3-8b' });
@@ -22,7 +22,7 @@ const hosted = openaiCompat({
 ## Catalog
 
 ```ts
-import { openaiCompatProvider } from '@facio/model-openai-compat';
+import { openaiCompatProvider } from '@doopx/model-openai-compat';
 
 const provider = openaiCompatProvider({ baseUrl: 'https://openrouter.ai/api/v1', apiKey, name: 'openrouter' });
 const models = await provider.listModels();      // GET <baseUrl>/models

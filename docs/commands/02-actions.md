@@ -142,10 +142,10 @@ surfaces: { cli: true, mcp: false, docs: true }                     // command
 
 `mcp` is off unless a command says otherwise: registering a package of commands must never quietly hand an agent a set of arbitrary mutation tools.
 
-`meta` is for whatever an adapter needs and the core does not understand. It is ignored by the core and typed by whoever owns the key: `@facio/remote` widens both `Surfaces` and `CommandMeta` by declaration merging, so `surfaces.http` is checked where it is written while the core still knows no protocol. An adapter that grows a key does the same, in its own file:
+`meta` is for whatever an adapter needs and the core does not understand. It is ignored by the core and typed by whoever owns the key: `@doopx/remote` widens both `Surfaces` and `CommandMeta` by declaration merging, so `surfaces.http` is checked where it is written while the core still knows no protocol. An adapter that grows a key does the same, in its own file:
 
 ```ts
-declare module "@facio/commands" {
+declare module "@doopx/commands" {
   interface Surfaces { grpc?: { service: string; method: string } }
 }
 ```

@@ -8,7 +8,7 @@
  * library has made the choice for every program built on it.
  */
 
-import type { StandardIssue, StandardSchema } from "@facio/sdk";
+import type { StandardIssue, StandardSchema } from "@doopx/sdk";
 
 
 export function isStandardSchema(value: unknown): value is StandardSchema {

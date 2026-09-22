@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { ConfigurationError } from "@facio/commands";
+import { ConfigurationError } from "@doopx/commands";
 
 /** A toy store, so the example is about the framework and not about a database. */
 

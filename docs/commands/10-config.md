@@ -3,7 +3,7 @@
 Where the configuration is, not what is in it.
 
 ```ts
-import { configProvider, configGlobal } from "@facio/config";
+import { configProvider, configGlobal } from "@doopx/config";
 
 const registry = createRegistry().provide("config", configProvider({ name: "depot" }));
 
@@ -49,7 +49,7 @@ config.layers;                  // every file that contributed, in order
 
 ## Bringing a parser
 
-`@facio/commands` has zero runtime dependencies and a configuration file is not worth breaking that for, so this module finds and layers files and does not parse them. JSON is the default because every runtime already has it; anything else is injected:
+`@doopx/commands` has zero runtime dependencies and a configuration file is not worth breaking that for, so this module finds and layers files and does not parse them. JSON is the default because every runtime already has it; anything else is injected:
 
 ```ts
 configProvider({
@@ -59,7 +59,7 @@ configProvider({
 });
 ```
 
-Which is the same seam [`@facio/remote`](09-remote.md) uses for a manifest: the shape is this library's, the syntax is somebody else's.
+Which is the same seam [`@doopx/remote`](09-remote.md) uses for a manifest: the shape is this library's, the syntax is somebody else's.
 
 ## Why a provider
 

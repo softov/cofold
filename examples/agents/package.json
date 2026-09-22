@@ -15,8 +15,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@facio/agents": "workspace:*",
-    "@facio/model-openai-compat": "workspace:*",
-    "@facio/store-file": "workspace:*"
+    "@doopx/agents": "workspace:*",
+    "@doopx/model-openai-compat": "workspace:*",
+    "@doopx/store-file": "workspace:*"
   }
 }

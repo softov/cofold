@@ -13,10 +13,10 @@
  */
 
 import type { Coercer } from "./types/coerce.js";
-import type { JsonSchema } from "@facio/sdk";
+import type { JsonSchema } from "@doopx/sdk";
 import { compact } from "./compact.js";
 import { ArgumentError } from "./errors.js";
-import { validateSchema } from "@facio/sdk";
+import { validateSchema } from "@doopx/sdk";
 
 /** What a person is told the value must be, built from the schema alone. */
 export function expectationOf(schema: JsonSchema): string {

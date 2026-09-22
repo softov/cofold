@@ -8,8 +8,8 @@ npm add facio
 
 ```ts
 #!/usr/bin/env node
-import { createRegistry, output } from "@facio/commands";
-import { Program, runEntry } from "@facio/terminal";
+import { createRegistry, output } from "@doopx/commands";
+import { Program, runEntry } from "@doopx/terminal";
 
 const registry = createRegistry();
 

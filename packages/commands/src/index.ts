@@ -1,5 +1,5 @@
 /**
- * @facio/commands - a command is data.
+ * @doopx/commands - a command is data.
  *
  * Nothing in this package knows what a terminal is. It holds the declaration
  * (`command.ts`), the capabilities a command declares it needs (`registry.ts`),
@@ -87,7 +87,7 @@ export type {
   StandardIssue,
   StandardResult,
   StandardSchema,
-} from "@facio/sdk";
+} from "@doopx/sdk";
 export type {
   AuthorizeRequest,
   ExecuteOptions,

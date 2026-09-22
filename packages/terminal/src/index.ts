@@ -1,5 +1,5 @@
 /**
- * @facio/terminal - the terminal rendering of a registry.
+ * @doopx/terminal - the terminal rendering of a registry.
  *
  * Argv in, one of three output shapes out, and nothing about what the commands
  * mean. Everything here is true of every command in every program: the standard

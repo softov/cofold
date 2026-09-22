@@ -1,5 +1,5 @@
 {
-  "name": "@facio/config",
+  "name": "@doopx/config",
   "version": "0.2.0",
   "type": "module",
   "description": "Layered configuration as a capability: explicit path over environment over project file over user file, each saying where a value came from.",
@@ -8,7 +8,7 @@
   "funding": "https://github.com/sponsors/softov",
   "homepage": "https://github.com/softov/facio#readme",
   "bugs": {
-    "url": "https://github.com/softov/facio/issues"
+    "url": "https://github.com/softov/doopx/issues"
   },
   "engines": {
     "node": ">=22"
@@ -50,6 +50,6 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@facio/commands": "workspace:^"
+    "@doopx/commands": "workspace:^"
   }
 }

@@ -27,7 +27,7 @@ The transcript opens with the session's identity, settings, place and usage (use
 
 ## Validation
 
-`pnpm vitest run --project @facio/papo`; by hand, the head after the first message.
+`pnpm vitest run --project @doopx/papo`; by hand, the head after the first message.
 
 ## Resume
 

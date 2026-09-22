@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { CapabilityArgs, Tool, ToolContext } from '@facio/agents';
-import { createMemoryStore } from '@facio/agents';
+import type { CapabilityArgs, Tool, ToolContext } from '@doopx/agents';
+import { createMemoryStore } from '@doopx/agents';
 import type { SearchProvider } from './types/web.js';
 import { htmlToText, web } from './web.js';
 import { brave } from './search/brave.js';

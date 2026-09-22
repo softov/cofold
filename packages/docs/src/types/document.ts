@@ -1,4 +1,4 @@
-import type { OptionSpec } from "@facio/commands";
+import type { OptionSpec } from "@doopx/commands";
 export interface DocumentOptions {
   name: string;
   version?: string;

@@ -1,17 +1,17 @@
 import type { StdioOptions, StdioServer } from "./types/stdio.js";
 import { StringDecoder } from "node:string_decoder";
 import type { Readable, Writable } from "node:stream";
-import type { Command, RequestContext, Runner } from "@facio/commands";
+import type { Command, RequestContext, Runner } from "@doopx/commands";
 import { callTool, tools, UnknownToolError } from "./index.js";
 
 export type { StdioOptions, StdioServer } from "./types/stdio.js";
 
 /**
- * @facio/mcp/stdio - the tool descriptors, spoken.
+ * @doopx/mcp/stdio - the tool descriptors, spoken.
  *
- * `@facio/mcp` stops at descriptors, which leaves every program that wants to be
+ * `@doopx/mcp` stops at descriptors, which leaves every program that wants to be
  * an MCP server writing the same read loop. This is that loop, and it is here
- * rather than behind an SDK for the same reason `@facio/yaml` is: the subset a
+ * rather than behind an SDK for the same reason `@doopx/yaml` is: the subset a
  * tools-only server needs is small and stable, and a dependency that drags in a
  * web framework to read newline-delimited JSON is a poor trade for a library
  * whose entire argument is that a command declaration is enough.

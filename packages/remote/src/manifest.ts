@@ -18,7 +18,7 @@ import {
   type JsonSchema,
   type OptionSpec,
   type Runner,
-} from "@facio/commands";
+} from "@doopx/commands";
 
 /**
  * A command, over the wire.
@@ -37,7 +37,7 @@ import {
 export const MANIFEST_VERSION = 1;
 
 /** How one command becomes one request. Ordinary REST, described. */
-declare module "@facio/commands" {
+declare module "@doopx/commands" {
   /**
    * HTTP as a surface an action declares, on the same footing as `cli` and
    * `mcp`. The key is owned here, so the core carries a binding it never reads.
@@ -47,7 +47,7 @@ declare module "@facio/commands" {
   }
 
   interface CommandMeta {
-    /** How this command becomes one request. Read by `@facio/remote` alone. */
+    /** How this command becomes one request. Read by `@doopx/remote` alone. */
     http?: HttpBinding;
     /** The program a command was built from, on the commands `commandsFrom` returns. */
     remote?: string;

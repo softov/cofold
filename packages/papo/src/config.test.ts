@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ConfigurationError } from '@facio/commands';
+import { ConfigurationError } from '@doopx/commands';
 import { indentOf, loadConfig, providerFor, providersOf, rememberConfig, splitModel, userConfigPath } from './config.js';
 
 let root: string;

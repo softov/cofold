@@ -52,7 +52,7 @@ Nothing else changes: a loaded tool is the same `Tool`, with the same effects, t
 | 6 | A call to a deferred tool that was never loaded is executed anyway if the arguments validate (the model may have remembered the schema from an earlier session); the definition is loaded as a side effect. What is denied is what is denied today: unknown names and invalid arguments | Refusing a valid call to make a point costs a step for nothing |
 | 7 | `AgentDefinition.tools` stays the agent's own names; `AgentDefinition.deferred: string[]` lists the deferred ones among them (capability tools are per run and are not in the definition, as today) | An adapter that advertises the agent can say what is on demand |
 | 8 | Events: none new. `load_tools` is a tool call like any other (`tool.proposed`, `tool.started`, `tool.completed`); the step log has it | Nothing to add to the projection in papo |
-| 9 | `@facio/tools` (TOOLS-01) stays non-deferred by default; the MCP client (its own plan) contributes its servers with `defer: { over: 0 }` unless told otherwise; papo exposes nothing new | The program decides; the harness has the mechanism |
+| 9 | `@doopx/tools` (TOOLS-01) stays non-deferred by default; the MCP client (its own plan) contributes its servers with `defer: { over: 0 }` unless told otherwise; papo exposes nothing new | The program decides; the harness has the mechanism |
 
 ## Proposed architecture
 

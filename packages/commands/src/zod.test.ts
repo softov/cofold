@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import type { JsonSchema } from "@facio/sdk";
+import type { JsonSchema } from "@doopx/sdk";
 import { check } from "./coerce.js";
-import { assertSupportedSchema } from "@facio/sdk";
+import { assertSupportedSchema } from "@doopx/sdk";
 
 /**
  * What Zod writes is what a command declares.

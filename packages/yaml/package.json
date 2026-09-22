@@ -1,5 +1,5 @@
 {
-  "name": "@facio/yaml",
+  "name": "@doopx/yaml",
   "version": "0.2.0",
   "type": "module",
   "description": "YAML parsing and document loading with local and remote references, no dependencies.",
@@ -8,7 +8,7 @@
   "funding": "https://github.com/sponsors/softov",
   "homepage": "https://github.com/softov/facio#readme",
   "bugs": {
-    "url": "https://github.com/softov/facio/issues"
+    "url": "https://github.com/softov/doopx/issues"
   },
   "engines": {
     "node": ">=22"

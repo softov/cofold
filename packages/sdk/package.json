@@ -1,5 +1,5 @@
 {
-  "name": "@facio/sdk",
+  "name": "@doopx/sdk",
   "version": "0.2.0",
   "type": "module",
   "description": "What the facio packages share: JSON Schema and the one validator that holds a value to it, the Standard Schema interface.",
@@ -13,7 +13,7 @@
   },
   "homepage": "https://github.com/softov/facio#readme",
   "bugs": {
-    "url": "https://github.com/softov/facio/issues"
+    "url": "https://github.com/softov/doopx/issues"
   },
   "keywords": [
     "json-schema",

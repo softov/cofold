@@ -1,5 +1,5 @@
 /**
- * @facio/sdk - the contracts two packages must agree on.
+ * @doopx/sdk - the contracts two packages must agree on.
  *
  * One thing per file: a JSON Schema, the one validator that holds a value to
  * it, what that reports, and the Standard Schema interface a third-party

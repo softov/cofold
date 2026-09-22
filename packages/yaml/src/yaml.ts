@@ -1,7 +1,7 @@
 import type { YamlParseOptions } from "./types/parse.js";
 
 /**
- * @facio/yaml reads a documented YAML subset as plain data, without I/O or dependencies.
+ * @doopx/yaml reads a documented YAML subset as plain data, without I/O or dependencies.
  * Unsupported syntax is rejected rather than interpreted approximately.
  * File loading, document composition, and reference resolution belong to callers.
  */

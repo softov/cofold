@@ -4,16 +4,16 @@ Facio offers three layers, and only the last one costs a dependency.
 
 | Import | Speaks | Dependencies |
 | --- | --- | --- |
-| `@facio/mcp` | Tool descriptors and calls, no transport | none |
-| `@facio/mcp/stdio` | A complete stdio MCP server | none |
-| `@facio/mcp/server` | Streamable HTTP, through the official SDK | the MCP SDK, as an optional peer |
+| `@doopx/mcp` | Tool descriptors and calls, no transport | none |
+| `@doopx/mcp/stdio` | A complete stdio MCP server | none |
+| `@doopx/mcp/server` | Streamable HTTP, through the official SDK | the MCP SDK, as an optional peer |
 
 Most programs want the middle one. An agent launches a CLI as a subprocess and talks to it over two pipes, and newline-delimited JSON-RPC is not worth a web framework. Reach for the SDK when you need HTTP.
 
 ## Tool adapter
 
 ```ts
-import { listTools, callTool, tools } from "@facio/mcp";
+import { listTools, callTool, tools } from "@doopx/mcp";
 
 listTools(registry);
 await callTool(registry, "note_list", { limit: 5 });
@@ -26,8 +26,8 @@ The existing `callTool` helper returns data serialized into text. Expected argum
 ## Serve over stdio
 
 ```ts
-import { createRegistry, output } from "@facio/commands";
-import { serveStdio } from "@facio/mcp/stdio";
+import { createRegistry, output } from "@doopx/commands";
+import { serveStdio } from "@doopx/mcp/stdio";
 
 const registry = createRegistry();
 registry.action({
@@ -55,7 +55,7 @@ Facio installs no signal handlers and never calls `process.exit`. The process is
 
 Everything else is refused by name rather than half-answered. There is no pagination, because a registry is a declared set rather than a query result. There are no resources, prompts, sampling, elicitation or tasks. A `tools/call` carrying a task is rejected before the handler runs.
 
-The subset is fixed deliberately, and it is verified the only way that means anything: [`stdio.test.ts`](../../packages/mcp/src/stdio.test.ts) drives the example server as a subprocess using the official SDK client, so the hand-written protocol is checked against the reference implementation on every run. The SDK is a development dependency of Facio for that test and for the HTTP server. It is never a runtime dependency of yours unless you import `@facio/mcp/server`.
+The subset is fixed deliberately, and it is verified the only way that means anything: [`stdio.test.ts`](../../packages/mcp/src/stdio.test.ts) drives the example server as a subprocess using the official SDK client, so the hand-written protocol is checked against the reference implementation on every run. The SDK is a development dependency of Facio for that test and for the HTTP server. It is never a runtime dependency of yours unless you import `@doopx/mcp/server`.
 
 ### Registering it with a client
 
@@ -77,7 +77,7 @@ Only for Streamable HTTP:
 npm install facio @modelcontextprotocol/sdk@^1.30.0 zod
 ```
 
-The SDK is an optional peer, so it is never installed on your behalf. Every other package, the tool adapter and the stdio server all work without it, which [`package.test.ts`](../../packages/mcp/src/server/package.test.ts) checks by staging `@facio/mcp` and `@facio/commands` in an empty directory with nothing else installed and importing the entry points.
+The SDK is an optional peer, so it is never installed on your behalf. Every other package, the tool adapter and the stdio server all work without it, which [`package.test.ts`](../../packages/mcp/src/server/package.test.ts) checks by staging `@doopx/mcp` and `@doopx/commands` in an empty directory with nothing else installed and importing the entry points.
 
 The HTTP server does require the SDK and everything the SDK requires, Zod included. That subpath is not dependency-free and the README does not claim it is. Facio still does not ask you to rewrite action schemas in Zod: it hands the SDK the JSON Schema the registry already produced.
 
@@ -133,7 +133,7 @@ The SDK server's `visible(command, context, scopes)` filters both listing and in
 ## Streamable HTTP
 
 ```ts
-import { listenMcpHttp } from "@facio/mcp/server";
+import { listenMcpHttp } from "@doopx/mcp/server";
 
 const listener = await listenMcpHttp(registry, {
   name: "my-system",
@@ -157,7 +157,7 @@ The handler limits JSON bodies to 1 MiB by default (`maxBodyBytes`). Only POST i
 ### Mount in an existing server
 
 ```ts
-import { createMcpHttpHandler } from "@facio/mcp/server";
+import { createMcpHttpHandler } from "@doopx/mcp/server";
 
 const handleMcp = createMcpHttpHandler(registry, {
   name: "my-system",

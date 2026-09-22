@@ -1,5 +1,5 @@
 import type { OutputMode } from "./types/output.js";
-import { displayValue, type Io, type Output } from "@facio/commands";
+import { displayValue, type Io, type Output } from "@doopx/commands";
 import { renderDocument, renderJson, renderTable } from "./render.js";
 
 /**

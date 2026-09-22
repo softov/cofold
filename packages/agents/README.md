@@ -1,4 +1,4 @@
-# @facio/agents
+# @doopx/agents
 
 Agent runtime: contracts, JSON Schema validation, `createTool`, `createAgent`, `run`, `resume`, `createAskUserTool`, `skills`, an in-memory `Store`, and a scripted fake model.
 Zero runtime dependencies.
@@ -7,7 +7,7 @@ A model conducts a conversation, proposes tools, the runtime authorizes and exec
 ## Install
 
 ```bash
-pnpm add @facio/agents
+pnpm add @doopx/agents
 ```
 
 Node >= 22, ESM only.
@@ -15,7 +15,7 @@ Node >= 22, ESM only.
 ## Define a tool
 
 ```ts
-import { createTool } from '@facio/agents';
+import { createTool } from '@doopx/agents';
 
 const echo = createTool<{ text: string }>({
   name: 'echo',
@@ -33,7 +33,7 @@ It returns a `string` or `{ content, detail? }`: `content` is what the model see
 ## Validate model-supplied arguments
 
 ```ts
-import { validateSchema } from '@facio/agents';
+import { validateSchema } from '@doopx/agents';
 
 const result = validateSchema<{ text: string }>({ schema: echo.input, value: { text: 'hi' } });
 if (result.ok) result.value.text; // typed, defaults applied
@@ -48,7 +48,7 @@ Types are never coerced: `"3"` is not an integer.
 ## Run one turn
 
 ```ts
-import { createAgent, run, textOf } from '@facio/agents';
+import { createAgent, run, textOf } from '@doopx/agents';
 
 const agent = createAgent({ id: 'support', instructions: 'Answer briefly.', model, tools: [echo], store });
 const handle = run({ agent, session: 'sess-1', input: 'Say hello' });
@@ -87,7 +87,7 @@ The outcome is `awaiting { sessionId, runId, requestId, kind: 'approval' | 'inpu
 The process may exit here; everything needed to continue is in the store.
 
 ```ts
-import { resume } from '@facio/agents';
+import { resume } from '@doopx/agents';
 
 const handle = resume({ agent, sessionId, runId });   // replays the stored events, then waits for a command
 await handle.submit({ type: 'approve', requestId });   // or { type: 'approve', requestId, input, alwaysApprove }
@@ -112,7 +112,7 @@ A durable store hands a `running` run's writer claim to a new process only when 
 `rules()` builds a `Policy` from lists of `Rule { tool, match? }`, the harness's counterpart to Claude's permission rules (decision 117).
 
 ```ts
-import { rules } from '@facio/agents';
+import { rules } from '@doopx/agents';
 
 const policy = rules({
   deny: [{ tool: 'shell_exec', match: 'rm *' }],
@@ -133,7 +133,7 @@ A tool declares its subject next to `effects`: `subject: (input) => input.comman
 It is not added to any agent by default.
 
 ```ts
-import { createAskUserTool } from '@facio/agents';
+import { createAskUserTool } from '@doopx/agents';
 
 const agent = createAgent({ ..., tools: [createAskUserTool()] });
 // the model calls ask_user({ questions: [{ id: 'lang', question: '...', options: [{ label: 'TypeScript' }, { label: 'Rust' }], allowOther: false }] })
@@ -147,12 +147,12 @@ A tool of your own can pause the same way with `pauseForInput({ questions })`.
 ## Skills
 
 `skills({ sources })` is the first core capability: it lists the available skills under `## skills` in the instructions and adds one `read_skill({ name, path? })` tool.
-A `SkillSource` is `{ list({ workspace }), read({ ref, path? }) }`; `@facio/store-file` ships `fileSkillSource({ root })` for `<root>/skills/<name>/SKILL.md` and `<workspace>/.agents/skills/<name>/SKILL.md`.
+A `SkillSource` is `{ list({ workspace }), read({ ref, path? }) }`; `@doopx/store-file` ships `fileSkillSource({ root })` for `<root>/skills/<name>/SKILL.md` and `<workspace>/.agents/skills/<name>/SKILL.md`.
 Duplicate names across sources: the first source wins, with one warning.
 
 ```ts
-import { skills } from '@facio/agents';
-import { fileSkillSource } from '@facio/store-file';
+import { skills } from '@doopx/agents';
+import { fileSkillSource } from '@doopx/store-file';
 
 const agent = createAgent({ ..., capabilities: [skills({ sources: [fileSkillSource({ root })] })] });
 ```
@@ -192,7 +192,7 @@ const agent = createAgent({ ..., capabilities: [mcpServer({ ..., defer: { over: 
 ## Testing helpers
 
 ```ts
-import { createFakeModel, createMemoryStore } from '@facio/agents/testing';
+import { createFakeModel, createMemoryStore } from '@doopx/agents/testing';
 
 const model = createFakeModel({
   script: [
@@ -209,7 +209,7 @@ The memory store is the reference `Store`: it enforces the writer claim (`writer
 Every `Store` implementation runs the same conformance suite from a vitest file:
 
 ```ts
-import { describeStoreConformance } from '@facio/agents/testing/store-conformance';
+import { describeStoreConformance } from '@doopx/agents/testing/store-conformance';
 
 describeStoreConformance({ name: 'mine', create: () => createMyStore(), dispose: (store) => ... });
 ```

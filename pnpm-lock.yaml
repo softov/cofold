@@ -23,31 +23,31 @@ importers:
 
   examples/agents:
     dependencies:
-      '@facio/agents':
+      '@doopx/agents':
         specifier: workspace:*
         version: link:../../packages/agents
-      '@facio/model-openai-compat':
+      '@doopx/model-openai-compat':
         specifier: workspace:*
         version: link:../../packages/model-openai-compat
-      '@facio/store-file':
+      '@doopx/store-file':
         specifier: workspace:*
         version: link:../../packages/store-file
 
   examples/commands:
     dependencies:
-      '@facio/commands':
+      '@doopx/commands':
         specifier: workspace:*
         version: link:../../packages/commands
-      '@facio/docs':
+      '@doopx/docs':
         specifier: workspace:*
         version: link:../../packages/docs
-      '@facio/mcp':
+      '@doopx/mcp':
         specifier: workspace:*
         version: link:../../packages/mcp
-      '@facio/remote':
+      '@doopx/remote':
         specifier: workspace:*
         version: link:../../packages/remote
-      '@facio/terminal':
+      '@doopx/terminal':
         specifier: workspace:*
         version: link:../../packages/terminal
     devDependencies:
@@ -60,13 +60,13 @@ importers:
 
   packages/agents:
     dependencies:
-      '@facio/sdk':
+      '@doopx/sdk':
         specifier: workspace:^
         version: link:../sdk
 
   packages/commands:
     dependencies:
-      '@facio/sdk':
+      '@doopx/sdk':
         specifier: workspace:^
         version: link:../sdk
     devDependencies:
@@ -76,22 +76,22 @@ importers:
 
   packages/config:
     dependencies:
-      '@facio/commands':
+      '@doopx/commands':
         specifier: workspace:^
         version: link:../commands
 
   packages/docs:
     dependencies:
-      '@facio/commands':
+      '@doopx/commands':
         specifier: workspace:^
         version: link:../commands
 
   packages/mcp:
     dependencies:
-      '@facio/commands':
+      '@doopx/commands':
         specifier: workspace:^
         version: link:../commands
-      '@facio/sdk':
+      '@doopx/sdk':
         specifier: workspace:^
         version: link:../sdk
     devDependencies:
@@ -104,34 +104,34 @@ importers:
 
   packages/model-openai-compat:
     devDependencies:
-      '@facio/agents':
+      '@doopx/agents':
         specifier: workspace:*
         version: link:../agents
 
   packages/papo:
     dependencies:
-      '@facio/agents':
+      '@doopx/agents':
         specifier: workspace:^
         version: link:../agents
-      '@facio/commands':
+      '@doopx/commands':
         specifier: workspace:^
         version: link:../commands
-      '@facio/config':
+      '@doopx/config':
         specifier: workspace:^
         version: link:../config
-      '@facio/model-openai-compat':
+      '@doopx/model-openai-compat':
         specifier: workspace:^
         version: link:../model-openai-compat
-      '@facio/sdk':
+      '@doopx/sdk':
         specifier: workspace:^
         version: link:../sdk
-      '@facio/store-file':
+      '@doopx/store-file':
         specifier: workspace:^
         version: link:../store-file
-      '@facio/terminal':
+      '@doopx/terminal':
         specifier: workspace:^
         version: link:../terminal
-      '@facio/tools':
+      '@doopx/tools':
         specifier: workspace:^
         version: link:../tools
       '@textui/chat':
@@ -156,11 +156,11 @@ importers:
 
   packages/remote:
     dependencies:
-      '@facio/commands':
+      '@doopx/commands':
         specifier: workspace:^
         version: link:../commands
     devDependencies:
-      '@facio/terminal':
+      '@doopx/terminal':
         specifier: workspace:^
         version: link:../terminal
 
@@ -168,19 +168,19 @@ importers:
 
   packages/store-file:
     devDependencies:
-      '@facio/agents':
+      '@doopx/agents':
         specifier: workspace:*
         version: link:../agents
 
   packages/terminal:
     dependencies:
-      '@facio/commands':
+      '@doopx/commands':
         specifier: workspace:^
         version: link:../commands
 
   packages/tools:
     devDependencies:
-      '@facio/agents':
+      '@doopx/agents':
         specifier: workspace:*
         version: link:../agents
 

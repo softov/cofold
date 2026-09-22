@@ -1,7 +1,7 @@
-import type { ModelInfo, ModelParams, ModelProvider, Store, Tool } from '@facio/agents';
-import { createMemoryStore, createTool } from '@facio/agents';
-import { createFakeModel } from '@facio/agents/testing';
-import type { FakeStep } from '@facio/agents/testing';
+import type { ModelInfo, ModelParams, ModelProvider, Store, Tool } from '@doopx/agents';
+import { createMemoryStore, createTool } from '@doopx/agents';
+import { createFakeModel } from '@doopx/agents/testing';
+import type { FakeStep } from '@doopx/agents/testing';
 import { createChat } from './chat.js';
 import { DEFAULT_INSTRUCTIONS } from './config.js';
 import type { Chat } from './types/chat.js';

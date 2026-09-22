@@ -11,7 +11,7 @@ Update it when a plan ships.
 
 ## Code in this repo
 
-`packages/agents` (`@facio/agents`), `packages/store-file`, `packages/model-openai-compat`, `examples/agents`, `docs/agents`: harness phases p1-p3 of [01-harness-core.md](01-harness-core/plan.md) shipped; p5 is planned in part.
+`packages/agents` (`@doopx/agents`), `packages/store-file`, `packages/model-openai-compat`, `examples/agents`, `docs/agents`: harness phases p1-p3 of [01-harness-core.md](01-harness-core/plan.md) shipped; p5 is planned in part.
 
 ## Inputs the domain is built from
 
@@ -43,16 +43,16 @@ Update it when a plan ships.
 
 ## Package family
 
-Published under `@facio/*`.
-The agent core is `@facio/agents`; `facio` (the command framework) stays a separate package and is never imported by the core.
+Published under `@doopx/*`.
+The agent core is `@doopx/agents`; `facio` (the command framework) stays a separate package and is never imported by the core.
 
 ```
 packages/
-  agents/                 @facio/agents            contracts, loop, run handle, step log, memory store, fake model
-  model-openai-compat/    @facio/model-openai-compat
-  store-file/             @facio/store-file       (p3) first durable store: JSONL per session and run
-  store-sqlite/           @facio/store-sqlite     later, same Store contract
-  transport-ahp/          @facio/transport-ahp    (p4)
+  agents/                 @doopx/agents            contracts, loop, run handle, step log, memory store, fake model
+  model-openai-compat/    @doopx/model-openai-compat
+  store-file/             @doopx/store-file       (p3) first durable store: JSONL per session and run
+  store-sqlite/           @doopx/store-sqlite     later, same Store contract
+  transport-ahp/          @doopx/transport-ahp    (p4)
   tools-*/ memory-*/ mcp-*/ transport-*/           later plans
 examples/
 ```

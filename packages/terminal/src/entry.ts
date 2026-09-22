@@ -1,6 +1,6 @@
 import type { EntryOptions } from "./types/entry.js";
 import { stderr } from "node:process";
-import { exitCodeFor, FacioError } from "@facio/commands";
+import { exitCodeFor, FacioError } from "@doopx/commands";
 import type { Program } from "./program.js";
 
 /**

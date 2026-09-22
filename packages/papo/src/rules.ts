@@ -1,5 +1,5 @@
-import type { Rule } from '@facio/agents';
-import { AgentError } from '@facio/agents';
+import type { Rule } from '@doopx/agents';
+import { AgentError } from '@doopx/agents';
 import type { RuleLists } from './types/config.js';
 
 /** `Tool` or `Tool(match)`: a tool name (or `*`) with, in parentheses, the glob over its subject; spaces inside the parentheses are the match's. */

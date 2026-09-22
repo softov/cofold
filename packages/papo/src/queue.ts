@@ -1,5 +1,5 @@
-import type { RunOutcome } from '@facio/agents';
-import { AgentError, newId } from '@facio/agents';
+import type { RunOutcome } from '@doopx/agents';
+import { AgentError, newId } from '@doopx/agents';
 import type { QueueDeps, Queued, Queues } from './types/chat.js';
 
 /** The outcomes after which the head starts; `awaiting` waits on the person and `cancelled` was a cancel (CLI-04.1). */

@@ -12,7 +12,7 @@ import {
   type CommandGroup,
   type OptionNote,
   type OptionSpec,
-} from "@facio/commands";
+} from "@doopx/commands";
 import { renderDefinitions, styleFor } from "./render.js";
 
 /**

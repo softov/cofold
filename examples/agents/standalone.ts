@@ -1,5 +1,5 @@
-import { createAgent, createTool, run, textOf } from '@facio/agents';
-import { createFakeModel, createMemoryStore } from '@facio/agents/testing';
+import { createAgent, createTool, run, textOf } from '@doopx/agents';
+import { createFakeModel, createMemoryStore } from '@doopx/agents/testing';
 
 const echo = createTool<{ text: string }>({
   name: 'echo',

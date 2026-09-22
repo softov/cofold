@@ -1,6 +1,6 @@
-import type { Io } from '@facio/commands';
-import { matchCommand, optionTable, tokenize } from '@facio/commands';
-import { Program } from '@facio/terminal';
+import type { Io } from '@doopx/commands';
+import { matchCommand, optionTable, tokenize } from '@doopx/commands';
+import { Program } from '@doopx/terminal';
 import { GLOBALS, createPapoRegistry } from './commands.js';
 import type { RegistryOptions } from './commands.js';
 

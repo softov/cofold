@@ -1,14 +1,14 @@
-# @facio/tools
+# @doopx/tools
 
-The tools every agent on `@facio/agents` gets, as capabilities: files, shell, web and memory.
+The tools every agent on `@doopx/agents` gets, as capabilities: files, shell, web and memory.
 Each capability is a `Capability` (its tools plus one instructions section), every tool is `createTool`, and nothing here is a second registry.
 Zero dependencies beyond `node:fs`, `node:path` and `node:child_process`.
 
 ## Use
 
 ```ts
-import { createAgent } from '@facio/agents';
-import { brave, files, shell, web } from '@facio/tools';
+import { createAgent } from '@doopx/agents';
+import { brave, files, shell, web } from '@doopx/tools';
 
 const agent = createAgent({ id: 'cli', instructions, model, store, capabilities: [files(), shell(), web({ search: [brave({ apiKey })] })] });
 ```
@@ -28,7 +28,7 @@ Reads go anywhere; `write_file` and `edit_file` declare `effects.destructive`, s
 
 `files({ maxLines, maxMatches })` changes the two defaults.
 Every result is the text the model reads; every refusal is a thrown `Error` with one sentence, which the harness turns into an `isError` result.
-For `rules()` (`@facio/agents`), `read_file`, `write_file` and `edit_file` name the resolved path as their subject: relative to the workspace with forward slashes when inside it (`src/a.ts`, whatever spelling the model used), absolute when outside, so a rule such as `{ tool: 'edit_file', match: 'src/*' }` cannot be slipped past with `./` or `..`; `list_files` and `search_files` name the `pattern`; the memory and web tools declare none and match by name only.
+For `rules()` (`@doopx/agents`), `read_file`, `write_file` and `edit_file` name the resolved path as their subject: relative to the workspace with forward slashes when inside it (`src/a.ts`, whatever spelling the model used), absolute when outside, so a rule such as `{ tool: 'edit_file', match: 'src/*' }` cannot be slipped past with `./` or `..`; `list_files` and `search_files` name the `pattern`; the memory and web tools declare none and match by name only.
 
 ## `shell()`
 

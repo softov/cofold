@@ -1,7 +1,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join, relative, resolve, sep } from 'node:path';
-import { AgentError } from '@facio/agents';
-import type { SkillIndexEntry, SkillSource } from '@facio/agents';
+import { AgentError } from '@doopx/agents';
+import type { SkillIndexEntry, SkillSource } from '@doopx/agents';
 
 const NAME_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 

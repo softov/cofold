@@ -1,8 +1,8 @@
 import type { HttpBinding, Transport } from "./types/manifest.js";
 import type { OpenApiDocument } from "./types/openapi.js";
 import { describe, expect, it } from "vitest";
-import { coerce, createRegistry, output } from "@facio/commands";
-import { Program } from "@facio/terminal";
+import { coerce, createRegistry, output } from "@doopx/commands";
+import { Program } from "@doopx/terminal";
 import { manifestFrom, commandsFrom } from "./manifest.js";
 import { manifestFromOpenApi } from "./openapi.js";
 

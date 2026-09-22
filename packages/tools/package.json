@@ -1,7 +1,7 @@
 {
-  "name": "@facio/tools",
+  "name": "@doopx/tools",
   "version": "0.0.1",
-  "description": "The tools every @facio/agents agent gets: files, shell, web and memory, as capabilities.",
+  "description": "The tools every @doopx/agents agent gets: files, shell, web and memory, as capabilities.",
   "license": "MIT",
   "type": "module",
   "engines": { "node": ">=22" },
@@ -17,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "clean": "rm -rf dist"
   },
-  "peerDependencies": { "@facio/agents": "workspace:*" },
-  "devDependencies": { "@facio/agents": "workspace:*" },
+  "peerDependencies": { "@doopx/agents": "workspace:*" },
+  "devDependencies": { "@doopx/agents": "workspace:*" },
   "publishConfig": { "access": "public" }
 }

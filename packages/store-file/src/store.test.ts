@@ -2,10 +2,10 @@ import { appendFile, cp, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { createAgent, createTool, resume, run } from '@facio/agents';
-import type { RunRecord, Store } from '@facio/agents';
-import { createFakeModel } from '@facio/agents/testing';
-import { describeStoreConformance } from '@facio/agents/testing/store-conformance';
+import { createAgent, createTool, resume, run } from '@doopx/agents';
+import type { RunRecord, Store } from '@doopx/agents';
+import { createFakeModel } from '@doopx/agents/testing';
+import { describeStoreConformance } from '@doopx/agents/testing/store-conformance';
 import { encodeSegment } from './paths.js';
 import { workspaceSlug } from './slug.js';
 import { createFileStore } from './store.js';

@@ -74,12 +74,12 @@ refs:
 
 ## Validation
 
-- `pnpm --filter @facio/agents typecheck` and the two test files; `pnpm check` is green only after task 04 (papo's `policyOf` compiles against `decide`).
+- `pnpm --filter @doopx/agents typecheck` and the two test files; `pnpm check` is green only after task 04 (papo's `policyOf` compiles against `decide`).
 
 ## Resume
 
 - **Done (2026-09-16):** `Policy { decide }` and `PolicyDecision { behavior, reason? }` in `types/agent.ts`; `DEFAULT_POLICY.decide` in `create-agent.ts` (`ask` when destructive, else `allow`); `handleToolCall` restructured around one `decision` after the hook (hook `deny`/`stop` end first; a policy `deny` returns through the `deny` helper with `reason ?? "Denied by policy: <tool>"`; `ask` or a hook `approval` consults the remembered approval; `allow` executes).
-- **Evidence:** `pnpm --filter @facio/agents build` and `typecheck` clean; `tools.test.ts` 20 tests (6 new precedence cases: deny over hook allow, deny without reason, deny over remembered approval, ask over hook allow, allow leaves hook approval with prompt, policy sees the modified input), `create-agent.test.ts` 4 tests, `contracts.test-d.ts` 15 tests (new: `keyof Policy` is exactly `decide`; `behavior` is the three values); all green.
-- **Deviation:** papo's `policyOf` (task 04 step 2, exact code) was moved to `decide` in this task, because the plan's Risks say the three consumers move in the same change and leaving `@facio/papo` not compiling would block the agent editing papo in parallel; `pnpm --filter @facio/papo typecheck` clean. Task 04 keeps the rest of its scope.
+- **Evidence:** `pnpm --filter @doopx/agents build` and `typecheck` clean; `tools.test.ts` 20 tests (6 new precedence cases: deny over hook allow, deny without reason, deny over remembered approval, ask over hook allow, allow leaves hook approval with prompt, policy sees the modified input), `create-agent.test.ts` 4 tests, `contracts.test-d.ts` 15 tests (new: `keyof Policy` is exactly `decide`; `behavior` is the three values); all green.
+- **Deviation:** papo's `policyOf` (task 04 step 2, exact code) was moved to `decide` in this task, because the plan's Risks say the three consumers move in the same change and leaving `@doopx/papo` not compiling would block the agent editing papo in parallel; `pnpm --filter @doopx/papo typecheck` clean. Task 04 keeps the rest of its scope.
 - **Found:** `requireApproval` had no mention in `examples/agents/**` or `docs/agents/**`; `examples/agents/pause-resume.ts:21` says "policy floor: approval required" in a comment, still true in behavior (destructive → `ask`), left as is. No `Denial` record yet: task 02.
 

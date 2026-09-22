@@ -25,10 +25,10 @@ it("keeps every entry point but the SDK server importable with no dependencies i
       await writeFile(join(staged, "package.json"), await readFile(join(packages, name, "package.json")));
     }
     const result = execFileSync(process.execPath, ["--input-type=module", "-e", `
-      for (const name of ['@facio/mcp', '@facio/mcp/stdio']) await import(name);
-      const { serveStdio } = await import('@facio/mcp/stdio');
+      for (const name of ['@doopx/mcp', '@doopx/mcp/stdio']) await import(name);
+      const { serveStdio } = await import('@doopx/mcp/stdio');
       if (typeof serveStdio !== 'function') process.exit(3);
-      try { await import('@facio/mcp/server'); process.exit(2); }
+      try { await import('@doopx/mcp/server'); process.exit(2); }
       catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; }
       process.stdout.write('ok');
     `], { cwd: directory, encoding: "utf8" });

@@ -1,4 +1,4 @@
-import type { CommandGroup, JsonSchema } from "@facio/commands";
+import type { CommandGroup, JsonSchema } from "@doopx/commands";
 export interface ManifestOption {
   name: string;
   short?: string;

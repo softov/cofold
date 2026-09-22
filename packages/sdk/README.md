@@ -1,4 +1,4 @@
-# @facio/sdk
+# @doopx/sdk
 
 **What the facio packages share.** A JSON Schema, the one validator that holds a value to it, and the Standard Schema interface. No dependencies.
 
@@ -14,7 +14,7 @@
 | `StandardResult` | `standard-result.ts` | What its `validate` returns |
 | `StandardIssue` | `standard-issue.ts` | One issue it reports |
 
-Used by [`@facio/commands`](../commands) and [`@facio/agents`](../agents). Part of the [facio](https://github.com/softov/facio) family.
+Used by [`@doopx/commands`](../commands) and [`@doopx/agents`](../agents). Part of the [facio](https://github.com/softov/facio) family.
 
 ## License
 

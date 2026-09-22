@@ -1,5 +1,5 @@
 import type * as sdk from '@anthropic-ai/claude-agent-sdk';
-import { AgentError } from '@facio/agents';
+import { AgentError } from '@doopx/agents';
 
 /** The optional peer: what `createClaudeChat` needs of `@anthropic-ai/claude-agent-sdk`. */
 export type ClaudeSdk = typeof sdk;

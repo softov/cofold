@@ -1,11 +1,11 @@
-import { createRegistry, output } from "@facio/commands";
-import { serveStdio } from "@facio/mcp/stdio";
+import { createRegistry, output } from "@doopx/commands";
+import { serveStdio } from "@doopx/mcp/stdio";
 
 /**
  * The smallest thing that is a real MCP server.
  *
  * No SDK and no dependencies: the registry already holds the name, the
- * description and the input schema, and `@facio/mcp/stdio` is the read loop that
+ * description and the input schema, and `@doopx/mcp/stdio` is the read loop that
  * speaks them. Launch it from any MCP client as a subprocess.
  */
 const registry = createRegistry();

@@ -17,7 +17,7 @@ An agent option would be one more knob; the summary step has no watcher.
 
 `callModel` streams when `agent.model.stream` exists and `agent.model.features.streaming` is true, otherwise calls `complete()`.
 There is no agent option; a host turns streaming off per model with `features: { streaming: false }`.
-`@facio/model-openai-compat` ships `DEFAULT_FEATURES.streaming: true`.
+`@doopx/model-openai-compat` ships `DEFAULT_FEATURES.streaming: true`.
 The compaction summary step always calls `complete()`.
 
 Source: user, 2026-09-16, asked "Whenever the adapter can / Agent option" and "Flip the default to true / Stay false".
