@@ -122,8 +122,8 @@ const BASE = {
  *
  * `@cofold/config` walks the layers (`~/.config/papo/config.json`, the nearest `.papo.json`,
  * `$PAPO_CONFIG`, `--config`); on top of them `PAPO_BASE_URL`, `PAPO_API_KEY` and `PAPO_MODEL` (or the
- * family's `FACIO_*`, which the examples read too) add or replace a provider called `default`, which
- * is how a first run needs no file at all. A `FACIO_MODEL` with no slash names a model of `default`.
+ * family's `COFOLD_*`, which the examples read too) add or replace a provider called `default`, which
+ * is how a first run needs no file at all. A `COFOLD_MODEL` with no slash names a model of `default`.
  * `PAPO_BACKEND` picks the runtime.
  */
 export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: string }): PapoConfig {
@@ -138,10 +138,10 @@ export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: 
   }
   const config = structuredClone(resolved.values) as unknown as PapoConfig;
 
-  // `PAPO_*` over `FACIO_*`: the family's variables (what the examples read) reach papo too.
+  // `PAPO_*` over `COFOLD_*`: the family's variables (what the examples read) reach papo too.
   const variable = (name: string): string | undefined => {
     const own = env[`PAPO_${name}`];
-    const family = env[`FACIO_${name}`];
+    const family = env[`COFOLD_${name}`];
     return own !== undefined && own !== '' ? own : family !== undefined && family !== '' ? family : undefined;
   };
   const baseUrl = variable('BASE_URL');

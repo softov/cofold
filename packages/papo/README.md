@@ -23,7 +23,7 @@ Without a terminal (`papo | cat`, a CI log) the screen prints one frame and exit
 
 `~/.config/papo/config.json`, then the nearest `.papo.json` up from the workspace, then `$PAPO_CONFIG`, then `--config FILE`; later files win key by key.
 `PAPO_BASE_URL` and `PAPO_API_KEY` add or replace a provider called `default`; `PAPO_MODEL` chooses the default model (a bare model id means one of `default`).
-The family's `FACIO_BASE_URL`, `FACIO_API_KEY` and `FACIO_MODEL`, which the examples read, work too; `PAPO_*` wins where both are set.
+The family's `COFOLD_BASE_URL`, `COFOLD_API_KEY` and `COFOLD_MODEL`, which the examples read, work too; `PAPO_*` wins where both are set.
 
 ```json
 {
@@ -108,7 +108,7 @@ chat [-s ID]                    the screen (what a bare `papo` does)
 `--json` on any of them gives the record; `session show --json` is the whole projection the screen draws.
 Every command is a `@cofold/commands` action, so the same declarations are an MCP tool set and an HTTP surface when a program wants them.
 
-Global options: `--workspace DIR` (`PAPO_WORKSPACE`, default the current directory), `--home DIR` (`FACIO_HOME`, default `~/.cofold`), `--config FILE`.
+Global options: `--workspace DIR` (`PAPO_WORKSPACE`, default the current directory), `--home DIR` (`COFOLD_HOME`, default `~/.cofold`), `--config FILE`.
 
 ## The screen
 

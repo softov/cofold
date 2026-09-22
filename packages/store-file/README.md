@@ -10,7 +10,7 @@ Zero dependencies beyond `node:fs`, `node:path`, `node:os`.
 import { createAgent } from '@cofold/agents';
 import { createFileStore, resolveHome } from '@cofold/store-file';
 
-const store = createFileStore({ root: resolveHome({ name: 'cofold' }) });   // $FACIO_HOME or ~/.cofold
+const store = createFileStore({ root: resolveHome({ name: 'cofold' }) });   // $COFOLD_HOME or ~/.cofold
 const agent = createAgent({ id: 'cli', instructions, model, tools, store });
 ```
 

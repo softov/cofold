@@ -83,7 +83,7 @@ function appendRules(held: RuleLists | undefined, added: RuleLists): RuleLists {
 /** What every command shares: where the agent works, where sessions live, which file, which model. */
 export const GLOBALS: readonly OptionSpec[] = [
   { name: '--workspace', short: '-w', value: 'DIR', description: 'Where the agent works; sessions are kept per workspace', env: 'PAPO_WORKSPACE' },
-  { name: '--home', value: 'DIR', description: 'Where sessions and skills are stored (default ~/.cofold)', env: 'FACIO_HOME' },
+  { name: '--home', value: 'DIR', description: 'Where sessions and skills are stored (default ~/.cofold)', env: 'COFOLD_HOME' },
   { name: '--config', short: '-c', value: 'FILE', description: 'Read this configuration file on top of the others' },
   { name: '--backend', short: '-b', value: 'NAME', description: 'What runs the conversation: cofold (the harness here) or claude (Claude Code, through its SDK)' },
 ];
