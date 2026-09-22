@@ -11,7 +11,7 @@ refs:
   - code://packages/papo/src/screen/app.tsx - the textui application
 ---
 
-`papo` talks to the harness in this process: a screen drawn with `@textui/chat` and a shell of `@doopx/commands` actions over the same sessions on disk under `~/.facio`.
+`papo` talks to the harness in this process: a screen drawn with `@textui/chat` and a shell of `@doopx/commands` actions over the same sessions on disk under `~/.doopx`.
 
 ## What was built
 

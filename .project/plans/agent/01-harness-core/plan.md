@@ -27,8 +27,8 @@ The agent is the heart; the harness (stores, transports, tools, memory, networks
 - `ahpd/packages/sdk/src/types/agent.ts` (softov/ahpd) - `Agent` (provider, displayName, chats, multipleDirectories, protectedResources, schema(), defaults(), probe?, directories?, list?, transcript?, create(start)), `BoundTool { definition, run?, owner? }`, `Start { uri, chatUri, settings, tools?, emit, resume?, forkAt?, rewindAt?, credentials? }`.
 - `ahpd/packages/sdk/src/types/session.ts` (softov/ahpd) - `Session` (uri, chatUri, models(), agentId(), forkPoint?, endPoint?, begin(turnId, text, model?), steer?, resume?, cancel, queue, confirm(toolCallId, approved), setTools?, toolCallOwner?, completeToolCall?), `Emit(channel, action)`, `Chosen { id, config }`.
 - `ahpd/packages/agent-claude/src/{claude,session,transcript}.ts` - the only existing backend; the p4 adapter mirrors its structure.
-- `F:\github\facio\src\core\command.ts:192-270` - `Field = JsonSchema & { cli?, env? }`, `ActionDefinition { id, summary, input, required, surfaces, needs, refine?: StandardSchemaV1, run(context) }`.
-- `F:\github\facio\package.json` - tsc build, vitest, `engines.node >= 22`, zero runtime deps, `exports` map with sub-paths; the style to match.
+- `F:\github\doopx\src\core\command.ts:192-270` - `Field = JsonSchema & { cli?, env? }`, `ActionDefinition { id, summary, input, required, surfaces, needs, refine?: StandardSchemaV1, run(context) }`.
+- `F:\github\doopx\package.json` - tsc build, vitest, `engines.node >= 22`, zero runtime deps, `exports` map with sub-paths; the style to match.
 - `.project/research/agent-harness-survey.md` (context and events sections) - the canonical-transcript vs derived-model-view split ("transform must not throw") and event unions with agent/turn/message/tool lifecycle, as seen across the surveyed harnesses.
 - Survey, persistence section - writer claim (`activeWriterRunId`) fence on transcript appends.
 - `opendoop/pood/src/runtime/agents/agent-worker.runtime-types.v4.ts` - `IterationOutcome` closed union, `ToolEffects`, `LoopExitReason`.
@@ -38,9 +38,9 @@ The agent is the heart; the harness (stores, transports, tools, memory, networks
 ### Searches performed
 
 - `ls` of the agents repository - it did not exist beyond `roadmap/`; nothing to reuse in-tree.
-- `npm view @doopx/core` - 404; the `@facio` scope is unused (the user owns `facio`).
+- `npm view @doopx/core` - 404; the `@doopx` scope is unused (the user owns `doopx`).
 - `grep -n "export interface Agent\|export interface Session" ahpd/packages/sdk/src/types/*.ts` - located the two contracts above.
-- `grep -n "StandardSchemaV1\|export type Field" doopx/src/core/*.ts` - facio validates JSON Schema fields itself and accepts an optional Standard Schema `refine`.
+- `grep -n "StandardSchemaV1\|export type Field" doopx/src/core/*.ts` - doopx validates JSON Schema fields itself and accepts an optional Standard Schema `refine`.
 
 ### Runtime path (target, not yet existing)
 
@@ -71,12 +71,12 @@ host (CLI / ahpd adapter / example)
 
 | # | Decision | Rationale / source |
 | --- | --- | --- |
-| 1 | Packages published as `@doopx/*`, core is `@doopx/agents`. (Started in its own repository; since 2026-09-16 part of the `facio` workspace) | User. The command framework is `@doopx/commands`; `facio` is reserved for the program |
+| 1 | Packages published as `@doopx/*`, core is `@doopx/agents`. (Started in its own repository; since 2026-09-16 part of the `doopx` workspace) | User. The command framework is `@doopx/commands`; `doopx` is reserved for the program |
 | 2 | Functional API only: `createAgent`, `createTool`, `createMemoryStore`, `openaiCompat`, ... No classes except `Error` subclasses | User: "keep the functional calls for now". Subclassing can be added later by making `createAgent` return a class instance |
 | 3 | Every factory takes exactly one options object and returns one value; no positional parameters, no definition/deps split | User: "only one object, not multiple params" |
 | 4 | `createTool` (not `defineTool`) | User |
 | 5 | Tool input is a full JSON Schema object (`{ type: 'object', properties, required, ... }`) | User (asked 2026-09-13). Matches MCP/OpenAI wire shape 1:1 |
-| 6 | `@doopx/agents` has zero runtime dependencies: own JSON Schema validator subset, native `fetch`, `crypto.randomUUID` | User (asked 2026-09-13), matches facio |
+| 6 | `@doopx/agents` has zero runtime dependencies: own JSON Schema validator subset, native `fetch`, `crypto.randomUUID` | User (asked 2026-09-13), matches doopx |
 | 7 | No tools by default; `tools` absent means the model gets no tool definitions | User |
 | 8 | Store keyed by session; agent-scoped KV and shared KV scopes live next to it in the same store | User: "key the store by session, with agent-scoped and shared KV scopes next to it" |
 | 9 | Two hook families: intervention hooks return decisions (`beforeModel`, `afterModel`, `beforeTool`, `afterTool`); observers consume `RunEvent`s and return nothing | Spec "Events versus hooks"; user agreed |
@@ -85,7 +85,7 @@ host (CLI / ahpd adapter / example)
 | 12 | Serial tool execution only in phases 1-4 | Spec "Start with serial tool execution" |
 | 13 | First model adapter is non-streaming Chat Completions (`@doopx/model-openai-compat`) covering OpenRouter and LM Studio; adapters report `features` and reject unsupported required features | Spec "Model adapters" |
 | 14 | Run outcome statuses: `completed`, `awaiting`, `stopped`, `cancelled`, `failed`; never a single "done" | Spec "Turn lifecycle" |
-| 15 | `@doopx/agents` never imports `facio`; `fromFacioAction()` is a separate adapter (later plan) | User agreed |
+| 15 | `@doopx/agents` never imports `doopx`; `fromDoopxAction()` is a separate adapter (later plan) | User agreed |
 | 16 | Message parts in v1 contract: `text`, `image`, `toolCall`, `toolResult` | User (asked 2026-09-13) |
 | 17 | Token estimation: `chars / 4` default, `context.estimateTokens` pluggable, adapter may expose `estimateTokens` | User (asked 2026-09-13) |
 | 18 | Tooling: pnpm workspace, vitest, tsc (no bundler), ESM only, Node >= 22, strict TS | User (asked 2026-09-13) |
@@ -131,7 +131,7 @@ A later phase must not assume an earlier phase's infrastructure unless that phas
 
 ## Out of scope for AGENT-01 (named so nobody smuggles them in)
 
-Code mode (`run_code` + generated `.d.ts` + isolate), guardrail package, `agentAsTool`, `createNetwork`, memory hooks, SQLite and Durable Object stores, JSON-RPC / WS / HTTP / MCP-server transports, `fromFacioAction()`, parallel tool execution, session fork / rewind (contract slots only in p3).
+Code mode (`run_code` + generated `.d.ts` + isolate), guardrail package, `agentAsTool`, `createNetwork`, memory hooks, SQLite and Durable Object stores, JSON-RPC / WS / HTTP / MCP-server transports, `fromDoopxAction()`, parallel tool execution, session fork / rewind (contract slots only in p3).
 Each gets its own plan in its domain folder.
 
 ## Cross-layer consistency
@@ -151,7 +151,7 @@ Adapters, stores, transports, and examples import `@doopx/agents` types and neve
 - **Done so far:** p1-p3 shipped (contracts, validator now in `@doopx/sdk`, loop, run handle, file store, durable approvals, resume, writer fence); p5 built in full 2026-09-16 (steering, hook stop, effort levels, dynamic key, cache key, compaction, streaming, usage accounting and cost, the papo contra-validation findings F1, F2, F4, F6, F7); every package's types in `src/types/`.
 - **Next action:** papo (`cli` domain, [cli/04](../../cli/04-papo-harness-adoption/plan.md)) adopts steering (`say` during a turn → `submit(steer)`), `model.delta`, `contextOf`, the interrupt marker, `cost` and the stop reasons; [agent/04](../04-policy-rules/plan.md) task 02 extends `tally()` with `denials`.
 - **Open questions:** none.
-- **Watch out for:** the `@facio` npm scope must be claimed by the user before the first publish; the package names in this plan assume it.
+- **Watch out for:** the `@doopx` npm scope must be claimed by the user before the first publish; the package names in this plan assume it.
 
 ## Final verification checklist
 

@@ -12,7 +12,7 @@ import { createFileStore } from './store.js';
 
 const roots: string[] = [];
 async function tempRoot(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), 'facio-store-'));
+  const root = await mkdtemp(join(tmpdir(), 'doopx-store-'));
   roots.push(root);
   return root;
 }

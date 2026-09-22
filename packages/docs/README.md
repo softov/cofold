@@ -8,7 +8,7 @@ Markdown references for people and for agents, generated from the declaration so
 import { reference, agentSkill } from "@doopx/docs";
 ```
 
-Depends on [`@doopx/commands`](../commands); part of the [facio](https://github.com/softov/facio) family.
+Depends on [`@doopx/commands`](../commands); part of the [doopx](https://github.com/softov/doopx) family.
 The manual page is [`docs/commands/08-generated-docs.md`](../../docs/commands/08-generated-docs.md); the whole framework is described in [`@doopx/commands`](../commands).
 
 ## License

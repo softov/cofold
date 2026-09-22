@@ -6,7 +6,7 @@ import { createAgent, createTool, resume, run, textOf } from '@doopx/agents';
 import { createFakeModel } from '@doopx/agents/testing';
 import { createFileStore } from '@doopx/store-file';
 
-const root = await mkdtemp(join(tmpdir(), 'facio-pause-resume-'));
+const root = await mkdtemp(join(tmpdir(), 'doopx-pause-resume-'));
 let executions = 0;
 const deleteFile = createTool<{ path: string }>({
   name: 'delete_file',

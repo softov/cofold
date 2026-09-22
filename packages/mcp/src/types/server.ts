@@ -28,7 +28,7 @@ export interface McpServerOptions {
   mapError?(error: unknown): CallToolResult | undefined;
   onSuccess?(event: ToolEvent): void | Promise<void>;
   onFailure?(error: unknown, context: McpRequestContext): void | Promise<void>;
-  /** Application-owned diagnostics; never written to stdout by Facio. */
+  /** Application-owned diagnostics; never written to stdout by Doopx. */
   onDiagnostic?(error: unknown): void;
   /** Enable explicit tools/list_changed notifications on this connection. */
   toolListChanged?: boolean;

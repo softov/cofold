@@ -31,7 +31,7 @@ A thought toggles on a mouse click like a tool row does, and an open thought end
 ## Validation
 
 - textui: `pnpm build && pnpm typecheck && pnpm test`; `pnpm docs:check` if it covers the props.
-- facio: `pnpm vitest run --project @doopx/papo` (screen tests) green.
+- doopx: `pnpm vitest run --project @doopx/papo` (screen tests) green.
 - By hand: in `papo`, click a "thought, N words" row: it opens; click again: it closes; open, a rule under the text.
 
 ## Resume

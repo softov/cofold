@@ -28,10 +28,10 @@ Errors carry their own exit code, so the entry point has no `instanceof` ladder:
 | `ConfigurationError` | the machine is not set up | 3 |
 | `AuthorizationError` | set up, but not allowed | 3 |
 | `UnavailableError` | something upstream did not answer | 4 |
-| `FacioError("conflict")` | understood and refused | 1 |
+| `DoopxError("conflict")` | understood and refused | 1 |
 | anything else | | 1 |
 
-Scripts switch on these, so they are part of your surface. Add your own by extending `FacioError` with one of the kinds.
+Scripts switch on these, so they are part of your surface. Add your own by extending `DoopxError` with one of the kinds.
 
 `Program.run` returns an exit code for a run that finished and *throws* for one that did not: turning a failure into a code, printing the sentence and redacting what must not be printed are `runEntry`'s job, so a program that embeds `Program` directly has to catch and call `exitCodeFor` itself.
 

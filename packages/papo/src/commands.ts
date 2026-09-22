@@ -83,9 +83,9 @@ function appendRules(held: RuleLists | undefined, added: RuleLists): RuleLists {
 /** What every command shares: where the agent works, where sessions live, which file, which model. */
 export const GLOBALS: readonly OptionSpec[] = [
   { name: '--workspace', short: '-w', value: 'DIR', description: 'Where the agent works; sessions are kept per workspace', env: 'PAPO_WORKSPACE' },
-  { name: '--home', value: 'DIR', description: 'Where sessions and skills are stored (default ~/.facio)', env: 'FACIO_HOME' },
+  { name: '--home', value: 'DIR', description: 'Where sessions and skills are stored (default ~/.doopx)', env: 'FACIO_HOME' },
   { name: '--config', short: '-c', value: 'FILE', description: 'Read this configuration file on top of the others' },
-  { name: '--backend', short: '-b', value: 'NAME', description: 'What runs the conversation: facio (the harness here) or claude (Claude Code, through its SDK)' },
+  { name: '--backend', short: '-b', value: 'NAME', description: 'What runs the conversation: doopx (the harness here) or claude (Claude Code, through its SDK)' },
 ];
 
 /** Everything a front needs, built once from the program-wide options. */
@@ -129,11 +129,11 @@ export function openPapo(globals: Readonly<Record<string, unknown>>): Papo {
   const workspace = resolve(typeof globals['workspace'] === 'string' ? globals['workspace'] : process.cwd());
   // Checked here because the runtimes fail obscurely without it (the CLI reports a binary that "failed to launch").
   if (!isDirectory(workspace)) throw new ArgumentError(`workspace ${workspace} is not a directory`);
-  const home = typeof globals['home'] === 'string' ? resolve(globals['home']) : resolveHome({ name: 'facio' });
+  const home = typeof globals['home'] === 'string' ? resolve(globals['home']) : resolveHome({ name: 'doopx' });
   const path = typeof globals['config'] === 'string' ? globals['config'] : undefined;
   const config = loadConfig({ cwd: workspace, ...(path !== undefined ? { path } : {}) });
   if (typeof globals['backend'] === 'string') {
-    if (globals['backend'] !== 'facio' && globals['backend'] !== 'claude') throw new ArgumentError(`--backend must be facio or claude, not "${globals['backend']}"`);
+    if (globals['backend'] !== 'doopx' && globals['backend'] !== 'claude') throw new ArgumentError(`--backend must be doopx or claude, not "${globals['backend']}"`);
     config.backend = globals['backend'];
   }
   const chat = config.backend === 'claude'

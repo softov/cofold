@@ -1,7 +1,7 @@
 # @doopx/papo
 
 Talk to an agent that runs in this process.
-`papo` is a screen (the transcript, a composer, the block that asks before a destructive tool runs) and a shell (`papo say`, `papo approve`, `papo session list`) over the same conversations, kept on disk under `~/.facio` per workspace.
+`papo` is a screen (the transcript, a composer, the block that asks before a destructive tool runs) and a shell (`papo say`, `papo approve`, `papo session list`) over the same conversations, kept on disk under `~/.doopx` per workspace.
 The agent reads and edits files, runs commands, fetches the web and keeps notes across sessions (`@doopx/tools`), and asks before anything destructive.
 It is the first program on `@doopx/agents`, and the way a person checks what the harness does.
 
@@ -47,7 +47,7 @@ The family's `FACIO_BASE_URL`, `FACIO_API_KEY` and `FACIO_MODEL`, which the exam
 
 | Key | Meaning |
 | --- | --- |
-| `backend` | `facio` (the harness in this process, the default) or `claude` (Claude Code's runtime through its SDK; see below). `--backend` and `PAPO_BACKEND` override it. |
+| `backend` | `doopx` (the harness in this process, the default) or `claude` (Claude Code's runtime through its SDK; see below). `--backend` and `PAPO_BACKEND` override it. |
 | `providers[].id` | How a model is named: `<id>/<model>`; `papo providers` lists them, `papo models <id>` what one offers. |
 | `model` | `<provider>/<model>`; the first the first provider lists when absent. |
 | `permissions` | Claude Code's modes: `default` (reads run; a tool that writes, destroys or reaches the network asks), `acceptEdits` (as `default`, and `write_file` / `edit_file` inside the workspace run unasked), `bypassPermissions` (everything runs; a deny or ask rule still wins), `dontAsk` (what would ask is denied instead). See below. |
@@ -108,7 +108,7 @@ chat [-s ID]                    the screen (what a bare `papo` does)
 `--json` on any of them gives the record; `session show --json` is the whole projection the screen draws.
 Every command is a `@doopx/commands` action, so the same declarations are an MCP tool set and an HTTP surface when a program wants them.
 
-Global options: `--workspace DIR` (`PAPO_WORKSPACE`, default the current directory), `--home DIR` (`FACIO_HOME`, default `~/.facio`), `--config FILE`.
+Global options: `--workspace DIR` (`PAPO_WORKSPACE`, default the current directory), `--home DIR` (`FACIO_HOME`, default `~/.doopx`), `--config FILE`.
 
 ## The screen
 
@@ -153,7 +153,7 @@ papo --backend claude say -p auto "Run the tests and fix what fails"
 ```
 
 What is the same: the transcript, the confirmation block (the CLI's `canUseTool` becomes it, under the CLI's own sentence when it sends one; `Always, this session` sends the CLI's suggested rules back with every destination rewritten to `session`, so the rule holds for the rest of the session and nothing is written into a settings file; the option is withheld when the CLI says the rule would grant more than the ask), the question form (`AskUserQuestion`), `/compact`, `/usage`, `/status`, the session list, `session show` and `session export`.
-Settings (`model`, `permissions`, `reasoning`) are kept per session in the file store under `--home`, at the same key the facio backend uses, so they survive a restart and `session set` reads the same thing on both backends.
+Settings (`model`, `permissions`, `reasoning`) are kept per session in the file store under `--home`, at the same key the doopx backend uses, so they survive a restart and `session set` reads the same thing on both backends.
 What differs, because it is the CLI's:
 
 - Models are `claude/<name>` as `supportedModels()` lists them; a `model` of another provider in the configuration is ignored with a warning, and the CLI's default is used.
@@ -161,7 +161,7 @@ What differs, because it is the CLI's:
 - `reasoning` is the CLI's `effort` (`off` sends none); changing it on a session with a live process restarts that process on the same session.
 - `autoCompact` stays on: the CLI compacts on its own; `/autocompact` off is refused with that sentence. `/compact` sends the CLI its own command; afterwards the transcript is what the CLI keeps, the summary first (shown as a `(context compacted)` turn) and the turns after it.
 - A decision waits in the process that asked, not on disk: `papo say` that stops at a tool denies it (and every further one the turn stops at) and says so; approvals and answers happen on the screen (`papo chat`), where the process lives.
-- A message said while a turn runs is pushed to the CLI, which takes it into the running turn as its own client does; the CLI records it as a user message, so the transcript shows it as a turn boundary after the tool result. The queue is papo's, the same as on the facio backend.
+- A message said while a turn runs is pushed to the CLI, which takes it into the running turn as its own client does; the CLI records it as a user message, so the transcript shows it as a turn boundary after the tool result. The queue is papo's, the same as on the doopx backend.
 - `session delete` removes the CLI's session file; `session list` is the workspace's sessions in `~/.claude/projects/`.
 - Failed turns are the CLI's result (`error_*`, or a `success` carrying `is_error` when the API refused) and are kept only in the process that saw them; the CLI's transcript has no record of them.
 - `/usage` counts a reply once however many entries the CLI stored it as (it writes one per content block, so thinking, text and a tool call of one reply share an id).

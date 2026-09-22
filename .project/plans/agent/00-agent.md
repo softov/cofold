@@ -20,7 +20,7 @@ Update it when a plan ships.
 | Runtime specification | `.project/specs/agent-harness-spec.md` | Vocabulary (definition / session / turn / step / tool call / hook / event / command), public shape (run handle), turn lifecycle, model adapter rules, tool rules, context assembly, persistence and recovery, ahpd integration, build sequence |
 | Field survey | `.project/research/agent-harness-survey.md` | What 24 harnesses have; which features are table stakes and which are differentiators |
 | ahpd contracts | `ahpd/packages/sdk/src/types/agent.ts`, `session.ts` (softov/ahpd) | The `Agent` / `Session` / `BoundTool` / `Start` shapes the p4 adapter must implement |
-| facio | `F:\github\facio\src\core\command.ts` | `ActionDefinition` (id, summary, `input` as JSON Schema fields, `surfaces`, `needs`, `run`) that `fromFacioAction()` will map onto `createTool()`; tooling style (tsc build, vitest, zero deps) |
+| doopx | `F:\github\doopx\src\core\command.ts` | `ActionDefinition` (id, summary, `input` as JSON Schema fields, `surfaces`, `needs`, `run`) that `fromDoopxAction()` will map onto `createTool()`; tooling style (tsc build, vitest, zero deps) |
 | opendoop / pood | `opendoop/pood/src/runtime/agents/agent-worker.ts`, `opendoop/packages/sdk/src/provider/tool.ts` | Reference for iteration outcomes, tool effects, loop guards, `ToolManifest` fields; not copied, read for shape |
 | Prior art (see `.project/research/agent-harness-survey.md`) | public harnesses surveyed there | Event union style, canonical-transcript vs derived-model-view split, writer fence idea |
 
@@ -44,7 +44,7 @@ Update it when a plan ships.
 ## Package family
 
 Published under `@doopx/*`.
-The agent core is `@doopx/agents`; `facio` (the command framework) stays a separate package and is never imported by the core.
+The agent core is `@doopx/agents`; `doopx` (the command framework) stays a separate package and is never imported by the core.
 
 ```
 packages/

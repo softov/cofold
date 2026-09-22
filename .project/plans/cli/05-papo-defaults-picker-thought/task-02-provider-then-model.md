@@ -61,7 +61,7 @@ With more than one provider configured, the model chip asks which provider, then
 ## Validation
 
 - textui: `pnpm build && pnpm typecheck && pnpm test` green.
-- facio: `pnpm --filter @doopx/papo typecheck`; `pnpm vitest run --project @doopx/papo`; `pnpm check`.
+- doopx: `pnpm --filter @doopx/papo typecheck`; `pnpm vitest run --project @doopx/papo`; `pnpm check`.
 - By hand: two providers -> the chip asks the provider, then the models; one provider -> the models at once.
 
 ## Resume

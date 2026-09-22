@@ -29,8 +29,8 @@ const QUESTION = 'Which one?';
 const tick = (ms = 15): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** The harness in this process, over a scripted model and the memory store. */
-const facio: Rig = {
-  name: 'facio',
+const doopx: Rig = {
+  name: 'doopx',
   open(story) {
     const { tool } = deleteFileTool();
     const gate = gateTool();
@@ -82,7 +82,7 @@ const claude: Rig = {
  * What a `Snapshot` says for the same story must not depend on the runtime (CLI-03 decision 10).
  * Where the two disagree the harness is presumed wrong; the plan's findings list says what is open.
  */
-describe.each([facio, claude])('the chat contract on $name', (rig) => {
+describe.each([doopx, claude])('the chat contract on $name', (rig) => {
   it('say: a session appears, idle, with one complete turn of text', async () => {
     const { chat } = rig.open(['text', 'text']);
     const started = await chat.say({ text: 'Hello there' });

@@ -18,7 +18,7 @@ const call = (input: unknown, signal = new AbortController().signal) => Promise.
 const slashes = (path: string) => path.toLowerCase().replaceAll('\\', '/');
 
 beforeAll(async () => {
-  workspace = await realpath(await mkdtemp(join(tmpdir(), 'facio-shell-')));
+  workspace = await realpath(await mkdtemp(join(tmpdir(), 'doopx-shell-')));
   [tool] = await shell({ timeoutMs: 1500, maxOutputChars: 400 }).tools!(argsFor(workspace)) as [Tool<any, any>];
 });
 afterAll(() => rm(workspace, { recursive: true, force: true }));

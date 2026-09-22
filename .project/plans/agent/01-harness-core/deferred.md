@@ -13,7 +13,7 @@ Named out of scope so nobody smuggles them in; each gets its own plan in its dom
 | memory hooks | scope | memory domain, unplanned |
 | SQLite and Durable Object stores | pluggable behind `Store`; the file store shipped first | store domain, unplanned |
 | JSON-RPC / WS / HTTP / MCP-server transports | scope | transport domain, unplanned |
-| `fromFacioAction()` | scope | commands domain, unplanned |
+| `fromDoopxAction()` | scope | commands domain, unplanned |
 | parallel tool execution | scope | agent domain, unplanned |
 | session fork / rewind | contract slots only in p3 | agent domain, unplanned |
 | p4, the ahpd adapter | the first human consumer is papo instead | transport domain, when wanted |

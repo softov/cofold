@@ -1,7 +1,7 @@
 # Getting started
 
 ```sh
-npm add facio
+npm add doopx
 ```
 
 ## A program

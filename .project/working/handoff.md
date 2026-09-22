@@ -63,7 +63,7 @@ Decisions on disk after the review of 2026-09-16 (25 files reduced to 12, then C
 
 ## How to verify what this handoff claims
 
-- `git status` in `f:\github\facio` shows the modified and new files listed above.
+- `git status` in `f:\github\doopx` shows the modified and new files listed above.
 - `ls .project/decisions` shows 13 files.
 - `rg -n "requireApproval" packages examples docs` finds nothing (agent/04 task 01 moved the three consumers to `decide`).
 - `pnpm check` is green: 67 test files, 761 tests (2026-09-16, run three times after cli/04 closed).

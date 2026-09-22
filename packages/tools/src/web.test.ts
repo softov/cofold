@@ -80,9 +80,9 @@ describe('web()', () => {
       ].slice(0, count + 1),
     };
     const search = (await toolsOf(web({ search: [failing, answering] }))).get('web_search');
-    expect(await call(search, { query: 'facio', count: 2 })).toBe('1. About facio\n   https://a.example/\n   A snippet with space\n2. Two\n   https://b.example/');
+    expect(await call(search, { query: 'doopx', count: 2 })).toBe('1. About doopx\n   https://a.example/\n   A snippet with space\n2. Two\n   https://b.example/');
     const none = (await toolsOf(web({ search: [failing] }))).get('web_search');
-    await expect(call(none, { query: 'facio' })).rejects.toThrow('web_search failed: first: HTTP 429 rate limited');
+    await expect(call(none, { query: 'doopx' })).rejects.toThrow('web_search failed: first: HTTP 429 rate limited');
     const empty = (await toolsOf(web({ search: [{ id: 'e', search: async () => [] }] }))).get('web_search');
     expect(await call(empty, { query: 'nothing' })).toBe('no results for "nothing" (e)');
   });

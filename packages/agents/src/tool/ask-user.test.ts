@@ -42,7 +42,7 @@ describe('createAskUserTool', () => {
 describe('validateAnswers', () => {
   const questions = [single, multi, free];
   it('accepts a complete, well-shaped answer set', () => {
-    expect(validateAnswers(questions, { lang: 'Rust', targets: ['node', 'deno'], name: 'facio' })).toEqual([]);
+    expect(validateAnswers(questions, { lang: 'Rust', targets: ['node', 'deno'], name: 'doopx' })).toEqual([]);
     expect(validateAnswers([multi], { targets: ['anything'] })).toEqual([]);
   });
   it('reports each issue', () => {

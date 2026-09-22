@@ -7,7 +7,7 @@ import {
   type ServerRequest, type ServerNotification,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
-import { FacioError, compact, type Command, type RequestContext, type Runner } from "@doopx/commands";
+import { DoopxError, compact, type Command, type RequestContext, type Runner } from "@doopx/commands";
 import { tools, validateToolOutput } from "../index.js";
 import { registerResourcesAndPrompts } from "./resources.js";
 
@@ -48,7 +48,7 @@ function defaultResult(data: unknown, structured: boolean): CallToolResult {
   };
 }
 
-/** SDK integration over Facio's JSON Schema descriptors; no schema translation into Zod. */
+/** SDK integration over Doopx's JSON Schema descriptors; no schema translation into Zod. */
 export function createMcpServer(registry: Runner, options: McpServerOptions): Server {
   registry.verify();
   tools(registry); // Reject collisions and invalid contracts before accepting a connection.
@@ -106,7 +106,7 @@ export function createMcpServer(registry: Runner, options: McpServerOptions): Se
         if (mapped !== undefined) return CallToolResultSchema.parse(mapped);
       } catch (mappingError: unknown) { diagnose(options, mappingError); }
       const message = extra.signal.aborted ? "Tool cancelled"
-        : error instanceof FacioError && ["argument", "authorization", "conflict"].includes(error.kind)
+        : error instanceof DoopxError && ["argument", "authorization", "conflict"].includes(error.kind)
           ? error.message : "Tool execution failed";
       return { isError: true, content: [{ type: "text", text: message }] };
     }

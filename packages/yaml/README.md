@@ -8,7 +8,7 @@ Parsing with source-aware errors, and document loading with local and remote ref
 import { parseYaml, loadYaml } from "@doopx/yaml";
 ```
 
-Part of the [facio](https://github.com/softov/facio) family.
+Part of the [doopx](https://github.com/softov/doopx) family.
 The manual page is [`docs/commands/11-yaml.md`](../../docs/commands/11-yaml.md); the whole framework is described in [`@doopx/commands`](../commands).
 
 ## License

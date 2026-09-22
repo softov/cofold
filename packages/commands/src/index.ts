@@ -39,7 +39,7 @@ export {
   ArgumentError,
   AuthorizationError,
   ConfigurationError,
-  FacioError,
+  DoopxError,
   UnavailableError,
   exitCodeFor,
 } from "./errors.js";

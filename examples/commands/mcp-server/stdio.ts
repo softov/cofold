@@ -25,7 +25,7 @@ registry.action({
 });
 
 const server = serveStdio(registry, {
-  name: "facio-example",
+  name: "doopx-example",
   version: "1.0.0",
   // Stdout is the protocol's. Everything a person reads goes to stderr.
   onDiagnostic: (error) => process.stderr.write(`${String(error)}\n`),

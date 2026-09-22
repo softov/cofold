@@ -258,13 +258,13 @@ describe("conformance", () => {
     });
     try {
       await client.connect(transport);
-      expect(client.getServerVersion()?.name).toBe("facio-example");
+      expect(client.getServerVersion()?.name).toBe("doopx-example");
       const listed = await client.listTools();
       expect(listed.tools[0]?.name).toBe("greet");
       expect(listed.tools[0]?.annotations?.readOnlyHint).toBe(true);
       expect(listed.tools[0]?.outputSchema?.type).toBe("object");
-      const result = await client.callTool({ name: "greet", arguments: { name: "Facio" } });
-      expect(result.structuredContent).toEqual({ greeting: "Hello, Facio" });
+      const result = await client.callTool({ name: "greet", arguments: { name: "Doopx" } });
+      expect(result.structuredContent).toEqual({ greeting: "Hello, Doopx" });
       expect((await client.callTool({ name: "greet", arguments: { name: "" } })).isError).toBe(true);
       await expect(client.callTool({ name: "absent" })).rejects.toThrow();
       // Still answering after a refusal and a protocol error: stdout was never corrupted.

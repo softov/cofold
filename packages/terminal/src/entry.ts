@@ -1,6 +1,6 @@
 import type { EntryOptions } from "./types/entry.js";
 import { stderr } from "node:process";
-import { exitCodeFor, FacioError } from "@doopx/commands";
+import { exitCodeFor, DoopxError } from "@doopx/commands";
 import type { Program } from "./program.js";
 
 /**
@@ -31,9 +31,9 @@ export async function runEntry(
     process.exitCode = await program.run(argv);
   } catch (error: unknown) {
     options.onError?.(error);
-    const expected = error instanceof FacioError;
+    const expected = error instanceof DoopxError;
     const raw = expected
-      ? (error as FacioError).message
+      ? (error as DoopxError).message
       : `${error instanceof Error ? error.message : "Unexpected failure"}`;
     let secrets: readonly (string | undefined)[] = [];
     try {

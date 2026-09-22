@@ -21,7 +21,7 @@ const call = (name: string, input: unknown) => {
 };
 
 beforeAll(async () => {
-  workspace = await mkdtemp(join(tmpdir(), 'facio-tools-'));
+  workspace = await mkdtemp(join(tmpdir(), 'doopx-tools-'));
   await mkdir(join(workspace, 'src', 'deep'), { recursive: true });
   await mkdir(join(workspace, 'node_modules', 'dep'), { recursive: true });
   await writeFile(join(workspace, 'src', 'a.ts'), 'const a = 1;\nexport const b = a + 1;\n// TODO later\n');

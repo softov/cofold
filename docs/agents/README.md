@@ -1,4 +1,4 @@
-# facio agents
+# doopx agents
 
 An agent harness in TypeScript: a model conducts a conversation, proposes tools, the runtime authorizes and executes them, one turn is a run.
 

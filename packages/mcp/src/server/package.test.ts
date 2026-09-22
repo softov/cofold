@@ -13,13 +13,13 @@ import { fileURLToPath } from "node:url";
  * imported from there.
  */
 it("keeps every entry point but the SDK server importable with no dependencies installed", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "facio-mcp-package-"));
+  const directory = await mkdtemp(join(tmpdir(), "doopx-mcp-package-"));
   try {
     const packages = fileURLToPath(new URL("../../../", import.meta.url));
     await cp(join(packages, "mcp", "dist"), join(directory, "dist"), { recursive: true });
     await writeFile(join(directory, "package.json"), await readFile(join(packages, "mcp", "package.json")));
     for (const name of ["commands", "sdk"]) {
-      const staged = join(directory, "node_modules", "@facio", name);
+      const staged = join(directory, "node_modules", "@doopx", name);
       await mkdir(staged, { recursive: true });
       await cp(join(packages, name, "dist"), join(staged, "dist"), { recursive: true });
       await writeFile(join(staged, "package.json"), await readFile(join(packages, name, "package.json")));

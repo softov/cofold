@@ -6,7 +6,7 @@ import { literalPrefix, parsePattern, commandFor } from "./command.js";
 import { assertSupportedSchema } from "@doopx/sdk";
 import { compact } from "./compact.js";
 import { BaseContext, RESERVED_CONTEXT_KEYS, silentIo } from "./context.js";
-import { ArgumentError, AuthorizationError, FacioError } from "./errors.js";
+import { ArgumentError, AuthorizationError, DoopxError } from "./errors.js";
 
 /**
  * Capabilities, and the registry that resolves them.
@@ -360,4 +360,4 @@ export function validateCommand(command: Command, groups?: readonly CommandGroup
   }
 }
 
-export { ArgumentError, FacioError };
+export { ArgumentError, DoopxError };

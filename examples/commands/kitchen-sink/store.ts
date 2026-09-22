@@ -24,7 +24,7 @@ export interface Store {
 }
 
 export function defaultStorePath(): string {
-  return process.env["NOTES_STORE"] ?? join(homedir(), ".facio", "notes.json");
+  return process.env["NOTES_STORE"] ?? join(homedir(), ".doopx", "notes.json");
 }
 
 export function readNotes(path: string): Note[] {

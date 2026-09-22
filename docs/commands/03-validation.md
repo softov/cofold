@@ -28,7 +28,7 @@ So the rule is: the canonical input is built the same way from argv, from an MCP
 
 ## What a schema may say
 
-The schema type is `JsonSchema` from `@doopx/sdk`, the one definition every facio package shares and the one validator (`validateSchema`) they all call, and it is what `z.toJSONSchema()` writes for the ordinary shapes.
+The schema type is `JsonSchema` from `@doopx/sdk`, the one definition every doopx package shares and the one validator (`validateSchema`) they all call, and it is what `z.toJSONSchema()` writes for the ordinary shapes.
 
 ```ts
 type            string | number | integer | boolean | null | array | object, or a list of them

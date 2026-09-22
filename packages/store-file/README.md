@@ -10,7 +10,7 @@ Zero dependencies beyond `node:fs`, `node:path`, `node:os`.
 import { createAgent } from '@doopx/agents';
 import { createFileStore, resolveHome } from '@doopx/store-file';
 
-const store = createFileStore({ root: resolveHome({ name: 'facio' }) });   // $FACIO_HOME or ~/.facio
+const store = createFileStore({ root: resolveHome({ name: 'doopx' }) });   // $FACIO_HOME or ~/.doopx
 const agent = createAgent({ id: 'cli', instructions, model, tools, store });
 ```
 

@@ -16,7 +16,7 @@ let tools: Map<string, Tool<any, any>>;
 const call = (name: string, input: unknown) => Promise.resolve(tools.get(name)!.execute(input, ctx));
 
 beforeAll(async () => {
-  dir = join(await mkdtemp(join(tmpdir(), 'facio-memory-')), 'memory', 'ws');
+  dir = join(await mkdtemp(join(tmpdir(), 'doopx-memory-')), 'memory', 'ws');
   tools = new Map((await memory({ dir, indexLines: 2 }).tools!(args)).map((t) => [t.name, t]));
 });
 afterAll(() => rm(join(dir, '..', '..'), { recursive: true, force: true }));

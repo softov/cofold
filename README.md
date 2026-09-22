@@ -1,15 +1,15 @@
-# facio
+# doopx
 
 **Declare once. Run it anywhere: a terminal, an agent, a daemon.**
 
 [![license](https://img.shields.io/npm/l/@doopx/commands.svg)](LICENSE)
 [![node](https://img.shields.io/node/v/@doopx/commands.svg)](https://www.npmjs.com/package/@doopx/commands)
 
-facio is one family of TypeScript packages, zero runtime dependencies each, that share a rule: a thing is declared once and every surface is a rendering of that declaration.
+doopx is one family of TypeScript packages, zero runtime dependencies each, that share a rule: a thing is declared once and every surface is a rendering of that declaration.
 For a command, the surfaces are the terminal, MCP, HTTP and a generated reference.
 For an agent, the surface is a run: a model proposes, the harness authorizes and executes, a session remembers.
 `papo` is the first program on both: the harness in a terminal, as a screen and as a shell.
-`facio` itself, the daemon that composes everything, is not built yet; the name is reserved for it.
+`doopx` itself, the daemon that composes everything, is not built yet; the name is reserved for it.
 
 ## Packages
 
@@ -52,7 +52,7 @@ node examples/commands/dist/petshop/cli.js pet add Rex -a 3 -b corgi
 node examples/commands/dist/petshop/cli.js mcp tools
 
 # one turn of an agent, paused for approval, resumed from the store
-pnpm --filter facio-examples-agents run pause-resume
+pnpm --filter doopx-examples-agents run pause-resume
 
 # talk to a model server (LM Studio, Ollama, OpenRouter) from a terminal
 PAPO_BASE_URL=http://localhost:1234/v1 node packages/papo/dist/main.js

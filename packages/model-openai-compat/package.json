@@ -2,22 +2,49 @@
   "name": "@doopx/model-openai-compat",
   "version": "0.1.0",
   "description": "Chat Completions model adapter for @doopx/agents (OpenRouter, LM Studio, any compatible server).",
+  "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "license": "MIT",
+  "homepage": "https://github.com/softov/doopx#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/softov/doopx.git",
+    "directory": "packages/model-openai-compat"
+  },
+  "bugs": {
+    "url": "https://github.com/softov/doopx/issues"
+  },
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
-  "files": ["dist", "src", "!src/**/*.test.ts", "!src/**/*.test-d.ts", "README.md"],
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test-d.ts",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "clean": "rm -rf dist"
   },
-  "peerDependencies": { "@doopx/agents": "workspace:*" },
-  "devDependencies": { "@doopx/agents": "workspace:*" },
-  "publishConfig": { "access": "public" }
+  "peerDependencies": {
+    "@doopx/agents": "workspace:*"
+  },
+  "devDependencies": {
+    "@doopx/agents": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

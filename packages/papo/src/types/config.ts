@@ -55,7 +55,7 @@ export interface ToolsConfig {
 }
 
 /** What runs the conversation: the harness in this process, or Claude Code's runtime through its SDK. */
-export type Backend = 'facio' | 'claude';
+export type Backend = 'doopx' | 'claude';
 
 /** `~/.config/papo/config.json`, `.papo.json`, `PAPO_CONFIG`, `--config`, and the `PAPO_*` variables, merged. */
 export interface PapoConfig {

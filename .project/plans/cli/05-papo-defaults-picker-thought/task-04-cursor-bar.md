@@ -36,7 +36,7 @@ Arrow up and down show which block they are on, on every block kind: an accent b
 ## Validation
 
 - textui: `pnpm build && pnpm typecheck && pnpm test`; `pnpm docs:check`.
-- facio: `pnpm vitest run --project @doopx/papo`; `pnpm check`.
+- doopx: `pnpm vitest run --project @doopx/papo`; `pnpm check`.
 - By hand: arrow through a transcript in `papo`: the bar follows on prose, on the user's lines, on tool rows and thoughts; the selected tool row's text is readable on the blue.
 
 ## Resume

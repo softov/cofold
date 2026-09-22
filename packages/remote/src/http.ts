@@ -1,7 +1,7 @@
 import type { HttpTransportOptions } from "./types/http.js";
 import type { HttpBinding, Transport } from "./types/manifest.js";
 import { basicAuthorization, type CookieJar } from "./auth.js";
-import { compact, UnavailableError, FacioError } from "@doopx/commands";
+import { compact, UnavailableError, DoopxError } from "@doopx/commands";
 import { bodyFields, expandPath, placementOf } from "./manifest.js";
 
 /**
@@ -13,7 +13,7 @@ import { bodyFields, expandPath, placementOf } from "./manifest.js";
  * client's token somewhere else.
  */
 
-export class HttpError extends FacioError {
+export class HttpError extends DoopxError {
   public readonly status: number;
 
   public constructor(status: number, message: string) {

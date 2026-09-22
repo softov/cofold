@@ -78,7 +78,7 @@ rules({ allow, deny, ask, otherwise }) → Policy: first matching rule by list o
 | [119](../../../decisions/policy-deny-overrides-hook.md) | Hook first; a policy `deny` wins over the hook and a remembered approval; `ask` wins over a hook allow | User (2026-09-16) |
 | [112](../../../decisions/no-anthropic-api-adapter.md) | This plan exists because papo's contra-validation found F3; Claude is the reference, never a dependency | User (2026-09-16) |
 
-Settled without a decision, because the reference and facio's no-boilerplate rule leave no fork (details in the task steps):
+Settled without a decision, because the reference and doopx's no-boilerplate rule leave no fork (details in the task steps):
 
 | What | Source | Task |
 | --- | --- | --- |
@@ -103,7 +103,7 @@ Settled without a decision, because the reference and facio's no-boilerplate rul
 
 ## Risks and tradeoffs
 
-- `requireApproval` is removed, not deprecated: one contract, one method (facio's no-boilerplate rule); the three consumers move in the same change.
+- `requireApproval` is removed, not deprecated: one contract, one method (doopx's no-boilerplate rule); the three consumers move in the same change.
 - The glob dialect (`*`, `?`, anchored) is narrower than Claude's per-tool matchers; a rule that needs more (a path under a directory) is written with `*` today. Reversible by a later decision.
 - `denials` is written as a whole list on each update; a run with hundreds of denials rewrites the list each time. Accepted: denials are rare and the record is small.
 

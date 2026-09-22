@@ -1,6 +1,6 @@
 # MCP
 
-Facio offers three layers, and only the last one costs a dependency.
+Doopx offers three layers, and only the last one costs a dependency.
 
 | Import | Speaks | Dependencies |
 | --- | --- | --- |
@@ -45,9 +45,9 @@ await server.closed;
 
 That is the whole server. Nothing else is installed, and `serveStdio` returns as soon as it is listening, so `closed` is what a program awaits to stay alive until the client goes away. Call `server.close()` to stop early.
 
-Stdout carries protocol messages and nothing else. Handlers get `silentIo` from the registry, so `context.write` goes nowhere and there is no accidental corruption to debug, but a handler that reaches for `console.log` directly will still break the stream. Send anything a person should read to `onDiagnostic`, which is called with every failure Facio swallowed.
+Stdout carries protocol messages and nothing else. Handlers get `silentIo` from the registry, so `context.write` goes nowhere and there is no accidental corruption to debug, but a handler that reaches for `console.log` directly will still break the stream. Send anything a person should read to `onDiagnostic`, which is called with every failure Doopx swallowed.
 
-Facio installs no signal handlers and never calls `process.exit`. The process is yours.
+Doopx installs no signal handlers and never calls `process.exit`. The process is yours.
 
 ### What it speaks
 
@@ -55,7 +55,7 @@ Facio installs no signal handlers and never calls `process.exit`. The process is
 
 Everything else is refused by name rather than half-answered. There is no pagination, because a registry is a declared set rather than a query result. There are no resources, prompts, sampling, elicitation or tasks. A `tools/call` carrying a task is rejected before the handler runs.
 
-The subset is fixed deliberately, and it is verified the only way that means anything: [`stdio.test.ts`](../../packages/mcp/src/stdio.test.ts) drives the example server as a subprocess using the official SDK client, so the hand-written protocol is checked against the reference implementation on every run. The SDK is a development dependency of Facio for that test and for the HTTP server. It is never a runtime dependency of yours unless you import `@doopx/mcp/server`.
+The subset is fixed deliberately, and it is verified the only way that means anything: [`stdio.test.ts`](../../packages/mcp/src/stdio.test.ts) drives the example server as a subprocess using the official SDK client, so the hand-written protocol is checked against the reference implementation on every run. The SDK is a development dependency of Doopx for that test and for the HTTP server. It is never a runtime dependency of yours unless you import `@doopx/mcp/server`.
 
 ### Registering it with a client
 
@@ -74,12 +74,12 @@ Most clients take a command and arguments:
 Only for Streamable HTTP:
 
 ```sh
-npm install facio @modelcontextprotocol/sdk@^1.30.0 zod
+npm install doopx @modelcontextprotocol/sdk@^1.30.0 zod
 ```
 
 The SDK is an optional peer, so it is never installed on your behalf. Every other package, the tool adapter and the stdio server all work without it, which [`package.test.ts`](../../packages/mcp/src/server/package.test.ts) checks by staging `@doopx/mcp` and `@doopx/commands` in an empty directory with nothing else installed and importing the entry points.
 
-The HTTP server does require the SDK and everything the SDK requires, Zod included. That subpath is not dependency-free and the README does not claim it is. Facio still does not ask you to rewrite action schemas in Zod: it hands the SDK the JSON Schema the registry already produced.
+The HTTP server does require the SDK and everything the SDK requires, Zod included. That subpath is not dependency-free and the README does not claim it is. Doopx still does not ask you to rewrite action schemas in Zod: it hands the SDK the JSON Schema the registry already produced.
 
 Tested SDK: 1.30.0. Supported range: `^1.30.0`. Node: 22 or newer. See the [official SDK documentation](https://github.com/modelcontextprotocol/typescript-sdk/tree/v1.x).
 
@@ -112,11 +112,11 @@ registry.action({
 
 Explicit names preserve an existing system's tool identities. Derived names retain the existing normalization and truncation. Invalid names and collisions are rejected before serving. Annotations describe behavior; they do not grant permissions.
 
-Both servers return JSON text by default. Declaring an output schema also produces `structuredContent` beside that text, validated against Facio's supported schema vocabulary, so a client that only understands text still sees the same value. Output schemas must describe objects, and unsupported schema keywords are refused rather than advertised and ignored.
+Both servers return JSON text by default. Declaring an output schema also produces `structuredContent` beside that text, validated against Doopx's supported schema vocabulary, so a client that only understands text still sees the same value. Output schemas must describe objects, and unsupported schema keywords are refused rather than advertised and ignored.
 
 The SDK server additionally accepts `encodeResult({ tool, context, data })`, which can return a typed `CallToolResult` carrying images, audio, resource links or embedded resources. This keeps SDK content types out of ordinary action handlers and leaves CLI plain and quiet output intact. The stdio server has no equivalent and returns text plus optional structured content.
 
-An action that completed but returned invalid output is reported as completed with an unusable result, and told not to retry automatically. A handler that partially commits and then throws remains the application's responsibility; Facio cannot infer transaction state.
+An action that completed but returned invalid output is reported as completed with an unusable result, and told not to retry automatically. A handler that partially commits and then throws remains the application's responsibility; Doopx cannot infer transaction state.
 
 ## Authentication, visibility, and authorization
 
@@ -174,7 +174,7 @@ app.all("/mcp", async (request, reply) => {
 });
 ```
 
-The middleware must reject unauthenticated callers before constructing this trusted context. Pass an already parsed body when middleware consumed the stream. Facio checks its serialized size, but middleware must enforce its own input-size limit before parsing. Once handed over, the MCP handler owns the response; do not send a second framework response. Call `handleMcp.close()` during application shutdown.
+The middleware must reject unauthenticated callers before constructing this trusted context. Pass an already parsed body when middleware consumed the stream. Doopx checks its serialized size, but middleware must enforce its own input-size limit before parsing. Once handed over, the MCP handler owns the response; do not send a second framework response. Call `handleMcp.close()` during application shutdown.
 
 ## Cancellation, progress, and lifecycle
 
@@ -229,6 +229,6 @@ The first is a complete MCP server with no dependencies, meant to be launched by
 
 Advisor can retain its operation services and SDK transport ownership while adopting `createMcpServer`, or mount `createMcpHttpHandler` in Fastify. Preserve existing tool names with `meta.mcp.name`; adapt its actor and scope-rank checks through context/visibility/authorization; map `OperationFault` with `mapError`; send successful-write announcements from `onSuccess`.
 
-Advisor's stdio mode is an HTTP client to its selected target. Its Facio action handlers must keep that remote invocation path, including acting-user headers; they must not open Advisor's database locally. Keep existing Zod schemas as refinements or inside domain handlers where needed.
+Advisor's stdio mode is an HTTP client to its selected target. Its Doopx action handlers must keep that remote invocation path, including acting-user headers; they must not open Advisor's database locally. Keep existing Zod schemas as refinements or inside domain handlers where needed.
 
 Advisor itself has not been migrated. Its catalogue baseline, integration tests and deployment remain work in the Advisor repository.

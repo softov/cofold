@@ -47,7 +47,7 @@ export interface ManifestCommand {
 }
 
 export interface ProgramManifest {
-  facio: number;
+  doopx: number;
   program: { name: string; version: string; description?: string };
   groups?: readonly CommandGroup[];
   commands: readonly ManifestCommand[];

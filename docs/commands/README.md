@@ -1,4 +1,4 @@
-# facio documentation
+# doopx documentation
 
 1. [Getting started](01-getting-started.md) - a working CLI in twenty lines
 2. [Actions](02-actions.md) - the declaration, in full

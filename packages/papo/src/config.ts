@@ -33,7 +33,7 @@ const RULE: JsonSchema = {
 const SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
-    backend: { type: 'string', enum: ['facio', 'claude'] },
+    backend: { type: 'string', enum: ['doopx', 'claude'] },
     providers: { type: 'array', items: PROVIDER },
     model: { type: 'string', minLength: 1 },
     permissions: { type: 'string', enum: ['default', 'acceptEdits', 'bypassPermissions', 'dontAsk'] },
@@ -111,7 +111,7 @@ const SCHEMA: JsonSchema = {
 export const DEFAULT_INSTRUCTIONS = 'You are a careful assistant working in the user\'s project. Answer plainly; use the tools you are given when they help.';
 
 const BASE = {
-  backend: 'facio', providers: [], permissions: 'default', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS,
+  backend: 'doopx', providers: [], permissions: 'default', reasoning: 'off', instructions: DEFAULT_INSTRUCTIONS,
   tools: { files: true, shell: true, web: true, memory: true },
   context: { maxTokens: 32_000, autoCompact: true },
   theme: 'paper', shell: 'workbench',
@@ -154,7 +154,7 @@ export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: 
   if (model !== undefined) config.model = model.includes('/') ? model : `default/${model}`;
   const backend = env['PAPO_BACKEND'];
   if (backend !== undefined && backend !== '') {
-    if (backend !== 'facio' && backend !== 'claude') throw new ConfigurationError(`PAPO_BACKEND must be facio or claude, not "${backend}"`);
+    if (backend !== 'doopx' && backend !== 'claude') throw new ConfigurationError(`PAPO_BACKEND must be doopx or claude, not "${backend}"`);
     config.backend = backend;
   }
   return config;

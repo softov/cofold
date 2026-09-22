@@ -8,7 +8,7 @@
 [![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#packages)
 [![license](https://img.shields.io/npm/l/@doopx/commands.svg)](LICENSE)
 
-The command framework of the [facio](https://github.com/softov/facio) family: this package is the declaration, the registry and the input every surface shares; the surfaces are sibling packages, listed under [Packages](#packages).
+The command framework of the [doopx](https://github.com/softov/doopx) family: this package is the declaration, the registry and the input every surface shares; the surfaces are sibling packages, listed under [Packages](#packages).
 
 ## What it is
 
@@ -269,7 +269,7 @@ curl -X POST localhost:8799/pets \
 ### A local CLI
 
 ```sh
-node examples/commands/dist/kitchen-sink/cli.js note add "Ship facio" -t work
+node examples/commands/dist/kitchen-sink/cli.js note add "Ship doopx" -t work
 node examples/commands/dist/kitchen-sink/cli.js note list
 
 # generate the agent-facing reference

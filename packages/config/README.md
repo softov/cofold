@@ -8,7 +8,7 @@ A capability that resolves `--config` over the environment over a project file o
 import { configProvider } from "@doopx/config";
 ```
 
-Depends on [`@doopx/commands`](../commands); part of the [facio](https://github.com/softov/facio) family.
+Depends on [`@doopx/commands`](../commands); part of the [doopx](https://github.com/softov/doopx) family.
 The manual page is [`docs/commands/10-config.md`](../../docs/commands/10-config.md); the whole framework is described in [`@doopx/commands`](../commands).
 
 ## License

@@ -26,7 +26,7 @@ const piped: string[] = [];
 if (!interactive) for await (const line of rl) piped.push(line);
 const answers: AskAnswers = {};
 for (const q of asked) {
-  const fallback = q.options?.[0]?.label ?? 'facio-demo';
+  const fallback = q.options?.[0]?.label ?? 'doopx-demo';
   const prompt = `${q.question}${q.options ? ` [${q.options.map((o) => o.label).join(' | ')}]` : ''} (${fallback}): `;
   const line = interactive ? await rl.question(prompt) : (piped.shift() ?? '');
   answers[q.id] = line.trim() || fallback;

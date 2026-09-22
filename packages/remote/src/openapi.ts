@@ -215,7 +215,7 @@ export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiO
   }
 
   return {
-    facio: 1,
+    doopx: 1,
     program: options.program ?? {
       name: document.info?.title ?? "api",
       version: document.info?.version ?? "0.0.0",

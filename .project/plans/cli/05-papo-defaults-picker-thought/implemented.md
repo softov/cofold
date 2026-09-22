@@ -41,7 +41,7 @@ A provider that cannot be reached no longer hides the others: the chip and `papo
 ## Verified
 
 - `@doopx/papo`: 8 test files, 134 tests green (`screen.test.ts` 14: the one- and two-provider picks, the dead provider beside a live one, the remembered chip; `config.test.ts` "rememberConfig" 7 cases; `commands.test.ts` "remembers -m on a new session...", "lists the providers and the models of each..."; `chat.test.ts` "starts from the configured defaults..." with `model: ''`, "lists the providers that answer when another cannot be reached..."); build and typecheck green.
-- Full facio `pnpm check` on 2026-09-16 after task 05: see the plan's checklist (67 test files, 776 tests, no type errors).
+- Full doopx `pnpm check` on 2026-09-16 after task 05: see the plan's checklist (67 test files, 776 tests, no type errors).
 - textui on 2026-09-16: `pnpm build`, `pnpm typecheck` (every workspace), `pnpm test` (every suite, the playgrounds included), `pnpm lint` (0 errors, 6 pre-existing `no-console` warnings in `examples/`), `pnpm docs:check` (0 errors), `pnpm check:exports` (0 problems). New cases: `packages/testing/test/overlays.test.ts` 2 (the dependent resolver, the default that stood), `packages/chat/test/bubble.test.tsx` 2 (click, divider), `packages/chat/test/transcript.test.tsx` 8 (the click through the transcript, "the cursor" 7).
 - Not run: papo in a terminal with two providers (the chip's two questions), arrowing through a transcript to watch the bar, a thought's mouse click; the user saw the linked build once during task 04 and corrected the header's column, which the tests now pin.
 

@@ -26,8 +26,8 @@ Nothing here is a second registry or a second tool contract: every tool is `crea
 - `packages/agents/src/capabilities/skills.ts` - the shape to copy: an index in the instructions plus one tool; `read_skill` is the precedent for names (snake_case).
 - `packages/papo/src/agent.ts` - `buildAgent` adds `createAskUserTool()` and the `skills` capability; the new capabilities go beside them, from `config.tools`.
 - `F:\github\opendoop\plugins\windows-shell\windows-shell-connector.ts:86-128` - the one-shot runner to copy: `spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { windowsHide: true })`, a timeout that kills, stdout/stderr appended under a byte cap with a `[output truncated]` marker, `{ stdout, stderr, exitCode, timedOut, truncated }`.
-- `F:\github\opendoop\plugins\web-search\providers\{brave,tavily,duckduckgo}.ts` - three pure `fetch` functions returning `{ title, url, snippet }[]`; copied as the shipped search providers (facio takes no dependency on opendoop).
-- `F:\github\opendoop\packages\sdk\src\provider\web-search.ts` - `WebSearchProvider { name, search(query, { maxResults }) }`: the same contract, renamed to facio's words.
+- `F:\github\opendoop\plugins\web-search\providers\{brave,tavily,duckduckgo}.ts` - three pure `fetch` functions returning `{ title, url, snippet }[]`; copied as the shipped search providers (doopx takes no dependency on opendoop).
+- `F:\github\opendoop\packages\sdk\src\provider\web-search.ts` - `WebSearchProvider { name, search(query, { maxResults }) }`: the same contract, renamed to doopx's words.
 - `pood/src/engine/terminals/*` - terminal *sessions* (pty, attach, wait modes); not this plan, which runs one command and returns.
 
 ### How the others name these tools (the model has seen all of them)
@@ -45,7 +45,7 @@ Two families: PascalCase (Claude Code alone) and snake_case (everyone else, and 
 ### Gaps
 
 - `Not found: any file, shell, web or memory tool under packages/` - only `ask_user` and `read_skill` exist.
-- `Not found: a search provider contract in facio` - written here.
+- `Not found: a search provider contract in doopx` - written here.
 
 ## Decisions locked in
 

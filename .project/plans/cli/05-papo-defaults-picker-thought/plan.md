@@ -122,5 +122,5 @@ Settled without a decision (a defect, or the user's ask with one workable shape)
 - [x] A thought opens and closes on a mouse click and shows a divider under its text when open (textui `bubble.test.tsx`, `transcript.test.tsx`).
 - [x] The cursor bar follows arrow up/down on prose, user lines, headers, tool rows and thoughts; a selected tool row's text is `inverted` on the blue (textui `transcript.test.tsx` "the cursor"; the arrowing itself by hand, owed).
 - [x] With `local_provider` down and `open_router` up, the chip offers both, lists OpenRouter's models, and says why the local one cannot be listed; `papo providers` lists both, `papo models local_provider` fails with the provider's error (`screen.test.ts`, `commands.test.ts`, `chat.test.ts`).
-- [x] `pnpm check` green in facio (67 files, 776 tests after task 05); textui's `build`, `typecheck`, `test`, `lint`, `docs:check`, `check:exports` green.
+- [x] `pnpm check` green in doopx (67 files, 776 tests after task 05); textui's `build`, `typecheck`, `test`, `lint`, `docs:check`, `check:exports` green.
 - [x] `plans/index.md` updated.

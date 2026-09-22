@@ -6,7 +6,7 @@
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "funding": "https://github.com/sponsors/softov",
-  "homepage": "https://github.com/softov/facio#readme",
+  "homepage": "https://github.com/softov/doopx#readme",
   "bugs": {
     "url": "https://github.com/softov/doopx/issues"
   },
@@ -16,7 +16,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/softov/facio.git",
+    "url": "git+https://github.com/softov/doopx.git",
     "directory": "packages/config"
   },
   "keywords": [
