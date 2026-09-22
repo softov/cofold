@@ -5,6 +5,7 @@
   "description": "What the cofold packages share: JSON Schema and the one validator that holds a value to it, the Standard Schema interface.",
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
+  "funding": "https://github.com/sponsors/softov",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/softov/cofold.git",
