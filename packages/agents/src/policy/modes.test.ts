@@ -69,6 +69,25 @@ describe('policyOf', () => {
     expect(await decide('dontAsk', destroy)).toBe('deny');
   });
 
+  it('asks for a read that names a path outside the workspace, and dontAsk refuses it', async () => {
+    expect(await decide('default', read, '/elsewhere/x')).toBe('ask');
+    expect(await decide('acceptEdits', read, '/elsewhere/x')).toBe('ask');
+    expect(await decide('plan', read, '/elsewhere/x')).toBe('ask');
+    expect(await decide('dontAsk', read, '/elsewhere/x')).toBe('deny');
+    expect(await decide('default', read, '/work/x')).toBe('allow');
+    expect(await decide('auto', read, '/elsewhere/x')).toBe('allow');
+    expect(await decide('bypassPermissions', read, '/elsewhere/x')).toBe('allow');
+  });
+
+  it('judges a read by its cwd when it names no path, and allows one that names neither', async () => {
+    const at = async (input: unknown): Promise<string> => (await policyOf('default', rules)({ tool: read, input, run })).behavior;
+    expect(await at({ cwd: '/elsewhere' })).toBe('ask');
+    expect(await at({ cwd: '/work' })).toBe('allow');
+    expect(await at({ path: '/work/a.txt', cwd: '/elsewhere' })).toBe('allow');
+    expect(await at({ pattern: 'x' })).toBe('allow');
+    expect(await at(undefined)).toBe('allow');
+  });
+
   it('names the tool and the mode in a plan or dontAsk refusal', async () => {
     expect(await policyOf('plan', rules)({ tool: write, input: { path: '/work/a.txt' }, run }))
       .toEqual({ behavior: 'deny', reason: 'write_file would change something and the mode is plan' });

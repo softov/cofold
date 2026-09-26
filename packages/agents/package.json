@@ -1,6 +1,6 @@
 {
   "name": "@cofold/agents",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Agent runtime: contracts, loop, run handle, step log.",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "license": "MIT",

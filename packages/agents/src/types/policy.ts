@@ -33,7 +33,7 @@ export type PermissionMode = 'default' | 'acceptEdits' | 'plan' | 'auto' | 'bypa
  * directory is the one the session was opened in.
  */
 export interface PermissionModeRules {
-  /** Whether a path an edit names stays inside the workspace the session works in. */
+  /** Whether a path a read or an edit names stays inside the workspace the session works in. */
   inside(path: string): boolean;
   /** Whether a tool is one `acceptEdits` lets through when its target is inside. */
   isEdit(tool: Tool<any, any>): boolean;
