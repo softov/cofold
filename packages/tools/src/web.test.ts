@@ -17,18 +17,24 @@ const PAGE = `<!doctype html><html><head><title>Docs &amp; more</title><style>p{
 <body><nav><a href="/">Home</a></nav><h1>Hello</h1><p>First   paragraph with <b>bold</b> &amp; an &#39;entity&#39;.</p>
 <ul><li>one</li><li>two</li></ul><!-- a comment --><p>Last.</p></body></html>`;
 
-/** A fetch answering from a table; records what it was asked. */
+/** A fetch answering from a table; records what it was asked, and follows a 3xx itself unless `redirect` is `'manual'`. */
 function fakeFetch(routes: Record<string, () => Response>) {
   const calls: { url: string; init?: RequestInit }[] = [];
-  const doFetch = (async (input: string | URL | Request, init?: RequestInit) => {
+  const doFetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     calls.push({ url, ...(init !== undefined ? { init } : {}) });
     const key = Object.keys(routes).find((prefix) => url.startsWith(prefix));
     if (!key) throw new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } });
-    return routes[key]!();
+    const response = routes[key]!();
+    const location = response.headers.get('location');
+    if (init?.redirect !== 'manual' && response.status >= 300 && response.status < 400 && location !== null) return doFetch(new URL(location, url).href, init);
+    return response;
   }) as typeof fetch;
   return { fetch: doFetch, calls };
 }
+
+/** A resolver that answers every name with one public address, so no test reaches real DNS. */
+const publicLookup = async () => [{ address: '93.184.215.14', family: 4 }];
 
 const toolsOf = async (capability: ReturnType<typeof web>) => new Map((await capability.tools!(args)).map((t) => [t.name, t]));
 const call = (tool: Tool<any, any> | undefined, input: unknown) => Promise.resolve(tool!.execute(input, ctx));
@@ -57,7 +63,7 @@ describe('web()', () => {
       'https://big.example/': () => new Response('x'.repeat(5000), { headers: { 'content-type': 'text/plain' } }),
       'https://gone.example/': () => new Response('not here', { status: 404, headers: { 'content-type': 'text/plain' } }),
     });
-    const tools = await toolsOf(web({ fetch: doFetch }));
+    const tools = await toolsOf(web({ fetch: doFetch, lookup: publicLookup }));
     const fetchTool = tools.get('web_fetch');
     expect(await call(fetchTool, { url: 'https://docs.example/' })).toBe('https://docs.example/ (200, text/html)\n\nDocs & more\n\nHome\nHello\n\nFirst paragraph with bold & an \'entity\'.\n\n- one\n- two\n\nLast.');
     expect(await call(fetchTool, { url: 'https://api.example/data' })).toBe('https://api.example/data (200, application/json)\n\n{"a":1}');
@@ -67,6 +73,35 @@ describe('web()', () => {
     await expect(call(fetchTool, { url: 'ftp://x' })).rejects.toThrow('only http and https are fetched');
     await expect(call(fetchTool, { url: 'not a url' })).rejects.toThrow('"not a url" is not a URL');
     await expect(call(fetchTool, { url: 'https://down.example/' })).rejects.toThrow('cannot fetch https://down.example/: ENOTFOUND');
+  });
+
+  it('web_fetch refuses loopback, private and link-local addresses before fetching', async () => {
+    const { fetch: doFetch, calls } = fakeFetch({ 'http': () => new Response('secret', { headers: { 'content-type': 'text/plain' } }) });
+    const lookup = async (host: string) => [{ address: host === 'intranet.example' ? '10.0.0.5' : '93.184.215.14', family: 4 }];
+    const fetchTool = (await toolsOf(web({ fetch: doFetch, lookup }))).get('web_fetch');
+    for (const url of ['http://127.0.0.1/', 'http://169.254.169.254/', 'http://[::1]/', 'http://[::ffff:192.168.1.1]/', 'http://0.0.0.0:8080/', 'http://2130706433/', 'http://[fd00::1]/', 'http://[fe80::1]/', 'http://172.20.0.1/']) {
+      await expect(call(fetchTool, { url }), url).rejects.toThrow('is an internal address');
+    }
+    await expect(call(fetchTool, { url: 'http://intranet.example/' })).rejects.toThrow('http://intranet.example/ is an internal address (10.0.0.5)');
+    expect(calls).toEqual([]);
+    expect(await call(fetchTool, { url: 'http://172.32.0.1/' })).toContain('secret');
+    expect(fetchTool!.description).toMatch(/internal addresses are refused/i);
+  });
+
+  it('web_fetch follows redirects itself, checking every hop, and stops after too many', async () => {
+    const { fetch: doFetch, calls } = fakeFetch({
+      'https://moved.example/new': () => new Response('arrived', { headers: { 'content-type': 'text/plain' } }),
+      'https://moved.example/': () => new Response(null, { status: 301, headers: { location: '/new' } }),
+      'https://metadata.example/': () => new Response(null, { status: 302, headers: { location: 'http://169.254.169.254/' } }),
+      'http://169.254.169.254/': () => new Response('credentials', { headers: { 'content-type': 'text/plain' } }),
+      'https://loop.example/': () => new Response(null, { status: 302, headers: { location: 'https://loop.example/' } }),
+    });
+    const fetchTool = (await toolsOf(web({ fetch: doFetch, lookup: publicLookup }))).get('web_fetch');
+    await expect(call(fetchTool, { url: 'https://metadata.example/' })).rejects.toThrow('http://169.254.169.254/ is an internal address');
+    expect(calls.map((c) => c.url)).toEqual(['https://metadata.example/']);
+    expect(calls[0]!.init!.redirect).toBe('manual');
+    expect(await call(fetchTool, { url: 'https://moved.example/' })).toBe('https://moved.example/new (200, text/plain)\n\narrived');
+    await expect(call(fetchTool, { url: 'https://loop.example/' })).rejects.toThrow('https://loop.example/: more than 10 redirects');
   });
 
   it('web_search formats the first answering provider and fails over past a failing one', async () => {

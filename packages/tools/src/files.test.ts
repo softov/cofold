@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -113,5 +113,26 @@ describe('resolveWithin', () => {
     expect(resolveWithin(root, resolve(sep, 'ws2', 'x')).inside).toBe(false);
     expect(displayPath(root, join(root, 'src', 'a.ts'))).toBe('src/a.ts');
     expect(displayPath(root, resolve(sep, 'other')).replaceAll('\\', '/')).toBe(resolve(sep, 'other').replaceAll('\\', '/'));
+  });
+
+  it('judges inside on real paths: a symlink out of the workspace is outside, a workspace reached through one is not', async () => {
+    const base = await mkdtemp(join(tmpdir(), 'cofold-within-'));
+    try {
+      const ws = join(base, 'ws');
+      const elsewhere = join(base, 'elsewhere');
+      await mkdir(ws);
+      await mkdir(elsewhere);
+      await symlink(elsewhere, join(ws, 'link'), 'dir');
+      await symlink(ws, join(base, 'alias'), 'dir');
+      await symlink(join(elsewhere, 'later.txt'), join(ws, 'dangling'));
+      expect(resolveWithin(ws, 'link/new.txt')).toEqual({ absolute: join(ws, 'link', 'new.txt'), inside: false });
+      expect(resolveWithin(ws, 'link').inside).toBe(false);
+      expect(resolveWithin(ws, 'dangling').inside).toBe(false);
+      expect(resolveWithin(ws, 'sub/new.txt')).toEqual({ absolute: join(ws, 'sub', 'new.txt'), inside: true });
+      expect(resolveWithin(join(base, 'alias'), 'sub/new.txt').inside).toBe(true);
+      expect(resolveWithin(ws, join(base, 'alias', 'x')).inside).toBe(true);
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
   });
 });

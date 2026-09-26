@@ -16,7 +16,7 @@ const agent = createAgent({ id: 'cli', instructions, model, store, capabilities:
 ## `files()`
 
 Relative paths resolve against the run's workspace (`SessionRecord.workspace`; `process.cwd()` when the session has none).
-Reads go anywhere; `write_file` and `edit_file` declare `effects.destructive`, so the default policy asks before them, and `resolveWithin(workspace, path).inside` is what a program's policy reads to ask only outside the workspace.
+Reads go anywhere; `write_file` and `edit_file` declare `effects.destructive`, so the default policy asks before them, and `resolveWithin(workspace, path).inside` is what a program's policy reads to ask only outside the workspace. `inside` compares real paths: a symlink in the workspace that points out of it is outside, and a path that does not exist yet is judged by its nearest existing ancestor.
 
 | Tool | Input | Returns |
 | --- | --- | --- |
@@ -42,8 +42,9 @@ At the timeout (120 s by default, 600 s at most) or when the run is cancelled, t
 
 ## `web({ search? })`
 
-`web_fetch({ url, maxBytes? })` GETs one http(s) URL, follows redirects, and returns `<final url> (<status>, <type>)` then the body: HTML reduced to its text (`htmlToText`: title first, scripts and styles gone, block ends as line breaks, entities decoded), JSON and other text types verbatim, anything else refused.
+`web_fetch({ url, maxBytes? })` GETs one http(s) URL, follows up to 10 redirects, and returns `<final url> (<status>, <type>)` then the body: HTML reduced to its text (`htmlToText`: title first, scripts and styles gone, block ends as line breaks, entities decoded), JSON and other text types verbatim, anything else refused.
 The body is cut at 256 KiB (`[cut at N bytes]`), the request at 20 s; `web({ timeoutMs, maxBytes, fetch })` changes them, `fetch` being the function to use (a test injects one).
+A host that is, or resolves to, a loopback, private or link-local address (IPv4-mapped IPv6 included) is refused before the request, and so is every redirect's `Location`; `web({ lookup })` replaces the resolver, `node:dns/promises` `lookup` with `all: true` by default. A name that answers differently at the connection than at the check (DNS rebinding) is not caught.
 
 `web_search({ query, count? })` exists only when `search` names at least one `SearchProvider { id, search({ query, count, signal }) }`; providers are asked in order and the first that answers wins, so a rate-limited key falls through to the next.
 Results are `1. title / url / snippet` rows.

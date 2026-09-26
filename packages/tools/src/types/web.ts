@@ -19,7 +19,12 @@ export interface WebOptions {
   maxBytes?: number;
   /** The fetch to use; default the global one. */
   fetch?: typeof fetch;
+  /** Resolves a host name to every address it has, checked before each fetch; default `node:dns/promises` `lookup` with `all: true`. */
+  lookup?: Lookup;
 }
+
+/** A host name's addresses, as `node:dns/promises` `lookup` with `all: true` answers. */
+export type Lookup = (hostname: string) => Promise<{ address: string; family: number }[]>;
 
 export interface WebFetchInput {
   url: string;
