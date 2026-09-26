@@ -1,0 +1,161 @@
+name: Release
+
+# A pushed tag is the whole gesture: `git tag release-2026-09-26 && git push --tags`.
+# Each package keeps its own version, so the tag names the release and not a
+# version: every package in PUBLISHED whose manifest version is not on npm yet
+# is staged, and the rest are left alone.
+on:
+  push:
+    tags: ['release-*']
+  # For rehearsing the whole thing without publishing anything.
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Pack and check, but do not publish
+        type: boolean
+        default: true
+
+# The packages this workflow publishes, in dependency order: a dependant comes
+# after every sibling it names. `papo` is not published.
+env:
+  PUBLISHED: sdk yaml commands agents config terminal mcp remote store-file model-openai-compat tools
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      # What lets npm trade a GitHub OIDC token for a publish. Without it the
+      # publish falls back to looking for a token that is not there.
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.0
+
+      - uses: actions/setup-node@v7
+        with:
+          # Trusted publishing needs 22.14 or later, and this is the version
+          # the tests are written against.
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      # The npm bundled with Node 22 is 10.x, which has neither trusted
+      # publishing (11.5.1 and later) nor `npm stage` (12).
+      - name: An npm that can do this
+        run: |
+          npm install -g npm@12
+          npm --version
+
+      - run: pnpm install --frozen-lockfile
+
+      # The same checks CI runs. A release is the one build where a green tick
+      # somewhere else is not good enough.
+      - run: pnpm typecheck
+      - run: timeout 600 pnpm test
+
+      # Packed by pnpm and not by npm, because these packages depend on each
+      # other with `workspace:^` and only pnpm rewrites that to a real range on
+      # the way out.
+      - name: Pack
+        run: |
+          set -eu
+          for package in $PUBLISHED; do
+            (cd "packages/$package" && pnpm pack --pack-destination "${{ runner.temp }}")
+          done
+
+      # Read out of each tarball rather than grepped over it: a .tgz is gzipped,
+      # so a grep for `workspace:` over the file finds nothing whatever is in it.
+      - name: The tarballs carry real version ranges
+        run: |
+          set -eu
+          for tarball in ${{ runner.temp }}/*.tgz; do
+            echo "$tarball"
+            manifest=$(tar -xzOf "$tarball" package/package.json)
+            if printf '%s' "$manifest" | grep -q 'workspace:'; then
+              echo "$tarball still has workspace: in its manifest. It must not be published."
+              printf '%s' "$manifest" | grep 'workspace:'
+              exit 1
+            fi
+            printf '%s' "$manifest" | node -e "
+              const d = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+              const deps = Object.entries({ ...d.dependencies, ...d.peerDependencies }).filter(([n]) => n.startsWith('@cofold/'));
+              console.log(deps.length === 0 ? '  no sibling dependencies' : deps.map(([n, v]) => '  ' + n + ' ' + v).join('\\n'));
+            "
+          done
+
+      # Staged by npm, not published: nothing is installable until somebody
+      # approves it on the package page, in the order listed, so a dependant is
+      # never installable while the version it names is still unapproved.
+      #
+      # `--provenance` attaches a signed attestation tying each tarball to this
+      # commit and this workflow.
+      #
+      # A version already on npm is skipped, one already staged is left alone,
+      # and one package's failure does not stop the rest from being staged; the
+      # run still ends red, naming what is missing.
+      #
+      # A name never published cannot have a trusted publisher yet: its first
+      # version is published once with a token, its trusted publisher is added,
+      # and only then can this workflow stage the versions after it.
+      - name: Stage the release
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          set -u
+          failed=' '
+          staged=' '
+          for package in $PUBLISHED; do
+            full=$(node -p "require('./packages/$package/package.json').name")
+            version=$(node -p "require('./packages/$package/package.json').version")
+            stem=$(printf '%s' "$full" | sed 's/^@//; s|/|-|')
+            if npm view "$full@$version" version >/dev/null 2>&1; then
+              echo "$full@$version is already on npm; nothing to stage."
+              continue
+            fi
+            if ! npm view "$full" version >/dev/null 2>&1; then
+              echo "::warning::$full has never been published, so it cannot have a trusted publisher yet."
+              failed="$failed$full@$version "
+              continue
+            fi
+            said=$(npm stage publish "${{ runner.temp }}/$stem-$version.tgz" --provenance --access public 2>&1) && code=0 || code=$?
+            echo "$said"
+            if [ "$code" = "0" ]; then
+              staged="$staged$full@$version "
+              continue
+            fi
+            # E409 answers a version already staged as well as one already
+            # released, which to a re-run is the same: nothing left to do.
+            if printf '%s' "$said" | grep -qE 'E409|previously published|cannot publish over|already (been )?(staged|published)|EPUBLISHCONFLICT'; then
+              echo "$full@$version is already staged; leaving it alone."
+              continue
+            fi
+            failed="$failed$full@$version "
+          done
+          echo
+          echo "Staged:$staged"
+          echo "Approve them on npm in that order. The approve button stays disabled until npm has finished scanning."
+          if [ "$failed" != ' ' ]; then
+            echo "Not staged:$failed"
+            exit 1
+          fi
+
+      # A rehearsal over versions already on npm is refused, which is expected
+      # until the manifests are bumped; anything else still fails.
+      - name: What would have been staged
+        if: ${{ inputs.dry_run == true }}
+        run: |
+          set -u
+          for package in $PUBLISHED; do
+            full=$(node -p "require('./packages/$package/package.json').name")
+            version=$(node -p "require('./packages/$package/package.json').version")
+            stem=$(printf '%s' "$full" | sed 's/^@//; s|/|-|')
+            if npm view "$full@$version" version >/dev/null 2>&1; then
+              echo "$full@$version is already on npm."
+              continue
+            fi
+            npm stage publish "${{ runner.temp }}/$stem-$version.tgz" --dry-run --access public
+          done
