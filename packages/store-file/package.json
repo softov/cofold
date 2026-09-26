@@ -1,6 +1,6 @@
 {
   "name": "@cofold/store-file",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "File-backed Store for @cofold/agents: JSONL per session and run, writer.lock with a heartbeat, plus fileSkillSource.",
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
@@ -40,7 +40,7 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "@cofold/agents": "workspace:*"
+    "@cofold/agents": "^0.1"
   },
   "devDependencies": {
     "@cofold/agents": "workspace:*"
