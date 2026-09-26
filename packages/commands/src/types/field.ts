@@ -24,7 +24,10 @@ export interface OptionSpec<T = unknown> {
   env?: string;
   /** How the word becomes a value, and what shape that value has. */
   coerce?: Coercer<T>;
-  /** `--color` also accepting `--no-color`. */
+  /**
+   * `--color` also accepting `--no-color`. A flag spelled `--no-X` answers to
+   * `--X` unless this is `false`.
+   */
   negatable?: boolean;
   /** Parsed and usable, but absent from help and completion. */
   hidden?: boolean;
@@ -62,6 +65,12 @@ export interface CliField {
   value?: string;
   complete?: CompletionSource;
   hidden?: boolean;
+  /**
+   * Whether the flag also answers to its opposite. `true` gives `--color` a
+   * `--no-color` that sets the field to `false`; `false` keeps a flag spelled
+   * `--no-X` from answering to `--X`, which it otherwise does.
+   */
+  negatable?: boolean;
 }
 
 /**

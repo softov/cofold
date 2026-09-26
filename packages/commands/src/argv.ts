@@ -26,7 +26,7 @@ function addToTable(table: Map<string, OptionTableEntry>, option: OptionSpec, pe
   if (existing !== undefined && permissive && isFlag(option) && !isFlag(existing.spec)) return;
   table.set(option.name, { spec: option, negated: false });
   if (option.short !== undefined) table.set(option.short, { spec: option, negated: false });
-  if (option.negatable === true || (isFlag(option) && option.name.startsWith("--no-"))) {
+  if (option.negatable === true || (isFlag(option) && option.name.startsWith("--no-") && option.negatable !== false)) {
     const inverse = option.name.startsWith("--no-") ? `--${option.name.slice(5)}` : `--no-${option.name.slice(2)}`;
     if (!table.has(inverse)) table.set(inverse, { spec: option, negated: true });
   }

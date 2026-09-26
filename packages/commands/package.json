@@ -1,6 +1,6 @@
 {
   "name": "@cofold/commands",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "A command is data: the declaration, the registry, input, the argv grammar, coercion and schema, rendered by every surface.",
   "license": "MIT",

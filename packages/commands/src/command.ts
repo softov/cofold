@@ -93,6 +93,7 @@ export function commandFor(definition: ActionDefinition<never, never, Record<str
         ...(required.includes(name) ? { required: true } : {}),
         ...(env === undefined ? {} : { env }),
         ...(spelling?.hidden === true ? { hidden: true } : {}),
+        ...(spelling?.negatable === undefined ? {} : { negatable: spelling.negatable }),
         ...(spelling?.complete === undefined ? {} : { complete: spelling.complete }),
       };
     });

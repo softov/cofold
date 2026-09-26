@@ -1,7 +1,8 @@
 import type { Command } from "./types/command.js";
-import type { OptionSpec } from "./types/field.js";
+import type { Field, OptionSpec } from "./types/field.js";
 import { describe, expect, it } from "vitest";
 import { matchCommand, optionTable, tokenize } from "./argv.js";
+import { commandFor, optionsOf } from "./command.js";
 
 const options: OptionSpec[] = [
   { name: "--limit", short: "-n", value: "N", description: "" },
@@ -88,6 +89,36 @@ describe("tokenizing a line of arguments", () => {
 
   it("refuses a value given to a flag", () => {
     expect(() => read("--all=yes")).toThrow(/does not take a value/u);
+  });
+});
+
+/*
+ * A field's `cli.negatable` decides the opposite form: `true` gives a positive
+ * flag its `--no-` form, and `false` keeps a flag spelled `--no-X` from
+ * answering to `--X`.
+ */
+describe("a field that says whether its flag negates", () => {
+  const readField = (name: string, field: Field, line: string) => {
+    const command = commandFor({
+      id: "serve",
+      summary: "Serve",
+      input: { [name]: field },
+      surfaces: { cli: { pattern: ["serve"] } },
+      run: () => {},
+    } as Parameters<typeof commandFor>[0]);
+    return tokenize(optionTable(optionsOf(command)), line.split(" "), { permissive: false });
+  };
+
+  it("gives a positive flag its --no- form when the field asks for it", () => {
+    const updateCheck: Field = { type: "boolean", default: true, cli: { negatable: true } };
+    expect(readField("updateCheck", updateCheck, "--no-update-check").options["--update-check"]).toBe(false);
+    expect(readField("updateCheck", updateCheck, "--update-check").options["--update-check"]).toBe(true);
+  });
+
+  it("registers no positive for a --no- flag that declines to negate", () => {
+    const noPlugins: Field = { type: "boolean", cli: { flag: "--no-plugins", negatable: false } };
+    expect(readField("noPlugins", noPlugins, "--no-plugins").options["--no-plugins"]).toBe(true);
+    expect(() => readField("noPlugins", noPlugins, "--plugins")).toThrow(/^Unknown option --plugins\./u);
   });
 });
 

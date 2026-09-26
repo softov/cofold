@@ -110,6 +110,21 @@ describe("fields become slots and options", () => {
     expect(visible(optionsOf(command)).map((option) => option.name)).toEqual(["--limit"]);
   });
 
+  it("carries whether a flag negates onto the option, and only where the field says", () => {
+    const command = build({
+      input: {
+        updateCheck: { type: "boolean", default: true, cli: { negatable: true } },
+        noPlugins: { type: "boolean", cli: { flag: "--no-plugins", negatable: false } },
+        wait: { type: "boolean" },
+      },
+      required: [],
+      surfaces: { cli: { pattern: ["pet", "add"] } },
+    });
+    expect(optionNamed(command, "--update-check")!.negatable).toBe(true);
+    expect(optionNamed(command, "--no-plugins")!.negatable).toBe(false);
+    expect(optionNamed(command, "--wait")!).not.toHaveProperty("negatable");
+  });
+
   it("keeps the item's rules on a list, not the list's", () => {
     const command = build({
       input: { tags: { type: "array", items: { type: "string", maxLength: 4 }, description: "" } },
