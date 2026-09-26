@@ -1,6 +1,6 @@
 {
   "name": "@cofold/remote",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "type": "module",
   "description": "Commands over HTTP: manifests, OpenAPI, authentication and the remote client, fed from the same declaration.",
   "license": "MIT",
