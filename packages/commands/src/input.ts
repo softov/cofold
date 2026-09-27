@@ -123,10 +123,18 @@ export async function canonicalFromCli(command: Command, raw: RawCliInput): Prom
     const given = raw.options[option.name];
 
     if (isFlag(option)) {
+      /*
+       * A flag with nothing typed, no environment and no declared default is
+       * left out rather than written as `false`.
+       *
+       * An option that is on unless it is turned off is declared positively,
+       * and the reader tells "turned off" from "not typed" by the key being
+       * there: `false` for both makes the line and the file beside it say the
+       * same thing when only one of them spoke.
+       */
       if (typeof given === "boolean") input[name] = given;
       else if (environment(option.env) !== undefined) input[name] = environment(option.env) !== "0";
       else if (option.default !== undefined) input[name] = option.default;
-      else input[name] = false;
       continue;
     }
 
@@ -168,9 +176,10 @@ export async function canonicalFromObject(
     // `null` is how a JSON client says nothing, so it takes the same road as a
     // key that was never there - including `finish`'s required check.
     if (given === undefined || given === null) {
+      // The environment and the default are the only things an absent key can
+      // take a value from; a flag nobody typed stays out of the input.
       const fallback = environment(field.option?.env) ?? field.option?.default;
       if (fallback !== undefined) input[field.name] = fallback;
-      else if (field.option !== undefined && isFlag(field.option)) input[field.name] = false;
       continue;
     }
     /*

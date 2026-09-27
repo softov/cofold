@@ -1,6 +1,7 @@
 import type { Command } from "./types/command.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { canonicalFromCli, canonicalFromObject } from "./input.js";
+import { optionTable, tokenize } from "./argv.js";
 import * as coerce from "./coerce.js";
 
 const command: Command = {
@@ -20,13 +21,22 @@ const command: Command = {
 
 afterEach(() => { delete process.env["TEST_URL"]; });
 
+/** A flag that is on unless it is turned off, which only an absent key can say. */
+const toggle: Command = {
+  id: "case.check",
+  pattern: ["case", "check"],
+  summary: "",
+  options: [{ name: "--update-check", description: "", negatable: true }],
+  run: () => {},
+};
+
 describe("the canonical input", () => {
   it("coerces slots, collects what is repeatable, and applies defaults", async () => {
     const input = await canonicalFromCli(command, {
       slots: { project: "brb", ids: ["3", "4"] },
       options: { "--tag": ["a", "b"] },
     });
-    expect(input).toEqual({ project: "brb", ids: [3, 4], limit: 20, tag: ["a", "b"], dryRun: false });
+    expect(input).toEqual({ project: "brb", ids: [3, 4], limit: 20, tag: ["a", "b"] });
   });
 
   it("names a field the way an object would: --dry-run becomes dryRun", async () => {
@@ -63,7 +73,7 @@ describe("the canonical input", () => {
 
   it("reads an already-typed object the same way, whatever each value arrived as", async () => {
     const input = await canonicalFromObject(command, { project: "p", ids: [1, "2"], limit: "5" });
-    expect(input).toEqual({ project: "p", ids: [1, 2], limit: 5, dryRun: false });
+    expect(input).toEqual({ project: "p", ids: [1, 2], limit: 5 });
   });
 
   /*
@@ -110,5 +120,24 @@ describe("the canonical input", () => {
     const withStdin: Command = { ...command, stdin: "project", pattern: ["case", "list", ":project?"] };
     const input = await canonicalFromCli(withStdin, { slots: {}, options: {}, stdin: "piped" });
     expect(input["project"]).toBe("piped");
+  });
+
+  /*
+   * A flag nobody typed is left out of the input.
+   *
+   * An absent key means the flag was not typed, and `false` means it was typed
+   * turned off. An option that is on unless it is turned off is declared
+   * positively, and a caller that finds no key reads its default from wherever
+   * else it keeps one, such as a configuration file.
+   */
+  it("leaves a flag nobody typed out of the input", async () => {
+    expect(await canonicalFromCli(toggle, { slots: {}, options: {} })).toEqual({});
+    expect(await canonicalFromObject(toggle, {})).toEqual({});
+  });
+
+  it("keeps a flag that was typed, either way round", async () => {
+    const typed = (argv: string[]) => tokenize(optionTable(toggle.options ?? [], false), argv, { permissive: false });
+    expect(await canonicalFromCli(toggle, { slots: {}, ...typed(["--update-check"]) })).toEqual({ updateCheck: true });
+    expect(await canonicalFromCli(toggle, { slots: {}, ...typed(["--no-update-check"]) })).toEqual({ updateCheck: false });
   });
 });
