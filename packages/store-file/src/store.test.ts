@@ -47,6 +47,20 @@ describe('createFileStore layout', () => {
     expect(await codeOf(other.sessions.create({ sessionId: 'ws/1', agentId: 'b' }))).toBe('already_exists');
   });
 
+  it('writes and reads a run record\'s model, and a record with none', async () => {
+    const root = await tempRoot();
+    const store = createFileStore({ root });
+    await store.sessions.create({ sessionId: 's', agentId: 'a' });
+    await store.runs.create(runRecord('s', 'with-model', { model: 'open_router/x' }));
+    await store.runs.create(runRecord('s', 'without'));
+    // A fresh store instance reads the file, not a cache.
+    const fresh = createFileStore({ root });
+    expect((await fresh.runs.get({ sessionId: 's', runId: 'with-model' }))?.model).toBe('open_router/x');
+    const bare = await fresh.runs.get({ sessionId: 's', runId: 'without' });
+    expect(bare?.model).toBeUndefined();
+    expect(bare).not.toHaveProperty('model');
+  });
+
   it('writes writer.lock on claim and removes it on release; heartbeat refreshes it', async () => {
     const root = await tempRoot();
     const store = createFileStore({ root });

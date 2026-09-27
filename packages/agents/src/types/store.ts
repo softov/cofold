@@ -38,6 +38,8 @@ export interface RunRecord {
   runId: string;
   sessionId: string;
   agentId: string;
+  /** The model reference the run was told to use, stored as given; absent when none was named. */
+  model?: string;
   status: RunStatus;
   createdAt: string;
   updatedAt: string;

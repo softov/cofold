@@ -9,6 +9,8 @@ export interface RunArgs<Resources = Record<string, unknown>> {
   session: string;
   /** Stored on the session when it is created; ignored for an existing session. See SessionRecord.workspace. */
   workspace?: string;
+  /** The model reference this run uses, stored on the run record as given. */
+  model?: string;
   input: string | ContentPart[];
   /** The input message's id; default newId(). A client that supplies it can match run.started to its send. Must be new in the session (cli/03 F2). */
   messageId?: string;

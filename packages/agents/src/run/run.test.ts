@@ -449,3 +449,19 @@ describe('run: a caller-supplied messageId (cli/03 F2)', () => {
     expect(await store.runs.get(ref(handle))).toMatchObject({ inputMessageId: 'ask-1' });
   });
 });
+
+describe('the model a run was told to use', () => {
+  it('is written onto the run record as given, and is absent when none was named', async () => {
+    const { agent, store } = build();
+    const handle = run({ agent, session: 's', input: 'hi', model: 'open_router/x' });
+    await collect(handle);
+    expect((await store.runs.get(ref(handle)))?.model).toBe('open_router/x');
+
+    const bare = build();
+    const other = run({ agent: bare.agent, session: 's2', input: 'hi' });
+    await collect(other);
+    const record = await bare.store.runs.get(ref(other));
+    expect(record?.model).toBeUndefined();
+    expect(record).not.toHaveProperty('model');
+  });
+});

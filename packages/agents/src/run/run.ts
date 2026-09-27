@@ -77,7 +77,7 @@ async function setupRun<Resources>(args: RunArgs<Resources>, runId: string, abor
       throw new AgentError({ code: 'already_exists', message: `message ${args.messageId} already exists in session ${sessionId}` });
     }
     const input: Message = { id: args.messageId ?? newId(), role: 'user', source: compacting ? 'system' : 'input', parts, createdAt: now() };
-    await store.runs.create({ runId, sessionId, agentId, status: 'running', createdAt: now(), updatedAt: now(), usage: ZERO_USAGE, steps: 0, denials: [], inputMessageId: input.id });
+    await store.runs.create({ runId, sessionId, agentId, status: 'running', createdAt: now(), updatedAt: now(), usage: ZERO_USAGE, steps: 0, denials: [], inputMessageId: input.id, ...(args.model === undefined ? {} : { model: args.model }) });
     const emitter = createEmitter({ store, runId, sessionId, agentId, publish: handle.publish, onEvent: agent.hooks.onEvent?.bind(agent.hooks), warn: agent.warn });
     ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, steering, counters: { usage: ZERO_USAGE, steps: 0, cost: agent.model.pricing ? 0 : undefined, denials: [], stepIndex: 0, toolCalls: 0 }, claimed: false, compact: compacting, inputMessageId: input.id });
 
