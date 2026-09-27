@@ -1,6 +1,6 @@
 {
   "name": "@cofold/tools",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The tools every @cofold/agents agent gets: files, shell, web and memory, as capabilities.",
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
