@@ -1,7 +1,7 @@
 ---
 title: A program chooses its configuration layers and names its project file
 domain: commands
-status: active
+status: built
 priority: high
 created: 2026-09-28
 revalidated: 2026-09-28
@@ -60,7 +60,7 @@ No decision records; the choices below are scope.
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The layers and the project file name are options](task-01-the-layers-are-options.md) | implemented | - |
+| [01 - The layers and the project file name are options](task-01-the-layers-are-options.md) | done | - |
 
 ## Risks and tradeoffs
 
@@ -68,13 +68,13 @@ No decision records; the choices below are scope.
 
 ## Resume state
 
-- **Done so far:** task 01 implemented 2026-09-28 in the worktree `/github/.worktrees/cofold-config-layers` (branch `config-layers`), uncommitted; see its Resume.
-- **Next action:** review task 01, then commit, release notes and version.
+- **Done so far:** task 01 done 2026-09-28 (`c7835d6`, released as `@cofold/config` 0.3.0 under `release-2026-09-28-2`), checked by Softov; see [implemented.md](implemented.md).
+- **Next action:** none.
 - **Open questions:** none.
 - **Watch out for:** the version. Dropping the default project layer changes what an existing caller reads, so the release notes say to pass `project`. Softov chooses the version and publishes; ahpd's daemon/08 waits for the release.
 
 ## Final verification checklist
 
-- [ ] Every existing `@cofold/config` test passes, the project-layer ones passing `project` explicitly.
-- [ ] papo still reads `.papo.json`.
-- [ ] `plans/index.md` updated.
+- [x] Every existing `@cofold/config` test passes, the project-layer ones passing `project` explicitly.
+- [x] papo still reads `.papo.json`.
+- [x] `plans/index.md` updated.
