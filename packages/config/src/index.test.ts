@@ -40,9 +40,12 @@ const base = {
   readFile: read,
 };
 
+/** The same program, reading `.depot.json` as its project file. */
+const withProject = { ...base, project: ".depot.json" };
+
 describe("the layers", () => {
   it("merges leaf by leaf rather than replacing the file", () => {
-    const config = resolveConfig(base);
+    const config = resolveConfig(withProject);
     expect(config.values).toEqual({
       api: "https://project",
       theme: { mode: "light", color: "blue" },
@@ -51,13 +54,13 @@ describe("the layers", () => {
   });
 
   it("finds the project file at or above the working directory", () => {
-    expect(resolveConfig(base).layers.map((one) => one.kind)).toEqual(["user", "project"]);
-    expect(resolveConfig({ ...base, cwd: at("/somewhere/else") }).layers.map((one) => one.kind))
+    expect(resolveConfig(withProject).layers.map((one) => one.kind)).toEqual(["user", "project"]);
+    expect(resolveConfig({ ...withProject, cwd: at("/somewhere/else") }).layers.map((one) => one.kind))
       .toEqual(["user"]);
   });
 
   it("puts a program's own defaults underneath everything found", () => {
-    const config = resolveConfig({ ...base, base: { api: "https://default", extra: true } });
+    const config = resolveConfig({ ...withProject, base: { api: "https://default", extra: true } });
     expect(config.get("api")).toBe("https://project");
     expect(config.get("extra")).toBe(true);
     expect(config.layers[0]?.kind).toBe("base");
@@ -81,9 +84,74 @@ describe("the layers", () => {
   });
 });
 
+/**
+ * A program chooses its layers.
+ *
+ * The project file is read only when the program names it, by the name it
+ * gives; the user file and the environment variable are read unless turned off.
+ */
+describe("choosing the layers", () => {
+  const tree: Record<string, string> = {
+    [at("/repo/ahpd.json")]: JSON.stringify({ from: "plain" }),
+    [at("/repo/.ahpd/config.json")]: JSON.stringify({ from: "folder" }),
+    [at("/repo/a/.ahpd.json")]: JSON.stringify({ from: "dotted" }),
+  };
+  const ahpd = {
+    name: "ahpd",
+    cwd: at("/repo/a/b"),
+    home: at("/home/me"),
+    env: {} as Record<string, string | undefined>,
+    readFile: (path: string): string | undefined => tree[path],
+  };
+
+  it("finds the project file by the name given, with no dot added", () => {
+    const config = resolveConfig({ ...ahpd, project: "ahpd.json" });
+    expect(config.get("from")).toBe("plain");
+    expect(config.sourceOf("from")).toBe(at("/repo/ahpd.json"));
+  });
+
+  it("finds a project file under a folder by its path", () => {
+    const config = resolveConfig({ ...ahpd, project: ".ahpd/config.json" });
+    expect(config.get("from")).toBe("folder");
+    expect(config.sourceOf("from")).toBe(at("/repo/.ahpd/config.json"));
+  });
+
+  it("reads no project file unless one is named", () => {
+    expect(resolveConfig(base).layers.map((one) => one.kind)).toEqual(["user"]);
+    expect(resolveConfig(base).get("api")).toBe("https://user");
+  });
+
+  it("leaves the user file out when user is false", () => {
+    const config = resolveConfig({ ...withProject, user: false });
+    expect(config.layers.map((one) => one.kind)).toEqual(["project"]);
+    expect(config.values).toEqual({ api: "https://project", theme: { mode: "light" } });
+  });
+
+  it("reads no variable when environment is false", () => {
+    const env = { DEPOT_CONFIG: at("/elsewhere/named.json") };
+    const config = resolveConfig({ ...withProject, env, environment: false });
+    expect(config.layers.map((one) => one.kind)).toEqual(["user", "project"]);
+    expect(config.get("api")).toBe("https://project");
+  });
+
+  it("reads the variable the program names instead of <NAME>_CONFIG", () => {
+    const env = { OTHER_CONFIG: at("/elsewhere/named.json"), DEPOT_CONFIG: at("/elsewhere/missing.json") };
+    const config = resolveConfig({ ...base, env, environment: "OTHER_CONFIG" });
+    expect(config.layers.map((one) => one.kind)).toEqual(["user", "environment"]);
+    expect(config.sourceOf("api")).toBe(at("/elsewhere/named.json"));
+  });
+
+  it("still reads an explicit path with every other layer off", () => {
+    const env = { DEPOT_CONFIG: at("/elsewhere/missing.json") };
+    const config = resolveConfig({ ...base, env, user: false, environment: false, path: at("/elsewhere/named.json") });
+    expect(config.layers.map((one) => one.kind)).toEqual(["explicit"]);
+    expect(config.get("api")).toBe("https://named");
+  });
+});
+
 describe("saying where a value came from", () => {
   it("names the file that last set a path", () => {
-    const config = resolveConfig(base);
+    const config = resolveConfig(withProject);
     expect(config.sourceOf("api")).toBe(at("/work/project/.depot.json"));
     expect(config.sourceOf("theme.mode")).toBe(at("/work/project/.depot.json"));
     expect(config.sourceOf("theme.color")).toBe(at("/home/me/.config/depot/config.json"));
@@ -121,6 +189,7 @@ describe("bringing a parser", () => {
   it("takes any syntax, because finding the file is the part this owns", () => {
     const config = resolveConfig({
       ...base,
+      project: ".depot.conf",
       extensions: [".conf"],
       readFile: (path) => (path === at("/work/project/.depot.conf") ? "api = https://ini" : undefined),
       parse: (text) => Object.fromEntries([text.split(" = ")]) as Record<string, unknown>,
@@ -137,7 +206,7 @@ describe("as a capability", () => {
   });
 
   it("resolves the found files when no global was given", () => {
-    const provider = configProvider({ ...base });
+    const provider = configProvider({ ...withProject });
     const context = { globals: {} } as unknown as CommandContext;
     expect(provider.resolve({}, context).get("api")).toBe("https://project");
   });

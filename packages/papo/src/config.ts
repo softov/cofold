@@ -128,7 +128,7 @@ const BASE = {
  */
 export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: string }): PapoConfig {
   const env = args.env ?? process.env;
-  const resolved = resolveConfig({ name: 'papo', base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
+  const resolved = resolveConfig({ name: 'papo', project: '.papo.json', base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
   try {
     check(resolved.values, SCHEMA, 'config');
   } catch (error: unknown) {
@@ -183,7 +183,7 @@ export async function rememberConfig(args: { cwd: string; env?: NodeJS.ProcessEn
   const fields = (Object.entries(args.patch) as [keyof RememberedSettings, string | undefined][])
     .filter((entry): entry is [keyof RememberedSettings, string] => entry[1] !== undefined && !(entry[0] === 'model' && entry[1] === ''));
   if (fields.length === 0) return [];
-  const resolved = resolveConfig({ name: 'papo', base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
+  const resolved = resolveConfig({ name: 'papo', project: '.papo.json', base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
   const files = new Map<string, Record<string, string>>();
   for (const [field, value] of fields) {
     const source = resolved.sourceOf(field);

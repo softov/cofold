@@ -12,11 +12,24 @@ export interface ConfigOptions {
   /**
    * The program's name.
    *
-   * The directory under the user's configuration home, the stem of the project
-   * file, and the stem of the environment variable: `depot` looks in
-   * `~/.config/depot/`, at `./.depot.json`, and at `$DEPOT_CONFIG`.
+   * The directory under the user's configuration home and the stem of the
+   * environment variable: `depot` looks in `~/.config/depot/` and at
+   * `$DEPOT_CONFIG`.
    */
   name: string;
+  /** Whether the user's own file is read. Read unless this is `false`. */
+  user?: boolean;
+  /**
+   * The project file's name, found at or above `cwd`: `.depot.json`,
+   * `depot.json`, `.depot/config.json`. Taken as written, with no dot added and
+   * no `extensions` tried. Absent, no project file is read.
+   */
+  project?: string;
+  /**
+   * The environment variable that names a file. `<NAME>_CONFIG` when absent;
+   * `false` reads no variable.
+   */
+  environment?: string | false;
   /**
    * How a file's text becomes data. JSON unless a program says otherwise.
    *
@@ -24,7 +37,7 @@ export interface ConfigOptions {
    * the file rather than the line alone.
    */
   parse?(text: string, path: string): Record<string, unknown>;
-  /** Which extensions to look for, in order. A program that brings a parser widens this. */
+  /** Which extensions the user file is looked for with, in order. A program that brings a parser widens this. */
   extensions?: readonly string[];
   /** Under everything found on disk: a program's own defaults, or a document's own block. */
   base?: Readonly<Record<string, unknown>>;

@@ -16,6 +16,6 @@ The `commands` domain is the command framework: `@cofold/commands` (the declarat
 
 ## Plans
 
-None open.
+- [02 - A program chooses its configuration layers and names its project file](02-a-program-chooses-its-config-layers/plan.md), active.
 
-Next free number: `02`.
+Next free number: `03`.

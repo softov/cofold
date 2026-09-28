@@ -12,8 +12,11 @@ Format and rules: the `do-spec` skill in `.agents/skills/do-spec/`.
 
 Reference: [00-commands.md](commands/00-commands.md)
 
-No open plan.
-Next free number in `commands`: `02`. The framework's open items live in [`/ROADMAP.md`](../../ROADMAP.md) until one is planned.
+| Plan | Priority | Status | Requires | Unblocks |
+| --- | --- | --- | --- | --- |
+| [02 - A program chooses its configuration layers and names its project file](commands/02-a-program-chooses-its-config-layers/plan.md) | high | active 2026-09-28, task 01 implemented in worktree `config-layers`, awaiting review | - | ahpd daemon/08 |
+
+Next free number in `commands`: `03`. The framework's open items live in [`/ROADMAP.md`](../../ROADMAP.md) until one is planned.
 
 ## agent
 

@@ -17,10 +17,10 @@ export type { ConfigLayerKind, ConfigLayer, ConfigOptions, ResolvedConfig, Confi
  *
  * The boring resolution order everybody implements slightly differently and
  * slightly wrong: an explicit path over an environment variable over a project
- * file over the user's own, each layer *merging* rather than replacing, and
- * able to say which file a value came from. That last part is what makes a
- * support ticket answerable: "it is reading staging" is a guess until something
- * can print the file.
+ * file (when the program names one) over the user's own, each layer *merging*
+ * rather than replacing, and able to say which file a value came from. That
+ * last part is what makes a support ticket answerable: "it is reading staging"
+ * is a guess until something can print the file.
  *
  * Reading a file is not parsing one. `parse` is injected and defaults to JSON,
  * which every runtime already has, so this package stays at zero dependencies
@@ -107,17 +107,23 @@ export function resolveConfig(options: ConfigOptions): ResolvedConfig {
 
   if (options.base !== undefined) apply("base", "(defaults)", options.base);
 
-  const userHome = env["XDG_CONFIG_HOME"] ?? join(home, ".config");
-  for (const extension of extensions) {
-    if (optional("user", join(userHome, options.name, `config${extension}`))) break;
+  if (options.user !== false) {
+    const userHome = env["XDG_CONFIG_HOME"] ?? join(home, ".config");
+    for (const extension of extensions) {
+      if (optional("user", join(userHome, options.name, `config${extension}`))) break;
+    }
   }
 
-  const project = findUp(cwd, options.name, extensions, read);
-  if (project !== undefined) optional("project", project);
+  if (options.project !== undefined) {
+    const project = findUp(cwd, options.project, read);
+    if (project !== undefined) optional("project", project);
+  }
 
-  const fromEnvironment = env[environmentNameOf(options.name)];
-  if (fromEnvironment !== undefined && fromEnvironment !== "") {
-    named("environment", resolve(cwd, fromEnvironment));
+  if (options.environment !== false) {
+    const fromEnvironment = env[options.environment ?? environmentNameOf(options.name)];
+    if (fromEnvironment !== undefined && fromEnvironment !== "") {
+      named("environment", resolve(cwd, fromEnvironment));
+    }
   }
 
   if (options.path !== undefined && options.path !== "") {
@@ -133,23 +139,17 @@ export function resolveConfig(options: ConfigOptions): ResolvedConfig {
 }
 
 /**
- * The nearest `.<name><ext>` at or above the working directory.
+ * The nearest `file` at or above the working directory. `file` is a name or a
+ * relative path, joined to each directory as written.
  *
  * Upwards, the way a repository is found, because a command run three
  * directories into a project is still run inside that project.
  */
-function findUp(
-  from: string,
-  name: string,
-  extensions: readonly string[],
-  read: (path: string) => string | undefined,
-): string | undefined {
+function findUp(from: string, file: string, read: (path: string) => string | undefined): string | undefined {
   let directory = resolve(from);
   for (;;) {
-    for (const extension of extensions) {
-      const candidate = join(directory, `.${name}${extension}`);
-      if (read(candidate) !== undefined) return candidate;
-    }
+    const candidate = join(directory, file);
+    if (read(candidate) !== undefined) return candidate;
     const up = dirname(directory);
     if (up === directory) return undefined;
     directory = up;
