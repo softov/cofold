@@ -89,3 +89,24 @@ jobs:
             printf '%s: %s\n' "$run" "$(printf '%s' "$said" | tr '\n' ' ')"
             printf '%s' "$said" | grep -q Rex
           done
+
+      # The other half of the claim: the same built clerver serves its commands
+      # over HTTP on each runtime, and its own client reads them back.
+      - name: One server, three runtimes
+        run: |
+          set -eu
+          for run in "node" "bun" "deno run -A"; do
+            port=$(node -e 'const s = require("node:net").createServer().listen(0, "127.0.0.1", () => { console.log(s.address().port); s.close(); })')
+            $run examples/commands/dist/clerver/cli.js serve -p "$port" &
+            server=$!
+            trap 'kill "$server" 2>/dev/null || true' EXIT
+            for _ in $(seq 50); do
+              curl -sf "http://127.0.0.1:$port/cli-manifest" > /dev/null && break
+              sleep 0.2
+            done
+            said=$($run examples/commands/dist/clerver/cli.js --url "http://127.0.0.1:$port" --refresh pet list)
+            printf '%s: %s\n' "$run" "$(printf '%s' "$said" | tr '\n' ' ')"
+            printf '%s' "$said" | grep -q Ada
+            kill "$server"
+            wait "$server" || true
+          done

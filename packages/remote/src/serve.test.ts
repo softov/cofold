@@ -13,6 +13,7 @@ import { createServer } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import { ArgumentError, AuthorizationError, coerce, createRegistry, output, type Registry } from "@cofold/commands";
 import { HttpError } from "./http.js";
+import { toNodeListener } from "./node.js";
 import { serve, type RequestHandler } from "./serve.js";
 
 function service(): Registry<object> {
@@ -68,7 +69,7 @@ afterEach(async () => {
 });
 
 async function start(handler: RequestHandler): Promise<string> {
-  const server = createServer(handler);
+  const server = createServer(toNodeListener(handler));
   await new Promise<void>((resolve) => { server.listen(0, "127.0.0.1", resolve); });
   const { port } = server.address() as AddressInfo;
   servers.push({ close: () => new Promise<void>((resolve, reject) => { server.close((error) => error === undefined ? resolve() : reject(error)); }) });
@@ -108,6 +109,18 @@ function fragile(): Registry<object> {
       summary: "Fails reading a file",
       meta: { http: { method: "GET", path: "/read" } },
       run: () => { throw new Error("/secret/path could not be read"); },
+    }),
+    registry.command({
+      id: "item.wait",
+      pattern: ["item", "wait"],
+      summary: "Answers once its signal is aborted",
+      meta: { http: { method: "GET", path: "/wait" } },
+      run: async (context) => {
+        const signal = context.signal;
+        if (signal === undefined) return output("no signal");
+        await new Promise<void>((resolve) => { signal.addEventListener("abort", () => { resolve(); }, { once: true }); });
+        return output({ aborted: signal.aborted });
+      },
     }),
     registry.command({
       id: "item.actor",
@@ -164,7 +177,7 @@ describe("a registry served over HTTP", () => {
   it("tells authorize the headers of the request", async () => {
     const seen: string[] = [];
     const base = await start(serve(service(), program, {
-      authorize: (request) => { seen.push(`${request.method} ${request.command.id} ${String(request.headers.authorization)}`); },
+      authorize: (request) => { seen.push(`${request.method} ${request.command.id} ${String(request.headers.get("authorization"))}`); },
     }));
     await fetch(`${base}/pets`, { headers: { authorization: "Bearer root" } });
     expect(seen).toEqual(["GET pet.list Bearer root"]);
@@ -270,7 +283,7 @@ describe("a request the handler has to survive", () => {
 describe("the principal authorize answers", () => {
   it("reaches the command as the request's actor", async () => {
     const base = await start(serve(fragile(), program, {
-      authorize: (request) => ({ subject: String(request.headers.authorization) }),
+      authorize: (request) => ({ subject: String(request.headers.get("authorization")) }),
     }));
     const answer = await fetch(`${base}/actor`, { headers: { authorization: "Bearer root" } });
     expect(await answer.json()).toEqual({ subject: "Bearer root" });
@@ -279,5 +292,131 @@ describe("the principal authorize answers", () => {
   it("is absent when there is no authorize", async () => {
     const base = await start(serve(fragile(), program));
     expect(await (await fetch(`${base}/actor`)).json()).toBeNull();
+  });
+});
+
+describe("the handler called with a Request", () => {
+  const origin = "http://pets.test";
+
+  it("answers a route with its data", async () => {
+    const answer = await serve(service(), program)(new Request(`${origin}/pets/7`));
+    expect(answer.status).toBe(200);
+    expect(answer.headers.get("content-type")).toBe("application/json");
+    expect(await answer.json()).toEqual({ id: "7" });
+  });
+
+  it("answers the manifest", async () => {
+    const answer = await serve(service(), program, { prefix: "/api" })(new Request(`${origin}/api/cli-manifest`));
+    expect(answer.status).toBe(200);
+    expect((await answer.json() as { program: { name: string } }).program.name).toBe("pets");
+  });
+
+  it("answers 415 for a text/plain body", async () => {
+    const answer = await serve(service(), program)(new Request(`${origin}/pets`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify({ name: "Byte" }),
+    }));
+    expect(answer.status).toBe(415);
+  });
+
+  it("answers 413 for a body past maxBodyBytes, and stops reading it", async () => {
+    let pulled = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1;
+        controller.enqueue(new Uint8Array(64));
+      },
+    });
+    const answer = await serve(service(), program, { maxBodyBytes: 100 })(new Request(`${origin}/pets`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      duplex: "half",
+    } as RequestInit));
+    expect(answer.status).toBe(413);
+    expect(await answer.json()).toEqual({ message: "The request body is too large" });
+    expect(pulled).toBeLessThan(5);
+  });
+
+  it("answers 500 with Failed for a command that throws an Error", async () => {
+    const answer = await serve(fragile(), program)(new Request(`${origin}/read`));
+    expect(answer.status).toBe(500);
+    expect(await answer.json()).toEqual({ message: "Failed" });
+  });
+
+  it("hands the command authorize's answer as request.actor", async () => {
+    const handler = serve(fragile(), program, {
+      authorize: (request) => ({ subject: request.headers.get("authorization") }),
+    });
+    const answer = await handler(new Request(`${origin}/actor`, { headers: { authorization: "Bearer root" } }));
+    expect(await answer.json()).toEqual({ subject: "Bearer root" });
+  });
+
+  it("hands the command the request's signal", async () => {
+    const controller = new AbortController();
+    const answering = serve(fragile(), program)(new Request(`${origin}/wait`, { signal: controller.signal }));
+    await new Promise((resolve) => { setTimeout(resolve, 20); });
+    controller.abort();
+    const answer = await answering;
+    expect(answer.status).toBe(200);
+    expect(await answer.json()).toEqual({ aborted: true });
+  });
+});
+
+describe("a handler served through toNodeListener", () => {
+  it("delivers a streamed response in chunks, as they are produced", async () => {
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    const encoder = new TextEncoder();
+    const base = await start(async () => new Response(new ReadableStream<Uint8Array>({
+      async start(controller) {
+        controller.enqueue(encoder.encode("first\n"));
+        await held;
+        controller.enqueue(encoder.encode("second\n"));
+        controller.close();
+      },
+    }), { headers: { "content-type": "text/plain" } }));
+    const answer = await fetch(base);
+    const reader = answer.body!.getReader();
+    const decoder = new TextDecoder();
+    const first = await reader.read();
+    expect(decoder.decode(first.value)).toBe("first\n");
+    release();
+    let rest = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      rest += decoder.decode(value);
+    }
+    expect(rest).toBe("second\n");
+  });
+
+  it("answers 413 for a body past maxBodyBytes over a socket", async () => {
+    const base = await start(serve(service(), program, { maxBodyBytes: 100 }));
+    const answer = await fetch(`${base}/pets`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "x".repeat(1000) }),
+    });
+    expect(answer.status).toBe(413);
+  });
+
+  it("aborts the request's signal when the client hangs up", async () => {
+    let aborted: Promise<boolean> = Promise.resolve(false);
+    let arrived = (): void => undefined;
+    const reached = new Promise<void>((resolve) => { arrived = resolve; });
+    const base = await start(async (request) => {
+      aborted = new Promise<boolean>((resolve) => { request.signal.addEventListener("abort", () => { resolve(true); }, { once: true }); });
+      arrived();
+      await aborted;
+      return new Response(null, { status: 204 });
+    });
+    const client = new AbortController();
+    const asking = fetch(base, { signal: client.signal }).catch(() => undefined);
+    await reached;
+    client.abort();
+    await asking;
+    expect(await aborted).toBe(true);
   });
 });

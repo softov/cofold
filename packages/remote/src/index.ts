@@ -5,7 +5,8 @@
  * is the client half: JSON, as commands. Between them a program gets a CLI for a
  * service it does not ship with, and the service gets a CLI without writing one.
  * `serve` is the handler that answers those commands over HTTP, from the same
- * declaration.
+ * declaration, as a `Request` in and a `Response` out; `toNodeListener` serves
+ * it on `node:http`.
  *
  * `manifestFromOpenApi` does the same for an API that never heard of this
  * library, which is most of them.
@@ -22,6 +23,7 @@ export {
   parseManifest,
 } from "./manifest.js";
 export { manifestFromOpenApi, patternFor } from "./openapi.js";
+export { toNodeListener } from "./node.js";
 export { serve } from "./serve.js";
 
 export type { RequestHandler, ServeOptions, ServeRequest } from "./serve.js";

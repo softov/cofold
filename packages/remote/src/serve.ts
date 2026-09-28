@@ -4,8 +4,9 @@
  * `manifestFrom` describes a registry and `commandsFrom` builds it back into
  * commands; between them a service gets a command line it never wrote. What was
  * missing is the middle: something that answers the requests those commands
- * send. That is this file. Point an HTTP server at the handler `serve` returns
- * and every command carrying `meta.http` becomes a route, with the manifest at
+ * send. That is this file. Hand the handler `serve` returns to `Bun.serve` or
+ * `Deno.serve`, or to `node:http` through `toNodeListener`, and every command
+ * carrying `meta.http` becomes a route, with the manifest at
  * `<prefix>/cli-manifest` beside them.
  *
  * Nothing here knows what the commands mean. It reads the same `meta.http` the
@@ -15,7 +16,6 @@
  * knocked on.
  */
 
-import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import {
   ArgumentError,
   AuthorizationError,
@@ -37,11 +37,15 @@ export interface ServeRequest {
   /** The full path, prefix included, as the client sent it. */
   path: string;
   /** The request's headers, so a token can be read and answered. */
-  headers: IncomingHttpHeaders;
+  headers: Headers;
 }
 
-/** A request handler, as `node:http` takes one. */
-export type RequestHandler = (request: IncomingMessage, response: ServerResponse) => void;
+/**
+ * A request handler in the shape `Bun.serve`, `Deno.serve` and the fetch
+ * standard use: one `Request` in, one `Response` out. `toNodeListener` serves
+ * one on `node:http`.
+ */
+export type RequestHandler = (request: Request) => Promise<Response>;
 
 export interface ServeOptions {
   /**
@@ -72,8 +76,9 @@ interface Route {
  * A request handler for one registry.
  *
  * The program names the manifest; the options mount it and guard it. The
- * handler is synchronous to hand to `createServer` and does its work in a
- * promise, so a slow command never blocks the accept loop.
+ * handler uses only web-standard globals, so it runs wherever `Request` and
+ * `Response` do. Its promise always resolves: a failure is a `Response` too.
+ * The request's `signal` is the command's signal.
  */
 export function serve(
   registry: Runner,
@@ -85,77 +90,55 @@ export function serve(
   const maxBodyBytes = options.maxBodyBytes ?? 1024 * 1024;
   const routes = routesOf(registry);
 
-  return (request, response) => {
-    void (async (): Promise<void> => {
-      const url = urlOf(request);
-      if (url === null) {
-        send(response, 400, { message: "The request URL or Host is not valid" });
-        return;
-      }
-      const method = request.method ?? "GET";
-      const path = url.pathname;
+  const answer = async (request: Request): Promise<Response> => {
+    const url = new URL(request.url);
+    const method = request.method;
+    const path = url.pathname;
 
-      if (path === manifestPath) {
-        send(response, 200, manifestFrom(registry, program));
-        return;
-      }
+    if (path === manifestPath) return json(200, manifestFrom(registry, program));
 
-      if (prefix !== "" && path !== prefix && !path.startsWith(`${prefix}/`)) {
-        send(response, 404, { message: `No route for ${method} ${path}` });
-        return;
-      }
-      const rest = prefix === "" ? path : path.slice(prefix.length) || "/";
+    if (prefix !== "" && path !== prefix && !path.startsWith(`${prefix}/`)) {
+      return json(404, { message: `No route for ${method} ${path}` });
+    }
+    const rest = prefix === "" ? path : path.slice(prefix.length) || "/";
 
-      for (const route of routes) {
-        let parameters: Record<string, string> | null;
-        try {
-          parameters = match(route, method, rest);
-        }
-        catch {
-          send(response, 400, { message: "The request path is not a valid URL" });
-          return;
-        }
-        if (parameters === null) continue;
-        try {
-          const actor = await options.authorize?.({ command: route.command, method, path, headers: request.headers });
-          const body = method === "GET" || method === "DELETE" || method === "HEAD"
-            ? {}
-            : await readBody(request, maxBodyBytes);
-          const input = await canonicalFromObject(route.command, {
-            ...queryOf(url),
-            ...body,
-            ...parameters,
-          });
-          const result = await registry.execute(route.command, {
-            surface: "remote",
-            input,
-            request: { actor, metadata: { headers: { ...request.headers } } },
-          });
-          send(response, 200, result?.data ?? null);
-        }
-        catch (error: unknown) {
-          const { status, message } = describe(error);
-          send(response, status, { message });
-        }
-        return;
+    for (const route of routes) {
+      let parameters: Record<string, string> | null;
+      try {
+        parameters = match(route, method, rest);
       }
+      catch {
+        return json(400, { message: "The request path is not a valid URL" });
+      }
+      if (parameters === null) continue;
+      try {
+        const actor = await options.authorize?.({ command: route.command, method, path, headers: request.headers });
+        const body = method === "GET" || method === "DELETE" || method === "HEAD"
+          ? {}
+          : await readBody(request, maxBodyBytes);
+        const input = await canonicalFromObject(route.command, {
+          ...queryOf(url),
+          ...body,
+          ...parameters,
+        });
+        const result = await registry.execute(route.command, {
+          surface: "remote",
+          input,
+          signal: request.signal,
+          request: { actor, metadata: { headers: Object.fromEntries(request.headers) } },
+        });
+        return json(200, result?.data ?? null);
+      }
+      catch (error: unknown) {
+        const { status, message } = describe(error);
+        return json(status, { message });
+      }
+    }
 
-      send(response, 404, { message: `No route for ${method} ${path}` });
-    })().catch(() => {
-      if (!response.headersSent) send(response, 500, { message: "Failed" });
-      else response.destroy();
-    });
+    return json(404, { message: `No route for ${method} ${path}` });
   };
-}
 
-/** The request's URL, or `null` when its path or `Host` does not parse. */
-function urlOf(request: IncomingMessage): URL | null {
-  try {
-    return new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
-  }
-  catch {
-    return null;
-  }
+  return (request) => answer(request).catch(() => json(500, { message: "Failed" }));
 }
 
 function routesOf(registry: Runner): Route[] {
@@ -195,27 +178,46 @@ function queryOf(url: URL): Record<string, unknown> {
 /**
  * The request's JSON body. A body of any other type is refused with 415: a
  * form or a `text/plain` body is what a browser sends cross-site without a
- * preflight.
+ * preflight. A body past `limit` bytes is refused with 413, and the stream is
+ * cancelled as soon as it passes the limit.
  */
-async function readBody(request: IncomingMessage, limit: number): Promise<Record<string, unknown>> {
-  const chunks: Buffer[] = [];
-  let size = 0;
-  for await (const chunk of request) {
-    const buffer = Buffer.from(chunk as Buffer);
-    size += buffer.length;
-    if (size > limit) throw new HttpError(413, "The request body is too large");
-    chunks.push(buffer);
-  }
-  const text = Buffer.concat(chunks).toString("utf8");
-  if (text === "") return {};
-  const type = String(request.headers["content-type"] ?? "").split(";")[0]?.trim().toLowerCase();
+async function readBody(request: Request, limit: number): Promise<Record<string, unknown>> {
+  const bytes = await bytesOf(request.body, limit);
+  if (bytes.byteLength === 0) return {};
+  const type = (request.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase();
   if (type !== "application/json") throw new HttpError(415, "The request body must be application/json");
+  const text = new TextDecoder().decode(bytes);
   try {
     return JSON.parse(text) as Record<string, unknown>;
   }
   catch {
     throw new ArgumentError("The request body is not valid JSON");
   }
+}
+
+/** Every byte of `body`, or `HttpError` 413 once there are more than `limit`. */
+async function bytesOf(body: ReadableStream<Uint8Array> | null, limit: number): Promise<Uint8Array> {
+  if (body === null) return new Uint8Array(0);
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) {
+      await reader.cancel();
+      throw new HttpError(413, "The request body is too large");
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 function normalizePrefix(prefix: string | undefined): string {
@@ -256,8 +258,10 @@ function messageOf(error: unknown): string {
   return error instanceof Error && typeof status === "number" ? error.message : "Failed";
 }
 
-function send(response: ServerResponse, status: number, value: unknown): void {
-  const body = JSON.stringify(value, null, 2);
-  response.writeHead(status, { "content-type": "application/json" });
-  response.end(`${body}\n`);
+/** A JSON answer, pretty-printed and ending in a newline. */
+function json(status: number, value: unknown): Response {
+  return new Response(`${JSON.stringify(value, null, 2)}\n`, {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 }
