@@ -21,6 +21,7 @@ import {
   AuthorizationError,
   CofoldError,
   canonicalFromObject,
+  fieldsOf,
   surfaceEnabled,
   type Command,
   type Runner,
@@ -145,8 +146,28 @@ function routesOf(registry: Runner): Route[] {
   return registry.commands.flatMap((command) => {
     const binding = command.meta?.http;
     if (binding === undefined || !surfaceEnabled(command, "remote")) return [];
+    checkPath(command, binding);
     return [{ command, binding, segments: binding.path.split("/").filter(Boolean) }];
   });
+}
+
+/**
+ * Refuse a path that can never match.
+ *
+ * A route needs one segment per `{param}`, so a parameter that may be absent
+ * leaves the command unreachable, and one that takes a list has no single
+ * segment to fill. Checked when the API is mounted, because the core does not
+ * read the binding.
+ */
+function checkPath(command: Command, binding: HttpBinding): void {
+  const fields = fieldsOf(command);
+  for (const [, name] of binding.path.matchAll(/\{([^}]+)\}/gu)) {
+    const field = fields.find((one) => one.name === name);
+    const said = `${command.id} binds {${name}} in ${binding.path}`;
+    if (field === undefined) throw new Error(`${said}, which is not an input field`);
+    if (field.repeated) throw new Error(`${said}, but ${name} takes a list`);
+    if (!field.required) throw new Error(`${said}, but ${name} is optional`);
+  }
 }
 
 /** The path's parameters, or `null` for another route. Throws `URIError` on a malformed escape. */

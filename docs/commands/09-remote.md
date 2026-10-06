@@ -41,6 +41,18 @@ registry.register(...commandsFrom(manifest, { capability: "transport" }));
 
 and they behave like any other command - help, completion, `--json`, coercion, exit codes - because they *are* any other command. [`examples/clerver`](../../examples/commands/clerver) is the whole round trip in three small files.
 
+## Effect and resource
+
+A command's `effect` and `resource` travel in the manifest as they were declared, and `commandsFrom` puts them back on the command it builds. A client reads the role from them without knowing the program: a list, a create, a get, and actions on one item with the key filled in from the row. A remote `remove` is confirmed by the client's terminal like a local one.
+
+A binding's path parameters must each be a required input that takes one value. A `{param}` that names an optional or list field, or no field at all, can never match a request, so `serve` refuses it when it is called, naming the command, the parameter and the path:
+
+```
+usage.list binds {pool} in /usage/{pool}, but pool is optional
+```
+
+Split such a command in two, one route with the parameter and one without, or move the field to the query.
+
 ## What has to be got right
 
 **Help and completion must work offline.** A surface that only exists after a round trip makes `--help` slow and completion useless, and breaks the binary on a train. The manifest is cached; `--refresh` re-fetches; a failed fetch falls back to the cache *with a line on stderr*, because a stale surface beats no surface and silence about it beats neither.
@@ -67,7 +79,10 @@ The honest caveat: four hundred endpoints are not four hundred commands. A CLI t
   "x-cli": { "pattern": ["pet", "add"], "group": "pets" }
 }
 "get": { "operationId": "internalMetrics", "x-cli": { "skip": true } }
+"delete": { "operationId": "deletePet", "x-cli": { "effect": "remove", "resource": { "kind": "pet", "key": "petId" } } }
 ```
+
+`x-cli` and `hints` may name an `effect` and a `resource`, and a hint overrides the document. No effect is ever derived from the HTTP method, and an effect that is not one of the four makes the operation unsupported.
 
 Without hints, command words always follow the API path: `GET /pets` becomes `pets`, and `GET /pets/{id}` becomes `pets <id>`. Tags are help headings only; operation IDs identify commands and select hints but do not determine command words. Literal path segments use lowercase ASCII words with hyphens; the HTTP path itself stays unchanged. Path parameters become slots, query parameters and flat JSON body properties become options with their types, bounds and enums. `hints` and `tags` on the import let you do the same for an API you do not own.
 

@@ -195,6 +195,26 @@ describe("what each surface is handed", () => {
   });
 });
 
+describe("what an action does to what", () => {
+  it("keeps the effect and the resource on the command", () => {
+    const command = build({
+      input: { id: { type: "string" } },
+      required: ["id"],
+      surfaces: { cli: { pattern: ["pet", "remove", ":id"] } },
+      effect: "remove",
+      resource: { kind: "pet", key: "id" },
+    });
+    expect(command.effect).toBe("remove");
+    expect(command.resource).toEqual({ kind: "pet", key: "id" });
+  });
+
+  it("leaves both off a command that declares neither", () => {
+    const command = build();
+    expect("effect" in command).toBe(false);
+    expect("resource" in command).toBe(false);
+  });
+});
+
 describe("reading a pattern", () => {
   it("tells a literal from a slot, and an optional or variadic one from a plain one", () => {
     expect(parsePattern(["note", ":id", ":tags?...", ":at?"])).toEqual([

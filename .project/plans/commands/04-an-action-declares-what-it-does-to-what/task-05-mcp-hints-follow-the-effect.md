@@ -1,6 +1,6 @@
 ---
 title: MCP hints follow the effect
-status: todo
+status: implemented
 depends: [task-01-the-declaration-says-what-it-does-to-what.md]
 layer: "mcp"
 refs:
@@ -35,3 +35,5 @@ A tool's annotations are the hints derived from its command's effect with `meta.
 - `pnpm --filter @cofold/mcp test` is clean.
 
 ## Resume
+
+Built 2026-10-06, awaiting review. `HINTS` and `annotationsFor` in `mcp/src/index.ts`; `listTools` passes them through unchanged. Tests: five cases in `index.test.ts`.

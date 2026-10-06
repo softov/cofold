@@ -1,6 +1,6 @@
 ---
 title: The terminal asks before a remove
-status: todo
+status: implemented
 depends: [task-01-the-declaration-says-what-it-does-to-what.md]
 layer: "terminal"
 refs:
@@ -39,3 +39,5 @@ Before running a command whose effect is `remove`, the terminal asks on stderr w
 - `pnpm --filter @cofold/terminal test` is clean.
 
 ## Resume
+
+Built 2026-10-06, awaiting review. `--yes` is in `globalOptions`; `confirm` is on `ProgramOptions`; the default asks through `node:readline/promises` when stdin and stderr are both terminals. A `remove` with no resource is said as `<words> removes something`, a wording the plan did not fix. Tests: six cases in `program.test.ts`. By hand under `script`, `petshop pet remove 1` answered `n` exits 1 with `petshop: not run`, answered `y` runs it, with no terminal exits 2 naming `--yes`, and with `--yes` runs it. No consumer in cofold, ahpd, ahpc or Advisor declares `--yes` today.

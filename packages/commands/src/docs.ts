@@ -68,6 +68,17 @@ function argumentRows(command: Command): readonly (readonly unknown[])[] {
   ]);
 }
 
+/** `Effect: remove · Resource: \`pet\` by \`id\``, or nothing for a command that declares neither. */
+function effectLine(command: Command): string | undefined {
+  const said: string[] = [];
+  if (command.effect !== undefined) said.push(`Effect: ${command.effect}`);
+  if (command.resource !== undefined) {
+    const { kind, key } = command.resource;
+    said.push(`Resource: \`${kind}\`${key === undefined ? "" : ` by \`${key}\``}`);
+  }
+  return said.length === 0 ? undefined : said.join(" · ");
+}
+
 export function commandSection(command: Command, options: DocumentOptions, level = 3): string {
   const heading = "#".repeat(level);
   const own = visible(optionsOf(command));
@@ -88,6 +99,8 @@ export function commandSection(command: Command, options: DocumentOptions, level
   if (command.needs !== undefined && command.needs.length > 0) {
     parts.push(`Needs: ${command.needs.map((need) => `\`${need}\``).join(", ")}`, "");
   }
+  const acts = effectLine(command);
+  if (acts !== undefined) parts.push(acts, "");
   if (command.examples !== undefined && command.examples.length > 0) {
     parts.push("```sh", ...command.examples.map((example) =>
       example.description === undefined ? example.command : `# ${example.description}\n${example.command}`), "```", "");

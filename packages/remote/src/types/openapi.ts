@@ -1,3 +1,5 @@
+import type { Effect, Resource } from "@cofold/commands";
+
 /**
  * What a document may say about one value, before it is narrowed.
  *
@@ -23,6 +25,10 @@ export interface OpenApiOperationHint {
   summary?: string;
   /** Left out of the surface entirely. */
   skip?: boolean;
+  /** What the operation does to the thing it names. Never derived from the method. */
+  effect?: Effect;
+  /** What it acts on, and which parameter names one. */
+  resource?: Resource;
 }
 
 export interface OpenApiOptions {

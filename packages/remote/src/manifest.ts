@@ -86,6 +86,8 @@ export function manifestFrom(
       ...compact({
         description: command.description,
         group: command.group,
+        effect: command.effect,
+        resource: command.resource,
         arguments: command.arguments === undefined
           ? undefined
           : Object.fromEntries(Object.entries(command.arguments).map(([name, spec]) => [name, {
@@ -175,6 +177,8 @@ export function commandsFrom(manifest: ProgramManifest, options: CommandsFromOpt
       ...compact({
         description: descriptor.description,
         group: descriptor.group,
+        effect: descriptor.effect,
+        resource: descriptor.resource,
         arguments: Object.keys(argumentSpecs).length === 0 ? undefined : argumentSpecs,
       }),
       run: async (context) => {

@@ -15,8 +15,8 @@ Reference: [00-commands.md](commands/00-commands.md)
 | Plan | Priority | Status | Requires | Unblocks |
 | --- | --- | --- | --- | --- |
 | [02 - A program chooses its configuration layers and names its project file](commands/02-a-program-chooses-its-config-layers/plan.md) | high | built 2026-09-28 ([implemented.md](commands/02-a-program-chooses-its-config-layers/implemented.md)) | - | ahpd daemon/08 |
-| [03 - A command typed without its required argument says which argument it needs](commands/03-a-missing-argument-is-named/plan.md) | medium | planned 2026-09-29; task 01 todo | - | ahpd daemon/09 task 03 |
-| [04 - An action declares what it does to what](commands/04-an-action-declares-what-it-does-to-what/plan.md) | high | planned 2026-10-06; task 01 todo | - | ahpd `/api/cli-manifest` resource explorer |
+| [03 - A command typed without its required argument says which argument it needs](commands/03-a-missing-argument-is-named/plan.md) | medium | active 2026-10-06; task 01 implemented, awaiting review | - | ahpd daemon/09 task 03 |
+| [04 - An action declares what it does to what](commands/04-an-action-declares-what-it-does-to-what/plan.md) | high | active 2026-10-06; tasks 01-09 implemented, awaiting review | - | ahpd `/api/cli-manifest` resource explorer |
 
 Next free number in `commands`: `05`. The framework's open items live in [`/ROADMAP.md`](../../ROADMAP.md) until one is planned.
 

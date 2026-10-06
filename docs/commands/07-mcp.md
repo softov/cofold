@@ -83,6 +83,19 @@ The HTTP server does require the SDK and everything the SDK requires, Zod includ
 
 Tested SDK: 1.30.0. Supported range: `^1.30.0`. Node: 22 or newer. See the [official SDK documentation](https://github.com/modelcontextprotocol/typescript-sdk/tree/v1.x).
 
+## Hints from the effect
+
+An action that declares an `effect` gets its MCP annotations from it, so its tools are marked without writing them by hand:
+
+| Effect | Annotations |
+| --- | --- |
+| `read` | `readOnlyHint: true` |
+| `add` | `readOnlyHint: false`, `destructiveHint: false` |
+| `change` | `readOnlyHint: false`, and MCP's default for `destructiveHint` |
+| `remove` | `readOnlyHint: false`, `destructiveHint: true` |
+
+`meta.mcp.annotations` is spread over the derived hints key by key, so a key written there wins. A command with neither sends no annotations.
+
 ## Tool names and results
 
 MCP metadata belongs in `meta.mcp`, for actions and raw commands alike:

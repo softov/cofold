@@ -1,6 +1,6 @@
 ---
 title: The manifest carries the effect and the resource
-status: todo
+status: implemented
 depends: [task-01-the-declaration-says-what-it-does-to-what.md]
 layer: "remote"
 refs:
@@ -34,3 +34,5 @@ refs:
 - `pnpm --filter @cofold/remote test` is clean.
 
 ## Resume
+
+Built 2026-10-06, awaiting review. Both fields sit inside the existing `compact` calls of `manifestFrom` and `commandsFrom`. Tests: two cases in `manifest.test.ts`, the round trip registering the rebuilt command.

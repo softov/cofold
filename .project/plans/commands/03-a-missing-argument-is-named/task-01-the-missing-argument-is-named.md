@@ -1,6 +1,6 @@
 ---
 title: The missing argument is named
-status: todo
+status: implemented
 depends: []
 layer: "terminal"
 refs:
@@ -27,3 +27,4 @@ A parse with no command whose typed words equal a visible command's literal pref
 
 ## Resume
 
+Built 2026-10-06, awaiting review. The branch in `program.ts` runs before `unknown command`: the first visible command whose literal prefix equals the typed words names its first required slot, then `Usage: <program> <pattern>` unstyled on stderr, exit 2. Tests: four cases in `program.test.ts`, including the one pinning that the first of two commands sharing the words is the one named.

@@ -1,6 +1,6 @@
 ---
 title: An OpenAPI operation declares its effect in x-cli
-status: todo
+status: implemented
 depends: [task-03-the-manifest-carries-the-effect.md]
 layer: "remote"
 refs:
@@ -37,3 +37,5 @@ An operation's `x-cli` (or a `hints` entry for it) may name `effect` and `resour
 - `pnpm --filter @cofold/remote test` is clean.
 
 ## Resume
+
+Built 2026-10-06, awaiting review. The effect is checked inside the operation's `try`, so an unknown one goes through `onUnsupported` like any other failure. Tests: two cases in `openapi.test.ts`.

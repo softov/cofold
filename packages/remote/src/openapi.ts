@@ -6,7 +6,7 @@ import type {
   OpenApiOptions,
   OpenApiParameter,
 } from "./types/openapi.js";
-import { compact, type JsonSchema, type OptionSpec } from "@cofold/commands";
+import { compact, EFFECTS, type JsonSchema, type OptionSpec } from "@cofold/commands";
 
 /**
  * An OpenAPI document, read as a command surface.
@@ -136,6 +136,9 @@ export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiO
 
       try {
       if ((operation as unknown as Record<string, unknown>)["$ref"] !== undefined) throw new Error("Unresolved operation reference");
+      if (hint.effect !== undefined && !EFFECTS.includes(hint.effect)) {
+        throw new Error(`The effect ${String(hint.effect)} is not one of ${EFFECTS.join(", ")}`);
+      }
       const parameters = [...new Map([...shared, ...(operation.parameters ?? [])].map((one) => [`${one.in}:${one.name}`, one])).values()];
       if (parameters.some((one) => !["query", "path"].includes(one.in))) throw new Error("Header/cookie parameters must be supplied by the configured transport");
       const pattern = patternFor(method, path, { ...operation, "x-cli": hint }, parameters);
@@ -186,6 +189,8 @@ export function manifestFromOpenApi(document: OpenApiDocument, options: OpenApiO
         ...compact({
           description: operation.description,
           group: hint.group ?? operation.tags?.[0],
+          effect: hint.effect,
+          resource: hint.resource,
           arguments: Object.keys(parameterDescriptions).length === 0 ? undefined : parameterDescriptions,
         }),
       });

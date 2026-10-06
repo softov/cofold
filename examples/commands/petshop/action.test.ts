@@ -93,7 +93,7 @@ describe("the HTTP surface", () => {
   });
 
   it("publishes only the actions that declared one", () => {
-    expect(manifest.commands.map((one) => one.id).sort()).toEqual(["pet.add", "pet.list", "pet.show"]);
+    expect(manifest.commands.map((one) => one.id).sort()).toEqual(["pet.add", "pet.list", "pet.remove", "pet.show"]);
   });
 });
 
@@ -113,5 +113,39 @@ describe("check, on its own", () => {
   it("refuses a value of the wrong type outright", () => {
     expect(() => check("3", { type: "integer" }, "x")).toThrow();
     expect(() => check(3, { type: "string" }, "x")).toThrow();
+  });
+});
+
+describe("what each action does to a pet", () => {
+  const described = (id: string) => manifestFrom(registry, { name: "petshop", version: "0" }).commands.find((one) => one.id === id);
+
+  it("declares a list, a create, a get and a remove", () => {
+    expect(described("pet.list")).toMatchObject({ effect: "read", resource: { kind: "pet" } });
+    expect(described("pet.list")?.resource).not.toHaveProperty("key");
+    expect(described("pet.add")).toMatchObject({ effect: "add", resource: { kind: "pet" } });
+    expect(described("pet.show")).toMatchObject({ effect: "read", resource: { kind: "pet", key: "id" } });
+    expect(described("pet.remove")).toMatchObject({ effect: "remove", resource: { kind: "pet", key: "id" }, http: { method: "DELETE", path: "/pets/{id}" } });
+  });
+
+  it("hands MCP the hints the effects imply", () => {
+    const hints = Object.fromEntries(listTools(registry).tools.map((tool) => [tool.name, tool.annotations]));
+    expect(hints["pet_list"]).toEqual({ readOnlyHint: true });
+    expect(hints["pet_show"]).toEqual({ readOnlyHint: true });
+    expect(hints["pet_remove"]).toMatchObject({ destructiveHint: true });
+  });
+
+  it("never hands out an id a pet still has after one is removed", async () => {
+    const first = JSON.parse((await callTool(registry, "pet_add", { name: "Gone" })).content[0]!.text) as { id: string };
+    const kept = JSON.parse((await callTool(registry, "pet_add", { name: "Kept" })).content[0]!.text) as { id: string };
+    await callTool(registry, "pet_remove", { id: first.id });
+    const next = JSON.parse((await callTool(registry, "pet_add", { name: "Next" })).content[0]!.text) as { id: string };
+    expect(next.id).not.toBe(kept.id);
+  });
+
+  it("lists rows that carry the resource key", async () => {
+    const result = await callTool(registry, "pet_list", {});
+    const rows = JSON.parse(result.content[0]!.text) as Record<string, unknown>[];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row).toHaveProperty("id");
   });
 });

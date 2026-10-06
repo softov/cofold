@@ -7,6 +7,9 @@
  * `petshop serve` answers the same action over HTTP. The constraints - a name
  * of 1 to 40 characters, an age between 0 and 30, a breed from a fixed set -
  * are written in one place and enforced on all three.
+ *
+ * Each pet action also says what it does to a pet: a list, a create, a get and
+ * a remove, which the terminal asks about before running.
  */
 
 import { createServer } from "node:http";
@@ -34,7 +37,7 @@ const registry = createRegistry().provide("pets", {
   resolve: () => ({
     all: (): Pet[] => pets,
     add: (pet: Omit<Pet, "id">): Pet => {
-      const made = { id: String(pets.length + 1), ...pet };
+      const made = { id: String(Math.max(0, ...pets.map((one) => Number(one.id))) + 1), ...pet };
       pets.push(made);
       return made;
     },
@@ -42,6 +45,11 @@ const registry = createRegistry().provide("pets", {
       const found = pets.find((one) => one.id === id);
       if (found === undefined) throw new ArgumentError(`There is no pet ${id}`);
       return found;
+    },
+    remove: (id: string): Pet => {
+      const at = pets.findIndex((one) => one.id === id);
+      if (at === -1) throw new ArgumentError(`There is no pet ${id}`);
+      return pets.splice(at, 1)[0]!;
     },
   }),
 });
@@ -51,6 +59,8 @@ registry.action({
   group: "pets",
   summary: "List the pets",
   needs: ["pets"],
+  effect: "read",
+  resource: { kind: "pet" },
   input: {},
   surfaces: {
     cli: { pattern: ["pet", "list"] },
@@ -69,6 +79,8 @@ registry.action({
   group: "pets",
   summary: "Add a pet",
   needs: ["pets"],
+  effect: "add",
+  resource: { kind: "pet" },
 
   input: {
     name: {
@@ -121,6 +133,8 @@ registry.action({
   group: "pets",
   summary: "Show one pet",
   needs: ["pets"],
+  effect: "read",
+  resource: { kind: "pet", key: "id" },
   input: { id: { type: "string", description: "The pet's id", minLength: 1 } },
   required: ["id"],
   surfaces: {
@@ -129,6 +143,23 @@ registry.action({
     mcp: true,
   },
   run: ({ input, pets: store }) => output(store.get(input.id)),
+});
+
+registry.action({
+  id: "pet.remove",
+  group: "pets",
+  summary: "Remove a pet",
+  needs: ["pets"],
+  effect: "remove",
+  resource: { kind: "pet", key: "id" },
+  input: { id: { type: "string", description: "The pet's id", minLength: 1 } },
+  required: ["id"],
+  surfaces: {
+    cli: { pattern: ["pet", "remove", ":id"] },
+    http: { method: "DELETE", path: "/pets/{id}" },
+    mcp: true,
+  },
+  run: ({ input, pets: store }) => output(store.remove(input.id)),
 });
 
 registry.action({

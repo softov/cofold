@@ -1,6 +1,6 @@
 ---
 title: The declaration says what it does to what
-status: todo
+status: implemented
 depends: []
 layer: "commands"
 refs:
@@ -35,7 +35,11 @@ refs:
 - `registry.action` with `effect: "remove"` and `resource: { kind: "pet", key: "id" }` and an `id` input: the `Command` has both, unchanged; fails first because `commandFor` drops them.
 - A hand-built `Command` passed to `register` keeps both fields.
 - `effect: "delete"` (cast), `resource: { kind: "" }`, and `key: "name"` with no `name` field are each refused with the id in the message; each fails first because nothing checks.
+- `remove` with `resource: { kind: "plugin", key: "name" }` over a variadic `:name...` slot registers, and so does a key over a repeatable option.
+- `add` with a key, and `change` with no resource, register: no combination is refused for having no role.
 - An action with neither field registers as before; existing tests pass unchanged.
 - `pnpm --filter @cofold/commands test` and `pnpm typecheck` are clean.
 
 ## Resume
+
+Built 2026-10-06, awaiting review. `Effect` and `Resource` are in `types/command.ts` with doc comments that carry the role table, the no-role fallback and the list key. `EFFECTS` is in `command.ts`, the three checks are at the end of `validateCommand`, and `registry.ts` now imports `fieldsOf` from `input.ts`. Tests: six registration cases in `registry.test.ts` and two in `command.test.ts`. A hand-built `Command` already kept both fields before the change, because `register` stores the object as given.

@@ -1,4 +1,4 @@
-import type { CommandGroup, JsonSchema } from "@cofold/commands";
+import type { CommandGroup, Effect, JsonSchema, Resource } from "@cofold/commands";
 export interface ManifestOption {
   name: string;
   short?: string;
@@ -44,6 +44,10 @@ export interface ManifestCommand {
   arguments?: Record<string, { schema: JsonSchema; description?: string }>;
   options?: readonly ManifestOption[];
   http: HttpBinding;
+  /** What running it does to the thing it names. */
+  effect?: Effect;
+  /** What it acts on, and which input field names one. */
+  resource?: Resource;
 }
 
 export interface ProgramManifest {

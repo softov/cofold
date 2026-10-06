@@ -131,6 +131,40 @@ run: (context) => output(data, plain?, quiet?)
 
 Return an `Output` rather than printing. `context.write()` exists for the two commands per program whose output *is* the payload, and opting out of the output contract should feel like opting out.
 
+## What it does, to what
+
+An action may say what running it does and what it acts on:
+
+```ts
+registry.action({
+  id: "pet.remove",
+  summary: "Remove a pet",
+  effect: "remove",
+  resource: { kind: "pet", key: "id" },
+  input: { id: { type: "string" } },
+  required: ["id"],
+  surfaces: { cli: { pattern: ["pet", "remove", ":id"] }, http: { method: "DELETE", path: "/pets/{id}" }, mcp: true },
+  run: ({ input, pets }) => output(pets.remove(input.id)),
+});
+```
+
+`effect` is one of `read`, `add`, `change` and `remove`. `resource.kind` names the kind of thing, and `resource.key` names the input field that names one of them, which is also the field each row of a list of that kind carries.
+
+A role is never declared; it follows from the two:
+
+| Effect | Key | Role |
+| --- | --- | --- |
+| `read` | no | a list |
+| `read` | yes | a get |
+| `add` | no | a create |
+| `change` or `remove` | yes | an action on one item |
+
+Any other combination, such as `change` with no resource or `add` with a key, is a plain action: a form and a result. Nothing is refused for having no role.
+
+A key may name a field that takes a list, such as a variadic slot. A client acting on one row fills it with a list of one.
+
+Registration refuses an effect that is not one of the four, a resource with an empty `kind`, and a `key` that is not an input field, naming the command. Each surface reads the two fields its own way: the reference prints them, the manifest carries them, MCP derives its hints from the effect, and the terminal asks before a `remove`.
+
 ## Surfaces, and meta
 
 An action says which surfaces render it by naming them, and the raw form says so with flags:

@@ -2,7 +2,8 @@ import type { ActionDefinition, Command, CommandDefinition, CommandGroup, Comman
 import type { CommandContext, Output } from "./types/context.js";
 import type { Field } from "./types/field.js";
 import type { ExecuteOptions, RegistryOptions, Resolution } from "./types/registry.js";
-import { literalPrefix, parsePattern, commandFor } from "./command.js";
+import { EFFECTS, literalPrefix, parsePattern, commandFor } from "./command.js";
+import { fieldsOf } from "./input.js";
 import { assertSupportedSchema } from "@cofold/sdk";
 import { compact } from "./compact.js";
 import { BaseContext, RESERVED_CONTEXT_KEYS, silentIo } from "./context.js";
@@ -348,6 +349,16 @@ export function validateCommand(command: Command, groups?: readonly CommandGroup
     names.add(option.name);
     if (option.short !== undefined && !/^-[A-Za-z0-9]$/u.test(option.short)) {
       throw new Error(`${command.id} declares ${option.short}, which is not a short option`);
+    }
+  }
+  if (command.effect !== undefined && !EFFECTS.includes(command.effect)) {
+    throw new Error(`${command.id} declares the effect ${String(command.effect)}, which is not one of ${EFFECTS.join(", ")}`);
+  }
+  if (command.resource !== undefined) {
+    if (command.resource.kind === "") throw new Error(`${command.id} declares a resource with no kind`);
+    const key = command.resource.key;
+    if (key !== undefined && !fieldsOf(command).some((field) => field.name === key)) {
+      throw new Error(`${command.id} names ${key} as its resource key, which is not an input field`);
     }
   }
   if (groups !== undefined && groups.length > 0) {

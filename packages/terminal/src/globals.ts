@@ -16,6 +16,7 @@ export const globalOptions: readonly OptionSpec[] = [
   { name: "--quiet", short: "-q", description: "Print only identifiers or requested values" },
   { name: "--verbose", description: "Include diagnostics on stderr" },
   { name: "--no-color", description: "Disable colour, as does a non-terminal or NO_COLOR" },
+  { name: "--yes", description: "Run a command that removes something without asking" },
 ];
 
 export const GLOBAL_NAMES: readonly string[] = globalOptions.map((option) => option.name);

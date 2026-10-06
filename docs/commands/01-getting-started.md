@@ -35,7 +35,9 @@ const program = new Program({ name: "hello", version: "1.0.0", registry });
 await runEntry(program, process.argv.slice(2));
 ```
 
-That is a complete program. It already has `--help`, `--version`, `--json`, `--quiet`, `--no-color`, `hello completion bash`, an exit-code taxonomy, and a refusal for `-n 0` that names the option the way you typed it. `input.name` is a `string` and `input.times` is a `number`, because the schemas that validate them are also the ones TypeScript reads.
+That is a complete program. It already has `--help`, `--version`, `--json`, `--quiet`, `--no-color`, `--yes`, `hello completion bash`, an exit-code taxonomy, and a refusal for `-n 0` that names the option the way you typed it. `input.name` is a `string` and `input.times` is a `number`, because the schemas that validate them are also the ones TypeScript reads.
+
+Before running a command whose `effect` is `remove`, a program asks on the terminal and runs it only on `y` or `yes`. `--yes` runs it without asking. Without a terminal to ask on, such a command is refused with exit 2 unless `--yes` is given, so a script never stops on a question.
 
 ## The three parts
 

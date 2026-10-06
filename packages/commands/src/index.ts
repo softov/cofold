@@ -44,7 +44,7 @@ export {
   exitCodeFor,
 } from "./errors.js";
 export { argumentFields, canonicalFromCli, canonicalFromObject, fieldsOf } from "./input.js";
-export { commandFor } from "./command.js";
+export { commandFor, EFFECTS } from "./command.js";
 export { createRegistry, Registry, sectionsOf, validateCommand } from "./registry.js";
 export { isStandardSchema, validate } from "./schema.js";
 export { didYouMean, suggest } from "./suggest.js";
@@ -60,7 +60,9 @@ export type {
   CommandGroup,
   CommandMeta,
   CommandSection,
+  Effect,
   PatternToken,
+  Resource,
   Surface,
   SurfaceFlags,
   Surfaces,

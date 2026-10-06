@@ -169,6 +169,8 @@ surfaces: {
 
 If a surface is not declared, the action is not exposed there.
 
+An action may also say what it does and to what: `effect` is `read`, `add`, `change` or `remove`, and `resource` names the kind of thing and the input field that names one. Every surface reads the same two fields: the reference prints them, MCP derives its hints, the terminal asks before a `remove`, and a client of the manifest draws a list, a create and item actions from them.
+
 ## Capabilities
 
 Actions can declare what they need instead of constructing dependencies themselves.

@@ -51,6 +51,32 @@ describe("the reference", () => {
     expect(text).toContain("notes note list acme -n 5");
   });
 
+  it("names the effect and the resource, after Needs", () => {
+    const registry = createRegistry();
+    registry.register(
+      registry.command({
+        id: "pet.remove", pattern: ["pet", "remove", ":id"], summary: "Remove a pet", needs: [],
+        effect: "remove", resource: { kind: "pet", key: "id" }, run: () => output(null),
+      }),
+      registry.command({
+        id: "pet.list", pattern: ["pet", "list"], summary: "List pets",
+        resource: { kind: "pet" }, run: () => output(null),
+      }),
+      registry.command({
+        id: "pet.feed", pattern: ["pet", "feed"], summary: "Feed them",
+        effect: "change", run: () => output(null),
+      }),
+    );
+    const text = reference(registry, { name: "petshop" });
+    expect(text).toContain("Effect: remove · Resource: `pet` by `id`");
+    expect(text).toContain("\nResource: `pet`\n");
+    expect(text).toContain("\nEffect: change\n");
+  });
+
+  it("writes no effect line for a command with neither", () => {
+    expect(reference(build(), { name: "notes" })).not.toMatch(/Effect:|Resource:/u);
+  });
+
   it("leaves out what is hidden", () => {
     expect(reference(build(), { name: "notes" })).not.toContain("`notes internal`");
   });

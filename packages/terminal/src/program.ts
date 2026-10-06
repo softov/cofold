@@ -1,14 +1,17 @@
 import type { OutputMode } from "./types/output.js";
 import type { ProgramOptions } from "./types/program.js";
 import { stdin as processStdin, stdout, stderr } from "node:process";
+import { createInterface } from "node:readline/promises";
 import {
   ArgumentError,
   canonicalFromCli,
+  commandPattern,
   compact,
   didYouMean,
   literalPrefix,
   optionsOf,
   output,
+  parsePattern,
   surfaceEnabled,
   visible,
   type Command,
@@ -42,6 +45,27 @@ export const processIo: Io = {
   out: (text) => { stdout.write(text); },
   err: (text) => { stderr.write(text); },
 };
+
+/** A question on stderr, answered on stdin: `y` or `yes` runs it, anything else does not. */
+async function askTerminal(question: string): Promise<boolean> {
+  const reader = createInterface({ input: processStdin, output: stderr });
+  try {
+    return ["y", "yes"].includes((await reader.question(question)).trim().toLowerCase());
+  } finally {
+    reader.close();
+  }
+}
+
+/** What a `remove` is said to do: `pet remove removes pet 7`. */
+function removal(command: Command, input: Readonly<Record<string, unknown>>): string {
+  const said = [`${literalPrefix(command).join(" ")} removes`];
+  const resource = command.resource;
+  if (resource === undefined) return `${said[0]} something`;
+  said.push(resource.kind);
+  const value = resource.key === undefined ? undefined : input[resource.key];
+  if (value !== undefined) said.push(Array.isArray(value) ? value.map(String).join(", ") : String(value));
+  return said.join(" ");
+}
 
 async function readAllStdin(): Promise<string> {
   if (processStdin.isTTY === true) return "";
@@ -135,6 +159,13 @@ export class Program {
       // to be told about `note list`, and being told about `note` is being told
       // what they already knew.
       const typed = invocation.words.join(" ");
+      const wanting = visible(this.commands).find((command) => literalPrefix(command).join(" ") === typed);
+      const missing = wanting === undefined ? undefined
+        : parsePattern(wanting.pattern).find((token) => token.kind === "slot" && !token.optional);
+      if (wanting !== undefined && missing?.kind === "slot") {
+        this.#io.err(`${this.name}: "${typed}" needs ${missing.name}.\nUsage: ${this.name} ${commandPattern(wanting)}\n`);
+        return 2;
+      }
       const known = [...new Set(visible(this.commands)
         .map((command) => literalPrefix(command).join(" ")))];
       this.#io.err(`${this.name}: unknown command "${typed}".${didYouMean(typed, known)} Try ${this.name} --help\n`);
@@ -158,6 +189,19 @@ export class Program {
       ...compact({ stdin: command.stdin === undefined ? undefined : await readStdin() }),
     });
 
+    if (command.effect === "remove" && !flag("--yes")) {
+      const what = removal(command, input);
+      const confirm = this.#confirm();
+      if (confirm === undefined) {
+        this.#io.err(`${this.name}: ${what}; pass --yes to run it without a terminal\n`);
+        return 2;
+      }
+      if (!await confirm(`${what}. Continue? [y/N] `)) {
+        this.#io.err(`${this.name}: not run\n`);
+        return 1;
+      }
+    }
+
     const result = await this.#options.registry.execute(command, {
       surface: "cli",
       input,
@@ -168,6 +212,14 @@ export class Program {
 
     emit(this.#io, result, mode);
     return 0;
+  }
+
+  /** Who answers before a `remove`, or nothing when there is no terminal to ask. */
+  #confirm(): ((question: string) => Promise<boolean>) | undefined {
+    const given = this.#options.confirm;
+    if (given === false) return undefined;
+    if (given !== undefined) return given;
+    return processStdin.isTTY === true && stderr.isTTY === true ? askTerminal : undefined;
   }
 
   #builtinCommands(): Command[] {

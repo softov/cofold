@@ -8,6 +8,8 @@ argv in, one of three output shapes out, and nothing about what the commands mea
 import { Program, runEntry } from "@cofold/terminal";
 ```
 
+Before a command whose `effect` is `remove`, the program asks on the terminal; `--yes` skips the question, and without a terminal the command is refused unless `--yes` is given.
+
 Depends on [`@cofold/commands`](../commands); part of the [cofold](https://github.com/softov/cofold) family.
 The manual page is [`docs/commands/05-output.md`](../../docs/commands/05-output.md); the whole framework is described in [`@cofold/commands`](../commands).
 

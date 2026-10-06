@@ -81,3 +81,37 @@ describe("tool identities", () => {
     expect(() => listTools(registry)).toThrow(/\$ref/);
   });
 });
+
+describe("hints from the effect", () => {
+  const annotated = (effect?: "read" | "add" | "change" | "remove", annotations?: Record<string, boolean>) => {
+    const registry = createRegistry();
+    registry.register(registry.command({
+      id: "pet.act", pattern: ["pet", "act"], summary: "Act", surfaces: { mcp: true },
+      ...(effect === undefined ? {} : { effect }),
+      ...(annotations === undefined ? {} : { meta: { mcp: { annotations } } }),
+      run: () => output(null),
+    }));
+    return listTools(registry).tools[0]!;
+  };
+
+  it("marks a read as read-only", () => {
+    expect(annotated("read").annotations).toEqual({ readOnlyHint: true });
+  });
+
+  it("marks a remove as destructive", () => {
+    expect(annotated("remove").annotations).toEqual({ readOnlyHint: false, destructiveHint: true });
+  });
+
+  it("marks an add as not destructive, and leaves a change to MCP's default", () => {
+    expect(annotated("add").annotations).toEqual({ readOnlyHint: false, destructiveHint: false });
+    expect(annotated("change").annotations).toEqual({ readOnlyHint: false });
+  });
+
+  it("lets a hand-written annotation win, key by key", () => {
+    expect(annotated("remove", { destructiveHint: false }).annotations).toEqual({ readOnlyHint: false, destructiveHint: false });
+  });
+
+  it("sends no annotations for a command with no effect and none written", () => {
+    expect(annotated()).not.toHaveProperty("annotations");
+  });
+});

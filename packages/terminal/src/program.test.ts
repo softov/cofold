@@ -85,3 +85,112 @@ describe("a program", () => {
     expect(harness.text()).toBe("fail\nlist\n");
   });
 });
+
+describe("a command that removes something", () => {
+  function removing(confirm?: ((question: string) => Promise<boolean>) | false, effect: "remove" | "change" = "remove") {
+    const err: string[] = [];
+    const ran: string[] = [];
+    const asked: string[] = [];
+    const registry = createRegistry();
+    registry.action({
+      id: "pet.remove", summary: "Remove a pet", effect, resource: { kind: "pet", key: "id" },
+      input: { id: { type: "string" } }, required: ["id"],
+      surfaces: { cli: { pattern: ["pet", "remove", ":id"] } },
+      run: (context) => { ran.push(context.value("id")); return output(null); },
+    });
+    const program = new Program({
+      name: "petshop", version: "0", registry, readStdin: async () => "",
+      io: { out: () => {}, err: (text) => { err.push(text); } },
+      ...(confirm === undefined ? {} : {
+        confirm: confirm === false ? false : async (question: string) => { asked.push(question); return confirm(question); },
+      }),
+    });
+    return { program, ran, asked, errors: () => err.join("") };
+  }
+
+  it("asks first, and runs it on yes", async () => {
+    const harness = removing(async () => true);
+    expect(await harness.program.run(["pet", "remove", "7"])).toBe(0);
+    expect(harness.asked).toEqual(["pet remove removes pet 7. Continue? [y/N] "]);
+    expect(harness.ran).toEqual(["7"]);
+  });
+
+  it("does not run it on anything else, and says so", async () => {
+    const harness = removing(async () => false);
+    expect(await harness.program.run(["pet", "remove", "7"])).toBe(1);
+    expect(harness.ran).toEqual([]);
+    expect(harness.errors()).toBe("petshop: not run\n");
+  });
+
+  it("runs it without asking under --yes", async () => {
+    const harness = removing(async () => false);
+    expect(await harness.program.run(["pet", "remove", "7", "--yes"])).toBe(0);
+    expect(harness.asked).toEqual([]);
+    expect(harness.ran).toEqual(["7"]);
+  });
+
+  it("never asks before a command that does not remove", async () => {
+    const harness = removing(async () => false, "change");
+    expect(await harness.program.run(["pet", "remove", "7"])).toBe(0);
+    expect(harness.asked).toEqual([]);
+  });
+
+  it("refuses without a terminal, naming --yes", async () => {
+    const harness = removing(false);
+    expect(await harness.program.run(["pet", "remove", "7"])).toBe(2);
+    expect(harness.ran).toEqual([]);
+    expect(harness.errors()).toBe("petshop: pet remove removes pet 7; pass --yes to run it without a terminal\n");
+    expect(await removing(false).program.run(["pet", "remove", "7", "--yes"])).toBe(0);
+  });
+
+  it("refuses a program that declares --yes itself", () => {
+    expect(() => new Program({
+      name: "x", version: "0", registry: createRegistry(),
+      globals: [{ name: "--yes", description: "Mine" }],
+    })).toThrow(/--yes is a standard global option/u);
+  });
+});
+
+describe("a command typed without its argument", () => {
+  function typed() {
+    const err: string[] = [];
+    const registry = createRegistry();
+    registry.register(
+      registry.command({ id: "note.add", pattern: ["note", "add", ":text"], summary: "Add a note", run: () => output(null) }),
+      registry.command({ id: "plugin.install", pattern: ["plugin", "install", ":name..."], summary: "Install", run: () => output(null) }),
+    );
+    const program = new Program({ name: "notes", version: "0", registry, io: { out: () => {}, err: (text) => { err.push(text); } } });
+    return { program, errors: () => err.join("") };
+  }
+
+  it("names the argument and shows the usage", async () => {
+    const harness = typed();
+    expect(await harness.program.run(["note", "add"])).toBe(2);
+    expect(harness.errors()).toBe("notes: \"note add\" needs text.\nUsage: notes note add <text>\n");
+  });
+
+  it("names a variadic argument the same way", async () => {
+    const harness = typed();
+    expect(await harness.program.run(["plugin", "install"])).toBe(2);
+    expect(harness.errors()).toBe("notes: \"plugin install\" needs name.\nUsage: notes plugin install <name...>\n");
+  });
+
+  it("names the first command's argument when two share the words", async () => {
+    const err: string[] = [];
+    const registry = createRegistry();
+    registry.register(
+      registry.command({ id: "tag.one", pattern: ["tag", ":name"], summary: "One", run: () => output(null) }),
+      registry.command({ id: "tag.two", pattern: ["tag", ":from", ":to"], summary: "Two", run: () => output(null) }),
+    );
+    const program = new Program({ name: "notes", version: "0", registry, io: { out: () => {}, err: (text) => { err.push(text); } } });
+    expect(await program.run(["tag"])).toBe(2);
+    expect(err.join("")).toContain("\"tag\" needs name.");
+  });
+
+  it("still calls a typo an unknown command, with its suggestion", async () => {
+    const harness = typed();
+    expect(await harness.program.run(["note", "ad"])).toBe(2);
+    expect(harness.errors()).toContain("unknown command \"note ad\"");
+    expect(harness.errors()).toContain("note add");
+  });
+});

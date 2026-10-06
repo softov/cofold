@@ -420,3 +420,36 @@ describe("a handler served through toNodeListener", () => {
     expect(await aborted).toBe(true);
   });
 });
+
+describe("a binding whose path can never match", () => {
+  const program = { name: "pets", version: "1.0.0" };
+  const bound = (pattern: string[], path: string, input: Record<string, unknown>, required: string[] = []) => {
+    const registry = createRegistry();
+    registry.action({
+      id: "usage.list", summary: "Spend", input: input as never, required: required as never,
+      surfaces: { cli: { pattern }, http: { method: "GET", path } },
+      run: () => output(null),
+    });
+    return () => serve(registry, program);
+  };
+
+  it("refuses an optional slot in the path", () => {
+    expect(bound(["usage", ":pool?"], "/usage/{pool}", { pool: { type: "string" } }))
+      .toThrow("usage.list binds {pool} in /usage/{pool}, but pool is optional");
+  });
+
+  it("refuses a parameter that is not an input field", () => {
+    expect(bound(["usage"], "/usage/{pool}", {}))
+      .toThrow("usage.list binds {pool} in /usage/{pool}, which is not an input field");
+  });
+
+  it("refuses a parameter that takes a list", () => {
+    expect(bound(["usage", ":pool..."], "/usage/{pool}", { pool: { type: "array", items: { type: "string" } } }, ["pool"]))
+      .toThrow("usage.list binds {pool} in /usage/{pool}, but pool takes a list");
+  });
+
+  it("serves a required slot and a required option in the path", () => {
+    expect(bound(["usage", ":pool"], "/usage/{pool}", { pool: { type: "string" } }, ["pool"])).not.toThrow();
+    expect(bound(["usage"], "/usage/{pool}", { pool: { type: "string" } }, ["pool"])).not.toThrow();
+  });
+});

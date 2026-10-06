@@ -8,6 +8,7 @@ import {
   fieldsOf,
   surfaceEnabled,
   type Command,
+  type Effect,
   type JsonSchema,
   type Runner,
 } from "@cofold/commands";
@@ -102,7 +103,7 @@ export function tools(registry: Runner, options: ToolOptions = {}): ToolDefiniti
       description: descriptionFor(command),
       inputSchema: inputSchemaFor(command),
       command,
-      ...compact({ annotations: command.meta?.mcp?.annotations, outputSchema: command.meta?.mcp?.outputSchema }),
+      ...compact({ annotations: annotationsFor(command), outputSchema: command.meta?.mcp?.outputSchema }),
       invoke: async (raw: Record<string, unknown>): Promise<unknown> => {
         const input = await canonicalFromObject(command, raw);
         const result = await registry.execute(command, {
@@ -113,6 +114,22 @@ export function tools(registry: Runner, options: ToolOptions = {}): ToolDefiniti
         return result?.data ?? null;
       },
     }));
+}
+
+/** The hints each effect implies. A `change` sends no `destructiveHint`, so MCP's default applies. */
+const HINTS: Readonly<Record<Effect, NonNullable<McpBinding["annotations"]>>> = {
+  read: { readOnlyHint: true },
+  add: { readOnlyHint: false, destructiveHint: false },
+  change: { readOnlyHint: false },
+  remove: { readOnlyHint: false, destructiveHint: true },
+};
+
+/** The hints derived from a command's effect, with its own annotations over them key by key. */
+function annotationsFor(command: Command): McpBinding["annotations"] {
+  const derived = command.effect === undefined ? undefined : HINTS[command.effect];
+  const written = command.meta?.mcp?.annotations;
+  if (derived === undefined && written === undefined) return undefined;
+  return { ...derived, ...written };
 }
 
 /** What a `tools/list` response holds, ready to serialise. */

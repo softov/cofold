@@ -63,6 +63,31 @@ describe("the round trip", () => {
     await expect(program.run(["pet", "list", "--limit", "999"])).rejects.toThrow(/--limit must be an integer/u);
   });
 
+  it("carries the effect and the resource there and back", () => {
+    const registry = service();
+    registry.action({
+      id: "pet.remove", group: "pets", summary: "Remove a pet",
+      effect: "remove", resource: { kind: "pet", key: "id" },
+      input: { id: { type: "string" } }, required: ["id"],
+      surfaces: { cli: { pattern: ["pet", "remove", ":id"] }, http: { method: "DELETE", path: "/pets/{id}" } },
+      run: () => output(null),
+    });
+    const manifest = manifestFrom(registry, { name: "pets", version: "1.0.0" });
+    const described = manifest.commands.find((command) => command.id === "pet.remove");
+    expect(described).toMatchObject({ effect: "remove", resource: { kind: "pet", key: "id" } });
+
+    const rebuilt = commandsFrom(manifest).find((command) => command.id === "pet.remove")!;
+    expect(rebuilt).toMatchObject({ effect: "remove", resource: { kind: "pet", key: "id" } });
+    // Registering checks the key against the input the manifest rebuilt.
+    expect(() => createRegistry().register(rebuilt)).not.toThrow();
+  });
+
+  it("writes no effect or resource key for a command with neither", () => {
+    const [listed] = manifestFrom(service(), { name: "pets", version: "1.0.0" }).commands;
+    expect(listed).not.toHaveProperty("effect");
+    expect(listed).not.toHaveProperty("resource");
+  });
+
   it("publishes only the commands that carry a binding", () => {
     const registry = service();
     registry.register({ id: "local", pattern: ["doctor"], summary: "", group: "pets", run: () => {} });

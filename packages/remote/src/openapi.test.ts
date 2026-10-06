@@ -72,3 +72,27 @@ it("requires explicit names when multiple HTTP methods share a path", () => {
   expect(manifest.commands.map((command) => [command.pattern.join(' '), command.http.method]))
     .toEqual([['clients list', 'GET'], ['clients create', 'POST']]);
 });
+
+it("reads an operation's effect and resource from x-cli, and lets a hint override them", () => {
+  const document = { paths: { '/pets/{petId}': { delete: {
+    operationId: 'deletePet',
+    parameters: [{ name: 'petId', in: 'path', required: true }],
+    'x-cli': { effect: 'remove', resource: { kind: 'pet', key: 'petId' } },
+  } } } } as Parameters<typeof manifestFromOpenApi>[0];
+  expect(manifestFromOpenApi(document).commands[0]).toMatchObject({ effect: 'remove', resource: { kind: 'pet', key: 'petId' } });
+  expect(manifestFromOpenApi(document, { hints: { deletePet: { effect: 'change' } } }).commands[0]?.effect).toBe('change');
+});
+
+it("refuses an effect it does not know, and derives none from the method", () => {
+  const unknown = { paths: { '/pets/{petId}': { delete: {
+    operationId: 'deletePet', parameters: [{ name: 'petId', in: 'path', required: true }],
+    'x-cli': { effect: 'destroy' },
+  } } } } as unknown as Parameters<typeof manifestFromOpenApi>[0];
+  const issues: { id: string; reason: string }[] = [];
+  expect(manifestFromOpenApi(unknown, { onUnsupported: (issue) => issues.push(issue) }).commands).toHaveLength(0);
+  expect(issues[0]).toMatchObject({ id: 'deletePet', reason: expect.stringContaining('destroy') });
+  expect(() => manifestFromOpenApi(unknown)).toThrow('destroy');
+
+  const plain = manifestFromOpenApi({ paths: { '/pets/{petId}': { delete: { parameters: [{ name: 'petId', in: 'path', required: true }] } } } });
+  expect(plain.commands[0]).not.toHaveProperty('effect');
+});

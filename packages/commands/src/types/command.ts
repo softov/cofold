@@ -45,6 +45,32 @@ export interface SurfaceFlags {
  */
 export interface CommandMeta {}
 
+/**
+ * What running a command does to the thing it names.
+ *
+ * `add` makes a new one, `change` alters one that exists, `remove` takes one
+ * away. Each surface reads it its own way: MCP derives its hints, the terminal
+ * asks before a `remove`, a client works out a role.
+ */
+export type Effect = "read" | "add" | "change" | "remove";
+
+/**
+ * The kind of thing a command acts on, and the input field that names one.
+ *
+ * With `effect`, it is the whole of a command's role: `read` with no key is a
+ * list, `read` with a key a get, `add` with no key a create, `change` or
+ * `remove` with a key an item action. Any other combination is a plain action.
+ */
+export interface Resource {
+  kind: string;
+  /**
+   * An input field naming one item, and the same field in each row a list of
+   * this kind returns. Nothing checks the rows, which are untyped. A field that
+   * takes a list is allowed; a client fills it with a list of one.
+   */
+  key?: string;
+}
+
 export interface CommandDefinition<Deps extends object = object, Needs extends readonly string[] = readonly string[]> {
   /** Stable, dotted, and never rendered to a person: `case.show`. */
   id: string;
@@ -73,6 +99,10 @@ export interface CommandDefinition<Deps extends object = object, Needs extends r
   needs?: Needs;
   /** Checked against whatever the registry's `authorize` hook knows. */
   scopes?: readonly string[];
+  /** What running it does to the thing it names. */
+  effect?: Effect;
+  /** What it acts on, and which input field names one. */
+  resource?: Resource;
   /**
    * A schema over the whole canonical input, after coercion.
    *
@@ -167,6 +197,10 @@ export interface ActionDefinition<
   surfaces: Surfaces;
   needs?: Needs;
   scopes?: readonly string[];
+  /** What running it does to the thing it names. */
+  effect?: Effect;
+  /** What it acts on, and which input field names one. */
+  resource?: Resource;
   refine?: StandardSchema;
   meta?: CommandMeta;
   examples?: readonly CommandExample[];

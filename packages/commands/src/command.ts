@@ -1,5 +1,5 @@
 import type { Coercer } from "./types/coerce.js";
-import type { ActionDefinition, Command, CommandMeta, PatternToken, Surface, Surfaces } from "./types/command.js";
+import type { ActionDefinition, Command, CommandMeta, Effect, PatternToken, Surface, Surfaces } from "./types/command.js";
 import type { ArgumentSpec, Field, OptionNote, OptionSpec } from "./types/field.js";
 import type { JsonSchema } from "@cofold/sdk";
 
@@ -41,6 +41,9 @@ const flagFor = (name: string): string => `--${name.replace(/[A-Z]/gu, (letter) 
  * spelled from `cli` where it says so and from the field's own name where it
  * does not. Everything else is carried across untouched.
  */
+/** Every effect a command may declare. */
+export const EFFECTS: readonly Effect[] = ["read", "add", "change", "remove"];
+
 export function commandFor(definition: ActionDefinition<never, never, Record<string, Field>, readonly string[]>): Command {
   const input = definition.input ?? {};
   const cli = definition.surfaces.cli;
@@ -110,6 +113,8 @@ export function commandFor(definition: ActionDefinition<never, never, Record<str
     ...(options.length === 0 ? {} : { options }),
     ...(definition.needs === undefined ? {} : { needs: definition.needs }),
     ...(definition.scopes === undefined ? {} : { scopes: definition.scopes }),
+    ...(definition.effect === undefined ? {} : { effect: definition.effect }),
+    ...(definition.resource === undefined ? {} : { resource: definition.resource }),
     ...(definition.refine === undefined ? {} : { refine: definition.refine }),
     ...(cli?.stdin === undefined ? {} : { stdin: cli.stdin }),
     ...(definition.examples === undefined ? {} : { examples: definition.examples }),

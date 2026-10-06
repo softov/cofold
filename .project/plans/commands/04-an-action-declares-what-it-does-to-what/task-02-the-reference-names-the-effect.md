@@ -1,6 +1,6 @@
 ---
 title: The reference names the effect and the resource
-status: todo
+status: implemented
 depends: [task-01-the-declaration-says-what-it-does-to-what.md]
 layer: "commands"
 refs:
@@ -30,3 +30,5 @@ A command with an effect gets one line in its reference entry, after `Needs:`: `
 - `pnpm --filter @cofold/commands test` is clean.
 
 ## Resume
+
+Built 2026-10-06, awaiting review. `effectLine` in `docs.ts` writes the line after `Needs:`. Tests: two cases in `docs.test.ts`.

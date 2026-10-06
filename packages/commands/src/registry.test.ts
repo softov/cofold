@@ -108,6 +108,65 @@ describe("registration", () => {
       .toThrow(/no group/u);
   });
 
+  it("keeps the effect and the resource of a command built by hand", () => {
+    const registry = createRegistry();
+    registry.register({
+      id: "pet.remove", pattern: ["pet", "remove", ":id"], summary: "",
+      effect: "remove", resource: { kind: "pet", key: "id" }, run: () => {},
+    });
+    expect(registry.find("pet.remove")).toMatchObject({ effect: "remove", resource: { kind: "pet", key: "id" } });
+  });
+
+  it("refuses an effect that is not read, add, change or remove", () => {
+    const registry = createRegistry();
+    expect(() => registry.register({
+      id: "pet.remove", pattern: ["pet", "remove"], summary: "", effect: "delete" as never, run: () => {},
+    })).toThrow("pet.remove declares the effect delete, which is not one of read, add, change, remove");
+  });
+
+  it("refuses a resource with no kind", () => {
+    const registry = createRegistry();
+    expect(() => registry.register({
+      id: "pet.list", pattern: ["pet", "list"], summary: "", resource: { kind: "" }, run: () => {},
+    })).toThrow("pet.list declares a resource with no kind");
+  });
+
+  it("refuses a key that is not an input field", () => {
+    const registry = createRegistry();
+    expect(() => registry.action({
+      id: "pet.show", summary: "", effect: "read", resource: { kind: "pet", key: "name" },
+      input: { id: { type: "string" } }, required: ["id"],
+      surfaces: { cli: { pattern: ["pet", "show", ":id"] } }, run: () => {},
+    })).toThrow("pet.show names name as its resource key, which is not an input field");
+  });
+
+  it("takes a key over a list field, which a client fills with a list of one", () => {
+    const registry = createRegistry();
+    expect(() => registry.action({
+      id: "plugin.remove", summary: "", effect: "remove", resource: { kind: "plugin", key: "name" },
+      input: { name: { type: "array", items: { type: "string" } } }, required: ["name"],
+      surfaces: { cli: { pattern: ["plugin", "remove", ":name..."] } }, run: () => {},
+    })).not.toThrow();
+    expect(() => registry.action({
+      id: "tag.drop", summary: "", effect: "remove", resource: { kind: "tag", key: "tag" },
+      input: { tag: { type: "array", items: { type: "string" } } },
+      surfaces: { cli: { pattern: ["tag", "drop"] } }, run: () => {},
+    })).not.toThrow();
+  });
+
+  it("refuses no combination for having no role", () => {
+    const registry = createRegistry();
+    expect(() => registry.action({
+      id: "user.add", summary: "", effect: "add", resource: { kind: "user", key: "id" },
+      input: { id: { type: "string" } }, required: ["id"],
+      surfaces: { cli: { pattern: ["user", "add", ":id"] } }, run: () => {},
+    })).not.toThrow();
+    expect(() => registry.action({
+      id: "daemon.restart", summary: "", effect: "change",
+      surfaces: { cli: { pattern: ["restart"] } }, run: () => {},
+    })).not.toThrow();
+  });
+
   it("refuses two commands with the same id", () => {
     const registry = createRegistry();
     registry.register({ id: "x", pattern: ["x"], summary: "", run: () => {} });

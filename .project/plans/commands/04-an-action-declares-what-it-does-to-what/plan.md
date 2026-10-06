@@ -1,7 +1,7 @@
 ---
 title: An action declares what it does to what
 domain: commands
-status: planned
+status: active
 priority: high
 created: 2026-10-06
 revalidated: 2026-10-06
@@ -17,6 +17,7 @@ refs:
   - "[code://packages/remote/src/manifest.ts#L72-L104](../../../../packages/remote/src/manifest.ts#L72-L104) - `manifestFrom`, which copies chosen fields into each `ManifestCommand`"
   - "[code://packages/remote/src/manifest.ts#L143-L186](../../../../packages/remote/src/manifest.ts#L143-L186) - `commandsFrom`, the client half that must carry the fields back onto a `Command`"
   - "[code://packages/remote/src/types/manifest.ts#L38-L47](../../../../packages/remote/src/types/manifest.ts#L38-L47) - `ManifestCommand`"
+  - "[code://packages/remote/src/serve.ts#L144-L150](../../../../packages/remote/src/serve.ts#L144-L150) - `routesOf`, built once when `serve` is called, where a binding's path parameters are checked"
   - "[code://packages/remote/src/openapi.ts#L117-L191](../../../../packages/remote/src/openapi.ts#L117-L191) - `manifestFromOpenApi` reads a document into a manifest; nothing in the repository writes one"
   - "[code://packages/remote/src/types/openapi.ts#L19-L26](../../../../packages/remote/src/types/openapi.ts#L19-L26) - `OpenApiOperationHint`, the `x-cli` extension and the `hints` option"
   - "[code://packages/mcp/src/index.ts#L85-L115](../../../../packages/mcp/src/index.ts#L85-L115) - `tools`; line 105 sends `meta.mcp.annotations` as they are"
@@ -93,13 +94,16 @@ The choices below are scope.
 | This plan covers the OpenAPI import only; writing an OpenAPI document from a registry is a ROADMAP item | Softov, 2026-10-06, asked "is writing an OpenAPI document part of this plan?": "ROADMAP item" | 04 |
 | Package versions are chosen at release, not in this plan | Softov, 2026-10-06, asked "which versions do the four packages take?": "Decide at release" | 08 |
 | petshop declares `resource: { kind: "pet" }` on `pet.list` and `pet.add`, `{ kind: "pet", key: "id" }` on `pet.show`, and gains `pet.remove` (`DELETE /pets/{id}`) so the example shows all four roles | Softov, 2026-10-06, "the examples (petshop) get one declared resource as a worked case"; (defaulted: `pet.remove` added so a `remove` exists to confirm) | 07 |
+| A combination with no role (an effect with no resource, `add` with a key, `change` or `remove` with no key) is a plain action, drawn as a form and a result; nothing is refused for it, and the docs say so | Softov, 2026-10-06, asked "what should a client do with a combination that has no role?": "Plain action, in docs" | 01, 08 |
+| A resource key may be a variadic slot or a repeatable option; a client fills it with a one-item list, and a test pins that it registers | Softov, 2026-10-06, asked "a resource key that is a variadic or repeatable field: allowed or refused?": "Allowed, client sends a list of one" | 01, 08 |
+| `serve` refuses a binding path `{param}` that is not a required, single-valued input field, when it is called; the core stays ignorant of HTTP | Softov, 2026-10-06, asked "where does the path check go?": "New task in plan 04", then "where does remote refuse it?": "When serve() is built" | 09 |
 
 ## Proposed architecture
 
 - **Data flow** - the declaration carries `effect` and `resource`; `commandFor` copies them; `manifestFrom` and `manifestFromOpenApi` write them into `ManifestCommand`; `commandsFrom` reads them back.
 - **Event flow** - none new; the terminal's question sits between parsing and `registry.execute`.
 - **State flow** - none; the fields are data on the declaration.
-- **Layer responsibilities** - commands: the types (`Effect`, `Resource` in `src/types/command.ts`), the `EFFECTS` list and the checks in `validateCommand`, the reference line · remote: manifest and OpenAPI import · mcp: the derived annotations · terminal: `--yes`, the question, and `ProgramOptions.confirm` · petshop: the worked case.
+- **Layer responsibilities** - remote also: the path parameter check in `routesOf` · commands: the types (`Effect`, `Resource` in `src/types/command.ts`), the `EFFECTS` list and the checks in `validateCommand`, the reference line · remote: manifest and OpenAPI import · mcp: the derived annotations · terminal: `--yes`, the question, and `ProgramOptions.confirm` · petshop: the worked case.
 - **Source-of-truth files** - [`code://packages/commands/src/types/command.ts`](../../../../packages/commands/src/types/command.ts), [`code://packages/commands/src/registry.ts`](../../../../packages/commands/src/registry.ts)
 
 ```ts
@@ -119,26 +123,28 @@ export interface Resource {
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The declaration says what it does to what](task-01-the-declaration-says-what-it-does-to-what.md) | todo | - |
-| [02 - The reference names the effect and the resource](task-02-the-reference-names-the-effect.md) | todo | 01 |
-| [03 - The manifest carries the effect and the resource](task-03-the-manifest-carries-the-effect.md) | todo | 01 |
-| [04 - An OpenAPI operation declares its effect in x-cli](task-04-an-openapi-operation-declares-its-effect.md) | todo | 03 |
-| [05 - MCP hints follow the effect](task-05-mcp-hints-follow-the-effect.md) | todo | 01 |
-| [06 - The terminal asks before a remove](task-06-the-terminal-asks-before-a-remove.md) | todo | 01 |
-| [07 - petshop declares its pets](task-07-petshop-declares-its-pets.md) | todo | 03, 05, 06 |
-| [08 - The docs and the versions](task-08-the-docs-and-the-versions.md) | todo | 02, 04, 07 |
+| [01 - The declaration says what it does to what](task-01-the-declaration-says-what-it-does-to-what.md) | implemented | - |
+| [02 - The reference names the effect and the resource](task-02-the-reference-names-the-effect.md) | implemented | 01 |
+| [03 - The manifest carries the effect and the resource](task-03-the-manifest-carries-the-effect.md) | implemented | 01 |
+| [04 - An OpenAPI operation declares its effect in x-cli](task-04-an-openapi-operation-declares-its-effect.md) | implemented | 03 |
+| [05 - MCP hints follow the effect](task-05-mcp-hints-follow-the-effect.md) | implemented | 01 |
+| [06 - The terminal asks before a remove](task-06-the-terminal-asks-before-a-remove.md) | implemented | 01 |
+| [07 - petshop declares its pets](task-07-petshop-declares-its-pets.md) | implemented | 03, 05, 06 |
+| [08 - The docs and the versions](task-08-the-docs-and-the-versions.md) | implemented | 02, 04, 07, 09 |
+| [09 - A path parameter is a required input](task-09-a-path-parameter-is-a-required-input.md) | implemented | - |
 
 ## Risks and tradeoffs
 
-- The plan spans four packages and eight tasks, which the do-spec skill would make a parent with child plans; it is one plan because Softov asked for one, and each task stays inside one package.
+- The plan spans four packages and nine tasks, which the do-spec skill would make a parent with child plans; it is one plan because Softov asked for one, and each task stays inside one package.
 - `--yes` becomes a standard global, so a program that later declares its own `--yes` is refused at construction; no program does today.
 - A script that runs a newly declared `remove` without a terminal is refused until it passes `--yes`; only commands that declare `remove` are affected, and none do today.
+- A program that binds a path parameter to an optional or list input stops starting once it takes the new `@cofold/remote`; ahpd's `usage.list` is one, and has to split or move `pool` to the query first.
 - `key` is checked against input fields, but "the same field in each row a list returns" is a contract nothing checks, because rows are untyped; the doc comment says so.
 
 ## Resume state
 
-- **Done so far:** nothing.
-- **Next action:** [task-01-the-declaration-says-what-it-does-to-what.md](task-01-the-declaration-says-what-it-does-to-what.md), test first.
+- **Done so far:** tasks 01 to 09 implemented on 2026-10-06, awaiting Softov's review; nothing committed.
+- **Next action:** Softov reviews; tasks that pass move to `done`, then `implemented.md` and the close. The package versions are chosen at release.
 - **Open questions:** none.
 - **Watch out for:** `commandFor` copies fields by name, so a field not added there vanishes silently; `exactOptionalPropertyTypes` means `compact` or a conditional spread, never `effect: undefined`; vitest's stdin is not a TTY, so tests inject `confirm` rather than rely on the process.
 
@@ -148,5 +154,6 @@ export interface Resource {
 - [ ] An unknown effect, an empty kind, and an unknown key are each refused at registration, naming the id.
 - [ ] MCP `tools/list` shows the derived hints, and `meta.mcp.annotations` overrides them key by key.
 - [ ] `petshop pet remove 1` asks on a terminal, `--yes` skips the question, and off a terminal it is refused with exit 2 unless `--yes` is given.
+- [ ] `serve` over a command binding `{pool}` to an optional `:pool?` throws at startup, naming the id.
 - [ ] `pnpm check` in cofold is clean.
 - [ ] `plans/index.md` updated.
