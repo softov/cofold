@@ -1,6 +1,6 @@
 ---
 title: papo answers the handle it holds
-status: todo
+status: done
 depends: [task-02-the-run-waits-at-its-pause.md, task-03-every-handle-ends-with-run-finished.md]
 layer: "papo"
 refs:
@@ -44,3 +44,9 @@ papo keeps a turn's handle attached across its pause and sends approve, deny, an
 
 ## Resume
 
+- **Built:** `handleFor` became `recover(sessionId)`: the attached handle when it holds the newest run, else `resume()` (with `steerHeld`) and `attach`, which is the restart case. `submitTo` and `cancel` go through `recover`, so approve, deny and answer land on the handle the pause left open. `attach` folds the newest `run.finished` outcome into a fresh `Stop` deferred at each pause, and `wait` returns that deferred: the pause's `awaiting` first, the final status after the answer, so `papo say` and the three other `wait` callers still stop at a pause while the handle's own `outcome` resolves once, at the end. `close()` cancels only the handles that are working and leaves an `awaiting` one alone, which is what makes `papo say` then `papo approve` across two invocations work.
+- **`say` was left as it is.** Its `writer_busy` while the session already waits on a decision is decision CLI-05.4's own rule, and its `not_running` catch still hands the text to `Queued.steer` for a run this process has let go of. Step 3's "`say` submits it there" is met by the harness: a steer sent while a live handle waits goes into that turn (task 02), so no papo change was needed for it.
+- **Deviation from the Files list:** `recover` passes `afterSeq` (the last event the store holds) to `resume()`, so a resumed handle reads from where the store's events end rather than replaying the pause it is about to answer. Without it a `wait` issued right after `approve` could take the replayed `run.finished { awaiting }` and report a pause the run had already left.
+- **Tests:** `chat.test.ts` answers the pause on the handle it already holds and counts the `resume` calls through a mocked `@cofold/agents` - the count moving by exactly one for a same-process second chat, which is refused, is what shows the spy is live rather than vacuous. A second process is modelled by `otherProcess`: `vi.doUnmock` plus `vi.resetModules` plus a fresh `import('./testing.js')`, so the second registry really is a second `@cofold/agents` with its own live runs. The two steer tests were rewritten: a steer submitted while a turn runs now survives the pause it meets instead of being refused.
+- **Validation:** every item passes except the last, which is clean for the two gates it names. `packages/papo` is 139/139 (`chat.test.ts` 29/29), and the root `pnpm typecheck` is clean.
+- **Not clean:** the root `pnpm test` fails one test outside this task - see the plan's *Open, needs a decision* about `packages/store-file/src/store.test.ts`, which still needs an answer from Softov. `packages/papo`'s `screen.test.ts` is timing-flaky under the root run's parallel load (a different 4-5s test times out each run; 15/15 when the file runs alone) and is unrelated to this change.

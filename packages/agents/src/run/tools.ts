@@ -23,11 +23,19 @@ export async function handleToolCall(deps: ToolCallDeps, call: ToolCallPart): Pr
   const tool = deps.tools.get(call.name);
   if (!tool) return deny(`Unknown tool "${call.name}"`, 'invalid');
 
-  await emit({ type: 'tool.proposed', callId: call.callId, name: call.name, input: call.input });
+  /**
+   * Announces the call with the subject of the input it will run with, so a host draws what the call really acts
+   * on rather than the model's spelling (decision 117). `undefined` is an input that did not validate, and then
+   * the tool's `subject` is not called at all.
+   */
+  const propose = async (input: unknown): Promise<void> => {
+    const subject = input === undefined ? undefined : subjectOf(tool, input);
+    await emit({ type: 'tool.proposed', callId: call.callId, name: call.name, input: call.input, ...(subject !== undefined ? { subject } : {}) });
+  };
 
-  if (call.input === undefined) return deny('Invalid arguments: not valid JSON', 'invalid');
-  const validated = validateSchema({ schema: tool.input, value: call.input });
-  if (!validated.ok) return deny(`Invalid arguments: ${formatIssues(validated.issues)}`, 'invalid');
+  const validated = call.input === undefined ? undefined : validateSchema({ schema: tool.input, value: call.input });
+  if (validated === undefined) { await propose(undefined); return deny('Invalid arguments: not valid JSON', 'invalid'); }
+  if (!validated.ok) { await propose(undefined); return deny(`Invalid arguments: ${formatIssues(validated.issues)}`, 'invalid'); }
   let input: unknown = validated.value;
   // A valid call to a deferred tool the model never loaded runs anyway (AGENT-02 decision 6) and loads it.
   if (tool.deferred === true) await markLoaded({ loaded: deps.loaded, kv: run.kv.agent, sessionId: run.sessionId }, [tool.name]);
@@ -37,8 +45,9 @@ export async function handleToolCall(deps: ToolCallDeps, call: ToolCallPart): Pr
   let prompt: string | undefined;
   if (agent.hooks.beforeTool) {
     const hook = await agent.hooks.beforeTool({ call, tool, run });
-    if (hook.decision === 'deny') return deny(hook.reason, 'hook');
+    if (hook.decision === 'deny') { await propose(input); return deny(hook.reason, 'hook'); }
     if (hook.decision === 'stop') {
+      await propose(input);
       // Nothing executed, so no step record, same as a deny; the loop ends the run (decision 97).
       deps.denied({ callId: call.callId, name: call.name, input: call.input, reason: hook.reason, by: 'hook' });
       await emit({ type: 'tool.denied', callId: call.callId, name: call.name, reason: hook.reason });
@@ -51,6 +60,8 @@ export async function handleToolCall(deps: ToolCallDeps, call: ToolCallPart): Pr
     }
     if (hook.decision === 'approval') { hookWantsApproval = true; prompt = hook.prompt; }
   }
+  // Announced after the hook, so the subject is over the input this call will run with: a `modify` has landed.
+  await propose(input);
   const decision = await agent.policy.decide({ tool, input, run });
   if (decision.behavior === 'deny') return deny(decision.reason ?? `Denied by policy: ${tool.name}`, 'policy');
   if (decision.behavior === 'ask' || hookWantsApproval) {
@@ -131,6 +142,16 @@ export function boundOutput(content: string, max: number): string {
   if (content.length <= max) return content;
   const dropped = content.length - max;
   return `${content.slice(0, max)}\n…[truncated ${dropped} chars]`;
+}
+
+/** A tool's `subject` over a validated input; a tool that names none, or one that throws, contributes no field. */
+function subjectOf(tool: Tool<any, any>, input: unknown): string | undefined {
+  if (tool.subject === undefined) return undefined;
+  try {
+    return tool.subject(input);
+  } catch {
+    return undefined;
+  }
 }
 
 function formatIssues(issues: { path: string; message: string }[]): string {

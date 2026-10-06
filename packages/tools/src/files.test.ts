@@ -56,6 +56,14 @@ describe('files()', () => {
     expect(tools.get('search_files')!.subject!({ pattern: 'todo', path: 'src' })).toBe('todo');
   });
 
+  it('declares the file it writes, absolutely, for the two that write one (tools/02 task 02)', () => {
+    expect(tools.get('write_file')!.writes!({ path: 'src/a.ts', content: '' })).toBe(resolve(workspace, 'src/a.ts'));
+    expect(tools.get('write_file')!.writes!({ path: 'src/../out.txt', content: '' })).toBe(resolve(workspace, 'out.txt'));
+    expect(tools.get('edit_file')!.writes!({ path: '../outside/x.ts', old: 'a', new: 'b' })).toBe(resolve(workspace, '..', 'outside', 'x.ts'));
+    // The ones that write no single named file say nothing, so their effects decide.
+    for (const name of ['read_file', 'list_files', 'search_files']) expect(tools.get(name)!.writes).toBeUndefined();
+  });
+
   it('read_file numbers lines, pages with offset and limit, and refuses binary', async () => {
     expect(await call('read_file', { path: 'src/a.ts' })).toBe('1│const a = 1;\n2│export const b = a + 1;\n3│// TODO later');
     expect(await call('read_file', { path: 'README.md' })).toBe('1│line 1\n2│line 2\n3│line 3\n4│line 4\n5│line 5\n[7 more lines; read from offset 6]');

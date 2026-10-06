@@ -19,7 +19,12 @@ export type RunEventBody =
   /** A fragment of the step's reply as it streams (decisions 102, 105); tool-call fragments are never published. */
   | { type: 'model.delta'; step: number; kind: 'text' | 'reasoning'; text: string }
   | { type: 'model.completed'; step: number; message: Message; usage: Usage; finish: FinishReason }
-  | { type: 'tool.proposed'; callId: string; name: string; input: unknown }
+  /**
+   * `input` is the model's arguments as it gave them; `subject` is what the call acts on, from the tool's
+   * `subject(input)` over the input the call will run with - validated, defaults filled, and a `modify` from a
+   * `beforeTool` hook applied (decision 117). Absent when the tool has none or the input does not validate.
+   */
+  | { type: 'tool.proposed'; callId: string; name: string; input: unknown; subject?: string }
   | { type: 'tool.denied'; callId: string; name: string; reason: string }
   | { type: 'tool.started'; callId: string; name: string; invocationId: string }
   | { type: 'tool.completed'; callId: string; name: string; invocationId: string; content: string; isError: boolean; durationMs: number }

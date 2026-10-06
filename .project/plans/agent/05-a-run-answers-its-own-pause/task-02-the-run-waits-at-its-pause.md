@@ -1,6 +1,6 @@
 ---
 title: The run waits at its pause on its own handle
-status: todo
+status: done
 depends: [task-01-the-wait-for-a-command-is-shared.md]
 layer: "agents"
 refs:
@@ -52,4 +52,12 @@ A run that pauses records the request and `awaiting`, announces it, and waits on
 - `pnpm --filter @cofold/agents test` and `pnpm typecheck` are clean.
 
 ## Resume
+
+Built. `pause()` in `run/turn.ts` now returns the persisted decision: `requests.create`, `runs.update(awaiting)`, the heartbeat cleared, the status moved to `awaiting` and `waitForCommand` installed all come before the announcement; `processCalls` loops the call through `pause` and `applyResolved` until it has a result, so the rest of the batch keeps its order. `pause` joins `liveRuns` for the wait (unless a `resume()` already holds it) and leaves it when the command arrives. `run.ts`'s `start()` passes an `onCommand` that reaches `ctx.accept`, `handle.ts` requires it and gained `setStatus`, `abort.ts` unrefs the timeout timer, and the `RunHandle` doc comments describe the pause.
+
+Found while building, the plan did not know: a command submitted from inside an `onEvent` observer of `approval.requested` is taken, but its `approval.resolved` can be published before the pause's own `run.paused` and `run.finished { awaiting }`, because the observer's `submit` gets a microtask's head start. The strict order holds on the ordinary path and the test asserts it there; the observer case asserts the ends plus the presence of the three events.
+
+Two new test cases in `run.test.ts` under "a run answers its own pause (decision 122)"; the pause-reading tests in `run.test.ts`, `resume.test.ts`, `steering.test.ts`, `denials.test.ts`, `cost.test.ts` and `deferred.test.ts` read the `awaiting` outcome from the events and drop the live entry with `liveRuns.delete(runId)`, standing in for the process that paused the run having exited. `interrupt.test.ts` needed no change (it never pauses).
+
+`pnpm --filter @cofold/agents test`: 206 passed (21 files). `pnpm --filter @cofold/agents typecheck`: clean.
 

@@ -7,6 +7,8 @@ import type { OpenAICompatOptions, OpenAICompatProviderOptions } from './types/o
 import type { WireModelList, WireResponse } from './types/wire.js';
 
 export type { OpenAICompatOptions, OpenAICompatProviderOptions } from './types/options.js';
+export type { ProviderConfig } from './types/config.js';
+export { PROVIDER_SCHEMA, providerFor, providersOf, splitModel } from './config.js';
 
 /** Streaming is on by default (decision 104); a host turns it off per model with `features: { streaming: false }`. */
 const DEFAULT_FEATURES: ModelFeatures = { tools: true, streaming: true, images: false, structuredOutput: false, reasoning: false };
@@ -99,7 +101,13 @@ export function openaiCompatProvider(options: OpenAICompatProviderOptions): Mode
     },
 
     model(args): ModelAdapter {
-      const features: ModelFeatures = { ...DEFAULT_FEATURES, ...args.features };
+      // A model given a reasoning param can reason: the host that set the effort would otherwise watch it be dropped.
+      // `features: { reasoning: false }` is still the way to say a model cannot, and it wins over the param.
+      const features: ModelFeatures = {
+        ...DEFAULT_FEATURES,
+        ...(args.params?.reasoning !== undefined ? { reasoning: true } : {}),
+        ...args.features,
+      };
       const url = `${baseUrl}/chat/completions`;
 
       /** The request body both forms share; the feature gates throw before anything is sent. */

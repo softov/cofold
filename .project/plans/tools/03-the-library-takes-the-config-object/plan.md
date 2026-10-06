@@ -1,7 +1,7 @@
 ---
 title: The library takes the configuration object
 domain: tools
-status: planned
+status: built
 priority: high
 created: 2026-10-06
 revalidated: 2026-10-06
@@ -100,10 +100,10 @@ export function standardCapabilities(config: ToolsConfig, args: { workspace: str
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The providers configuration in model-openai-compat](task-01-the-providers-configuration.md) | todo | - |
-| [02 - standardCapabilities in @cofold/tools](task-02-standard-capabilities.md) | todo | - |
-| [03 - papo takes the exports](task-03-papo-takes-the-exports.md) | todo | 01, 02 |
-| [04 - The READMEs, and ahpd's adoption](task-04-readmes-and-ahpd.md) | todo | 01, 02 |
+| [01 - The providers configuration in model-openai-compat](task-01-the-providers-configuration.md) | done | - |
+| [02 - standardCapabilities in @cofold/tools](task-02-standard-capabilities.md) | done | - |
+| [03 - papo takes the exports](task-03-papo-takes-the-exports.md) | done | 01, 02 |
+| [04 - The READMEs, and ahpd's adoption](task-04-readmes-and-ahpd.md) | done | 01, 02 |
 
 ## Risks and tradeoffs
 
@@ -114,15 +114,15 @@ export function standardCapabilities(config: ToolsConfig, args: { workspace: str
 
 ## Resume state
 
-- **Done so far:** nothing.
-- **Next action:** [task-01-the-providers-configuration.md](task-01-the-providers-configuration.md).
+- **Done so far:** every task, 01 to 04. The four are `implemented` in this table and in their own files, and [implemented.md](implemented.md) records what was built, what was verified and where the work departed from this plan. Task 04's ahpd half is [deferred.md](deferred.md)'s only row.
+- **Next action:** none - the plan is built. Softov's review is what moves a task from `implemented` to `done`.
 - **Open questions:** none.
-- **Watch out for:** tools/02 also edits `packages/tools/src/index.ts` and `packages/papo/src/agent.ts`; keep both changes. `exactOptionalPropertyTypes` in the provider options spread.
+- **Watch out for:** tools/02 also edits `packages/tools/src/index.ts` and `packages/papo/src/agent.ts`; keep both changes. `exactOptionalPropertyTypes` in the provider options spread. `args.workspace` of `standardCapabilities` is declared and unread, left as the plan asks.
 
 ## Final verification checklist
 
-- [ ] papo starts with the same file it reads today, and refuses the same bad files with the same messages.
-- [ ] `splitModel('or/qwen/qwen3-8b')` is `{ provider: 'or', modelId: 'qwen/qwen3-8b' }`; `splitModel('qwen')` is `undefined`.
-- [ ] `standardCapabilities({ web: { search: { duckduckgo: true, brave: { apiKey: 'k' } } } }, { workspace })` asks DuckDuckGo first and has no memory.
-- [ ] `pnpm check` in cofold is clean.
-- [ ] `plans/index.md` updated.
+- [x] papo starts with the same file it reads today, and refuses the same bad files with the same messages - the file-layer, merge and refusal cases of `packages/papo/src/config.test.ts` and the `providers` and `models` command cases; the by-hand start is not run (no terminal or endpoint here), see [implemented.md](implemented.md).
+- [x] `splitModel('or/qwen/qwen3-8b')` is `{ provider: 'or', modelId: 'qwen/qwen3-8b' }`; `splitModel('qwen')` is `undefined` (`packages/model-openai-compat/src/config.test.ts`).
+- [x] `standardCapabilities({ web: { search: { duckduckgo: true, brave: { apiKey: 'k' } } } }, { workspace })` asks DuckDuckGo first and has no memory (`packages/tools/src/standard.test.ts`).
+- [x] `pnpm check` in cofold is clean - `pnpm typecheck` clean and `pnpm test` 937 of 937, after `@cofold/store-file`'s copied-folder test was fixed (Softov's answer, recorded in agent/05's [implemented.md](../agent/05-a-run-answers-its-own-pause/implemented.md)).
+- [x] `plans/index.md` updated.

@@ -17,6 +17,12 @@ export interface SessionRecord {
   updatedAt: string;
   /** The run currently allowed to append; undefined when idle. */
   activeWriterRunId?: string;
+  /**
+   * The process holding that claim, when the store records one: the file store reads it off its writer lock, and a
+   * memory store keeps none. A host reads it to tell a run another live process is working from one a dead process
+   * left behind (decision 78).
+   */
+  activeWriterPid?: number;
 }
 
 /** Locates a run. Runs live under their session (parent decision 30), so every run-level call carries both ids. */

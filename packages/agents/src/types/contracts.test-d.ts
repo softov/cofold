@@ -11,12 +11,15 @@ import type {
 } from './hooks.js';
 import type { Policy, PolicyDecision } from './agent.js';
 import type { ContentPart } from './message.js';
-import type { ModelAdapter, ModelPricing, ModelRequest, ModelStreamEvent, Usage } from './model.js';
+import type { EffortLevel, ModelAdapter, ModelPricing, ModelRequest, ModelStreamEvent, ReasoningEffort, Usage } from './model.js';
 import type { RunOutcome, RunTally, StopReason } from './outcome.js';
 import type { ModelProvider } from './provider.js';
 import type { Denial, KvScope, RunRecord, Store } from './store.js';
 import type { Tool } from './tool.js';
+import type { PermissionMode } from './policy.js';
 import { describe, expectTypeOf, it } from 'vitest';
+import { PERMISSION_MODE_DESCRIPTIONS, PERMISSION_MODES } from '../policy/modes.js';
+import { EFFORT_LEVELS, effortOf } from '../model/effort.js';
 
 describe('contracts', () => {
   it('RunOutcome has exactly the five terminal statuses', () => {
@@ -110,5 +113,22 @@ describe('contracts', () => {
     expectTypeOf<Denial['by']>().toEqualTypeOf<'policy' | 'hook' | 'user' | 'invalid' | 'limit'>();
     expectTypeOf<RunRecord['denials']>().toEqualTypeOf<Denial[]>();
     expectTypeOf<RunTally['denials']>().toEqualTypeOf<Denial[] | undefined>();
+  });
+
+  it('PERMISSION_MODES lists every PermissionMode, so a new one is added to the list too', () => {
+    expectTypeOf<Exclude<PermissionMode, (typeof PERMISSION_MODES)[number]>>().toBeNever();
+    expectTypeOf<PermissionMode>().toEqualTypeOf<(typeof PERMISSION_MODES)[number]>();
+  });
+
+  it('every permission mode has a description (agent/06 task 01)', () => {
+    expectTypeOf(PERMISSION_MODE_DESCRIPTIONS).toEqualTypeOf<Readonly<Record<PermissionMode, string>>>();
+  });
+
+  it('EFFORT_LEVELS lists every EffortLevel, so a new one is added to the list too (agent/06 task 02)', () => {
+    expectTypeOf<Exclude<EffortLevel, (typeof EFFORT_LEVELS)[number]>>().toBeNever();
+    expectTypeOf<EffortLevel>().toEqualTypeOf<(typeof EFFORT_LEVELS)[number]>();
+    // A level is narrower than what a provider accepts; `effortOf` hands back a provider value.
+    expectTypeOf<Parameters<typeof effortOf>[0]>().toEqualTypeOf<unknown>();
+    expectTypeOf<ReturnType<typeof effortOf>>().toEqualTypeOf<ReasoningEffort | undefined>();
   });
 });

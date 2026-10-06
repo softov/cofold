@@ -31,8 +31,8 @@ Reference: [00-agent.md](agent/00-agent.md)
 | [02 - Deferred tools: an index in the prompt, a definition on demand](agent/02-deferred-tools/plan.md) | high | built | 01 (p3) | the MCP client |
 | [03 - Slash commands: internal ones the runtime runs, external ones the client keeps](agent/03-slash-commands/plan.md) | high | planned; next: task 01 | 01-p5 task 06, cli/02, cli/03 | cli/02's internal commands move here |
 | [04 - Policy rules: allow, ask or deny per tool call, recorded on the run](agent/04-policy-rules/plan.md) | high | built (2026-09-16; every task done) | 01 (p3) | papo rule lists (cli) |
-| [05 - A run answers its own pause](agent/05-a-run-answers-its-own-pause/plan.md) | high | planned; next: task 01 | - | ahpd drops its pause workarounds, after a cofold release |
-| [06 - Permission modes and reasoning effort are library data](agent/06-modes-and-effort-are-library-data/plan.md) | medium | planned; next: task 01 | - | ahpd drops its mode and effort copies, after a cofold release |
+| [05 - A run answers its own pause](agent/05-a-run-answers-its-own-pause/plan.md) | high | built 2026-10-06 ([implemented.md](agent/05-a-run-answers-its-own-pause/implemented.md), [deferred.md](agent/05-a-run-answers-its-own-pause/deferred.md)) | - | ahpd drops its pause workarounds, after a cofold release |
+| [06 - Permission modes and reasoning effort are library data](agent/06-modes-and-effort-are-library-data/plan.md) | medium | built 2026-10-06 ([implemented.md](agent/06-modes-and-effort-are-library-data/implemented.md), [deferred.md](agent/06-modes-and-effort-are-library-data/deferred.md)) | - | ahpd drops its mode and effort copies, after a cofold release |
 
 Next free number in `agent`: `07`.
 
@@ -59,8 +59,8 @@ Reference: none yet (this plan is the domain's first).
 | Plan | Priority | Status | Requires | Blocks |
 | --- | --- | --- | --- | --- |
 | [01 - @cofold/tools: the tools every agent gets](tools/01-standard-tools/plan.md) | high | built (manual run owed) | agent/01 (p3), cli/01 | a useful papo |
-| [02 - Tools declare what they touch](tools/02-tools-declare-what-they-touch/plan.md) | high | planned; next: task 01 | - | ahpd drops its tool-name tables, after a cofold release |
-| [03 - The library takes the configuration object](tools/03-the-library-takes-the-config-object/plan.md) | high | planned; next: task 01 | - | ahpd adopts the config exports, after a cofold release |
+| [02 - Tools declare what they touch](tools/02-tools-declare-what-they-touch/plan.md) | high | built 2026-10-06 ([implemented.md](tools/02-tools-declare-what-they-touch/implemented.md), [deferred.md](tools/02-tools-declare-what-they-touch/deferred.md)) | - | ahpd drops its tool-name tables, after a cofold release |
+| [03 - The library takes the configuration object](tools/03-the-library-takes-the-config-object/plan.md) | high | built 2026-10-06 ([implemented.md](tools/03-the-library-takes-the-config-object/implemented.md), [deferred.md](tools/03-the-library-takes-the-config-object/deferred.md)) | - | ahpd adopts the config exports, after a cofold release |
 
 Next free number in `tools`: `04`.
 

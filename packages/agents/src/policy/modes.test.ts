@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { RunInfo } from '../types/hooks.js';
 import type { PermissionMode, PermissionModeRules } from '../types/policy.js';
+import type { Tool } from '../types/tool.js';
 import { createMemoryStore } from '../store/memory.js';
 import { createTool } from '../tool/create-tool.js';
-import { policyOf } from './modes.js';
+import { PERMISSION_MODE_DESCRIPTIONS, PERMISSION_MODES, policyOf } from './modes.js';
 
 /*
  * A permission mode as the decision a run takes when no rule matches.
@@ -47,6 +48,44 @@ describe('policyOf', () => {
     expect(await decide('acceptEdits', read)).toBe('allow');
   });
 
+  it('treats a tool that declares the file it writes as an edit when the host says nothing (tools/02 task 02)', async () => {
+    const { inside } = rules;
+    const writes = createTool<{ path: string }>({ name: 'write_file', description: 'd', input, effects: { writes: true }, writes: (i) => i.path, execute: () => '' });
+    const memory = createTool<{ path: string }>({ name: 'memory_write', description: 'd', input, effects: { writes: true }, writes: (i) => `/home/me/memory/${i.path}`, execute: () => '' });
+    const shell = createTool<{ command: string }>({ name: 'shell_exec', description: 'd', input, effects: { writes: true, destructive: true }, execute: () => '' });
+    const at = async (tool: Tool<any, any>, path: string): Promise<string> => (await policyOf('acceptEdits', { inside })({ tool, input: { path }, run })).behavior;
+
+    // The path `writes` gives decides, not `input.path`: this tool is handed a workspace path and writes elsewhere.
+    expect(await at(writes, '/work/a.txt')).toBe('allow');
+    expect(await at(writes, '/elsewhere/a.txt')).toBe('ask');
+    expect(await at(memory, '/work/a.txt')).toBe('ask');
+    // A tool that declares no file is not an edit, so its effects decide: writing and destroying asks.
+    expect(await at(shell, '/work/a.txt')).toBe('ask');
+  });
+
+  it('treats a writes that throws as naming no file, so the call asks (review fix)', async () => {
+    const { inside } = rules;
+    const broken = createTool<{ path: string }>({
+      name: 'write_file', description: 'd', input, effects: { writes: true },
+      writes: () => { throw new TypeError('this tool cannot name its file'); }, execute: () => '',
+    });
+    const at = async (path: string): Promise<string> => (await policyOf('acceptEdits', { inside })({ tool: broken, input: { path }, run })).behavior;
+    // The input names a path inside the workspace, but the tool said nothing about the file it writes: a non-edit asks.
+    expect(await at('/work/a.txt')).toBe('ask');
+  });
+
+  it('still lets a host isEdit decide, as it did before (tools/02 task 02)', async () => {
+    // papo's own table, which the host may keep passing.
+    const tool = createTool<{ path: string }>({ name: 'custom_edit', description: 'd', input, effects: { writes: true }, execute: () => '' });
+    const isEdit = (t: { name: string }): boolean => t.name === 'custom_edit';
+    const decideWith = async (path: string): Promise<string> => (await policyOf('acceptEdits', { ...rules, isEdit })({ tool, input: { path }, run })).behavior;
+    expect(await decideWith('/work/a.txt')).toBe('allow');
+    expect(await decideWith('/elsewhere/a.txt')).toBe('ask');
+    // And a host that says a `writes` tool is not an edit is obeyed.
+    const never = async (): Promise<string> => (await policyOf('acceptEdits', { ...rules, isEdit: () => false })({ tool: write, input: { path: '/work/a.txt' }, run })).behavior;
+    expect(await never()).toBe('ask');
+  });
+
   it('plan refuses a change and lets a read through', async () => {
     expect(await decide('plan', read)).toBe('allow');
     expect(await decide('plan', write)).toBe('deny');
@@ -86,6 +125,15 @@ describe('policyOf', () => {
     expect(await at({ path: '/work/a.txt', cwd: '/elsewhere' })).toBe('allow');
     expect(await at({ pattern: 'x' })).toBe('allow');
     expect(await at(undefined)).toBe('allow');
+  });
+
+  it('lists every mode once, in the harness order, each with one sentence', async () => {
+    expect([...PERMISSION_MODES]).toEqual(['default', 'acceptEdits', 'plan', 'auto', 'bypassPermissions', 'dontAsk']);
+    expect(new Set(PERMISSION_MODES).size).toBe(PERMISSION_MODES.length);
+    for (const mode of PERMISSION_MODES) {
+      expect(PERMISSION_MODE_DESCRIPTIONS[mode]).toMatch(/^[A-Z].*\.$/);
+    }
+    expect(Object.keys(PERMISSION_MODE_DESCRIPTIONS).sort()).toEqual([...PERMISSION_MODES].sort());
   });
 
   it('names the tool and the mode in a plan or dontAsk refusal', async () => {

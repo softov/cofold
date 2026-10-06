@@ -1,6 +1,6 @@
 ---
 title: papo takes the exports
-status: todo
+status: done
 depends: [task-01-the-providers-configuration.md, task-02-standard-capabilities.md]
 layer: "papo"
 refs:
@@ -47,3 +47,10 @@ papo validates its file with the library's schemas inside its own, builds provid
 
 ## Resume
 
+- **Built:** papo's `SCHEMA` composes the library's, `providers: { type: 'array', items: PROVIDER_SCHEMA }` and `tools: TOOLS_SCHEMA`; the `PROVIDER` const and the tools block are gone, and so are `providersOf`, `splitModel`, `providerFor` and `capabilitiesOf`. `types/config.ts` re-exports the library's `ProviderConfig`, `SearchConfig` and `ToolsConfig` (`export type { ... }`, so there is still one definition); `index.ts` drops the three functions; the README's layout line for `config.ts` says what it now holds.
+- **Chat:** `ChatOptions.providers` is a `ReadonlyMap<string, ModelProvider>`; `chat.ts` has a local `providerOf(ref)` that throws papo's hint when the map is empty and calls the library's `providerFor` otherwise, `modelRef()` takes the first configuration entry and its provider from the map, `providers()` uses `splitModel(config.model)?.provider`, and `models()` iterates the map (`size`, `has`, the keys in order) instead of indexing two arrays. `commands.ts` builds it with the library's `providersOf(config.providers)`; `app.tsx` imports `splitModel` from the library and reads `?.provider` / `?.modelId`.
+- **Test helper:** `testing.ts` gains `providerMap(config, models)`, one model per configured provider in the configuration's order, keyed by the id the entry writes; `testChat` and the five tests that built a chat by hand use it, which is what keeps `local`'s id on a provider object whose own id is `down`.
+- **Validation:** the task's checks hold. `config.providers.id must be` and `config.tools.web` still name the key (`config.test.ts`), and papo's hint is the error with no provider at all, through `say` and `models` (a case added to `chat.test.ts`, which the deleted `providerFor([], ...)` case used to cover). `pnpm --filter @cofold/papo typecheck` clean; 140 tests pass in eight files.
+- **Not run:** the by-hand "`papo` starts with the same `~/.config/papo/config.json`" - there is no terminal or reachable endpoint here. The file-layer, merge and refusal cases of `config.test.ts` and the `providers` and `models` command cases stand in for it.
+- **Departure:** none. papo's memory folder is unchanged: `join(home, 'memory', workspaceSlug({ workspace }))`, passed as `memoryDir` inside `buildAgent`.
+- **Checks:** `pnpm typecheck` clean across the workspace; `pnpm test` 935 passed of 936, the one failure the store-file copy-and-resume case carried since agent/05 (recorded in tools/02's `deferred.md`).

@@ -41,6 +41,12 @@ function memoryTools(dir: string): Tool<any, any>[] {
     if (!resolved.inside) throw new Error(`${path} is outside the memory folder`);
     return resolved.absolute;
   };
+  /**
+   * What a permission rule's `match` sees for a memory tool: the file relative to the memory folder, with forward
+   * slashes; a path that leaves the folder shows absolute, as a path tool's does (decision CLI-04.6). It resolves
+   * without checking, so the subject is readable for a call whose `execute` is about to refuse it.
+   */
+  const subject = (path: string) => displayPath(dir, resolveWithin(dir, path).absolute);
   return [
     createTool<MemoryReadInput>({
       name: 'memory_read',
@@ -51,6 +57,7 @@ function memoryTools(dir: string): Tool<any, any>[] {
         additionalProperties: false,
       },
       effects: { reads: true },
+      subject: (input) => subject(input.path ?? INDEX),
       execute: async (input) => {
         const path = input.path ?? INDEX;
         const text = await read(inside(path));
@@ -68,6 +75,8 @@ function memoryTools(dir: string): Tool<any, any>[] {
         additionalProperties: false,
       },
       effects: { writes: true },
+      subject: (input) => subject(input.path),
+      writes: (input) => resolveWithin(dir, input.path).absolute,
       execute: async (input) => {
         const absolute = inside(input.path);
         await mkdir(dirname(absolute), { recursive: true });

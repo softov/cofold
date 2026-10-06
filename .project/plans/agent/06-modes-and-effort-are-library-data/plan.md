@@ -1,7 +1,7 @@
 ---
 title: Permission modes and reasoning effort are library data
 domain: agent
-status: planned
+status: built
 priority: medium
 created: 2026-10-06
 revalidated: 2026-10-06
@@ -85,11 +85,11 @@ export function effortOf(value: unknown): ReasoningEffort | undefined;
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The permission modes and what each does](task-01-the-permission-modes.md) | todo | - |
-| [02 - The thinking levels and their parser](task-02-the-thinking-levels.md) | todo | - |
-| [03 - A reasoning param turns reasoning on](task-03-a-reasoning-param-turns-reasoning-on.md) | todo | - |
-| [04 - papo takes the shared lists, and its effort reaches the request](task-04-papo-takes-the-shared-lists.md) | todo | 01, 02, 03 |
-| [05 - The READMEs, and ahpd's copies](task-05-readmes-and-ahpd.md) | todo | 01, 02, 03 |
+| [01 - The permission modes and what each does](task-01-the-permission-modes.md) | done | - |
+| [02 - The thinking levels and their parser](task-02-the-thinking-levels.md) | done | - |
+| [03 - A reasoning param turns reasoning on](task-03-a-reasoning-param-turns-reasoning-on.md) | done | - |
+| [04 - papo takes the shared lists, and its effort reaches the request](task-04-papo-takes-the-shared-lists.md) | done | 01, 02, 03 |
+| [05 - The READMEs, and ahpd's copies](task-05-readmes-and-ahpd.md) | done | 01, 02, 03 |
 
 ## Risks and tradeoffs
 
@@ -99,15 +99,15 @@ export function effortOf(value: unknown): ReasoningEffort | undefined;
 
 ## Resume state
 
-- **Done so far:** nothing.
-- **Next action:** [task-01-the-permission-modes.md](task-01-the-permission-modes.md).
-- **Open questions:** none.
+- **Done so far:** all five tasks implemented. The lists, the descriptions and `effortOf` are in `@cofold/agents`; the adapter derives `features.reasoning` from `params.reasoning`; papo's lists, schema enums and params come from them; the READMEs say so. See [implemented.md](implemented.md).
+- **Next action:** none in cofold. The ahpd half of task 05 is [deferred.md](deferred.md)'s only row.
+- **Open questions:** none. The store-file copied-folder test this plan carried from agent/05 was fixed on Softov's answer; see agent/05's [implemented.md](../05-a-run-answers-its-own-pause/implemented.md).
 - **Watch out for:** tools/02 also edits `policy/modes.ts` (the `isEdit` default); keep both changes. The descriptions are library text a host may show, so they are plain sentences with no internals.
 
 ## Final verification checklist
 
-- [ ] `PERMISSION_MODES`, `PERMISSION_MODE_DESCRIPTIONS`, `EFFORT_LEVELS` and `effortOf` are exported from `@cofold/agents`.
-- [ ] `openaiCompatProvider(...).model({ id, params: { reasoning: { effort: 'high' } } })` sends `reasoning` in the body.
-- [ ] papo with `reasoning: high` sends `reasoning` in the request body.
-- [ ] `pnpm check` in cofold is clean.
-- [ ] `plans/index.md` updated.
+- [x] `PERMISSION_MODES`, `PERMISSION_MODE_DESCRIPTIONS`, `EFFORT_LEVELS` and `effortOf` are exported from `@cofold/agents`.
+- [x] `openaiCompatProvider(...).model({ id, params: { reasoning: { effort: 'high' } } })` sends `reasoning` in the body.
+- [x] papo with `reasoning: high` sends `reasoning` in the request body.
+- [x] `pnpm check` in cofold is clean - `pnpm typecheck` clean and `pnpm test` 937 of 937, after the store-file test agent/05 left open was fixed (see *Resume state*).
+- [x] `plans/index.md` updated.

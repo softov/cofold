@@ -37,6 +37,34 @@ const model = provider.model({ id: models[0].id }); // a ModelAdapter
 `model()` is synchronous and looks nothing up: pass the catalogue entry's `pricing` through (`provider.model({ id, pricing: info.pricing })`) and the adapter carries it as `pricing`, so every run records its `cost`; without it the cost is unknown and `limits.maxCost` never trips.
 LM Studio only reports ids, so every entry gets the default features; override them in `model({ id, features })`.
 
+## Configuration
+
+A program that keeps its endpoints in a file hands the array it read to `providersOf`, and names the provider a model reference picks with `providerFor`.
+`ProviderConfig` is the entry's shape and `PROVIDER_SCHEMA` its JSON Schema; finding and parsing the file is the program's own business, and so is every path and environment variable it reads.
+
+```ts
+import { providerFor, providersOf, PROVIDER_SCHEMA, splitModel } from '@cofold/model-openai-compat';
+import type { ProviderConfig } from '@cofold/model-openai-compat';
+
+// The program reads its own file: `providers` is checked against PROVIDER_SCHEMA, in practice inside the program's own schema.
+const read: { providers: ProviderConfig[]; model: string } = JSON.parse(text);
+
+const providers = providersOf(read.providers);       // Map<id, ModelProvider>, in the file's order
+const { provider, modelId } = providerFor(providers, read.model);
+const model = provider.model({ id: modelId });
+
+// The same reference without a map: undefined when it is not `<provider>/<modelId>` at all.
+const named = splitModel(read.model)?.provider;
+```
+
+| Export | What |
+| --- | --- |
+| `ProviderConfig` | `{ id, baseUrl, apiKey?, headers? }`; `id` is how a model reference names the entry (no slash, no whitespace) |
+| `PROVIDER_SCHEMA` | The entry's JSON Schema, for the `providers` array of the program's file |
+| `providersOf(configs)` | One `openaiCompatProvider` per entry, keyed by its `id`, in the configuration's order |
+| `splitModel(ref)` | `<providerId>/<modelId>` at the first slash, so a model id keeps its own slashes; `undefined` when the reference has no slash or nothing on one side of it |
+| `providerFor(providers, ref)` | The provider the reference names and the model id to ask it for; `AgentError` with code `invalid_options` when the reference is malformed, no provider is configured, or none answers to the id |
+
 ## Options
 
 | Option | Default | What |
@@ -47,7 +75,7 @@ LM Studio only reports ids, so every entry gets the default features; override t
 | `headers` | `{}` | Extra request headers (e.g. OpenRouter's `HTTP-Referer`) |
 | `reasoningBudgets` | `{}` | Token budget per effort level (`{ xhigh: 32000 }`) for providers that take `max_tokens` instead of a level |
 | `features` | `{ tools: true, streaming: true, images: false, structuredOutput: false, reasoning: false }` | What the model actually supports; the adapter refuses a request that needs more, and `streaming: false` makes the loop call `complete()` instead of `stream()` |
-| `params` | `{}` | Default `ModelParams`; the request's own params win |
+| `params` | `{}` | Default `ModelParams`; the request's own params win. A model given `params.reasoning` has `features.reasoning` on, since the effort would otherwise be dropped; `features: { reasoning: false }` still turns it off |
 | `pricing` | none | `ModelPricing` in USD per million tokens, set on the adapter; the loop records `cost` from it. Take it from `listModels()`; LM Studio reports none |
 | `retries` | `2` | Retries on `429`, `5xx` and network errors, exponential backoff from 500 ms |
 | `name` | URL host | Suffix of the provider id, `openai-compat:<name>` |

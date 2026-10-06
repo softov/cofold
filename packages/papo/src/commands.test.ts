@@ -15,7 +15,7 @@ import type { Papo } from './commands.js';
 import { rememberInto } from './commands.js';
 import { loadConfig } from './config.js';
 import { argvFor, createProgram } from './program.js';
-import { deleteFileTool, fakeProvider, testChat, testConfig } from './testing.js';
+import { deleteFileTool, fakeProvider, providerMap, testChat, testConfig } from './testing.js';
 
 interface Ran { code: number; out: string; err: string }
 
@@ -284,7 +284,7 @@ describe('the shell', () => {
       open: () => {
         const loaded = loadConfig({ cwd: root, env });
         const config = testConfig({ ...(loaded.model !== undefined ? { model: loaded.model } : { model: undefined }), permissions: loaded.permissions, reasoning: loaded.reasoning });
-        const chat = createChat({ store, config, providers: [fakeProvider(script)], workspace: root, home: '/nowhere', warn: () => {} });
+        const chat = createChat({ store, config, providers: providerMap(config, [fakeProvider(script)]), workspace: root, home: '/nowhere', warn: () => {} });
         return { chat, config, workspace: root, home: '/nowhere', remember: rememberInto({ config, cwd: root, env }) };
       },
     });

@@ -1,6 +1,6 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CapabilityArgs, Tool, ToolContext } from '@cofold/agents';
 import { createMemoryStore } from '@cofold/agents';
@@ -39,6 +39,22 @@ describe('memory()', () => {
     const section = await memory({ dir, indexLines: 2 }).instructions!(args);
     expect(section).toContain('# Memory\n- [build](topics/build.md) - how to check\n[1 more lines; memory_read() has them all]');
     expect(await memory({ dir }).instructions!(args)).not.toContain('more lines');
+  });
+
+  it('names its subjects for permission rules: the file relative to the memory folder, or absolute when it leaves it', () => {
+    // Decision CLI-04.6: the glob sees the resolved path, so `..` cannot slip past it. The subject is readable even
+    // for a call `execute` is about to refuse, which is what lets a rule deny it by name.
+    expect(tools.get('memory_read')!.subject!({})).toBe('MEMORY.md');
+    expect(tools.get('memory_read')!.subject!({ path: 'topics/build.md' })).toBe('topics/build.md');
+    expect(tools.get('memory_write')!.subject!({ path: 'notes/a.md', content: '' })).toBe('notes/a.md');
+    expect(tools.get('memory_write')!.subject!({ path: './notes/../a.md', content: '' })).toBe('a.md');
+    expect(tools.get('memory_read')!.subject!({ path: '../x.md' })).toBe(join(dir, '..', 'x.md').split(sep).join('/'));
+  });
+
+  it('memory_write declares the file it writes; memory_read writes none (tools/02 task 02)', () => {
+    expect(tools.get('memory_write')!.writes!({ path: 'topics/build.md', content: '' })).toBe(join(dir, 'topics', 'build.md'));
+    // A host that tracks workspace edits asks about this one, since the memory folder is outside the workspace.
+    expect(tools.get('memory_read')!.writes).toBeUndefined();
   });
 
   it('refuses a path outside the memory folder', async () => {

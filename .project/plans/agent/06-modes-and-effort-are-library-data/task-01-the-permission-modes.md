@@ -1,6 +1,6 @@
 ---
 title: The permission modes and what each does are library data
-status: todo
+status: done
 depends: []
 layer: "agents"
 refs:
@@ -34,3 +34,6 @@ refs:
 
 ## Resume
 
+- **Built:** `PERMISSION_MODES` (the six, in the plan's order, `as const satisfies readonly PermissionMode[]`) and `PERMISSION_MODE_DESCRIPTIONS` (the six sentences, verbatim from ahpd's `PERMISSION_DESCRIPTIONS`) sit above `policyOf` in `policy/modes.ts` and are exported from `index.ts`.
+- **Where the type test lives:** `src/types/contracts.test-d.ts`, not `modes.test.ts` (a `*.test-d.ts` is the project's place for a type assertion). It asserts `Exclude<PermissionMode, (typeof PERMISSION_MODES)[number]>` is `never` and that `PermissionMode` equals the list's union, so a mode added to the union and not to the list fails. Checked by shortening the list to five: both assertions fail under `tsc -p tsconfig.test.json` and under the root `vitest run --typecheck --project @cofold/agents`. Running `vitest --typecheck` inside the package directory does *not* report it (it picks a different config); the workspace runner does.
+- **Validation:** `modes.test.ts` covers the order, no duplicates and a description per mode; 212 tests pass in `@cofold/agents`; `tsc -p tsconfig.test.json` is clean.

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ConfigurationError } from '@cofold/commands';
-import { indentOf, loadConfig, providerFor, providersOf, rememberConfig, splitModel, userConfigPath } from './config.js';
+import { indentOf, loadConfig, rememberConfig, userConfigPath } from './config.js';
 
 let root: string;
 let env: NodeJS.ProcessEnv;
@@ -80,6 +80,17 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow('config.providers.id must be');
     await writeFile(file, JSON.stringify({ colour: 'red' }));
     expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow('config.colour is not a field');
+  });
+
+  it('refuses a mode and a level papo does not offer, though the harness knows them (agent/06)', async () => {
+    const file = join(root, 'config', 'papo', 'config.json');
+    // `plan` and `auto` are the harness's modes, not papo's; `max` is in the provider's range, not among the levels.
+    await writeFile(file, JSON.stringify({ permissions: 'plan' }));
+    expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow('config.permissions must be one of default, acceptEdits, bypassPermissions, dontAsk');
+    await writeFile(file, JSON.stringify({ permissions: 'auto' }));
+    expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow('config.permissions must be one of default, acceptEdits, bypassPermissions, dontAsk');
+    await writeFile(file, JSON.stringify({ reasoning: 'max' }));
+    expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow('config.reasoning must be one of off, low, medium, high');
   });
 
   it('reads the rule lists and refuses a rule without a tool or with a key it does not know', async () => {
@@ -165,22 +176,5 @@ describe('rememberConfig', () => {
     await writeFile(file, '{ "model": ');
     await expect(rememberConfig({ cwd: join(root, 'work'), env, patch: { model: 'lm/x' } })).rejects.toBeInstanceOf(ConfigurationError);
     expect(await readFile(file, 'utf8')).toBe('{ "model": ');
-  });
-});
-
-describe('model references', () => {
-  it('splits at the first slash only', () => {
-    expect(splitModel('or/qwen/qwen3-8b')).toEqual({ provider: 'or', modelId: 'qwen/qwen3-8b' });
-    expect(() => splitModel('qwen')).toThrow('<provider>/<model>');
-    expect(() => splitModel('or/')).toThrow('<provider>/<model>');
-  });
-
-  it('finds the provider by id and says which are configured when it is missing', () => {
-    const config = { backend: 'cofold' as const, providers: [{ id: 'a', baseUrl: 'http://a' }, { id: 'b', baseUrl: 'http://b' }], permissions: 'acceptEdits' as const, reasoning: 'off' as const, instructions: '', tools: { files: false, shell: false, web: false, memory: false }, context: { maxTokens: 32_000, autoCompact: false }, theme: 'paper', shell: 'workbench' };
-    const providers = providersOf(config);
-    expect(providers.map((provider) => provider.id)).toEqual(['openai-compat:a', 'openai-compat:b']);
-    expect(providerFor(providers, config, 'b/m')).toEqual({ provider: providers[1], modelId: 'm' });
-    expect(() => providerFor(providers, config, 'c/m')).toThrow('configured: a, b');
-    expect(() => providerFor([], { ...config, providers: [] }, 'c/m')).toThrow('no provider is configured');
   });
 });

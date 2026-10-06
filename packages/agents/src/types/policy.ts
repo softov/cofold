@@ -35,6 +35,11 @@ export type PermissionMode = 'default' | 'acceptEdits' | 'plan' | 'auto' | 'bypa
 export interface PermissionModeRules {
   /** Whether a path a read or an edit names stays inside the workspace the session works in. */
   inside(path: string): boolean;
-  /** Whether a tool is one `acceptEdits` lets through when its target is inside. */
-  isEdit(tool: Tool<any, any>): boolean;
+  /**
+   * Whether a tool is one `acceptEdits` lets through when its target is inside.
+   *
+   * Absent, a tool that declares `writes` is an edit and one that does not is not, which is the answer for a
+   * host whose file tools are the standard ones. A host with tools of its own says so here.
+   */
+  isEdit?(tool: Tool<any, any>): boolean;
 }

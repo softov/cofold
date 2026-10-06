@@ -1,6 +1,6 @@
 ---
 title: The web and memory tools name their subject
-status: todo
+status: done
 depends: []
 layer: "tools"
 refs:
@@ -33,4 +33,8 @@ refs:
 - `pnpm --filter @cofold/tools test` is clean.
 
 ## Resume
+
+- **Built:** `web.ts` sets `subject: (input) => input.url` on `web_fetch` and `subject: (input) => input.query` on `web_search`; `memory.ts` gained one `subject` helper beside `inside` - `displayPath(dir, resolveWithin(dir, path).absolute)` - and both tools use it, `memory_read` with `input.path ?? INDEX`. The helper resolves without checking on purpose, so a call `execute` is about to refuse still has a readable subject for a rule to deny by name; a path that leaves the folder comes out absolute, as a path tool's does (decision CLI-04.6).
+- **Validation:** `memory.test.ts` covers `MEMORY.md` for a `memory_read` with no path, `topics/build.md`, a `./notes/../a.md` spelling that resolves to `a.md`, and `../x.md` as an absolute path; `web.test.ts` covers the URL as given and the query, and runs a real `rules({ deny: [{ tool: 'web_fetch', match: 'https://a.example/*' }] })` over the tool: that fetch is denied and another host is allowed.
+- **Checks:** `pnpm --filter @cofold/tools test` 31 pass.
 

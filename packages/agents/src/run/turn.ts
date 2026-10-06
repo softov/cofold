@@ -3,12 +3,12 @@ import type { Agent } from '../types/agent.js';
 import type { AskAnswers } from '../types/ask.js';
 import type { CapabilityArgs } from '../types/capability.js';
 import type { Emitter } from '../types/emitter.js';
-import type { RunEventBody } from '../types/event.js';
+import type { RunEvent, RunEventBody } from '../types/event.js';
 import type { RunInfo } from '../types/hooks.js';
 import type { Message, ToolCallPart, ToolResultPart } from '../types/message.js';
 import type { ModelReply, ModelRequest } from '../types/model.js';
 import type { RunOutcome, RunTally } from '../types/outcome.js';
-import type { ApprovalPayload, InputPayload, SessionRecord, Store } from '../types/store.js';
+import type { ApprovalPayload, InputPayload, PendingRequest, RunRecord, SessionRecord, Store } from '../types/store.js';
 import type { Tool } from '../types/tool.js';
 import type {
   InternalRunHandle,
@@ -24,12 +24,14 @@ import { newId } from '../ids.js';
 import { toolCallsOf } from '../message/helpers.js';
 import { INTERRUPTED, INTERRUPTED_TOOL } from '../message/markers.js';
 import { costOf } from '../model/cost.js';
-import { addUsage } from '../model/usage.js';
+import { ZERO_USAGE, addUsage } from '../model/usage.js';
 import { validateSchema } from '@cofold/sdk';
 import { renderAnswers } from '../tool/ask-user.js';
+import { liveRuns, waitForCommand } from './answer.js';
 import { historyEstimate, writeSummary } from './compact.js';
 import { assembleRequest } from './context.js';
 import { LOAD_TOOLS, createLoadToolsTool, instructionsOf, readLoaded, requestToolsOf } from './deferred.js';
+import { startHeartbeat } from './run.js';
 import { drainSteering, rejectSteering } from './steering.js';
 import { executeTool, handleToolCall } from './tools.js';
 
@@ -100,7 +102,11 @@ export async function resolveCapabilities(ctx: TurnContext): Promise<boolean> {
       await finishRun(ctx, fail(ctx, 'capability_error', `capability "${cap.id}": ${(e as Error).message}`, { capability: cap.id }));
       return false;
     }
-    for (const [index, tool] of contributed.entries()) {
+    // An excluded name is dropped first, so a duplicate check and `defer.over` both count only what this capability
+    // really contributes (tools/02 task 04).
+    const excluded = cap.exclude ?? [];
+    const kept = excluded.length === 0 ? contributed : contributed.filter((tool) => !excluded.includes(tool.name));
+    for (const [index, tool] of kept.entries()) {
       if (ctx.tools.has(tool.name) || tool.name === LOAD_TOOLS) {
         await finishRun(ctx, fail(ctx, 'invalid_options', `capability "${cap.id}" contributes a duplicate tool "${tool.name}"`));
         return false;
@@ -163,6 +169,24 @@ export async function finishRun(ctx: TurnContext, outcome: RunOutcome): Promise<
   if (ctx.claimed && outcome.status !== 'awaiting') await store.sessions.releaseWriter({ sessionId, runId });
   await ctx.emit({ type: 'run.finished', outcome });
   settle(ctx, outcome);
+}
+
+/**
+ * The outcome a stored run ended with, read back from its events: a run that published no `run.finished` reads as
+ * interrupted. `resume()` reports a run it reattached to with it, and a handle that leaves a request to another
+ * process uses it to end its own stream with the outcome the store holds (review fix 1).
+ */
+export function storedOutcome(runId: string, record: RunRecord | undefined, events: RunEvent[]): RunOutcome {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const e = events[i]!;
+    if (e.type === 'run.finished') return e.outcome;
+  }
+  return {
+    status: 'failed',
+    error: { code: 'interrupted', message: `run ${runId} is ${record?.status ?? 'not recorded'} but recorded no run.finished event` },
+    usage: record?.usage ?? ZERO_USAGE,
+    steps: record?.steps ?? 0,
+  };
 }
 
 /** Releases the timers, refuses what the loop never picked up and closes the handle; the last thing every finish path does. */
@@ -296,18 +320,21 @@ async function callModel(ctx: TurnContext, request: ModelRequest): Promise<Model
 }
 
 /**
- * One batch of tool calls, serially (decisions 54-56). 'done' means the run has been finished (pause, abort,
- * limit or hook failure); 'continue' means every call has a result and the model loop may go on.
+ * One batch of tool calls, serially (decisions 54-56). 'done' means the run is over (abort, limit or hook failure)
+ * or was finished while it waited for a command that never landed; 'continue' means every call has a result and the
+ * model loop may go on. A call the human must decide pauses inside this loop and goes on here when the command
+ * arrives (decision 122).
  */
 async function processCalls(ctx: TurnContext, calls: ToolCallPart[], resolved?: ResolvedRequest): Promise<'continue' | 'done'> {
   const { agent, abort, emit, counters } = ctx;
   const deps: ToolCallDeps = { agent, tools: ctx.tools, run: ctx.run, abort, emit, nextStepIndex: () => counters.stepIndex++, denied: (denial) => counters.denials.push(denial), loaded: ctx.loaded };
+  const hookFailure = (e: unknown): RunOutcome => fail(ctx, 'hook_error', `beforeTool/afterTool: ${(e as Error).message}`, summarize(e));
   let limitHit = false;
   for (let i = 0; i < calls.length; i += 1) {
     const call = calls[i]!;
     // The human already decided the paused call (decisions 75-77); the limit never applies to it, and a persisted
     // decision reaches the transcript even when the run was cancelled meanwhile (decision 120: the cancel's own deny).
-    const decided = i === 0 ? resolved : undefined;
+    let decided = i === 0 ? resolved : undefined;
     if (!decided && abort.signal.aborted) { await finishRun(ctx, await interrupt(ctx, calls, i)); return 'done'; }
     if (!decided && (limitHit || counters.toolCalls >= agent.limits.maxToolCalls)) {
       limitHit = true;
@@ -316,9 +343,17 @@ async function processCalls(ctx: TurnContext, calls: ToolCallPart[], resolved?: 
       await appendResult(ctx, { type: 'toolResult', callId: call.callId, name: call.name, content: 'Tool call limit reached', isError: true });
       continue;
     }
+    // The call until it is answered: a proposal the human must decide pauses on this handle and the command comes
+    // back here, so the loop goes on with the very same array (decisions 122, 75-77). `pause` stays outside the
+    // catch below: a store failure in it is a run failure, not a tool-hook failure.
     let result: ToolCallResult;
-    try { result = decided ? await applyResolved(ctx, deps, call, decided) : await handleToolCall(deps, call); }
-    catch (e) { await finishRun(ctx, fail(ctx, 'hook_error', `beforeTool/afterTool: ${(e as Error).message}`, summarize(e))); return 'done'; }
+    for (;;) {
+      try { result = decided ? await applyResolved(ctx, deps, call, decided) : await handleToolCall(deps, call); }
+      catch (e) { await finishRun(ctx, hookFailure(e)); return 'done'; }
+      if (result.kind !== 'approval' && result.kind !== 'input') break;
+      decided = await pause(ctx, decisionOf(call, result));
+      if (!decided) return 'done';
+    }
     // Denied calls (unknown tool, invalid args, hook deny or stop) never reached an executor and do not count (decision 56).
     if ((result.kind !== 'result' && result.kind !== 'stop') || result.executed) counters.toolCalls += 1;
 
@@ -332,23 +367,13 @@ async function processCalls(ctx: TurnContext, calls: ToolCallPart[], resolved?: 
       await finishRun(ctx, { status: 'stopped', reason: 'hook', ...tally(ctx) });
       return 'done';
     }
-    if (result.kind === 'approval') {
-      const payload: ApprovalPayload = { name: result.tool.name, input: result.input, ...(result.prompt !== undefined ? { prompt: result.prompt } : {}) };
-      await pause(ctx, { call, kind: 'approval', payload, requested: { type: 'approval.requested', callId: call.callId, ...payload } });
-      return 'done';
-    }
-    if (result.kind === 'input') {
-      const payload: InputPayload = { name: result.tool.name, input: result.input, questions: result.questions, invocationId: result.invocationId };
-      await pause(ctx, { call, kind: 'input', payload, requested: { type: 'input.requested', callId: call.callId, questions: result.questions } });
-      return 'done';
-    }
     await appendResult(ctx, result.part);
   }
   if (limitHit) { await finishRun(ctx, { status: 'stopped', reason: 'max_tool_calls', ...tally(ctx) }); return 'done'; }
   return 'continue';
 }
 
-/** Applies a persisted command to the call it answers. Validation happened in resume() before the command was persisted. */
+/** Applies a persisted command to the call it answers. `waitForCommand` validated it before it was persisted. */
 async function applyResolved(ctx: TurnContext, deps: ToolCallDeps, call: ToolCallPart, resolved: ResolvedRequest): Promise<ToolCallResult> {
   const { command, pending } = resolved;
   if (command.type === 'approve') {
@@ -385,19 +410,60 @@ async function applyResolved(ctx: TurnContext, deps: ToolCallDeps, call: ToolCal
   return { kind: 'result', executed: true, part: { type: 'toolResult', callId: call.callId, name: payload.name, content, isError: declined } };
 }
 
-/** Persists the request, marks the run awaiting and closes the handle; the writer claim is kept (decision 62). */
+/** Persists the request, marks the run awaiting and keeps waiting on this handle; the writer claim is held (decision 62). */
 type RequestedEvent = Extract<RunEventBody, { type: 'approval.requested' | 'input.requested' }> extends infer E ? (E extends unknown ? Omit<E, 'requestId'> : never) : never;
 
-async function pause(ctx: TurnContext, args: { call: ToolCallPart; kind: 'approval' | 'input'; payload: unknown; requested: RequestedEvent }): Promise<void> {
-  const { store, sessionId, runId, counters } = ctx;
+/** The pause a tool result asks for: the request to persist and the event that announces it. */
+function decisionOf(call: ToolCallPart, result: Extract<ToolCallResult, { kind: 'approval' | 'input' }>): { call: ToolCallPart; kind: 'approval' | 'input'; payload: unknown; requested: RequestedEvent } {
+  if (result.kind === 'approval') {
+    const payload: ApprovalPayload = { name: result.tool.name, input: result.input, ...(result.prompt !== undefined ? { prompt: result.prompt } : {}) };
+    return { call, kind: 'approval', payload, requested: { type: 'approval.requested', callId: call.callId, ...payload } };
+  }
+  const payload: InputPayload = { name: result.tool.name, input: result.input, questions: result.questions, invocationId: result.invocationId };
+  return { call, kind: 'input', payload, requested: { type: 'input.requested', callId: call.callId, questions: result.questions } };
+}
+
+/**
+ * The run waits on its own handle (decision 122): the request and the `awaiting` record are written before the
+ * event that announces them, the handle's status moves to `awaiting` without closing it, and the pause's
+ * `run.finished { awaiting }` ends the stream's segment, not the run. The writer claim is kept (decision 62) and
+ * the heartbeat stops for the wait (decision 68); both are back when the command arrives. Returns the decision to
+ * apply to the call, or `undefined` when a failed write already finished the run.
+ */
+async function pause(ctx: TurnContext, args: { call: ToolCallPart; kind: 'approval' | 'input'; payload: unknown; requested: RequestedEvent }): Promise<ResolvedRequest | undefined> {
+  const { store, sessionId, runId } = ctx;
   const requestId = newId();
-  await store.requests.create({ requestId, sessionId, runId, kind: args.kind, callId: args.call.callId, payload: args.payload, createdAt: now() });
-  await ctx.emit({ ...args.requested, requestId } as RunEventBody);
-  const outcome: RunOutcome = { status: 'awaiting', sessionId, runId, requestId, kind: args.kind, ...tally(ctx) };
+  const pending: PendingRequest = { requestId, sessionId, runId, kind: args.kind, callId: args.call.callId, payload: args.payload, createdAt: now() };
+  await store.requests.create(pending);
   await store.runs.update({ sessionId, runId, status: 'awaiting', pendingRequestId: requestId, ...tally(ctx) });
-  await ctx.emit({ type: 'run.paused', requestId, kind: args.kind });
-  await ctx.emit({ type: 'run.finished', outcome });
-  settle(ctx, outcome);
+  if (ctx.heartbeat !== undefined) { clearInterval(ctx.heartbeat); ctx.heartbeat = undefined; }
+  ctx.handle.setStatus('awaiting');
+  // The acceptor is installed synchronously, before anything is announced, so a command that lands the moment a
+  // client sees `approval.requested` finds it. The run is attached here for as long as it waits (decision 80),
+  // unless the caller already holds it (a resume() that paused again).
+  const waiting = waitForCommand(ctx, pending);
+  const joined = !liveRuns.has(runId);
+  if (joined) liveRuns.add(runId);
+  try {
+    const outcome: RunOutcome = { status: 'awaiting', sessionId, runId, requestId, kind: args.kind, ...tally(ctx) };
+    try {
+      await ctx.emit({ ...args.requested, requestId } as RunEventBody);
+      await ctx.emit({ type: 'run.paused', requestId, kind: args.kind });
+      await ctx.emit({ type: 'run.finished', outcome });
+    } catch (e) {
+      // Announcing the pause failed, so the run is ending: the acceptor and the abort listener go with it, and a
+      // late submit finds a closed handle rather than a run that already finished (review fix 3).
+      ctx.dropWait?.();
+      throw e;
+    }
+    const command = await waiting;
+    if (!command) return undefined;
+    ctx.heartbeat = startHeartbeat(store, sessionId, runId);
+    ctx.handle.setStatus('running');
+    return { pending, command };
+  } finally {
+    if (joined) liveRuns.delete(runId);
+  }
 }
 
 export async function appendResult(ctx: TurnContext, part: ToolResultPart): Promise<void> {

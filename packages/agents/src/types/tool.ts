@@ -39,6 +39,13 @@ export interface ToolDefinition<Input = unknown, Resources = Record<string, unkn
    */
   subject?(input: Input): string;
   /**
+   * The file this call writes, as an absolute path; absent for a tool that writes no single named file, such
+   * as a shell: `effects.writes` says whether a call can change anything, this says which file it changes.
+   *
+   * A host's `acceptEdits` reads it to tell an edit from a call that has to ask (decision CLI-04.6).
+   */
+  writes?(input: Input): string;
+  /**
    * Known to the model by name and one line only, until it loads the definition with `load_tools`
    * or a run's session has loaded it before (AGENT-02). A capability's `defer` sets it wholesale.
    */

@@ -1,6 +1,6 @@
 ---
 title: tool.proposed carries the subject
-status: todo
+status: done
 depends: []
 layer: "agents"
 refs:
@@ -32,4 +32,8 @@ refs:
 - `pnpm --filter @cofold/agents test` is clean.
 
 ## Resume
+
+- **Built:** `tool.proposed` is now `{ callId, name, input, subject? }` in `types/event.ts`, with a comment naming the source of the subject. `handleToolCall` validates once, before it announces the call: `validated` is computed from `call.input` (or left `undefined` when the arguments did not parse) and reused by the two deny branches, which follow the emit as before. `subjectOf(tool, input)` in `run/tools.ts` answers the tool's `subject` over the validated value, `undefined` when the tool names none; a `subject` that throws is caught there and loses only the field. The emit spreads `subject` conditionally, since `exactOptionalPropertyTypes` is on.
+- **Validation:** `run/tools.test.ts` has four new cases: the subject is read from the validated input (the subject reads the defaulted `loud: false`, so it proves which input the tool saw); a tool with no `subject` emits no key; an input that does not validate emits `tool.proposed` (no subject, and the tool's `subject` is never called) then `tool.denied`, in that order; a `subject` that throws emits no key and the call still runs to `tool.completed`.
+- **Checks:** `pnpm --filter @cofold/agents exec vitest run --typecheck` 242 pass (was 238), 23 files, no type errors. No other file reads `tool.proposed` (searched `packages`, `examples`, `docs`).
 

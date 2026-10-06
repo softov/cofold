@@ -98,6 +98,9 @@ importers:
       '@cofold/agents':
         specifier: workspace:*
         version: link:../agents
+      '@cofold/sdk':
+        specifier: workspace:^
+        version: link:../sdk
 
   packages/papo:
     dependencies:
@@ -174,6 +177,9 @@ importers:
       '@cofold/agents':
         specifier: workspace:*
         version: link:../agents
+      '@cofold/sdk':
+        specifier: workspace:^
+        version: link:../sdk
 
   packages/yaml: {}
 

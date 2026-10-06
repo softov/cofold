@@ -7,7 +7,7 @@ import type { RunEvent } from './event.js';
 import type { RunInfo } from './hooks.js';
 import type { ToolCallPart, ToolResultPart } from './message.js';
 import type { Usage } from './model.js';
-import type { RunOutcome } from './outcome.js';
+import type { RunOutcome, RunStatus } from './outcome.js';
 import type { RunHandle } from './run.js';
 import type { Denial, PendingRequest, Store } from './store.js';
 import type { Tool } from './tool.js';
@@ -55,6 +55,17 @@ export interface TurnContext {
   abort: RunAbort;
   emit: Emitter['emit'];
   handle: InternalRunHandle;
+  /**
+   * The acceptor while a request is open, cleared once a command is taken (decision 122); `waitForCommand` installs it
+   * and both the run() and the resume() handle reach it through the context.
+   */
+  accept?: ((command: Exclude<RunCommand, { type: 'cancel' | 'steer' }>) => Promise<void>) | undefined;
+  /**
+   * Drops the open wait without answering it: the acceptor and the abort listener go and the wait resolves
+   * `undefined`, leaving the request open in the store. Installed beside `accept` by `waitForCommand` and called
+   * when the run leaves its pause unanswered - a failed announcement, or a handle that detaches (review fixes 3, 4).
+   */
+  dropWait?: (() => void) | undefined;
   /** Steers the handle took since the last model step; drained at the top of the next one, rejected when the run settles. */
   steering: SteerQueue;
   /** `cost` is `undefined` while the adapter has no pricing (decision 108), so an unknown price never reads as free. */
@@ -64,8 +75,8 @@ export interface TurnContext {
   compact: boolean;
   /** The run's input message; an auto-compaction leaves it out of the summary. */
   inputMessageId?: string;
-  /** Writer lease timer (decision 68); cleared when the run settles, before the outcome is published. */
-  heartbeat?: ReturnType<typeof setInterval>;
+  /** Writer lease timer (decision 68); stopped at a pause, restarted by the command, cleared when the run settles. */
+  heartbeat?: ReturnType<typeof setInterval> | undefined;
 }
 
 /** The pending request a command answered, applied to the first call of a resumed batch (decisions 74-77). */
@@ -82,6 +93,8 @@ export type TurnEntry =
 export interface InternalRunHandle extends RunHandle {
   /** Called by the loop for every persisted event. */
   publish(event: RunEvent): void;
+  /** Moves `status()` without closing the handle: `awaiting` at a pause, `running` again on the command (decision 122). */
+  setStatus(status: RunStatus): void;
   /** Called once by the loop with the final outcome; closes the event stream. */
   finish(outcome: RunOutcome): void;
 }

@@ -187,7 +187,7 @@ Another process reading the same session (`papo session show`, a second screen) 
 ```
 src/
   types/{config,settings,turn,chat}.ts   the contracts
-  config.ts                     loadConfig, rememberConfig, providersOf, providerFor
+  config.ts                     loadConfig, rememberConfig (its schema composes the two libraries')
   agent.ts                      buildAgent, policyOf (the mode as what decides when no rule matches), mergedRules
   rules.ts                      parseRule / formatRule (Tool or Tool(match)), checkRules
   turns.ts  blocks.ts           store -> Turn[] -> Block[]

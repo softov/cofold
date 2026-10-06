@@ -109,6 +109,19 @@ export function testConfig(overrides: Partial<PapoConfig> | { model: undefined }
   return config;
 }
 
+/**
+ * What `createChat` is handed: one model per configured provider, in the configuration's order, keyed by the id
+ * its entry writes. A test's models are often not `providersOf`'s, so the key comes from the configuration.
+ */
+export function providerMap(config: PapoConfig, models: ModelProvider[]): Map<string, ModelProvider> {
+  const providers = new Map<string, ModelProvider>();
+  for (const [index, model] of models.entries()) {
+    const id = config.providers[index]?.id;
+    if (id !== undefined) providers.set(id, model);
+  }
+  return providers;
+}
+
 /** A chat over the memory store and a scripted model. */
 export function testChat(args: {
   script: FakeStep[];
@@ -120,7 +133,7 @@ export function testChat(args: {
   /** The model streams (`createFakeModel({ stream: true })`); `afterDelta` is awaited after each delta the harness took. */
   stream?: boolean;
   afterDelta?: () => Promise<void>;
-  /** Providers after the fake one, in the order `config.providers` names them after `fake`. */
+  /** Models after the fake one, one per configuration entry after the first, in that order. */
   providers?: ModelProvider[];
   /** Where the service's warnings go; dropped by default. */
   warn?: (message: string) => void;
@@ -130,10 +143,11 @@ export function testChat(args: {
     ...(args.stream !== undefined ? { stream: args.stream } : {}),
     ...(args.afterDelta !== undefined ? { afterDelta: args.afterDelta } : {}),
   });
+  const config = testConfig(args.config);
   const chat = createChat({
     store,
-    config: testConfig(args.config),
-    providers: [provider, ...(args.providers ?? [])],
+    config,
+    providers: providerMap(config, [provider, ...(args.providers ?? [])]),
     workspace: args.workspace ?? '/work',
     home: args.home ?? '/nowhere',
     ...(args.tools !== undefined ? { tools: args.tools } : {}),

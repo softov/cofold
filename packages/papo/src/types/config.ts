@@ -1,15 +1,10 @@
 import type { Limits, ModelParams, RulesOptions } from '@cofold/agents';
+import type { ProviderConfig } from '@cofold/model-openai-compat';
+import type { SearchConfig, ToolsConfig } from '@cofold/tools';
 import type { Reasoning, Settings } from './settings.js';
 
-/** One Chat Completions endpoint papo may talk to. */
-export interface ProviderConfig {
-  /** How the model string names it: `<id>/<modelId>`. */
-  id: string;
-  /** e.g. `http://localhost:1234/v1` or `https://openrouter.ai/api/v1`. */
-  baseUrl: string;
-  apiKey?: string;
-  headers?: Record<string, string>;
-}
+/** The provider entry, the search backends and the tools section are the library's shapes (decision 123). */
+export type { ProviderConfig, SearchConfig, ToolsConfig };
 
 /**
  * When a tool call stops to ask: Claude Code's modes (cli/03 F8), as papo's policy reads them.
@@ -28,30 +23,12 @@ export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | '
  */
 export type RuleLists = Pick<RulesOptions, 'deny' | 'ask' | 'allow'>;
 
-/** The search backends `web_search` may use, asked in this order: brave, tavily, duckduckgo. */
-export interface SearchConfig {
-  brave?: { apiKey: string };
-  tavily?: { apiKey: string };
-  /** The HTML results page, scraped; no key. */
-  duckduckgo?: boolean;
-}
-
 /** How much conversation a request may carry, and whether papo folds it before that runs out. */
 export interface ContextConfig {
   /** Tokens for the instructions and the history, as the harness estimates them; default 32 000. */
   maxTokens: number;
   /** New sessions start with auto-compaction on; each session may switch it. Compaction runs at 80% of `maxTokens`. */
   autoCompact: boolean;
-}
-
-/** Which `@cofold/tools` capabilities the agent gets; all on by default. */
-export interface ToolsConfig {
-  files: boolean;
-  shell: boolean;
-  /** `true` is `web_fetch` alone; an object adds `web_search` over its providers. */
-  web: boolean | { search?: SearchConfig };
-  /** Files under `<home>/memory/<workspace slug>/`. */
-  memory: boolean;
 }
 
 /** What runs the conversation: the harness in this process, or Claude Code's runtime through its SDK. */

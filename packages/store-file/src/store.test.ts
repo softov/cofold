@@ -1,9 +1,9 @@
 import { appendFile, cp, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
-import { createAgent, createTool, resume, run } from '@cofold/agents';
-import type { RunRecord, Store } from '@cofold/agents';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import { createAgent, createTool, run } from '@cofold/agents';
+import type { RunEvent, RunRecord, Store } from '@cofold/agents';
 import { createFakeModel } from '@cofold/agents/testing';
 import { describeStoreConformance } from '@cofold/agents/testing/store-conformance';
 import { encodeSegment } from './paths.js';
@@ -25,6 +25,26 @@ const runRecord = (sessionId: string, runId: string, over: Partial<RunRecord> = 
   usage: { inputTokens: 0, outputTokens: 0 }, steps: 0, denials: [], ...over,
 });
 const exists = (p: string) => stat(p).then(() => true, () => false);
+
+/**
+ * Reads a handle's events up to its next `run.finished` (decision 122): a pause keeps the handle open, so a
+ * paused run is read off the events rather than `outcome`, which resolves once, at the run's end.
+ */
+async function untilPaused(handle: { events: AsyncIterable<RunEvent> }): Promise<RunEvent[]> {
+  const events: RunEvent[] = [];
+  for await (const event of handle.events) { events.push(event); if (event.type === 'run.finished') break; }
+  return events;
+}
+
+/**
+ * The same folder in another process: the module registry is thrown away first, so the run the first process
+ * holds is not attached in the second one (decision 122) - what `liveRuns.delete(runId)` stands in for inside
+ * `@cofold/agents`'s own tests, whose modules this package cannot reach.
+ */
+async function otherProcess(): Promise<{ agents: typeof import('@cofold/agents'); testing: typeof import('@cofold/agents/testing') }> {
+  vi.resetModules();
+  return { agents: await import('@cofold/agents'), testing: await import('@cofold/agents/testing') };
+}
 
 async function codeOf(p: Promise<unknown>): Promise<string | undefined> {
   try { await p; return undefined; }
@@ -212,15 +232,17 @@ describe('createFileStore end to end', () => {
     const model = createFakeModel({ script: [{ toolCalls: [{ name: 'delete_file', input: { path: 'a.txt' } }] }, { text: 'gone' }] });
     const agentA = createAgent({ id: 'a', instructions: 'x', model, tools: [rm], store: createFileStore({ root: rootA }) });
     const first = run({ agent: agentA, session: 'sess', workspace: 'F:/proj', input: 'delete a.txt' });
-    const paused = await first.outcome;
-    expect(paused.status).toBe('awaiting');
-    const requestId = paused.status === 'awaiting' ? paused.requestId : '';
+    const paused = (await untilPaused(first)).at(-1);
+    expect(paused?.type === 'run.finished' && paused.outcome.status).toBe('awaiting');
+    const requestId = paused?.type === 'run.finished' && paused.outcome.status === 'awaiting' ? paused.outcome.requestId : '';
 
-    // "the process dies": everything the second process has is the folder
+    // "the process dies": everything the second process has is the folder, and none of this process's modules
     await cp(rootA, rootB, { recursive: true });
+    const second = await otherProcess();
     const storeB: Store = createFileStore({ root: rootB });
-    const agentB = createAgent({ id: 'a', instructions: 'x', model, tools: [rm], store: storeB });
-    const handle = resume({ agent: agentB, sessionId: 'sess', runId: first.runId });
+    const modelB = second.testing.createFakeModel({ script: [{ text: 'gone' }] });
+    const agentB = second.agents.createAgent({ id: 'a', instructions: 'x', model: modelB, tools: [rm], store: storeB });
+    const handle = second.agents.resume({ agent: agentB, sessionId: 'sess', runId: first.runId });
     const seqs: number[] = [];
     const eventsP = (async () => { for await (const e of handle.events) seqs.push(e.seq); })();
     await handle.submit({ type: 'approve', requestId });

@@ -23,6 +23,12 @@ export interface Capability {
    * first N in the order `tools()` returns them. A tool's own `deferred` is left as it is when unset here.
    */
   defer?: boolean | { over: number };
+  /**
+   * Names of this capability's tools to leave out, so a tool of the same name from elsewhere takes the name
+   * instead of the run failing on the clash. A name it does not contribute is ignored, and `defer.over` counts
+   * what remains.
+   */
+  exclude?: readonly string[];
   /** `Tool<any, any>` (decision 67): a capability returns tools of mixed input types. */
   tools?(args: CapabilityArgs): Tool<any, any>[] | Promise<Tool<any, any>[]>;
   /** Text appended to the agent instructions under a `## <id>` heading; undefined contributes nothing this run. */

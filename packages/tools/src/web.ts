@@ -45,6 +45,8 @@ function fetchTool(args: { timeoutMs: number; maxBytes: number; fetch: typeof fe
       additionalProperties: false,
     },
     effects: { network: true },
+    /** What a permission rule's `match` sees: the URL as asked for, before it is parsed. */
+    subject: (input) => input.url,
     execute: async (input, ctx) => {
       let url = parseUrl(input.url);
       const signal = AbortSignal.any([ctx.signal, AbortSignal.timeout(args.timeoutMs)]);
@@ -86,6 +88,8 @@ function searchTool(providers: SearchProvider[]): Tool<any, any> {
       additionalProperties: false,
     },
     effects: { network: true },
+    /** What a permission rule's `match` sees: the query asked of every provider. */
+    subject: (input) => input.query,
     execute: async (input, ctx) => {
       const count = input.count ?? DEFAULT_COUNT;
       const failures: string[] = [];

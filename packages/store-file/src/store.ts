@@ -60,12 +60,15 @@ export function createFileStore(options: FileStoreOptions): Store {
     }
     return { sessionDir, runDir };
   }
-  /** session.json never stores the writer; the lock file is the one source (decision 68). */
+  /**
+   * session.json never stores the writer; the lock file is the one source (decision 68), the pid of the process
+   * holding it included, so a reader can tell a run another live process is working from one a dead one left.
+   */
   async function readSession(dir: string): Promise<SessionRecord | undefined> {
     const record = await readJson<SessionRecord>(join(dir, 'session.json'));
     if (!record) return undefined;
     const holder = await lock.readLock(dir);
-    return holder ? { ...record, activeWriterRunId: holder.runId } : record;
+    return holder ? { ...record, activeWriterRunId: holder.runId, activeWriterPid: holder.pid } : record;
   }
   // A run.json written before denials existed (agent/04 task 02) reads back with an empty list.
   const readRun = async (runDir: string): Promise<RunRecord | undefined> => {

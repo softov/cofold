@@ -5,25 +5,27 @@ import type { RunOutcome, SessionUsage } from '@cofold/agents';
 import { AgentError } from '@cofold/agents';
 import type { CommandContext, OptionSpec } from '@cofold/commands';
 import { ArgumentError, createRegistry, output } from '@cofold/commands';
+import { providersOf } from '@cofold/model-openai-compat';
 import { createFileStore, resolveHome } from '@cofold/store-file';
 import { renderTable } from '@cofold/terminal';
 import { compactedNotice } from './blocks.js';
 import { createChat } from './chat.js';
 import { createClaudeChat } from './claude/chat.js';
-import { loadConfig, providersOf, rememberConfig } from './config.js';
+import { loadConfig, rememberConfig } from './config.js';
 import { exportPath, toMarkdown } from './export.js';
 import { parseAnswers } from './questions.js';
 import { formatRule, parseRule } from './rules.js';
 import type { Chat } from './types/chat.js';
 import type { PapoConfig, RememberedSettings, RuleLists } from './types/config.js';
 import type { Settings } from './types/settings.js';
+import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 import type { Snapshot, Turn } from './types/turn.js';
 
 /** The three choices a session carries, as `say` and `session set` spell them. */
 const SETTING_FIELDS = {
   model: { type: 'string', description: 'The model, as provider/model (see `papo models`)', cli: { short: '-m', value: 'PROVIDER/MODEL' } },
-  permissions: { type: 'string', description: 'When a tool call stops to ask: default, acceptEdits, bypassPermissions or dontAsk', enum: ['default', 'acceptEdits', 'bypassPermissions', 'dontAsk'], cli: { short: '-p', value: 'MODE' } },
-  reasoning: { type: 'string', description: 'How much the model thinks first', enum: ['off', 'low', 'medium', 'high'], cli: { short: '-t', value: 'LEVEL' } },
+  permissions: { type: 'string', description: 'When a tool call stops to ask: default, acceptEdits, bypassPermissions or dontAsk', enum: [...PERMISSION_MODES], cli: { short: '-p', value: 'MODE' } },
+  reasoning: { type: 'string', description: 'How much the model thinks first', enum: [...REASONING_LEVELS], cli: { short: '-t', value: 'LEVEL' } },
   autocompact: { type: 'string', description: 'Fold the conversation into a summary before it outgrows the context', enum: ['on', 'off'], cli: { short: '-a', value: 'on|off' } },
 } as const;
 
@@ -138,7 +140,7 @@ export function openPapo(globals: Readonly<Record<string, unknown>>): Papo {
   }
   const chat = config.backend === 'claude'
     ? createClaudeChat({ config, workspace, home })
-    : createChat({ store: createFileStore({ root: home }), config, providers: providersOf(config), workspace, home });
+    : createChat({ store: createFileStore({ root: home }), config, providers: providersOf(config.providers), workspace, home });
   return { chat, config, workspace, home, remember: rememberInto({ config, cwd: workspace, ...(path !== undefined ? { path } : {}) }) };
 }
 

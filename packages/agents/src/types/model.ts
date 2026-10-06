@@ -13,6 +13,14 @@ export interface ModelFeatures {
 /** The whole range providers accept (decision 98); a level a provider rejects is the provider's error, not a client-side clamp. */
 export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
+/**
+ * The levels a host offers as a thinking setting, which is narrower than what a provider accepts.
+ *
+ * `EFFORT_LEVELS` in `model/effort.ts` is the list and `effortOf` the parser; `off` is a level a
+ * host shows and never a field that is sent.
+ */
+export type EffortLevel = 'off' | 'low' | 'medium' | 'high';
+
 export interface ModelParams {
   temperature?: number;
   topP?: number;

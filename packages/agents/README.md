@@ -66,14 +66,17 @@ Without a `store` it uses an in-memory store and warns once; pass a real store f
 
 `run({ agent, session, input, messageId?, workspace?, signal? })` returns a `RunHandle` synchronously and executes the turn in the background. `messageId` is the input message's id (default `newId()`), so a client can match `run.started` to its own send; it must be new in the session, or the handle finishes `failed { code: 'already_exists' }` with nothing written. `compact()` takes one for its ask too.
 
-- `events`: every `RunEvent` from `seq` 1, replayed to any iterator, ending after `run.finished`. While a model step streams, `model.delta { step, kind: 'text' | 'reasoning', text }` carries each fragment as it arrives; deltas are persisted and replayed like every other event, tool-call fragments are never published, and `model.completed` still carries the whole message.
-- `outcome`: resolves to exactly one of `completed | awaiting | stopped | cancelled | failed`; it never rejects. Every outcome carries `usage`, `steps` and, when the adapter has `pricing`, `cost` in USD (absent means unknown, never zero); the run record carries the same.
-- `cancel({ reason })` / `submit({ type: 'cancel' })`: aborts the run; a tool in flight is left `uncertain` in the step log. The transcript stays model-valid and says what happened: every call the cancel cut is answered `[Request interrupted by user for tool use]` (an error result) and a `role: 'user'`, `source: 'system'` message `[Request interrupted by user]` is appended (`INTERRUPTED_TOOL`, `INTERRUPTED`; Claude's runtime's wording, so one projection reads both). A timeout writes the same texts and finishes `stopped { reason: 'timeout' }`.
-- `submit({ type: 'steer', text })`: a message for the running turn, without cancelling it. It is appended to the transcript as a `user` message before the next model step (after every result of the tool batch in progress), announced as `run.steered`, and the promise resolves then. A steer that is still queued when the run settles rejects with `not_running`, as does one sent to a finished handle; the host decides whether to send it as a new run.
-- `status()`: `running` until the outcome settles.
+- `events`: every `RunEvent` from `seq` 1, replayed to any iterator; the stream ends after the last `run.finished`, the one that is not `awaiting`. A pause's `run.finished { awaiting }` is mid-stream: the run goes on after it and the stream keeps delivering (decision 122). While a model step streams, `model.delta { step, kind: 'text' | 'reasoning', text }` carries each fragment as it arrives; deltas are persisted and replayed like every other event, tool-call fragments are never published, and `model.completed` still carries the whole message.
+- `outcome`: resolves exactly once, when the run really ends, to one of `completed | stopped | cancelled | failed`; it never resolves at a pause and never rejects. Every outcome carries `usage`, `steps` and, when the adapter has `pricing`, `cost` in USD (absent means unknown, never zero); the run record carries the same.
+- `submit({ type: 'approve' | 'deny' | 'answer', ... })`: answers the run's own pause (decision 122), on the handle `run()` returned; the run carries on in place. A command that reaches a closed handle - the run ended, or the handle was refused a second attach - is refused `not_running`, so nothing reaches a loop that has finished. See "Pause and resume".
+- `cancel({ reason })` / `submit({ type: 'cancel' })`: aborts the run; a tool in flight is left `uncertain` in the step log. Waiting on a decision, it denies the pending request first (decision 120). The transcript stays model-valid and says what happened: every call the cancel cut is answered `[Request interrupted by user for tool use]` (an error result) and a `role: 'user'`, `source: 'system'` message `[Request interrupted by user]` is appended (`INTERRUPTED_TOOL`, `INTERRUPTED`; Claude's runtime's wording, so one projection reads both). A timeout writes the same texts and finishes `stopped { reason: 'timeout' }`.
+- `submit({ type: 'steer', text })`: a message for the running turn, without cancelling it. It is appended to the transcript as a `user` message before the next model step (after every result of the tool batch in progress), announced as `run.steered`, and the promise resolves then. A steer sent while the run waits is queued and lands at the first model step after the command; one still queued when the run settles rejects with `not_running`, as does one sent to a finished handle, and the host decides whether to send it as a new run.
+- `status()`: `running`, `awaiting` while the run waits on a decision, `running` again once the command lands, then the outcome's status.
+- `detach()`: leaves a paused run in this process without answering it. The wait, its abort listener, the timeout and this process's place among the runs it holds go, and the handle closes with the outcome the store holds - the pause's own `awaiting` when nobody has answered it, the real end when another process has. Nothing is written: the request stays open, so a later `resume()` answers it, here or elsewhere. A host calls it when it lets a paused run go on purpose, as `papo`'s `close()` does when it quits; on a handle that is not waiting it does nothing.
 
 Per step the loop assembles a bounded request from the session transcript (newest messages first, tool-call groups kept whole), calls `hooks.beforeModel`, the model, `hooks.afterModel`, then handles each proposed tool call in order: validate the arguments, `hooks.beforeTool`, `policy.decide` (`allow | ask | deny`; default: `ask` when `effects.destructive`, else `allow`), execute, bound the output, `hooks.afterTool`.
 The hook runs first and may modify the input the policy then judges; a policy `deny` wins over a hook `allow` and over a remembered approval, a policy `ask` wins over a hook `allow`, and a policy `allow` leaves a hook's `approval` standing (decision 119).
+Every call is announced as `tool.proposed { callId, name, input, subject? }` once its arguments validate, and for a call that goes on that announcement follows the `beforeTool` hook: `input` is the model's arguments as it gave them, `subject` is what the tool says the call acts on read over the input the call will run with, a hook's `modify` included, and the same string a `match` rule reads, so a host draws a call without knowing the tool. A tool that declares no subject, or whose `subject(input)` throws, is announced without the field; a call whose arguments do not validate is announced without one and then denied.
 Every message, step and event is persisted through the `Store` before it is published.
 A call that needs approval pauses the run as `awaiting` with a durable `requestId` (see "Pause and resume").
 Every refused call is recorded: `RunRecord.denials` and `outcome.denials` list `Denial { callId, name, input, reason, by }` in order, `by` being `invalid` (unknown tool, arguments not JSON or failing the schema), `hook` (a `beforeTool` deny or stop), `policy` (a `deny` decision), `user` (a denied approval or a declined question) or `limit` (`maxToolCalls`); the record is written with the counters at every run update and is the authoritative list, as Claude's `permission_denials` is.
@@ -83,29 +86,46 @@ Every model request carries `cacheKey`, the session id, for adapters that key a 
 A model step streams when the adapter has `stream()` and its `features.streaming` is true (there is no agent option; turn it off per model with `features: { streaming: false }`); the reply is assembled from the adapter's final `done` event, so nothing is validated or executed before the stream is complete, and a stream that ends without `done` fails the step (`invalid_response`) with no assistant message written. The compaction summary step never streams.
 
 Capabilities (`{ id, tools?(args), instructions?(args) }`) are resolved at the start of every run and contribute tools plus a `## <id>` section to the instructions.
+`exclude: ['write_file']` leaves out the capability's tools of those names, so a tool of the same name from the agent or another capability takes the name instead of the run failing `invalid_options` on the clash; a name the capability does not contribute is ignored, and `defer.over` counts what is left.
 
 ## Pause and resume
 
 A run pauses when a tool needs approval (`policy.decide` answering `ask`, or a `beforeTool` hook returning `approval`) or when a tool asks the user something.
-The outcome is `awaiting { sessionId, runId, requestId, kind: 'approval' | 'input' }`, the run record says `awaiting` with `pendingRequestId`, and the session's writer claim is kept.
-The process may exit here; everything needed to continue is in the store.
+The request record is written and the run recorded `awaiting` with `pendingRequestId` before `approval.requested` or `input.requested` is published, so a host that acts on the event answers a run that is already recorded waiting; `run.paused { requestId, kind: 'approval' | 'input' }` and a `run.finished { awaiting }` follow, neither of which ends the stream. `status()` is `awaiting` and the session's writer claim is kept.
+
+The handle that paused answers its own pause. The run carries on in place and `outcome` is still the end of the turn, not the pause.
+
+```ts
+import { run } from '@cofold/agents';
+
+const handle = run({ agent, session: 'session-1', input: 'Delete notes.txt' });
+for await (const event of handle.events) {
+  if (event.type === 'run.paused') await handle.submit({ type: 'approve', requestId: event.requestId });
+}
+const outcome = await handle.outcome;
+```
+
+`resume` is for a run this process does not hold: the process that paused it is gone, or its handle was dropped without an answer.
+It replays the stored events (`afterSeq` skips the ones the host already has) and then waits for the same commands, which land the same way.
 
 ```ts
 import { resume } from '@cofold/agents';
 
-const handle = resume({ agent, sessionId, runId });   // replays the stored events, then waits for a command
+const handle = resume({ agent, sessionId, runId });
 await handle.submit({ type: 'approve', requestId });   // or { type: 'approve', requestId, input, alwaysApprove }
 await handle.submit({ type: 'deny', requestId, reason: 'not today' });
 await handle.submit({ type: 'answer', requestId, answers: { lang: 'Rust', targets: ['node'] } });
 const outcome = await handle.outcome;
 ```
 
+A host that drops a paused handle and exits leaves the run `awaiting` in the store, and `resume()` reaches it as before.
 `submit` resolves once the command is persisted (`approval.resolved` / `input.resolved` / `input.declined`, then `run.resumed`) and rejects with `not_found` for a wrong `requestId` or `invalid_options` for an edited input or answers that do not validate; the run stays `awaiting` in that case.
+A second attach to a run another handle already holds in this process is refused `writer_busy`.
 A `deny` on an input request declines the questions: the asking tool's result carries the reason as an error and the model goes on without the answers.
 The approved call is executed exactly once, then the rest of its batch and the model loop continue as in `run`.
 `deny` appends an error result so the model can react, and the run records the refusal with `by: 'user'`.
 `cancel` while waiting denies the pending request (`deny { reason: 'The turn was stopped' }` through the same path a host's deny takes: `approval.resolved` or `input.declined`, the error result for the call, `run.resumed`), then finishes the run `cancelled` with the interrupt marker; a request is never left open by a cancel.
-A `steer` while waiting is not the resuming command: it waits in the queue and lands at the first model step after the command (a cancel instead rejects it `not_running`); once the command is applied the resumed handle takes steers like `run`'s.
+A `steer` while the run waits is not the resuming command: it waits in the queue and lands at the first model step after the command (a cancel instead rejects it `not_running`); once the command is applied the handle takes steers as a running one does.
 
 `resume` on a run that was `running` when its process died (decision 78) marks the open step `failed` (model) or `uncertain` (tool, plus an error result so the transcript stays valid) and finishes `failed { code: 'interrupted' | 'uncertain_invocation' }`.
 `resume` on a terminal run replays its events and delivers the stored outcome; `afterSeq` skips events the host already has.
@@ -130,6 +150,36 @@ const agent = createAgent({ id, instructions, model, store, tools, policy });
 A tool without a `subject` matches by name only, so a rule with `match` never applies to it.
 The first matching rule decides, `deny` before `ask` before `allow`; when nothing matches, `otherwise` decides (default: `ask` when `effects.destructive`, else `allow`).
 A tool declares its subject next to `effects`: `subject: (input) => input.command`.
+The same string is what `tool.proposed` carries, so an event reader and a rule see the same thing.
+
+A tool that writes one named file declares `writes(input)` as well, its absolute path: `writes: (input) => at(input.path)`. `effects.writes` says whether a call can change anything, `writes` says which file it changes, and a tool that writes no single file (a shell) has none.
+
+```ts
+import { resolve } from 'node:path';
+
+const write_file = createTool<{ path: string; content: string }>({
+  name: 'write_file',
+  description: 'Write one file',
+  input: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'], additionalProperties: false },
+  effects: { writes: true, destructive: true },
+  subject: (input) => input.path,
+  writes: (input) => resolve(workspace, input.path),   // absolute, against the run's workspace
+  execute: (input) => `wrote ${input.path}`,
+});
+```
+
+`policyOf(mode, rules)` is an `otherwise` for a host that offers permission modes rather than rule lists: `mode` is one of `PermissionMode`, and the second argument says where the workspace ends (`inside(path)`) and, for a host with tools of its own, which of them is an edit (`isEdit(tool)`).
+`isEdit` is optional: without it a tool that declares `writes` is an edit and one that does not is not, which is the answer for a host whose file tools are the standard ones. `acceptEdits` judges an edit by the path `writes(input)` gives it and lets it through when `inside(path)` says the file is in the workspace.
+Rules stay first, so a `deny` or `ask` rule wins under every mode, `bypassPermissions` included.
+`PERMISSION_MODES` is the six modes in a fixed order and `PERMISSION_MODE_DESCRIPTIONS` one plain sentence per mode saying what `policyOf` does with it; both are library text, so a host shows the descriptions as they are and draws only its own labels. A host that offers fewer takes the ones it wants and keeps the order.
+
+```ts
+import { policyOf, rules, PERMISSION_MODES, PERMISSION_MODE_DESCRIPTIONS } from '@cofold/agents';
+
+PERMISSION_MODES; // ['default', 'acceptEdits', 'plan', 'auto', 'bypassPermissions', 'dontAsk']
+PERMISSION_MODE_DESCRIPTIONS['plan']; // 'Reads only: anything that writes or destroys is refused.'
+const policy = rules({ ...lists, otherwise: policyOf('acceptEdits', { inside }) });
+```
 
 ## Ask the user
 
@@ -226,6 +276,16 @@ It lives on its own sub-path because it imports `vitest`.
 `ModelProvider` is what a host lists models from: `{ id, listModels(), model({ id, features?, params?, pricing? }) }`; it lives in `types/provider.ts` and the core never calls it.
 Pricing lives on the adapter (`ModelAdapter.pricing`, a `ModelPricing { inputPerMillion, outputPerMillion, cacheReadPerMillion?, cacheWritePerMillion?, currency }` in USD per million tokens): a host passes `listModels()[i].pricing` through to `model({ id, pricing })`, and the loop records `costOf(usage, pricing)` per step, cache reads and writes at their own rates (defaulting to the input rate), rounded to micro-dollars. `Usage.inputTokens` counts every prompt token, cached ones included; `cacheReadTokens` and `cacheWriteTokens` say how many of them were cached.
 `ModelFeatures` says what a model actually supports (`tools`, `streaming`, `images`, `structuredOutput`, `reasoning`); an adapter refuses a request that needs more.
+`EFFORT_LEVELS` is the four thinking levels a host offers (`off`, `low`, `medium`, `high`) and `EffortLevel` their type; `effortOf(value)` gives the `ReasoningEffort` a level asks for, or `undefined` for `off` and for anything unrecognised, so a host can put the field straight into `ModelParams.reasoning`:
+
+```ts
+import { effortOf } from '@cofold/agents';
+
+const effort = effortOf(settings.reasoning); // 'low' | 'medium' | 'high' | undefined
+const params = { ...(effort !== undefined ? { reasoning: { effort } } : {}) };
+```
+
+`ReasoningEffort` is wider than a level (`minimal`, `xhigh` and `max` included): it is the whole range a provider accepts (decision 98), while a level is the setting a person picks.
 Messages carry `text`, `image`, `reasoning`, `toolCall` and `toolResult` parts; `textOf()` returns the text parts only.
 
 ## Layout
@@ -236,7 +296,8 @@ src/agent/      createAgent, DEFAULT_LIMITS
 src/capabilities/ skills
 src/run/        run, resume, the loop (turn.ts), run handle, context assembly, tool handling, pause signal
 src/message/    textOf, toolCallsOf, INTERRUPTED, INTERRUPTED_TOOL
-src/model/      ZERO_USAGE, addUsage, costOf
+src/model/      ZERO_USAGE, addUsage, costOf, effortOf and the effort levels
+src/policy/     rules, policyOf, the permission modes and their descriptions
 src/schema/     validateSchema, assertSupportedSchema
 src/tool/       createTool, createAskUserTool
 src/store/      createMemoryStore

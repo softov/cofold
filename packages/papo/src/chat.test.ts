@@ -1,13 +1,53 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { AgentError } from '@cofold/agents';
-import type { ModelProvider } from '@cofold/agents';
+import { describe, expect, it, vi } from 'vitest';
+import { AgentError, createMemoryStore } from '@cofold/agents';
+import type { ModelProvider, Store } from '@cofold/agents';
 import type { FakeModel } from '@cofold/agents/testing';
-import { deleteFileTool, gateTool, testChat } from './testing.js';
+import { openaiCompatProvider } from '@cofold/model-openai-compat';
+import { createChat } from './chat.js';
+import type { Chat } from './types/chat.js';
+import { deleteFileTool, gateTool, providerMap, testChat, testConfig } from './testing.js';
 
 const ECHO = [{ text: 'Hello back.' }];
+
+/** Every `resume` this file's chats make: answering a pause on the handle already held must make none (decision 122). */
+const resumed = vi.hoisted(() => ({ count: 0 }));
+vi.mock('@cofold/agents', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@cofold/agents')>();
+  return { ...actual, resume: (args: Parameters<typeof actual.resume>[0]) => { resumed.count += 1; return actual.resume(args); } };
+});
+
+/**
+ * A chat in another process over the same store: the module registry is thrown away first, so the run this
+ * process holds is not attached in the second one (decision 122) - what `liveRuns.delete(runId)` stands in
+ * for inside `@cofold/agents`'s own tests, whose modules this package cannot reach.
+ */
+async function otherProcess(args: Parameters<typeof testChat>[0]): Promise<Chat> {
+  // Unmocked, so the second registry really is a second `@cofold/agents` with its own set of live runs.
+  vi.doUnmock('@cofold/agents');
+  vi.resetModules();
+  const { testChat: aFreshProcess } = await import('./testing.js');
+  return aFreshProcess(args).chat;
+}
+
+/**
+ * A store whose sessions name the process holding the writer claim, as the file store's lock does; the memory
+ * store keeps no pid (review fix 2).
+ */
+function withWriterPid(store: Store, pid: number): Store {
+  return {
+    ...store,
+    sessions: {
+      ...store.sessions,
+      async get(args) {
+        const session = await store.sessions.get(args);
+        return session === undefined ? undefined : { ...session, activeWriterPid: pid };
+      },
+    },
+  };
+}
 
 describe('createChat', () => {
   it('starts a session on say, lists it, and reads it back as one complete turn', async () => {
@@ -61,6 +101,42 @@ describe('createChat', () => {
     expect(done.turns[0]?.parts[0]).toMatchObject({ call: { status: 'completed', output: 'deleted notes.txt' } });
   });
 
+  it('answers the pause on the handle it already holds: no resume is made, and the run goes on where it stopped', async () => {
+    const { tool, executions } = deleteFileTool();
+    const { chat, store } = testChat({
+      script: [{ toolCalls: [{ name: 'delete_file', input: { path: 'notes.txt' } }] }, { text: 'Gone.' }],
+      tools: [tool],
+    });
+    const before = resumed.count;
+    const started = await chat.say({ text: 'Delete notes.txt' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('awaiting');
+    await chat.approve(started.sessionId);
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    expect(executions()).toBe(1);
+    // The one run carried it end to end; a resumed run would be a second attach to the same record (decision 122).
+    expect(resumed.count).toBe(before);
+    expect((await store.runs.list({ sessionId: started.sessionId })).map((run) => run.runId)).toEqual([started.runId]);
+  });
+
+  it('a second chat in the same process cannot answer that pause: the run is attached here, so its resume is refused', async () => {
+    const { tool, executions } = deleteFileTool();
+    const script = [{ toolCalls: [{ name: 'delete_file', input: { path: 'a' } }] }, { text: 'Done.' }];
+    const first = testChat({ script, tools: [tool] });
+    const started = await first.chat.say({ text: 'Delete a' });
+    await first.chat.wait(started.sessionId);
+
+    // The same process, so the same `@cofold/agents`: the run is in `liveRuns`, which is what the wrapper counts.
+    // Only a second process reaches it, which is what `otherProcess` above is.
+    const before = resumed.count;
+    const second = testChat({ script: [{ text: 'Done.' }], tools: [tool], store: first.store });
+    await expect(second.chat.approve(started.sessionId)).rejects.toBeInstanceOf(AgentError);
+    expect(resumed.count).toBe(before + 1);
+
+    await first.chat.approve(started.sessionId);
+    expect((await first.chat.wait(started.sessionId))?.status).toBe('completed');
+    expect(executions()).toBe(1);
+  });
+
   it('denies, and the model hears why', async () => {
     const { tool, executions } = deleteFileTool();
     const { chat } = testChat({
@@ -109,11 +185,11 @@ describe('createChat', () => {
     await first.chat.wait(started.sessionId);
 
     // The second process's model continues where the conversation is: after the approval, the reply.
-    const second = testChat({ script: [{ text: 'Done.' }], tools: [tool], store: first.store });
-    const rows = await second.chat.sessions();
+    const second = await otherProcess({ script: [{ text: 'Done.' }], tools: [tool], store: first.store });
+    const rows = await second.sessions();
     expect(rows[0]?.activity).toBe('awaiting');
-    await second.chat.approve(started.sessionId);
-    expect((await second.chat.wait(started.sessionId))?.status).toBe('completed');
+    await second.approve(started.sessionId);
+    expect((await second.wait(started.sessionId))?.status).toBe('completed');
     expect(executions()).toBe(1);
     expect((await first.chat.snapshot(started.sessionId)).turns[0]?.state).toBe('complete');
   });
@@ -134,16 +210,16 @@ describe('createChat', () => {
       { kind: 'tool', call: { status: 'failed', output: 'The turn was stopped' } },
       { kind: 'notice', text: 'Request interrupted by user' },
     ]);
-    // The same on a session this process did not run: the handle is resumed for the cancel.
+    // The same on a session another process ran: the handle is resumed there for the cancel.
     const second = deleteFileTool();
     const first = testChat({ script: [{ toolCalls: [{ name: 'delete_file', input: { path: 'b' } }] }], tools: [second.tool] });
     const left = await first.chat.say({ text: 'Delete b' });
     await first.chat.wait(left.sessionId);
-    const other = testChat({ script: [], tools: [second.tool], store: first.store });
-    await other.chat.cancel(left.sessionId);
-    expect((await other.chat.wait(left.sessionId))?.status).toBe('cancelled');
+    const other = await otherProcess({ script: [], tools: [second.tool], store: first.store });
+    await other.cancel(left.sessionId);
+    expect((await other.wait(left.sessionId))?.status).toBe('cancelled');
     expect(second.executions()).toBe(0);
-    expect((await other.chat.snapshot(left.sessionId)).turns[0]).toMatchObject({ state: 'cancelled', parts: [{ kind: 'tool', call: { status: 'failed' } }, { kind: 'notice' }] });
+    expect((await other.snapshot(left.sessionId)).turns[0]).toMatchObject({ state: 'cancelled', parts: [{ kind: 'tool', call: { status: 'failed' } }, { kind: 'notice' }] });
 
     const asking = testChat({ script: [{ toolCalls: [{ name: 'ask_user', input: { questions: [{ id: 'q', question: 'Why?' }] } }] }, { text: 'ok' }] });
     const question = await asking.chat.say({ text: 'Ask' });
@@ -160,6 +236,50 @@ describe('createChat', () => {
     expect(await chat.sessions()).toEqual([]);
     await expect(chat.snapshot(started.sessionId)).rejects.toBeInstanceOf(AgentError);
     await expect(chat.approve('nope')).rejects.toMatchObject({ code: 'not_found' });
+  });
+
+  it('cancel leaves a run a live process is writing alone, and recovers one whose process is gone (review fix 2)', async () => {
+    const dead = 999_999_999; // no such process
+    const { tool } = deleteFileTool();
+    const { chat, store } = testChat({ script: ECHO, tools: [tool] });
+    const started = await chat.say({ text: 'First' });
+    await chat.wait(started.sessionId);
+    // What a process running a turn leaves: a `running` record holding the session's writer claim.
+    const at = new Date(Date.now() + 1000).toISOString();
+    await store.runs.create({ runId: 'live', sessionId: started.sessionId, agentId: 'papo', status: 'running', createdAt: at, updatedAt: at, usage: { inputTokens: 0, outputTokens: 0 }, steps: 0, denials: [] });
+    await store.sessions.claimWriter({ sessionId: started.sessionId, runId: 'live' });
+
+    // The claim names a process that is there: the run is theirs, and a cancel here would resume it, re-claim the
+    // lock and end it `interrupted` under them.
+    const mine = testChat({ script: [], tools: [tool], store: withWriterPid(store, process.pid) });
+    await mine.chat.cancel(started.sessionId);
+    // A recovery made against the wrong rule would land in the background, after the cancel returned.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(await store.runs.get({ sessionId: started.sessionId, runId: 'live' })).toMatchObject({ status: 'running' });
+    expect(await store.runs.listEvents({ sessionId: started.sessionId, runId: 'live' })).toEqual([]);
+    expect((await store.sessions.get({ sessionId: started.sessionId }))?.activeWriterRunId).toBe('live');
+
+    // The claim names a process that is gone: nobody is running it, so the cancel recovers it as any dead run.
+    const orphan = testChat({ script: [], tools: [tool], store: withWriterPid(store, dead) });
+    await orphan.chat.cancel(started.sessionId);
+    expect(await orphan.chat.wait(started.sessionId)).toMatchObject({ status: 'failed', error: { code: 'interrupted' } });
+    expect(await store.runs.get({ sessionId: started.sessionId, runId: 'live' })).toMatchObject({ status: 'failed' });
+    expect((await store.runs.listEvents({ sessionId: started.sessionId, runId: 'live' })).map((event) => event.type)).toEqual(['run.finished']);
+    expect((await store.sessions.get({ sessionId: started.sessionId }))?.activeWriterRunId).toBeUndefined();
+  });
+
+  it('close leaves a paused run in the store, and this process takes it up again (review fix 4)', async () => {
+    const { tool, executions } = deleteFileTool();
+    const { chat, store } = testChat({ script: [{ toolCalls: [{ name: 'delete_file', input: { path: 'a' } }] }, { text: 'Done.' }], tools: [tool] });
+    const started = await chat.say({ text: 'Delete a' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('awaiting');
+    await chat.close();
+    // Leaving is not answering: the request stays open, and the run this process let go of is one it can resume.
+    expect(await store.runs.get({ sessionId: started.sessionId, runId: started.runId })).toMatchObject({ status: 'awaiting', pendingRequestId: expect.any(String) });
+    await chat.approve(started.sessionId);
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    expect(executions()).toBe(1);
+    expect((await chat.snapshot(started.sessionId)).turns[0]?.state).toBe('complete');
   });
 
   it('steers a running turn: the message lands after the tool result, before the next model step', async () => {
@@ -206,7 +326,7 @@ describe('createChat', () => {
     expect(snapshot.turns.map((turn) => [turn.input, turn.state])).toEqual([['Wait for me', 'cancelled'], ['Never mind, start over', 'complete']]);
   });
 
-  it('a steer the turn paused on a decision before taking is held, and goes in ahead of the next model step when the decision resumes it', async () => {
+  it('a steer typed while the turn runs stays in it across the pause it meets, and lands ahead of the next model step after the decision', async () => {
     const gate = gateTool();
     const { tool, executions } = deleteFileTool();
     const { chat, provider } = testChat({
@@ -218,17 +338,17 @@ describe('createChat', () => {
     // Typed while the gate holds: the steer waits for the next model step, but the second call asks first.
     const steering = chat.say({ sessionId: started.sessionId, text: 'Also, be brief' });
     gate.release();
-    // Paused, and already detached here: `say` resolved once the pause refused the steer.
-    expect(await steering).toEqual({ sessionId: started.sessionId, runId: started.runId, held: true });
-
-    // No run was started against the paused one: the confirmation shows, the text waits as a steer.
+    // The pause does not take the steer away: the handle it runs on is open across it (decision 122), so the
+    // text lands at the model step the decision lets begin, and nothing is held in papo's queue.
+    expect(await chat.wait(started.sessionId)).toMatchObject({ status: 'awaiting', kind: 'approval' });
     const paused = await chat.snapshot(started.sessionId);
     expect(paused.pending).toMatchObject({ kind: 'toolConfirmation', call: { name: 'delete_file' } });
     expect(paused.turns.map((turn) => [turn.input, turn.state])).toEqual([['Wait, then delete notes.txt', 'running']]);
-    expect(paused.queued).toMatchObject([{ text: 'Also, be brief', steer: true }]);
+    expect(paused.queued).toEqual([]);
     expect((await chat.sessions())[0]?.activity).toBe('awaiting');
 
     await chat.approve(started.sessionId);
+    expect(await steering).toEqual({ sessionId: started.sessionId, runId: started.runId, steered: true });
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
     expect(executions()).toBe(1);
     const done = await chat.snapshot(started.sessionId);
@@ -244,34 +364,32 @@ describe('createChat', () => {
     expect(steerAt).toBeGreaterThan(resultAt);
   });
 
-  it('a held steer outlives a cancel of the decision as a queued message, and is the next turn once the person speaks again', async () => {
+  it('a steer the turn was cancelled before taking becomes the next run with the same text', async () => {
     const gate = gateTool();
     const { tool } = deleteFileTool();
     const { chat } = testChat({
-      script: [{ toolCalls: [{ name: 'wait_for', input: {} }, { name: 'delete_file', input: { path: 'notes.txt' } }] }, { text: 'Fresh start.' }, { text: 'Brief.' }],
+      script: [{ toolCalls: [{ name: 'wait_for', input: {} }, { name: 'delete_file', input: { path: 'notes.txt' } }] }, { text: 'Fresh start.' }],
       tools: [gate.tool, tool],
     });
     const started = await chat.say({ text: 'Wait, then delete notes.txt' });
     await gate.entered();
     const steering = chat.say({ sessionId: started.sessionId, text: 'Also, be brief' });
     gate.release();
-    expect((await steering).held).toBe(true);
-    expect((await chat.sessions())[0]?.activity).toBe('awaiting');
+    expect(await chat.wait(started.sessionId)).toMatchObject({ status: 'awaiting' });
 
+    // The cancel denies the pending request and ends the turn; the steer was never taken, so the text,
+    // as any steer the turn settled before, starts a run of its own rather than waiting in the queue.
     await chat.cancel(started.sessionId);
-    expect((await chat.wait(started.sessionId))?.status).toBe('cancelled');
-    // Held by the cancel, as any queued message is; `unqueue` could drop it here.
-    expect((await chat.snapshot(started.sessionId)).queued).toMatchObject([{ text: 'Also, be brief', steer: true }]);
-
-    const next = await chat.say({ sessionId: started.sessionId, text: 'Start over' });
-    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    const next = await steering;
+    expect(next.steered).toBeUndefined();
+    expect(next.held).toBeUndefined();
+    expect(next.runId).not.toBe(started.runId);
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
     const snapshot = await chat.snapshot(started.sessionId);
     expect(snapshot.queued).toEqual([]);
     expect(snapshot.turns.map((turn) => [turn.input, turn.state])).toEqual([
-      ['Wait, then delete notes.txt', 'cancelled'], ['Start over', 'complete'], ['Also, be brief', 'complete'],
+      ['Wait, then delete notes.txt', 'cancelled'], ['Also, be brief', 'complete'],
     ]);
-    expect(next.runId).not.toBe(started.runId);
   });
 
   it('a run another process recorded after the paused one does not hide the decision: the writer holder is the turn in force', async () => {
@@ -485,6 +603,14 @@ describe('createChat', () => {
     expect((await chat.models()).map((row) => row.ref)).toEqual(['fake/scripted', 'fake/other']);
   });
 
+  it('says its own hint when no provider is configured at all (decision 123)', async () => {
+    // The library's message names the shape; this one names papo's file and variable, so it is checked first.
+    const { chat } = testChat({ script: ECHO, config: { providers: [] } });
+    const hint = 'no provider is configured: set PAPO_BASE_URL or add one to ~/.config/papo/config.json';
+    await expect(chat.say({ text: 'x', settings: { model: 'lm/m' } })).rejects.toMatchObject({ code: 'invalid_options', message: hint });
+    await expect(chat.models()).rejects.toMatchObject({ code: 'invalid_options', message: hint });
+  });
+
   it('starts from the configured defaults and keeps each session own choices', async () => {
     const { chat, provider } = testChat({ script: [{ text: 'a' }, { text: 'b' }, { text: 'c' }, { text: 'd' }], config: { model: undefined } });
     // No model configured: nothing is asked of the provider until a turn needs it.
@@ -518,6 +644,40 @@ describe('createChat', () => {
     expect(provider.asked.at(-1)).toEqual({ id: 'scripted', params: {} });
     expect(await chat.settings(blank.sessionId)).toEqual({ model: 'fake/scripted', permissions: 'default', reasoning: 'off', autoCompact: false });
     await expect(chat.configure(blank.sessionId, { model: 'nope' })).rejects.toMatchObject({ code: 'invalid_options' });
+  });
+
+  it('sends the session thinking level in the real request body, and nothing for off (agent/06)', async () => {
+    // The adapter's own `features.reasoning` default is `false`, so a body with `reasoning_effort` in it proves the
+    // level went all the way through: the setting, `effortOf`, the params and the feature the param switches on.
+    const bodies: Record<string, unknown>[] = [];
+    const sse = () => new Response([
+      JSON.stringify({ choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }] }),
+      JSON.stringify({ choices: [], usage: { prompt_tokens: 1, completion_tokens: 1 } }),
+      '[DONE]',
+    ].map((line) => `data: ${line}\n\n`).join(''), { status: 200, headers: { 'content-type': 'text/event-stream' } });
+    const fetchImpl = (async (_url: string | URL | Request, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return sse();
+    }) as unknown as typeof fetch;
+
+    const config = testConfig({ providers: [{ id: 'openai-compat:lm', baseUrl: 'http://lm.invalid/v1' }], model: 'openai-compat:lm/m' });
+    const chat = createChat({
+      store: createMemoryStore(),
+      config,
+      providers: providerMap(config, [openaiCompatProvider({ baseUrl: 'http://lm.invalid/v1', name: 'lm', fetch: fetchImpl })]),
+      workspace: '/work',
+      home: '/nowhere',
+      warn: () => {},
+    });
+
+    const thinking = await chat.say({ text: 'Think first', settings: { reasoning: 'high' } });
+    expect((await chat.wait(thinking.sessionId))?.status).toBe('completed');
+    expect(bodies.at(-1)).toMatchObject({ reasoning_effort: 'high' });
+
+    const quiet = await chat.say({ sessionId: thinking.sessionId, text: 'Now just answer', settings: { reasoning: 'off' } });
+    expect((await chat.wait(quiet.sessionId))?.status).toBe('completed');
+    expect(bodies.at(-1)).not.toHaveProperty('reasoning_effort');
+    expect(bodies.at(-1)).not.toHaveProperty('reasoning');
   });
 
   it('bypassPermissions runs a destructive tool unasked, but a deny rule from the configuration still refuses it', async () => {

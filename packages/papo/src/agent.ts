@@ -1,10 +1,9 @@
 import { join } from 'node:path';
-import type { Agent, Capability, ModelProvider, Rule, SkillSource, Store, Tool } from '@cofold/agents';
-import { createAgent, createAskUserTool, policyOf, rules, skills } from '@cofold/agents';
+import type { Agent, ModelProvider, Rule, SkillSource, Store, Tool } from '@cofold/agents';
+import { createAgent, createAskUserTool, effortOf, policyOf, rules, skills } from '@cofold/agents';
 import { workspaceSlug } from '@cofold/store-file';
-import type { SearchProvider } from '@cofold/tools';
-import { brave, duckduckgo, files, memory, resolveWithin, shell, tavily, web } from '@cofold/tools';
-import type { PapoConfig, PermissionMode, RuleLists, ToolsConfig } from './types/config.js';
+import { resolveWithin, standardCapabilities } from '@cofold/tools';
+import type { PapoConfig, PermissionMode, RuleLists } from './types/config.js';
 import type { Settings } from './types/settings.js';
 
 export const AGENT_ID = 'papo';
@@ -29,30 +28,10 @@ export interface AgentArgs {
   warn(message: string): void;
 }
 
-/** The file tools whose target `acceptEdits` lets through when it is inside the workspace (`filesystem.ts`, decision CLI-04.6). */
-const EDITS = new Set(['write_file', 'edit_file']);
-
 /** The session's rules before the configuration's, per list (decision CLI-04.5); what `rules()` is built from. */
 export function mergedRules(session: RuleLists | undefined, config: RuleLists | undefined): Required<RuleLists> {
   const both = (list: 'deny' | 'ask' | 'allow'): Rule[] => [...(session?.[list] ?? []), ...(config?.[list] ?? [])];
   return { deny: both('deny'), ask: both('ask'), allow: both('allow') };
-}
-
-/** The `@cofold/tools` capabilities the configuration turns on (decision 9), in a fixed order. */
-export function capabilitiesOf(tools: ToolsConfig, args: { home: string; workspace: string }): Capability[] {
-  const search: SearchProvider[] = [];
-  if (typeof tools.web === 'object' && tools.web.search !== undefined) {
-    const { search: config } = tools.web;
-    if (config.brave !== undefined) search.push(brave({ apiKey: config.brave.apiKey }));
-    if (config.tavily !== undefined) search.push(tavily({ apiKey: config.tavily.apiKey }));
-    if (config.duckduckgo === true) search.push(duckduckgo());
-  }
-  return [
-    ...(tools.files ? [files()] : []),
-    ...(tools.shell ? [shell()] : []),
-    ...(tools.web !== false ? [web({ search })] : []),
-    ...(tools.memory ? [memory({ dir: join(args.home, 'memory', workspaceSlug({ workspace: args.workspace })) })] : []),
-  ];
 }
 
 /**
@@ -61,9 +40,11 @@ export function capabilitiesOf(tools: ToolsConfig, args: { home: string; workspa
  */
 export function buildAgent(args: AgentArgs): Agent {
   const { config, settings } = args;
+  // The level is papo's setting; `effortOf` says which field, if any, the request carries (agent/06).
+  const effort = effortOf(settings.reasoning);
   const params = {
     ...config.params,
-    ...(settings.reasoning === 'off' ? {} : { reasoning: { effort: settings.reasoning } }),
+    ...(effort !== undefined ? { reasoning: { effort } } : {}),
   };
   const { maxTokens } = config.context;
   return createAgent({
@@ -73,16 +54,18 @@ export function buildAgent(args: AgentArgs): Agent {
     context: { maxTokens, ...(settings.autoCompact ? { autoCompactTokens: Math.floor(maxTokens * AUTO_COMPACT_AT) } : {}) },
     tools: [createAskUserTool(), ...(args.tools ?? [])],
     capabilities: [
-      ...capabilitiesOf(config.tools, { home: args.home, workspace: args.workspace }),
+      ...standardCapabilities(config.tools, {
+        workspace: args.workspace,
+        // The memory papo keeps today: under the store's root, one folder per workspace (decision 123).
+        memoryDir: join(args.home, 'memory', workspaceSlug({ workspace: args.workspace })),
+      }),
       skills({ sources: args.skills, warn: args.warn }),
     ],
     store: args.store,
     policy: rules({
       ...mergedRules(settings.rules, config.rules),
-      otherwise: policyOf(settings.permissions, {
-        inside: (path) => resolveWithin(args.workspace, path).inside,
-        isEdit: (tool) => EDITS.has(tool.name),
-      }),
+      // `acceptEdits` tells an edit by the file the tool says it writes, so papo keeps no list of tool names (decision CLI-04.6).
+      otherwise: policyOf(settings.permissions, { inside: (path) => resolveWithin(args.workspace, path).inside }),
     }),
     ...(config.limits !== undefined ? { limits: config.limits } : {}),
     warn: args.warn,

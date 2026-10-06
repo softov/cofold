@@ -56,19 +56,20 @@ Expected with a tool-capable model: a `tool.completed` for `now` and a `complete
 
 ## pause-resume
 
-A destructive tool pauses the run for approval; a second `createFileStore({ root })` instance on the same temp folder resumes it, the host approves, and the tool runs exactly once.
+A destructive tool pauses the run for approval; the process that paused it exits, and a second `createFileStore({ root })` instance on the same temp folder resumes the run, approves it, and the tool runs exactly once.
+The first process runs as a child of the second, so nothing of its run is still attached when the folder is opened again.
 No server needed.
 
 ```bash
 pnpm --filter cofold-examples-agents pause-resume
 ```
 
-Expected: seq 1..7 up to `run.finished` (`paused: approval request ...`), then seq 1..7 again marked `(replayed)`, seq 8..14 (`approval.resolved` ... `run.finished`), `completed notes.txt is gone.` and `tool steps: 1 (executions: 1)`.
+Expected: seq 1..7 up to `run.finished` in the child (`--- process 1 exits; process 2 opens the same folder ---`), then `paused: approval request ...`, seq 1..7 again marked `(replayed)`, seq 8..14 (`approval.resolved` ... `run.finished`), `completed notes.txt is gone.` and `tool steps: 1 (executions: 1)`.
 
 ## ask-user
 
 `createAskUserTool()` with a fake model that asks two questions (one with options, one free text).
-The host reads the answers from stdin, submits them on the resumed handle and prints the final text.
+The host reads the request off `input.requested`, reads the answers from stdin and submits them on the handle that is waiting, which carries the turn to its end.
 No server needed.
 
 ```bash
@@ -77,7 +78,7 @@ printf "Rust\nmy-app\n" | pnpm --filter cofold-examples-agents ask-user   # one 
 ```
 
 A missing answer takes the first option (or `cofold-demo` for the name).
-Expected: seq 9..14 and `completed Scaffolding the project now.`, then the answers as stored on the tool step.
+Expected: seq 1..8 up to the pause's `run.finished`, the prompts, then seq 9..14 (`input.resolved` ... `run.finished`), `completed Scaffolding the project now.` and the answers as stored on the tool step.
 
 ## steer
 

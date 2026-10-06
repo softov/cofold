@@ -1,6 +1,6 @@
 ---
 title: The READMEs name the lists, and ahpd's copies are planned away
-status: todo
+status: done
 depends: [task-01-the-permission-modes.md, task-02-the-thinking-levels.md, task-03-a-reasoning-param-turns-reasoning-on.md]
 layer: "docs; ahpd after a cofold release"
 refs:
@@ -29,4 +29,8 @@ The agents README lists the modes with their descriptions and the levels with `e
 - The ahpd plan names this task and the cofold versions it needs.
 
 ## Resume
+
+- **Built:** `packages/agents/README.md` documents both lists. The *Rules* section ends with `policyOf(mode, rules)`, the rule-lists-first ordering and a snippet showing `PERMISSION_MODES` and `PERMISSION_MODE_DESCRIPTIONS`; the *Models and providers* section gains `EFFORT_LEVELS`, `EffortLevel` and `effortOf` with the `effort !== undefined` spread, and the note that `ReasoningEffort` is wider than a level. The *Layout* block gained the `src/policy/` line it was missing and `effortOf` beside `costOf`.
+- **The README lists match the exports:** the six modes are written in `PERMISSION_MODES`'s order, the `plan` sentence is copied from `PERMISSION_MODE_DESCRIPTIONS`, and the four levels are the ones `EFFORT_LEVELS` holds.
+- **The ahpd half is not built here:** the ahpd copies (`agent.ts:124`, `137-158`, the forced `features.reasoning` at `374`, `turnagent.ts:48-53`) are replaced in an ahpd plan, after a cofold release; that is *Resume*'s step 2 and waits. It is recorded in the plan's `deferred.md` rather than opened here, since it is outside this repository and this worktree.
 

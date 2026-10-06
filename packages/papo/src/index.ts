@@ -2,7 +2,7 @@ export { createChat, settingsKey } from './chat.js';
 export { createQueues } from './queue.js';
 export { createClaudeChat, CLAUDE_PROVIDER } from './claude/chat.js';
 export type { ClaudeSdkSubset, ClaudeQuery, ClaudeSessionMessage } from './types/claude.js';
-export { loadConfig, rememberConfig, userConfigPath, providersOf, providerFor, splitModel, DEFAULT_INSTRUCTIONS } from './config.js';
+export { loadConfig, rememberConfig, userConfigPath, DEFAULT_INSTRUCTIONS } from './config.js';
 export { buildAgent, AGENT_ID } from './agent.js';
 // The mode mapping moved to the harness, where a second host can share it; papo's surface keeps it.
 export { policyOf } from '@cofold/agents';

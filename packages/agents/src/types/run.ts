@@ -38,10 +38,23 @@ export interface ResumeArgs<Resources = Record<string, unknown>> {
 export interface RunHandle {
   readonly runId: string;
   readonly sessionId: string;
+  /** `running`, `awaiting` while the run waits on a decision, `running` again on the command, then the outcome's status. */
   status(): RunStatus;
-  /** Ordered from seq 1 (or afterSeq + 1 when reattached); ends after run.finished. */
+  /**
+   * Ordered from seq 1 (or afterSeq + 1 when reattached). A pause's `run.finished { awaiting }` is mid-stream; the
+   * stream ends after the last `run.finished`, which is the one that is not `awaiting` (decision 122).
+   */
   readonly events: AsyncIterable<RunEvent>;
+  /** `approve`, `deny` and `answer` across the run's own pause (decision 122); `steer` while it runs; `cancel` any time. */
   submit(command: RunCommand): Promise<void>;
   cancel(args?: { reason?: string }): void;
+  /**
+   * Leaves a paused run in this process without answering it: the request stays open in the store and a later
+   * `resume()` answers it, while this handle closes with the outcome the store holds - the pause's own `awaiting`
+   * when nobody answered. What a host that stops caring about a pause calls, so the run is not held here. Does
+   * nothing on a handle that is not waiting.
+   */
+  detach(): void;
+  /** Resolves once, when the run really ends; never at a pause (decision 122). */
   readonly outcome: Promise<RunOutcome>;
 }

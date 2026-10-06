@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { CapabilityArgs, Tool, ToolContext } from '@cofold/agents';
-import { createMemoryStore } from '@cofold/agents';
+import type { CapabilityArgs, RunInfo, Tool, ToolContext } from '@cofold/agents';
+import { createMemoryStore, rules } from '@cofold/agents';
 import type { SearchProvider } from './types/web.js';
 import { htmlToText, web } from './web.js';
 import { brave } from './search/brave.js';
@@ -12,6 +12,7 @@ const kv = { agent: store.kv({ kind: 'agent', agentId: 't' }), shared: store.kv(
 const signal = new AbortController().signal;
 const ctx: ToolContext = { agentId: 't', sessionId: 's', runId: 'r', callId: 'c', invocationId: 'i', signal, kv, resources: {} };
 const args: CapabilityArgs = { agentId: 't', sessionId: 's', runId: 'r', kv, signal };
+const run: RunInfo = { agentId: 't', sessionId: 's', runId: 'r', step: 1, kv };
 
 const PAGE = `<!doctype html><html><head><title>Docs &amp; more</title><style>p{}</style><script>var x = "<p>";</script></head>
 <body><nav><a href="/">Home</a></nav><h1>Hello</h1><p>First   paragraph with <b>bold</b> &amp; an &#39;entity&#39;.</p>
@@ -53,6 +54,17 @@ describe('web()', () => {
     expect([...(await toolsOf(withSearch)).keys()]).toEqual(['web_fetch', 'web_search']);
     expect(await withSearch.instructions!(args)).toContain('web_search');
     expect((await toolsOf(withSearch)).get('web_search')!.description).toContain('(duckduckgo)');
+  });
+
+  it('names its subjects for permission rules, and a rule matches on them', async () => {
+    const tools = await toolsOf(web({ search: [duckduckgo()], fetch: fakeFetch({}).fetch, lookup: publicLookup }));
+    // The URL as given, not as parsed: a rule matches what the model asked for.
+    expect(tools.get('web_fetch')!.subject!({ url: 'https://a.example/x' })).toBe('https://a.example/x');
+    expect(tools.get('web_search')!.subject!({ query: 'q' })).toBe('q');
+
+    const deny = rules({ deny: [{ tool: 'web_fetch', match: 'https://a.example/*' }] });
+    expect(await deny.decide({ tool: tools.get('web_fetch')!, input: { url: 'https://a.example/x' }, run })).toMatchObject({ behavior: 'deny' });
+    expect(await deny.decide({ tool: tools.get('web_fetch')!, input: { url: 'https://other.example/x' }, run })).toMatchObject({ behavior: 'allow' });
   });
 
   it('web_fetch reduces HTML to text, passes other text through, refuses binary and bad URLs, and caps the body', async () => {

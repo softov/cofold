@@ -1,6 +1,6 @@
 ---
 title: The wait for a command is shared
-status: todo
+status: done
 depends: []
 layer: "agents"
 refs:

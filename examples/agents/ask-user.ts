@@ -1,6 +1,7 @@
-// The model asks two structured questions; the host answers from stdin and submits them on the resumed handle.
+// The model asks two structured questions; the host reads the request off `input.requested`, answers from
+// stdin and submits the answers on the very handle the run is waiting on (decision 122).
 import { createInterface } from 'node:readline/promises';
-import { createAgent, createAskUserTool, resume, run, textOf } from '@cofold/agents';
+import { createAgent, createAskUserTool, run, textOf } from '@cofold/agents';
 import type { AskAnswers, AskQuestion } from '@cofold/agents';
 import { createFakeModel, createMemoryStore } from '@cofold/agents/testing';
 
@@ -13,10 +14,21 @@ const store = createMemoryStore();
 const agent = createAgent({ id: 'wizard', instructions: 'Ask before scaffolding.', model, tools: [createAskUserTool()], store });
 
 const first = run({ agent, session: 'wizard-1', input: 'Set up a new project' });
-const outcome = await first.outcome;
-if (outcome.status !== 'awaiting' || outcome.kind !== 'input') throw new Error(`expected an input pause, got ${outcome.status}`);
-const request = await store.requests.get({ sessionId: outcome.sessionId, runId: outcome.runId, requestId: outcome.requestId });
-const asked = (request?.payload as { questions: AskQuestion[] }).questions;
+
+// The pause is mid-stream: the request arrives on `input.requested` and the run keeps its handle open, so
+// `outcome` is the end of the turn rather than the pause (decision 122).
+let asked: { requestId: string; questions: AskQuestion[] } | undefined;
+let reached!: () => void;
+const paused = new Promise<void>((resolve) => { reached = resolve; });
+const printing = (async () => {
+  for await (const event of first.events) {
+    console.log(String(event.seq).padStart(2), event.type);
+    if (event.type === 'input.requested') asked = { requestId: event.requestId, questions: event.questions };
+    if (event.type === 'run.paused') reached();
+  }
+})();
+await paused;
+if (asked === undefined) throw new Error('the run did not pause on a question');
 
 // A terminal is prompted per question; a piped stdin answers one question per line; a missing line takes the
 // first option (or a default). Piped lines are read up front because readline drops lines no question is waiting for.
@@ -25,7 +37,7 @@ const rl = createInterface({ input: process.stdin, output: process.stdout, termi
 const piped: string[] = [];
 if (!interactive) for await (const line of rl) piped.push(line);
 const answers: AskAnswers = {};
-for (const q of asked) {
+for (const q of asked.questions) {
   const fallback = q.options?.[0]?.label ?? 'cofold-demo';
   const prompt = `${q.question}${q.options ? ` [${q.options.map((o) => o.label).join(' | ')}]` : ''} (${fallback}): `;
   const line = interactive ? await rl.question(prompt) : (piped.shift() ?? '');
@@ -34,11 +46,10 @@ for (const q of asked) {
 }
 rl.close();
 
-const resumed = resume({ agent, sessionId: outcome.sessionId, runId: outcome.runId, afterSeq: 8 });
-await resumed.submit({ type: 'answer', requestId: outcome.requestId, answers });
-for await (const event of resumed.events) console.log(String(event.seq).padStart(2), event.type);
-const final = await resumed.outcome;
+await first.submit({ type: 'answer', requestId: asked.requestId, answers });
+await printing;
+const final = await first.outcome;
 console.log(final.status, final.status === 'completed' ? textOf(final.message) : final);
-const steps = await store.runs.listSteps({ sessionId: outcome.sessionId, runId: outcome.runId });
+const steps = await store.runs.listSteps({ sessionId: first.sessionId, runId: first.runId });
 const step = steps.find((s) => s.kind === 'tool');
 console.log('answers on the step:', step?.kind === 'tool' ? JSON.stringify(step.original?.detail) : undefined);

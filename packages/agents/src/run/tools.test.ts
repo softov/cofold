@@ -18,6 +18,7 @@ const input = { type: 'object' as const, properties: { text: { type: 'string' as
 async function setup(opts: {
   execute?: ToolDefinition['execute'];
   effects?: Tool['effects'];
+  subject?: ToolDefinition['subject'];
   hooks?: AgentOptions['hooks'];
   policy?: AgentOptions['policy'];
   limits?: AgentOptions['limits'];
@@ -25,7 +26,7 @@ async function setup(opts: {
 }) {
   const store = opts.store ?? createMemoryStore();
   const execute = vi.fn(opts.execute ?? ((i: unknown) => `echo:${(i as { text: string }).text}`));
-  const echo = createTool({ name: 'echo', description: 'd', input, ...(opts.effects ? { effects: opts.effects } : {}), execute });
+  const echo = createTool({ name: 'echo', description: 'd', input, ...(opts.effects ? { effects: opts.effects } : {}), ...(opts.subject ? { subject: opts.subject } : {}), execute });
   const agent = createAgent({
     id: 'a', instructions: 'x', model: createFakeModel({ script: [] }), store, tools: [echo],
     ...(opts.hooks ? { hooks: opts.hooks } : {}), ...(opts.policy ? { policy: opts.policy } : {}), ...(opts.limits ? { limits: opts.limits } : {}),
@@ -175,6 +176,47 @@ describe('handleToolCall policy precedence (decision 119)', () => {
     expect(decide).toHaveBeenCalledWith({ tool: t.deps.tools.get('echo'), input: { text: 'changed', loud: false }, run: t.deps.run });
     expect(r.kind === 'result' && r.part.content).toBe('seen');
     expect(t.execute).not.toHaveBeenCalled();
+  });
+});
+
+describe('tool.proposed subject (tools/02 task 03)', () => {
+  it('carries what the tool says the call acts on, read from the validated input', async () => {
+    // The default `loud: false` is only in the validated value, so a subject reading it proves which one was used.
+    const t = await setup({ subject: (i) => ((i as { text: string; loud: boolean }).loud ? 'LOUD' : (i as { text: string }).text) });
+    await handleToolCall(t.deps, call());
+    expect(t.events[0]).toMatchObject({ type: 'tool.proposed', name: 'echo', input: { text: 'hi' }, subject: 'hi' });
+  });
+
+  it('leaves the field out for a tool that names no subject', async () => {
+    const t = await setup({});
+    await handleToolCall(t.deps, call());
+    expect(t.events[0]!.type).toBe('tool.proposed');
+    expect('subject' in t.events[0]!).toBe(false);
+  });
+
+  it('proposes without a subject and then denies an input that does not validate', async () => {
+    const subject = vi.fn(() => 'never');
+    const t = await setup({ subject });
+    const r = await handleToolCall(t.deps, call({ input: { text: 3 } }));
+    expect(t.types()).toEqual(['tool.proposed', 'tool.denied']);
+    expect('subject' in t.events[0]!).toBe(false);
+    expect(subject).not.toHaveBeenCalled();
+    expect(r.kind === 'result' && r.part.content).toMatch(/^Invalid arguments: \$\.text/);
+  });
+
+  it('reads the subject of the input a hook modified, not the one the model proposed (review fix)', async () => {
+    const t = await setup({ hooks: { beforeTool: () => ({ decision: 'modify', input: { text: 'changed' } }) }, subject: (i) => (i as { text: string }).text });
+    const r = await handleToolCall(t.deps, call());
+    expect(t.events[0]).toMatchObject({ type: 'tool.proposed', name: 'echo', subject: 'changed' });
+    expect(r.kind === 'result' && r.part.content).toBe('echo:changed');
+  });
+
+  it('proposes without a subject when the subject throws, and runs the call anyway', async () => {
+    const t = await setup({ subject: () => { throw new TypeError('no subject for this'); } });
+    const r = await handleToolCall(t.deps, call());
+    expect(t.types()).toEqual(['tool.proposed', 'tool.started', 'tool.completed']);
+    expect('subject' in t.events[0]!).toBe(false);
+    expect(r.kind === 'result' && r.part.content).toBe('echo:hi');
   });
 });
 

@@ -1,6 +1,6 @@
 ---
 title: A tool declares the file it writes
-status: todo
+status: done
 depends: []
 layer: "agents, tools"
 refs:
@@ -39,4 +39,8 @@ refs:
 - `pnpm --filter @cofold/agents test`, `pnpm --filter @cofold/tools test` and `pnpm typecheck` are clean.
 
 ## Resume
+
+- **Built:** `ToolDefinition.writes?(input): string` in `types/tool.ts`, with a comment saying how it differs from `effects.writes`; `createTool` passes it through with the rest of the definition, so nothing else changed there. `PermissionModeRules.isEdit` is now optional and its comment names the default. `acceptEdits` in `policy/modes.ts` reads `args.tool.writes?.(args.input) ?? input.path` and takes `rules.isEdit ?? declaresWrites`, a module-level `(tool) => tool.writes !== undefined`. `write_file` and `edit_file` in `tools/files.ts` declare `writes: (input) => at(input.path)`; `memory_write` declares `writes: (input) => resolveWithin(dir, input.path).absolute`. The other modes never read it.
+- **Validation:** `modes.test.ts` covers the default with no `isEdit` (a `writes` tool inside the workspace is allowed, outside asks, a memory tool writing outside asks, a tool that declares no file falls through to its effects) and that a host `isEdit` is still obeyed in both directions. `files.test.ts` checks the absolute path for the two writers, a `..` spelling resolved, and that the three read-only tools declare nothing; `memory.test.ts` checks `memory_write`'s absolute path and that `memory_read` has none.
+- **Checks:** `pnpm --filter @cofold/agents test` 217 pass, `pnpm --filter @cofold/tools test` 33 pass, `pnpm typecheck` clean.
 

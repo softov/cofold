@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { AskAnswers, RunUsage, SkillIndexEntry } from '@cofold/agents';
+import { splitModel } from '@cofold/model-openai-compat';
 import { workspaceSlug } from '@cofold/store-file';
 import type { ChatAnswer, ChatSendStatus } from '@textui/chat';
 import {
@@ -13,7 +14,6 @@ import { KeyHints, Row, registerBuiltins } from '@textui/widgets';
 import type { Papo } from '../commands.js';
 import { AUTO_COMPACT_AT } from '../agent.js';
 import { redactedConfig, rememberedOf, renderUsage } from '../commands.js';
-import { splitModel } from '../config.js';
 import { exportPath, toMarkdown } from '../export.js';
 import { toAskAnswers } from '../questions.js';
 import type { ModelRow, ProviderRow } from '../types/chat.js';
@@ -402,7 +402,7 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
           name: 'provider', type: 'string' as const, required: true, description: 'Which provider',
           get default(): string | undefined {
             const model = settings()?.model;
-            return model ? splitModel(model).provider : providers().find((row) => row.default)?.id ?? providers()[0]?.id;
+            return model ? splitModel(model)?.provider : providers().find((row) => row.default)?.id ?? providers()[0]?.id;
           },
           // Asked only when there is a choice to make: with one provider the default stands and the
           // palette skips the question (`argumentOf` asks nothing of an argument without `choices`).
@@ -417,7 +417,7 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
         } as ArgSpec,
         {
           name: 'model', type: 'string' as const, required: true, description: 'Which model answers',
-          get default(): string | undefined { const model = settings()?.model; return model ? splitModel(model).modelId : undefined; },
+          get default(): string | undefined { const model = settings()?.model; return model ? splitModel(model)?.modelId : undefined; },
           descriptions: 'below' as const,
           choices: async (collected: Readonly<Record<string, unknown>>) => (await modelsOf(String(collected['provider'])))
             .map((row) => ({

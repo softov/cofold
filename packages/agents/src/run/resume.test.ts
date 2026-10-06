@@ -1,6 +1,7 @@
 import type { AgentOptions } from '../types/agent.js';
 import type { AskQuestion } from '../types/ask.js';
 import type { RunEvent } from '../types/event.js';
+import type { RunOutcome } from '../types/outcome.js';
 import type { RunHandle } from '../types/run.js';
 import type { FakeStep } from '../types/testing.js';
 import type { Tool, ToolDefinition } from '../types/tool.js';
@@ -11,6 +12,7 @@ import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
 import { createAskUserTool, renderAnswers } from '../tool/ask-user.js';
 import { createTool } from '../tool/create-tool.js';
+import { liveRuns } from './answer.js';
 import { resume } from './resume.js';
 import { run } from './run.js';
 
@@ -41,12 +43,29 @@ async function collect(handle: { events: AsyncIterable<RunEvent> }): Promise<Run
 const types = (events: RunEvent[]) => events.map((e) => e.type);
 const ref = (handle: { sessionId: string; runId: string }) => ({ sessionId: handle.sessionId, runId: handle.runId });
 
-/** Runs one turn to its pause and returns what a host would persist: session, run and request ids. */
+/** Reads a handle's events up to its next `run.finished` (decision 122); a fresh handle reports the pause. */
+async function collectUntilPaused(handle: { events: AsyncIterable<RunEvent> }): Promise<RunEvent[]> {
+  const out: RunEvent[] = [];
+  for await (const e of handle.events) { out.push(e); if (e.type === 'run.finished') break; }
+  return out;
+}
+
+function lastOutcome(events: RunEvent[]): RunOutcome {
+  const last = events.at(-1);
+  if (!last || last.type !== 'run.finished') throw new Error('the run did not finish');
+  return last.outcome;
+}
+
+/**
+ * Runs one turn to its pause and returns what a host would persist: session, run and request ids. The run() handle
+ * then stands in for a process that exited (decision 122): forgetting it is what lets this process resume() the run.
+ */
 async function pauseRun(agent: ReturnType<typeof build>['agent'], session = 's'): Promise<{ first: RunHandle; requestId: string; seqs: number[] }> {
   const first = run({ agent, session, input: 'x' });
-  const events = await collect(first);
-  const outcome = await first.outcome;
+  const events = await collectUntilPaused(first);
+  const outcome = lastOutcome(events);
   if (outcome.status !== 'awaiting') throw new Error(`expected awaiting, got ${outcome.status}`);
+  liveRuns.delete(first.runId);
   return { first, requestId: outcome.requestId, seqs: events.map((e) => e.seq) };
 }
 
@@ -130,7 +149,7 @@ describe('resume: approvals', () => {
     expect(types(events)).not.toContain('approval.requested');
     expect((await second.outcome).status).toBe('completed');
     const other = run({ agent, session: 'other', input: 'z' });
-    expect((await other.outcome).status).toBe('awaiting');
+    expect(lastOutcome(await collectUntilPaused(other))).toMatchObject({ status: 'awaiting', kind: 'approval' });
   });
 
   it('5. deny appends an error result with the reason and lets the model react', async () => {
@@ -239,13 +258,32 @@ describe('resume: terminal, missing and crashed runs', () => {
     expect(await store.runs.listEvents(ref(first))).toHaveLength(9);
   });
 
+  it('a terminal run resumed past its last event replays nothing and still ends with run.finished', async () => {
+    const { agent, store } = build({ tools: [echoTool()], script: [{ toolCalls: [{ name: 'echo', input: { text: 'a' } }] }, { text: 'done' }] });
+    const first = run({ agent, session: 's', input: 'x' });
+    const outcome = await first.outcome;
+    expect(outcome.status).toBe('completed');
+
+    const handle = resume({ agent, ...ref(first), afterSeq: 99 });
+    const events = await collect(handle);
+    expect(events).toHaveLength(1);
+    // The synthesized event follows the seq the handle started from, and only the handle has it.
+    expect(events[0]).toMatchObject({ type: 'run.finished', seq: 100, outcome });
+    expect(await handle.outcome).toEqual(outcome);
+    expect(await store.runs.listEvents(ref(first))).toHaveLength(9);
+  });
+
   it('9. an unknown run fails with not_found', async () => {
     const { agent, store } = build();
     await store.sessions.create({ sessionId: 's', agentId: 'a' });
     const handle = resume({ agent, sessionId: 's', runId: 'nope' });
     expect(await handle.outcome).toMatchObject({ status: 'failed', error: { code: 'not_found' }, steps: 0 });
-    expect(await collect(handle)).toEqual([]);
-    expect(await codeOf(handle.submit({ type: 'approve', requestId: 'q' }))).toBe('not_found');
+    // A detached finish publishes the run.finished itself, so the stream still says how the run ended.
+    const events = await collect(handle);
+    expect(types(events)).toEqual(['run.finished']);
+    expect(lastOutcome(events)).toEqual(await handle.outcome);
+    // A handle that is closed answers no command: a run that was never there is no more running than one that ended.
+    expect(await codeOf(handle.submit({ type: 'approve', requestId: 'q' }))).toBe('not_running');
   });
 
   it('10. a run whose process died mid-tool is recovered as uncertain', async () => {
@@ -313,12 +351,12 @@ describe('resume: detaching and exclusivity', () => {
     expect(transcript.map((m) => [m.role, m.source])).toEqual([['user', 'input'], ['assistant', 'model'], ['tool', 'tool'], ['user', 'system']]);
     expect(transcript[2]!.parts[0]).toMatchObject({ type: 'toolResult', isError: true, content: 'The turn was stopped' });
     expect(textOf(transcript[3]!)).toBe('[Request interrupted by user]');
-    expect(await codeOf(handle.submit({ type: 'approve', requestId }))).toBe('not_found');
+    expect(await codeOf(handle.submit({ type: 'approve', requestId }))).toBe('not_running');
 
     // A later resume() replays a terminal run and delivers the stored outcome.
     const again = resume({ agent, ...ref(first) });
     expect(await again.outcome).toMatchObject({ status: 'cancelled', reason: 'later' });
-    expect(await codeOf(again.submit({ type: 'approve', requestId }))).toBe('not_found');
+    expect(await codeOf(again.submit({ type: 'approve', requestId }))).toBe('not_running');
   });
 
   it('11b. cancel while waiting on an input request declines it the same way', async () => {
@@ -346,7 +384,7 @@ describe('resume: detaching and exclusivity', () => {
     const h1 = resume({ agent, ...ref(first) });
     const h2 = resume({ agent, ...ref(first) });
     expect(await h2.outcome).toMatchObject({ status: 'failed', error: { code: 'writer_busy' }, steps: 1 });
-    expect(await codeOf(h2.submit({ type: 'approve', requestId }))).toBe('not_found');
+    expect(await codeOf(h2.submit({ type: 'approve', requestId }))).toBe('not_running');
     await h1.submit({ type: 'approve', requestId });
     expect((await h1.outcome).status).toBe('completed');
 

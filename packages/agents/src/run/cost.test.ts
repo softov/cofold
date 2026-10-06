@@ -1,5 +1,6 @@
 import type { RunEvent } from '../types/event.js';
 import type { ModelPricing } from '../types/model.js';
+import type { RunOutcome } from '../types/outcome.js';
 import type { FakeStep } from '../types/testing.js';
 import type { Tool } from '../types/tool.js';
 import { describe, expect, it } from 'vitest';
@@ -9,6 +10,7 @@ import { costOf } from '../model/cost.js';
 import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
 import { createTool } from '../tool/create-tool.js';
+import { liveRuns } from './answer.js';
 import { compact } from './compact.js';
 import { resume } from './resume.js';
 import { run } from './run.js';
@@ -37,6 +39,16 @@ async function collect(handle: { events: AsyncIterable<RunEvent> }): Promise<Run
   return out;
 }
 const finished = (events: RunEvent[]) => events.find((e): e is Extract<RunEvent, { type: 'run.finished' }> => e.type === 'run.finished')!;
+
+/** Reads a paused run up to its `run.finished { awaiting }` and forgets it, as the process that paused it exiting would. */
+async function pausedOutcome(handle: { events: AsyncIterable<RunEvent>; runId: string }): Promise<Extract<RunOutcome, { status: 'awaiting' }>> {
+  const out: RunEvent[] = [];
+  for await (const e of handle.events) { out.push(e); if (e.type === 'run.finished') break; }
+  const outcome = finished(out).outcome;
+  if (outcome.status !== 'awaiting') throw new Error(outcome.status);
+  liveRuns.delete(handle.runId);
+  return outcome;
+}
 
 describe('costOf (decision 109)', () => {
   it('prices plain input and output per million', () => {
@@ -106,9 +118,7 @@ describe('cost on the run (decisions 108, 109)', () => {
     const store = createMemoryStore();
     const first = build({ store, script: [{ toolCalls: [{ name: 'rm', input: { text: 'x' } }] }, { text: 'gone' }], pricing: PRICING });
     const paused = run({ agent: first.agent, session: 's', input: 'remove x' });
-    await collect(paused);
-    const awaiting = await paused.outcome;
-    if (awaiting.status !== 'awaiting') throw new Error(awaiting.status);
+    const awaiting = await pausedOutcome(paused);
     expect(awaiting.cost).toBe(0.000003);
     expect(await store.runs.get({ sessionId: 's', runId: paused.runId })).toMatchObject({ status: 'awaiting', cost: 0.000003 });
 

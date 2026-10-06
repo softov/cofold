@@ -94,6 +94,7 @@ function fileTools(args: { workspace: string; maxLines: number; maxMatches: numb
     },
     effects: { writes: true, destructive: true },
     subject: (input) => subject(input.path),
+    writes: (input) => at(input.path),
     execute: async (input) => {
       const absolute = at(input.path);
       const existed = await exists(absolute);
@@ -119,6 +120,7 @@ function fileTools(args: { workspace: string; maxLines: number; maxMatches: numb
     },
     effects: { writes: true, destructive: true },
     subject: (input) => subject(input.path),
+    writes: (input) => at(input.path),
     execute: async (input) => {
       const absolute = at(input.path);
       const text = await readText(absolute, shown(absolute));

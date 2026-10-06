@@ -1,6 +1,6 @@
 ---
 title: papo takes the shared lists, and its effort reaches the request
-status: todo
+status: done
 depends: [task-01-the-permission-modes.md, task-02-the-thinking-levels.md, task-03-a-reasoning-param-turns-reasoning-on.md]
 layer: "papo"
 refs:
@@ -38,4 +38,8 @@ papo's mode list, level list and the enums that check them come from `@cofold/ag
 - `pnpm --filter @cofold/papo test` and `pnpm typecheck` are clean.
 
 ## Resume
+
+- **Built:** `types/settings.ts` writes `type Reasoning = EffortLevel`, takes `REASONING_LEVELS = EFFORT_LEVELS`, and derives `PERMISSION_MODES` from the harness's list with `HARNESS_PERMISSION_MODES.filter((mode): mode is PermissionMode => OFFERED_MODES.has(mode))`, where `OFFERED_MODES` is the four papo offers. Filtering the shared list by name rather than cutting at `plan` and `auto` means a mode the harness adds later does not leak into papo's choices on its own, and papo's `PermissionMode` type stays the four. `config.ts` and `commands.ts` build their enums with `[...PERMISSION_MODES]` and `[...REASONING_LEVELS]`. `agent.ts` sets `const effort = effortOf(settings.reasoning)` and spreads `reasoning: { effort }` only when it is defined.
+- **Validation:** a new `chat.test.ts` case drives the real `openaiCompatProvider` over a stub fetch answering server-sent events, and asserts `reasoning_effort: 'high'` in the posted body, then no `reasoning` or `reasoning_effort` after `reasoning: 'off'`. Reverting task 03's adapter expression and rebuilding fails exactly that case, so it is the end-to-end proof the plan asked for. `config.test.ts` gains the refusals: `permissions: 'plan'` and `permissions: 'auto'` (harness modes papo does not offer) and `reasoning: 'max'` (a provider value, not a level) all fail with the key named.
+- **Checks:** `pnpm --filter @cofold/papo test` 141 pass; `pnpm typecheck` clean.
 

@@ -125,6 +125,28 @@ describe('openaiCompat request mapping', () => {
 });
 
 describe('openaiCompat reasoning', () => {
+  it('turns the reasoning feature on when the model was given a reasoning param (agent/06 task 03)', async () => {
+    const { calls, fetch } = stubFetch([json(okText)]);
+    const model = openaiCompat({ baseUrl: 'http://x', model: 'm', params: { reasoning: { effort: 'high' } }, fetch });
+    expect(model.features.reasoning).toBe(true);
+    await model.complete(request({}));
+    expect(calls[0]!.body).toMatchObject({ reasoning_effort: 'high' });
+  });
+
+  it('lets features say a model cannot reason even so', async () => {
+    const { calls, fetch } = stubFetch([json(okText)]);
+    const model = openaiCompat({ baseUrl: 'http://x', model: 'm', params: { reasoning: { effort: 'high' } }, features: { reasoning: false }, fetch });
+    expect(model.features.reasoning).toBe(false);
+    await model.complete(request({}));
+    expect(calls[0]!.body).not.toHaveProperty('reasoning_effort');
+    expect(calls[0]!.body).not.toHaveProperty('reasoning');
+  });
+
+  it('leaves the feature off for a model with no reasoning param', () => {
+    const model = openaiCompat({ baseUrl: 'http://x', model: 'm', fetch });
+    expect(model.features.reasoning).toBe(false);
+  });
+
   it('sends reasoning_effort for effort only, and the reasoning object when a budget is set', async () => {
     const { calls, fetch } = stubFetch([json(okText), json(okText)]);
     const model = openaiCompat({ baseUrl: 'http://x', model: 'm', features: { reasoning: true }, fetch });

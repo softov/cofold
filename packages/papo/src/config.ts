@@ -1,25 +1,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { ModelProvider } from '@cofold/agents';
-import { AgentError } from '@cofold/agents';
 import { ArgumentError, ConfigurationError, check } from '@cofold/commands';
 import { resolveConfig } from '@cofold/config';
-import { openaiCompatProvider } from '@cofold/model-openai-compat';
+import { PROVIDER_SCHEMA } from '@cofold/model-openai-compat';
 import type { JsonSchema } from '@cofold/sdk';
+import { TOOLS_SCHEMA } from '@cofold/tools';
 import type { PapoConfig, ProviderConfig, RememberedSettings } from './types/config.js';
-
-const PROVIDER: JsonSchema = {
-  type: 'object',
-  properties: {
-    id: { type: 'string', minLength: 1, pattern: '^[^/\\s]+$' },
-    baseUrl: { type: 'string', minLength: 1 },
-    apiKey: { type: 'string' },
-    headers: { type: 'object' },
-  },
-  required: ['id', 'baseUrl'],
-  additionalProperties: false,
-};
+import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 
 /** One permission rule as the file writes it: the tool (or `*`) and the glob over its subject (decision 117). */
 const RULE: JsonSchema = {
@@ -29,20 +17,23 @@ const RULE: JsonSchema = {
   additionalProperties: false,
 };
 
-/** The file's shape; `check` turns the first problem into a sentence naming the key. */
+/**
+ * The file's shape; `check` turns the first problem into a sentence naming the key. The `providers` entries and
+ * the `tools` section are the library's schemas, composed here (decision 123): papo keeps only its own keys.
+ */
 const SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
     backend: { type: 'string', enum: ['cofold', 'claude'] },
-    providers: { type: 'array', items: PROVIDER },
+    providers: { type: 'array', items: PROVIDER_SCHEMA },
     model: { type: 'string', minLength: 1 },
-    permissions: { type: 'string', enum: ['default', 'acceptEdits', 'bypassPermissions', 'dontAsk'] },
+    permissions: { type: 'string', enum: [...PERMISSION_MODES] },
     rules: {
       type: 'object',
       properties: { deny: { type: 'array', items: RULE }, ask: { type: 'array', items: RULE }, allow: { type: 'array', items: RULE } },
       additionalProperties: false,
     },
-    reasoning: { type: 'string', enum: ['off', 'low', 'medium', 'high'] },
+    reasoning: { type: 'string', enum: [...REASONING_LEVELS] },
     instructions: { type: 'string' },
     limits: {
       type: 'object',
@@ -73,35 +64,7 @@ const SCHEMA: JsonSchema = {
       },
       additionalProperties: false,
     },
-    tools: {
-      type: 'object',
-      properties: {
-        files: { type: 'boolean' },
-        shell: { type: 'boolean' },
-        web: {
-          anyOf: [
-            { type: 'boolean' },
-            {
-              type: 'object',
-              properties: {
-                search: {
-                  type: 'object',
-                  properties: {
-                    brave: { type: 'object', properties: { apiKey: { type: 'string', minLength: 1 } }, required: ['apiKey'], additionalProperties: false },
-                    tavily: { type: 'object', properties: { apiKey: { type: 'string', minLength: 1 } }, required: ['apiKey'], additionalProperties: false },
-                    duckduckgo: { type: 'boolean' },
-                  },
-                  additionalProperties: false,
-                },
-              },
-              additionalProperties: false,
-            },
-          ],
-        },
-        memory: { type: 'boolean' },
-      },
-      additionalProperties: false,
-    },
+    tools: TOOLS_SCHEMA,
     theme: { type: 'string', minLength: 1 },
     shell: { type: 'string', minLength: 1 },
   },
@@ -217,37 +180,3 @@ export async function rememberConfig(args: { cwd: string; env?: NodeJS.ProcessEn
   return [...files.keys()];
 }
 
-export function providersOf(config: PapoConfig): ModelProvider[] {
-  return config.providers.map((provider) => openaiCompatProvider({
-    name: provider.id,
-    baseUrl: provider.baseUrl,
-    ...(provider.apiKey !== undefined ? { apiKey: provider.apiKey } : {}),
-    ...(provider.headers !== undefined ? { headers: provider.headers } : {}),
-  }));
-}
-
-/** `<providerId>/<modelId>` split at the first slash; the model id may hold slashes of its own. */
-export function splitModel(ref: string): { provider: string; modelId: string } {
-  const at = ref.indexOf('/');
-  if (at <= 0 || at === ref.length - 1) {
-    throw new AgentError({ code: 'invalid_options', message: `model "${ref}" must be written <provider>/<model>` });
-  }
-  return { provider: ref.slice(0, at), modelId: ref.slice(at + 1) };
-}
-
-/** The provider a model ref names, faulted by name when there is none. */
-export function providerFor(providers: ModelProvider[], config: PapoConfig, ref: string): { provider: ModelProvider; modelId: string } {
-  const { provider: id, modelId } = splitModel(ref);
-  const index = config.providers.findIndex((provider) => provider.id === id);
-  const provider = providers[index];
-  if (index === -1 || provider === undefined) {
-    const known = config.providers.map((one) => one.id);
-    throw new AgentError({
-      code: 'invalid_options',
-      message: known.length === 0
-        ? `no provider is configured: set PAPO_BASE_URL or add one to ~/.config/papo/config.json`
-        : `model "${ref}" names provider "${id}"; configured: ${known.join(', ')}`,
-    });
-  }
-  return { provider, modelId };
-}

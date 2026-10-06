@@ -15,6 +15,9 @@ export function createRunAbort(args: { external?: AbortSignal; timeoutMs: number
   }
   // The timer would keep the process alive for timeoutMs after a normal finish; dispose() clears it.
   const timer = args.timeoutMs > 0 ? setTimeout(() => abort({ kind: 'timeout' }), args.timeoutMs) : undefined;
+  // A run waiting at a pause is not what keeps its host alive either (decision 122); the wait still counts toward
+  // timeoutMs, so the timer stays armed and only stops holding the process open.
+  timer?.unref?.();
   const dispose = () => {
     if (timer !== undefined) clearTimeout(timer);
     args.external?.removeEventListener('abort', onExternal);

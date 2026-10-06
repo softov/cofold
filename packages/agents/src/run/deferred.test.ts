@@ -7,6 +7,7 @@ import { createAgent } from '../agent/create-agent.js';
 import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
 import { createTool } from '../tool/create-tool.js';
+import { liveRuns } from './answer.js';
 import { resume } from './resume.js';
 import { run } from './run.js';
 
@@ -35,7 +36,11 @@ function build(args: { script: FakeStep[]; tools?: Tool<any, any>[]; capabilitie
 }
 
 const toolNames = (request: { tools?: { name: string }[] } | undefined) => (request?.tools ?? []).map((t) => t.name);
-const finish = async (handle: ReturnType<typeof run>) => { for await (const _ of handle.events) { /* drain */ } return handle.outcome; };
+/** Drains events up to the next `run.finished` and returns its outcome; a pause ends one too (decision 122). */
+const finish = async (handle: ReturnType<typeof run>) => {
+  for await (const e of handle.events) if (e.type === 'run.finished') return e.outcome;
+  return handle.outcome;
+};
 const call = (name: string, text = 'x'): FakeStep => ({ toolCalls: [{ name, input: { text } }] });
 
 describe('deferred tools: the request and the index', () => {
@@ -139,11 +144,13 @@ describe('load_tools and the session memory of it', () => {
     const first = run({ agent: paused.agent, session: 's', input: 'hi' });
     const outcome = await finish(first);
     if (outcome.status !== 'awaiting') throw new Error(outcome.status);
+    // The handle that paused it stands in for a process that exited; this one may resume the run.
+    liveRuns.delete(first.runId);
 
     const resumed = build({ store, tools, script: [{ text: 'done' }] });
     const handle = resume({ agent: resumed.agent, sessionId: 's', runId: first.runId });
     await handle.submit({ type: 'approve', requestId: outcome.requestId });
-    expect((await finish(handle)).status).toBe('completed');
+    expect((await handle.outcome).status).toBe('completed');
     expect(toolNames(resumed.model.requests[0])).toEqual(['rm', 'load_tools']);
     expect(resumed.model.requests[0]!.instructions).toBe('be brief');
   });

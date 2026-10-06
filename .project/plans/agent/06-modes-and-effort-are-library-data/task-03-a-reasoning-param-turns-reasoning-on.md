@@ -1,6 +1,6 @@
 ---
 title: A reasoning param turns reasoning on
-status: todo
+status: done
 depends: []
 layer: "model-openai-compat"
 refs:
@@ -33,4 +33,8 @@ A model built with `params.reasoning` has `features.reasoning` on, so the effort
 - `pnpm --filter @cofold/model-openai-compat test` is clean.
 
 ## Resume
+
+- **Built:** `model(args)` in `packages/model-openai-compat/src/index.ts` builds its features as `{ ...DEFAULT_FEATURES, ...(args.params?.reasoning !== undefined ? { reasoning: true } : {}), ...args.features }`, so a model given an effort can send it and an explicit `features: { reasoning: false }` still wins. Nothing else moved; the gate at line 123 is unchanged.
+- **Validation:** three cases in `index.test.ts` - the param turns the feature on and `reasoning_effort: 'high'` reaches the body, `features: { reasoning: false }` keeps both the feature off and the body clean, and a model with no param is still `features.reasoning === false` (the line 60 expectation is untouched). Reverting the expression to `{ ...DEFAULT_FEATURES, ...args.features }` fails exactly the first case and nothing else, so it is not vacuous. 70 tests pass in the package.
+- **README:** the `params` row of the options table carries the default in one line.
 

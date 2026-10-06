@@ -1,17 +1,14 @@
-import type { RunEvent } from '../types/event.js';
 import type { ToolCallPart } from '../types/message.js';
 import type { ModelPricing } from '../types/model.js';
 import type { RunOutcome } from '../types/outcome.js';
 import type { ResumeArgs, RunHandle } from '../types/run.js';
 import type { PendingRequest, RunRecord, StepRecord } from '../types/store.js';
-import type { ApprovalPayload, InputPayload } from '../types/store.js';
-import type { ResolvedRequest, SteerQueue, TurnContext } from '../types/turn.js';
+import type { SteerQueue, TurnContext } from '../types/turn.js';
 import { AgentError } from '../errors.js';
 import { toolCallsOf } from '../message/helpers.js';
 import { costOf } from '../model/cost.js';
 import { ZERO_USAGE, addUsage } from '../model/usage.js';
-import { validateSchema } from '@cofold/sdk';
-import { validateAnswers } from '../tool/ask-user.js';
+import { detachRun, liveRuns, waitForCommand } from './answer.js';
 import { createRunAbort } from './abort.js';
 import { createEmitter } from './events.js';
 import { createRunHandle } from './handle.js';
@@ -24,18 +21,10 @@ import {
   finishRun,
   resolveCapabilities,
   runTurn,
-  settle,
+  storedOutcome,
 } from './turn.js';
 
-type Command = ResolvedRequest['command'];
-
-/** Runs attached in this process (decision 80): a second resume() on a live one is refused. */
-const liveResumes = new Set<string>();
-
 const now = () => new Date().toISOString();
-
-/** The deny a cancel answers an open request with (decision 120), in ahpd's wording. */
-const STOPPED = 'The turn was stopped';
 
 /**
  * Reattaches to a stored run: replays its events, then continues an `awaiting` run from the command the host
@@ -47,14 +36,15 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
   const abort = createRunAbort({ timeoutMs: agent.limits.timeoutMs });
 
   // `submit` may arrive before attach() has read the run; it waits until the handle knows whether a command is wanted.
-  let accept: ((command: Command) => Promise<void>) | undefined;
+  let ctx: TurnContext | undefined;
   let markReady!: () => void;
   const ready = new Promise<void>((resolve) => { markReady = resolve; });
   const steering: SteerQueue = [];
   const handle = createRunHandle({
-    runId, sessionId, abort,
+    runId, sessionId, agentId: agent.definition.id, abort, startSeq: args.afterSeq ?? 0,
     onCommand: async (command) => {
       await ready;
+      const accept = ctx?.accept;
       if (!accept) throw new AgentError({ code: 'not_found', message: `run ${runId} is not awaiting a command` });
       await accept(command);
     },
@@ -66,6 +56,7 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
       if (handle.status() !== 'running') throw new AgentError({ code: 'not_running', message: `run ${runId} is not running` });
       return enqueueSteer(steering, text);
     },
+    detach: () => { if (ctx !== undefined) void detachRun(ctx); },
   });
 
   void attach().finally(markReady);
@@ -92,12 +83,12 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
     const afterSeq = args.afterSeq ?? 0;
     for (const e of events) if (e.seq > afterSeq) handle.publish(e);
 
-    if (record.status !== 'awaiting' && record.status !== 'running') return finishDetached(storedOutcome(record, events));
+    if (record.status !== 'awaiting' && record.status !== 'running') return finishDetached(storedOutcome(runId, record, events));
 
-    if (liveResumes.has(runId)) {
+    if (liveRuns.has(runId)) {
       return finishDetached({ status: 'failed', error: { code: 'writer_busy', message: `run ${runId} is already attached in this process` }, usage: record.usage, steps: record.steps, denials: record.denials, ...(record.cost !== undefined ? { cost: record.cost } : {}) });
     }
-    liveResumes.add(runId);
+    liveRuns.add(runId);
     try {
       const session = await store.sessions.get({ sessionId });
       if (!session) return finishDetached({ status: 'failed', error: { code: 'not_found', message: `session ${sessionId}` }, usage: record.usage, steps: record.steps, denials: record.denials, ...(record.cost !== undefined ? { cost: record.cost } : {}) });
@@ -110,7 +101,7 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
       const emitter = createEmitter({ store, runId, sessionId, agentId: record.agentId, publish: handle.publish, onEvent: agent.hooks.onEvent?.bind(agent.hooks), warn: agent.warn, startSeq: lastSeq });
       const steps = await store.runs.listSteps({ sessionId, runId });
       const counters = countersOf(record, steps, agent.model.pricing);
-      const ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, steering, counters, claimed: true, ...(record.inputMessageId !== undefined ? { inputMessageId: record.inputMessageId } : {}) });
+      ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, steering, counters, claimed: true, ...(record.inputMessageId !== undefined ? { inputMessageId: record.inputMessageId } : {}) });
       if (!(await resolveCapabilities(ctx))) return;
 
       if (record.status === 'running') return await recover(ctx, steps);
@@ -119,63 +110,18 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
       if (!pending) return await finishRun(ctx, fail(ctx, 'not_found', `pending request ${record.pendingRequestId} of run ${runId}`));
       if (pending.resolvedAt) return await finishRun(ctx, fail(ctx, 'interrupted', `request ${pending.requestId} was resolved but the run never continued`, { requestId: pending.requestId }));
 
-      const command = await waitForCommand(ctx, pending);
+      // The acceptor is installed synchronously inside waitForCommand, so `ready` may resolve only after the call.
+      const waiting = waitForCommand(ctx, pending);
+      markReady();
+      const command = await waiting;
       if (!command) return;
       ctx.heartbeat = startHeartbeat(store, sessionId, runId);
       const remaining = await remainingCalls(ctx, pending);
       if (!remaining) return;
       await runTurn(ctx, { kind: 'batch', calls: remaining, resolved: { pending, command } });
     } finally {
-      liveResumes.delete(runId);
+      liveRuns.delete(runId);
     }
-  }
-
-  /**
-   * Installs the command acceptor and resolves once a valid command has been persisted (decisions 74-77).
-   * A cancel while waiting denies the pending request through the same path a host's deny takes (decision 120):
-   * the turn then continues, `applyResolved` writes the call's error result, and the loop's abort check writes the
-   * marker and finishes it `cancelled`. A request is never left open by a cancel.
-   */
-  function waitForCommand(ctx: TurnContext, pending: PendingRequest): Promise<Command | undefined> {
-    return new Promise((resolve) => {
-      let taken = false;
-      const apply = async (command: Command): Promise<void> => {
-        try {
-          await store.requests.resolve({ sessionId, runId, requestId: pending.requestId, resolution: command });
-          const reason = command.type === 'deny' && command.reason !== undefined ? { reason: command.reason } : {};
-          if (command.type === 'answer') await ctx.emit({ type: 'input.resolved', requestId: pending.requestId, answers: command.answers });
-          else if (pending.kind === 'input') await ctx.emit({ type: 'input.declined', requestId: pending.requestId, ...reason });
-          else await ctx.emit({ type: 'approval.resolved', requestId: pending.requestId, decision: command.type, ...reason });
-          await store.runs.update({ sessionId, runId, status: 'running', pendingRequestId: undefined });
-          await ctx.emit({ type: 'run.resumed', requestId: pending.requestId });
-        } catch (e) {
-          const outcome = fail(ctx, e instanceof AgentError ? e.code : 'internal', `persisting the ${command.type} command: ${(e as Error).message}`);
-          try { await finishRun(ctx, outcome); } catch { settle(ctx, outcome); }
-          resolve(undefined);
-          throw e;
-        }
-        resolve(command);
-      };
-      const onAbort = () => {
-        if (taken) return;
-        taken = true;
-        accept = undefined;
-        // The failure path already finished the run and resolved; nothing else listens for this promise.
-        void apply({ type: 'deny', requestId: pending.requestId, reason: STOPPED }).catch(() => {});
-      };
-      if (abort.signal.aborted) return onAbort();
-      abort.signal.addEventListener('abort', onAbort, { once: true });
-
-      accept = async (command) => {
-        validateCommand(ctx, pending, command); // throws; nothing changes
-        if (taken) throw new AgentError({ code: 'not_found', message: `request ${pending.requestId} is already being resolved` });
-        taken = true;
-        accept = undefined;
-        abort.signal.removeEventListener('abort', onAbort);
-        await apply(command);
-      };
-      markReady();
-    });
   }
 
   async function recover(ctx: TurnContext, steps: StepRecord[]): Promise<void> {
@@ -249,37 +195,4 @@ function countersOf(record: RunRecord, steps: StepRecord[], pricing: ModelPricin
     // A step left 'started' at a pause completes (and counts) on resume.
     toolCalls: steps.filter((s) => s.kind === 'tool' && s.status !== 'started').length,
   };
-}
-
-function validateCommand(ctx: TurnContext, pending: PendingRequest, command: Command): void {
-  if (command.requestId !== pending.requestId) {
-    throw new AgentError({ code: 'not_found', message: `request ${command.requestId} is not the pending request ${pending.requestId}` });
-  }
-  if (pending.kind === 'approval') {
-    if (command.type === 'answer') throw new AgentError({ code: 'invalid_options', message: `request ${pending.requestId} is an approval; use approve or deny` });
-    if (command.type === 'approve' && command.input !== undefined) {
-      const payload = pending.payload as ApprovalPayload;
-      const tool = ctx.tools.get(payload.name);
-      if (!tool) throw new AgentError({ code: 'not_found', message: `tool "${payload.name}" of request ${pending.requestId} is not available to this agent` });
-      const validated = validateSchema({ schema: tool.input, value: command.input });
-      if (!validated.ok) throw new AgentError({ code: 'invalid_options', message: `edited input for "${payload.name}": ${validated.issues.map((i) => `${i.path} ${i.message}`).join('; ')}`, detail: validated.issues });
-    }
-    return;
-  }
-  if (command.type === 'deny') return;
-  if (command.type !== 'answer') throw new AgentError({ code: 'invalid_options', message: `request ${pending.requestId} asks for input; use answer or deny` });
-  if (!command.answers || typeof command.answers !== 'object' || Array.isArray(command.answers)) {
-    throw new AgentError({ code: 'invalid_options', message: 'answers must be an object keyed by question id' });
-  }
-  const issues = validateAnswers((pending.payload as InputPayload).questions, command.answers);
-  if (issues.length) throw new AgentError({ code: 'invalid_options', message: `answers: ${issues.join('; ')}`, detail: issues });
-}
-
-/** The outcome a terminal run recorded; a run that ended without a run.finished event is reported as interrupted. */
-function storedOutcome(record: RunRecord, events: RunEvent[]): RunOutcome {
-  for (let i = events.length - 1; i >= 0; i -= 1) {
-    const e = events[i]!;
-    if (e.type === 'run.finished') return e.outcome;
-  }
-  return { status: 'failed', error: { code: 'interrupted', message: `run ${record.runId} is ${record.status} but recorded no run.finished event` }, usage: record.usage, steps: record.steps };
 }

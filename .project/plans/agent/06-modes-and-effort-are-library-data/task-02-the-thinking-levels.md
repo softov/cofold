@@ -1,6 +1,6 @@
 ---
 title: The thinking levels and their parser are library data
-status: todo
+status: done
 depends: []
 layer: "agents"
 refs:
@@ -31,4 +31,8 @@ refs:
 - `pnpm --filter @cofold/agents test` is clean.
 
 ## Resume
+
+- **Built:** `model/effort.ts` holds `EFFORT_LEVELS = ['off', 'low', 'medium', 'high'] as const satisfies readonly EffortLevel[]` and `effortOf(value: unknown): ReasoningEffort | undefined`, a membership test with no mapping (`minimal`, `xhigh` and `max` are the provider's range, not levels a host offers, so they give `undefined`). `types/model.ts` has `EffortLevel` beside `ReasoningEffort` with a comment saying which is which, and `index.ts` exports both names.
+- **Validation:** `effort.test.ts` covers `effortOf` for the three real levels, for `off`, for a missing value, for `null` and for the unknown strings and numbers, and asserts the list is the four in order with each level sent as it is but `off`. 215 tests pass in `@cofold/agents`.
+- **Type test:** `types/contracts.test-d.ts` also asserts `Exclude<EffortLevel, (typeof EFFORT_LEVELS)[number]>` is `never` and pins `effortOf`'s parameter to `unknown` and its return to `ReasoningEffort | undefined`. As with task 01, the package-local `vitest --typecheck` does not report a `*.test-d.ts`; `tsc -p tsconfig.test.json` and the root `vitest run --typecheck --project @cofold/agents` do. `tsc -p tsconfig.test.json` is clean.
 

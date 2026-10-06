@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Agent, ApprovalPayload, Message, ModelInfo, PendingRequest, RunHandle, RunRecord, StopReason } from '@cofold/agents';
+import type { Agent, ApprovalPayload, Message, ModelInfo, ModelProvider, PendingRequest, RunHandle, RunOutcome, RunRecord, StopReason } from '@cofold/agents';
 import { AgentError, compact, contextOf, listSkills, newId, resume, run, sessionUsage } from '@cofold/agents';
+import { providerFor, splitModel } from '@cofold/model-openai-compat';
 import { fileSkillSource } from '@cofold/store-file';
 import { AGENT_ID, buildAgent } from './agent.js';
-import { providerFor, splitModel } from './config.js';
 import { createQueues } from './queue.js';
 import { checkRules } from './rules.js';
 import { projectTurns, titleOf } from './turns.js';
@@ -14,11 +14,28 @@ import type { Settings } from './types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 import type { Compaction, Draft, SessionActivity, SessionRow, Snapshot } from './types/turn.js';
 
+/** Where a turn stops: what a `wait` is handed, replaced when the turn goes on (decision 122). */
+interface Stop {
+  outcome: Promise<RunOutcome>;
+  resolve(outcome: RunOutcome): void;
+}
+
+function stopOf(): Stop {
+  let resolve!: (outcome: RunOutcome) => void;
+  const outcome = new Promise<RunOutcome>((done) => { resolve = done; });
+  return { outcome, resolve };
+}
+
 interface Attached {
   handle: RunHandle;
   agent: Agent;
   /** The step being written, folded from `model.delta` (decision CLI-04.2); absent between steps. */
   draft?: Draft;
+  /**
+   * Where the turn stops next: a `run.finished`, the pause's `awaiting` included. A pause ends the step but not the
+   * run, so the stopping point is replaced there and whoever waits again waits on the continuation (decision 122).
+   */
+  stop: Stop;
 }
 
 /** The package folder: `<here>/skills/<name>/SKILL.md` are the prompts papo ships. */
@@ -71,19 +88,30 @@ export function createChat(options: ChatOptions): Chat {
   /** How long a provider gets to answer a listing before the screen is told it cannot be reached. */
   const LISTING_MS = 15_000;
 
+  /**
+   * The provider a model reference names (decision 123), papo's own hint coming first: it names the variable and
+   * papo's file, which the library must not know.
+   */
+  function providerOf(ref: string): { provider: ModelProvider; modelId: string } {
+    if (providers.size === 0) {
+      throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set PAPO_BASE_URL or add one to ~/.config/papo/config.json' });
+    }
+    return providerFor(providers, ref);
+  }
+
   /** The configured model, or the first the first provider lists; asked once, and only when a turn needs it. */
   async function modelRef(): Promise<string> {
     if (config.model !== undefined) return config.model;
     if (listedModel !== undefined) return listedModel;
-    const first = providers[0];
-    const id = config.providers[0]?.id;
-    if (first === undefined || id === undefined) {
+    const first = config.providers[0];
+    const provider = first !== undefined ? providers.get(first.id) : undefined;
+    if (first === undefined || provider === undefined) {
       throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set PAPO_BASE_URL or add one to ~/.config/papo/config.json' });
     }
-    const listed = await first.listModels({ signal: AbortSignal.timeout(LISTING_MS) });
+    const listed = await provider.listModels({ signal: AbortSignal.timeout(LISTING_MS) });
     const chosen = listed[0];
-    if (chosen === undefined) throw new AgentError({ code: 'invalid_options', message: `provider "${id}" lists no models; set model in the configuration` });
-    listedModel = `${id}/${chosen.id}`;
+    if (chosen === undefined) throw new AgentError({ code: 'invalid_options', message: `provider "${first.id}" lists no models; set model in the configuration` });
+    listedModel = `${first.id}/${chosen.id}`;
     return listedModel;
   }
 
@@ -98,7 +126,7 @@ export function createChat(options: ChatOptions): Chat {
 
   /** A patch, checked word by word; the model must name a configured provider, or be `''`, the word `settingsOf` uses for "unset". */
   function checkSettings(patch: Partial<Settings>): void {
-    if (patch.model !== undefined && patch.model !== '') providerFor(providers, config, patch.model);
+    if (patch.model !== undefined && patch.model !== '') providerOf(patch.model);
     if (patch.permissions !== undefined && !PERMISSION_MODES.includes(patch.permissions)) {
       throw new AgentError({ code: 'invalid_options', message: `permissions must be one of ${PERMISSION_MODES.join(', ')}` });
     }
@@ -125,7 +153,7 @@ export function createChat(options: ChatOptions): Chat {
 
   async function agentFor(settings: Settings): Promise<Agent> {
     const model = settings.model === '' ? await modelRef() : settings.model;
-    const { provider, modelId } = providerFor(providers, config, model);
+    const { provider, modelId } = providerOf(model);
     settings = { ...settings, model };
     return buildAgent({
       config, settings, provider, modelId, store, home, workspace, skills: skillSources, instructions: await instructions(), warn,
@@ -134,10 +162,11 @@ export function createChat(options: ChatOptions): Chat {
   }
 
   /**
-   * Watches a handle to its end, waking the listeners on the way; detaches when it settles, and the queue's head starts.
-   * Two payloads are read here: `model.delta`, folded into the entry's draft and dropped at `model.completed`, when
-   * the store holds the whole message (decision CLI-04.2), and `context.compacted`, kept for the notice (cli/03 F1);
-   * everything else only wakes.
+   * Watches a handle to the run's end, waking the listeners on the way; detaches when the run ends, and the queue's
+   * head starts. Three payloads are read here: `model.delta`, folded into the entry's draft and dropped at
+   * `model.completed`, when the store holds the whole message (decision CLI-04.2); `context.compacted`, kept for the
+   * notice (cli/03 F1); and `run.finished`, which stops the turn's wait, a pause included (decision 122). Everything
+   * else only wakes.
    */
   function attach(sessionId: string, entry: Attached): void {
     attached.set(sessionId, entry);
@@ -152,6 +181,10 @@ export function createChat(options: ChatOptions): Chat {
             delete entry.draft;
           } else if (event.type === 'context.compacted') {
             compactions.set(event.messageId, { runId: event.runId, before: event.estimatedTokens, after: event.afterTokens });
+          } else if (event.type === 'run.finished') {
+            const { resolve } = entry.stop;
+            if (event.outcome.status === 'awaiting') entry.stop = stopOf();
+            resolve(event.outcome);
           }
           notify(sessionId);
         }
@@ -209,10 +242,12 @@ export function createChat(options: ChatOptions): Chat {
   }
 
   /**
-   * The handle for the session's newest run, attaching one when this process has none: a run left
-   * `awaiting` or `running` by a process that died is resumed here, which is also its recovery.
+   * The handle for the session's newest run: the one this process holds, or one attached here when it holds
+   * none. A run left `awaiting` or `running` by a process that died is resumed, which is also its recovery.
+   * The resumed handle reads from where the store's events end (decision 122), so the watcher follows the
+   * continuation rather than replaying the pause it already answered.
    */
-  async function handleFor(sessionId: string): Promise<{ handle: RunHandle; run: RunRecord }> {
+  async function recover(sessionId: string): Promise<{ handle: RunHandle; run: RunRecord }> {
     const run = await newest(sessionId);
     if (run === undefined) throw new AgentError({ code: 'not_found', message: `session ${sessionId} has no run` });
     const held = attached.get(sessionId);
@@ -221,8 +256,9 @@ export function createChat(options: ChatOptions): Chat {
       throw new AgentError({ code: 'not_found', message: `session ${sessionId} is not waiting on anything` });
     }
     const agent = await agentFor(await settingsOf(sessionId));
-    const handle = resume({ agent, sessionId, runId: run.runId });
-    attach(sessionId, { handle, agent });
+    const events = await store.runs.listEvents({ sessionId, runId: run.runId });
+    const handle = resume({ agent, sessionId, runId: run.runId, afterSeq: events.at(-1)?.seq ?? 0 });
+    attach(sessionId, { handle, agent, stop: stopOf() });
     steerHeld(sessionId, handle);
     return { handle, run };
   }
@@ -248,7 +284,7 @@ export function createChat(options: ChatOptions): Chat {
 
   async function submitTo(sessionId: string, build: (requestId: string, run: RunRecord) => Parameters<RunHandle['submit']>[0] | Promise<Parameters<RunHandle['submit']>[0]>): Promise<void> {
     await requireSession(sessionId);
-    const { handle, run } = await handleFor(sessionId);
+    const { handle, run } = await recover(sessionId);
     if (run.status !== 'awaiting' || run.pendingRequestId === undefined) {
       throw new AgentError({ code: 'not_found', message: `session ${sessionId} is not waiting on a decision` });
     }
@@ -292,7 +328,7 @@ export function createChat(options: ChatOptions): Chat {
     },
 
     async providers() {
-      const chosen = config.model !== undefined ? splitModel(config.model).provider : undefined;
+      const chosen = config.model !== undefined ? splitModel(config.model)?.provider : undefined;
       return config.providers.map((provider, index): ProviderRow => ({
         id: provider.id,
         baseUrl: provider.baseUrl,
@@ -302,16 +338,14 @@ export function createChat(options: ChatOptions): Chat {
     },
 
     async models({ provider: only } = {}) {
-      if (providers.length === 0) {
+      if (providers.size === 0) {
         throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set PAPO_BASE_URL or add one to ~/.config/papo/config.json' });
       }
-      const ids = config.providers.map((one) => one.id);
-      if (only !== undefined && !ids.includes(only)) {
-        throw new AgentError({ code: 'invalid_options', message: `provider "${only}" is not configured; configured: ${ids.join(', ')}` });
+      if (only !== undefined && !providers.has(only)) {
+        throw new AgentError({ code: 'invalid_options', message: `provider "${only}" is not configured; configured: ${[...providers.keys()].join(', ')}` });
       }
       const rows: ModelRow[] = [];
-      for (const [index, provider] of providers.entries()) {
-        const id = ids[index] ?? provider.id;
+      for (const [id, provider] of providers) {
         if (only !== undefined && id !== only) continue;
         let listed: ModelInfo[];
         try {
@@ -425,7 +459,7 @@ export function createChat(options: ChatOptions): Chat {
       }
       const agent = await agentFor(await settingsOf(id));
       const handle = run({ agent, session: id, workspace, input: text });
-      attach(id, { handle, agent });
+      attach(id, { handle, agent, stop: stopOf() });
       notify(id);
       return { sessionId: id, runId: handle.runId } satisfies Started;
     },
@@ -438,7 +472,7 @@ export function createChat(options: ChatOptions): Chat {
       }
       const agent = await agentFor(await settingsOf(sessionId));
       const handle = compact({ agent, session: sessionId });
-      attach(sessionId, { handle, agent });
+      attach(sessionId, { handle, agent, stop: stopOf() });
       notify(sessionId);
       return { sessionId, runId: handle.runId } satisfies Started;
     },
@@ -450,11 +484,11 @@ export function createChat(options: ChatOptions): Chat {
 
     wait: async (sessionId) => {
       // Taken now, before any await: a `remove` or `cancel` issued right after must still settle this waiter.
-      const current = attached.get(sessionId)?.handle.outcome;
+      const current = attached.get(sessionId)?.stop.outcome;
       if (current !== undefined) return current;
       // Nothing attached yet: a queued head may be starting (its `say` awaits the settings first).
       await queues.starting(sessionId);
-      return attached.get(sessionId)?.handle.outcome;
+      return attached.get(sessionId)?.stop.outcome;
     },
 
     async queue({ sessionId, text, settings: patch, id }) {
@@ -478,19 +512,28 @@ export function createChat(options: ChatOptions): Chat {
     answer: (sessionId, answers) => submitTo(sessionId, (requestId) => ({ type: 'answer', requestId, answers })),
 
     /**
-     * Stop what the session is doing. A running turn is aborted; one waiting on an approval or a
-     * question is cancelled on its handle (resumed here when another process left it), and the harness
-     * denies the request itself and ends the turn cancelled with the interrupt marker (decision 120).
+     * Stop what the session is doing, through the handle this process holds whatever its status: a running
+     * turn is aborted, one waiting on an approval or a question has the request denied and ends cancelled
+     * with the interrupt marker (decision 120). A run left by a process that died is resumed here first.
      * Nothing queued starts after a cancel, until the person says something (CLI-04.1).
      */
     async cancel(sessionId) {
       await requireSession(sessionId);
       queues.hold(sessionId);
-      const held = attached.get(sessionId);
-      if (held !== undefined && held.handle.status() === 'running') { held.handle.cancel({ reason: 'cancelled by the user' }); return; }
       const run = await newest(sessionId);
-      if (run?.status !== 'awaiting') return;
-      const { handle } = await handleFor(sessionId);
+      const held = attached.get(sessionId);
+      // The handle this process holds, but only while it still is the newest run: an older one must not be
+      // cancelled for a run that has moved on (review fix 2).
+      if (held !== undefined && (run === undefined || held.handle.runId === run.runId)) {
+        held.handle.cancel({ reason: 'cancelled by the user' });
+        return;
+      }
+      if (run?.status !== 'awaiting' && run?.status !== 'running') return;
+      // A running run another live process is writing is theirs to stop: resuming it here would re-claim the lock
+      // with the same runId and end it `interrupted` under them (review fix 2). An awaiting run holds no live work
+      // and is recovered as before; a running one only when the process that claimed it is gone.
+      if (run.status === 'running' && isAlive((await store.sessions.get({ sessionId }))?.activeWriterPid)) return;
+      const { handle } = await recover(sessionId);
       handle.cancel({ reason: 'cancelled by the user' });
     },
 
@@ -513,11 +556,33 @@ export function createChat(options: ChatOptions): Chat {
     },
 
     async close() {
-      const settling = [...attached.values()].map((entry) => { entry.handle.cancel({ reason: 'papo closed' }); return entry.handle.outcome; });
-      await Promise.allSettled(settling);
+      // A run waiting on a decision is left in the store (decision 122): leaving is not answering, and the run is
+      // reached by `resume()` later, as `papo say` then `papo approve` does. This process lets go of it rather than
+      // holding it, so a `resume()` here is not refused `writer_busy` afterwards (review fix 4). A turn still
+      // working is cancelled, and both are waited for.
+      const entries = [...attached.values()];
+      for (const entry of entries) {
+        if (entry.handle.status() === 'awaiting') entry.handle.detach();
+        else entry.handle.cancel({ reason: 'papo closed' });
+      }
+      await Promise.allSettled(entries.map((entry) => entry.handle.outcome));
     },
   };
   return chat;
+}
+
+/**
+ * Whether the process that holds a writer claim is still there: signal 0 asks without touching it, and `EPERM`
+ * means it exists but is somebody else's. No pid recorded (a memory store) reads as gone (review fix 2).
+ */
+function isAlive(pid: number | undefined): boolean {
+  if (pid === undefined) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error: unknown) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
 }
 
 function activityOf(run: RunRecord | undefined): SessionActivity {

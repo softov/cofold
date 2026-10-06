@@ -1,7 +1,7 @@
 ---
 title: Tools declare what they touch
 domain: tools
-status: planned
+status: built
 priority: high
 created: 2026-10-06
 revalidated: 2026-10-06
@@ -100,12 +100,12 @@ exclude?: readonly string[];
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The web and memory tools name their subject](task-01-web-and-memory-subjects.md) | todo | - |
-| [02 - A tool declares the file it writes](task-02-a-tool-declares-the-file-it-writes.md) | todo | - |
-| [03 - tool.proposed carries the subject](task-03-tool-proposed-carries-the-subject.md) | todo | - |
-| [04 - A capability leaves out the tools it is told to](task-04-a-capability-leaves-out-tools.md) | todo | - |
-| [05 - papo drops its edit list](task-05-papo-drops-its-edit-list.md) | todo | 02 |
-| [06 - The READMEs, and ahpd's removals](task-06-readmes-and-ahpd.md) | todo | 01, 02, 03, 04 |
+| [01 - The web and memory tools name their subject](task-01-web-and-memory-subjects.md) | done | - |
+| [02 - A tool declares the file it writes](task-02-a-tool-declares-the-file-it-writes.md) | done | - |
+| [03 - tool.proposed carries the subject](task-03-tool-proposed-carries-the-subject.md) | done | - |
+| [04 - A capability leaves out the tools it is told to](task-04-a-capability-leaves-out-tools.md) | done | - |
+| [05 - papo drops its edit list](task-05-papo-drops-its-edit-list.md) | done | 02 |
+| [06 - The READMEs, and ahpd's removals](task-06-readmes-and-ahpd.md) | done | 01, 02, 03, 04 |
 
 ## Risks and tradeoffs
 
@@ -116,16 +116,16 @@ exclude?: readonly string[];
 
 ## Resume state
 
-- **Done so far:** nothing.
-- **Next action:** [task-01-web-and-memory-subjects.md](task-01-web-and-memory-subjects.md).
+- **Done so far:** every task, 01 to 06. The six are `implemented` in this table and in their own files, and [implemented.md](implemented.md) records what was built, what was verified and where the work departed from this plan. Task 06's ahpd half is [deferred.md](deferred.md)'s only row.
+- **Next action:** none - the plan is built. Softov's review is what moves a task from `implemented` to `done`.
 - **Open questions:** none.
-- **Watch out for:** agent/06 also edits `policy/modes.ts` and tools/03 also edits `packages/tools/src/index.ts` and `packages/papo/src/agent.ts`; rebase rather than overwrite. `exactOptionalPropertyTypes`: spread `subject` only when defined.
+- **Watch out for:** tools/03 also edits `packages/papo/src/agent.ts` and `packages/agents/src/index.ts`; rebase rather than overwrite. `exactOptionalPropertyTypes`: spread `subject` only when defined.
 
 ## Final verification checklist
 
-- [ ] A rule `{ tool: 'web_fetch', match: 'https://example.com/*' }` matches a fetch of that site.
-- [ ] `tool.proposed` for `write_file` carries the display path; for a tool without `subject`, no field.
-- [ ] `acceptEdits` with no `isEdit` lets an in-workspace `edit_file` through and asks for `shell_exec`.
-- [ ] A host tool named `write_file` beside `{ ...files(), exclude: ['write_file'] }` runs; without `exclude` the run fails `invalid_options` as today.
-- [ ] `pnpm check` in cofold is clean.
-- [ ] `plans/index.md` updated.
+- [x] A rule `{ tool: 'web_fetch', match: 'https://a.example/*' }` matches a fetch of that host and lets another through (`packages/tools/src/web.test.ts`, with a real `rules()`).
+- [x] `tool.proposed` for `write_file` carries the display path; for a tool without `subject`, no field - proven by composition, see [implemented.md](implemented.md) *Departures*.
+- [x] `acceptEdits` with no `isEdit` lets an in-workspace `edit_file` through and asks for `shell_exec` (`packages/agents/src/policy/modes.test.ts`, `packages/papo/src/chat.test.ts`).
+- [x] A tool named `write_file` beside a capability contributing one and naming it in `exclude` runs; without `exclude` the run fails `invalid_options` as today (`packages/agents/src/run/run.test.ts`).
+- [x] `pnpm check` in cofold is clean - `pnpm typecheck` clean and `pnpm test` 937 of 937, after `@cofold/store-file`'s copied-folder test was fixed (Softov's answer, recorded in agent/05's [implemented.md](../agent/05-a-run-answers-its-own-pause/implemented.md)).
+- [x] `plans/index.md` updated.

@@ -9,7 +9,7 @@ import type { ModelProvider, Tool } from '@cofold/agents';
 import { createMemoryStore } from '@cofold/agents';
 import { createChat } from '../chat.js';
 import { rememberInto } from '../commands.js';
-import { deleteFileTool, fakeProvider, gateTool, testChat, testConfig } from '../testing.js';
+import { deleteFileTool, fakeProvider, gateTool, providerMap, testChat, testConfig } from '../testing.js';
 import { registerPapo } from './app.js';
 import { DRAFT, OPEN } from './state.js';
 
@@ -123,7 +123,7 @@ describe('the screen', () => {
     const script: FakeStep[] = [{ text: 'Hi.' }];
     const config = testConfig({ providers: [{ id: 'fake', baseUrl: 'http://fake.invalid/v1' }, { id: 'second', baseUrl: 'http://second.invalid/v1' }] });
     const chat = createChat({
-      store: createMemoryStore(), config, providers: [fakeProvider(script), fakeProvider(script, 'brain')], workspace: '/work', home: '/nowhere', warn: () => {},
+      store: createMemoryStore(), config, providers: providerMap(config, [fakeProvider(script), fakeProvider(script, 'brain')]), workspace: '/work', home: '/nowhere', warn: () => {},
     });
     const t = await renderApp({
       width: 100,
@@ -160,7 +160,7 @@ describe('the screen', () => {
     };
     const config = testConfig({ providers: [{ id: 'local', baseUrl: 'http://10.255.10.10:1235/v1' }, { id: 'fake', baseUrl: 'http://fake.invalid/v1' }] });
     const chat = createChat({
-      store: createMemoryStore(), config, providers: [down, fakeProvider([{ text: 'Hi.' }])], workspace: '/work', home: '/nowhere', warn: () => {},
+      store: createMemoryStore(), config, providers: providerMap(config, [down, fakeProvider([{ text: 'Hi.' }])]), workspace: '/work', home: '/nowhere', warn: () => {},
     });
     const t = await renderApp({
       width: 100,
@@ -441,7 +441,7 @@ describe('the screen', () => {
     try {
       // What `openPapo` builds: one `config` the chat reads and `remember` writes, over a temp home so the machine's own file is untouched.
       const config = testConfig();
-      const chat = createChat({ store: createMemoryStore(), config, providers: [fakeProvider([])], workspace: root, home: '/nowhere', warn: () => {} });
+      const chat = createChat({ store: createMemoryStore(), config, providers: providerMap(config, [fakeProvider([])]), workspace: root, home: '/nowhere', warn: () => {} });
       const t = await renderApp({
         width: 100,
         height: 30,

@@ -1,6 +1,7 @@
 import type { AgentOptions } from '../types/agent.js';
 import type { RunEvent } from '../types/event.js';
 import type { ModelAdapter } from '../types/model.js';
+import type { RunOutcome } from '../types/outcome.js';
 import type { RunHandle } from '../types/run.js';
 import type { FakeStep } from '../types/testing.js';
 import type { Tool, ToolDefinition } from '../types/tool.js';
@@ -10,6 +11,7 @@ import { textOf } from '../message/helpers.js';
 import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
 import { createTool } from '../tool/create-tool.js';
+import { liveRuns } from './answer.js';
 import { resume } from './resume.js';
 import { run } from './run.js';
 
@@ -34,6 +36,32 @@ async function collect(handle: { events: AsyncIterable<RunEvent> }): Promise<Run
   for await (const e of handle.events) out.push(e);
   return out;
 }
+
+/** Reads a handle's events up to its next `run.finished` (decision 122); a fresh handle reports the pause. */
+async function collectUntilPaused(handle: { events: AsyncIterable<RunEvent> }): Promise<RunEvent[]> {
+  const out: RunEvent[] = [];
+  for await (const e of handle.events) { out.push(e); if (e.type === 'run.finished') break; }
+  return out;
+}
+
+function lastOutcome(events: RunEvent[]): RunOutcome {
+  const last = events.at(-1);
+  if (!last || last.type !== 'run.finished') throw new Error('the run did not finish');
+  return last.outcome;
+}
+
+/**
+ * A run() that paused and whose process is gone (decision 122): forgetting it in `liveRuns` is what lets this
+ * process resume() the run.
+ */
+async function pausedRun(agent: ReturnType<typeof build>['agent'], session = 's'): Promise<{ first: RunHandle; requestId: string }> {
+  const first = run({ agent, session, input: 'x' });
+  const outcome = lastOutcome(await collectUntilPaused(first));
+  if (outcome.status !== 'awaiting') throw new Error(outcome.status);
+  liveRuns.delete(first.runId);
+  return { first, requestId: outcome.requestId };
+}
+
 const types = (events: RunEvent[]) => events.map((e) => e.type);
 
 async function codeOf(p: Promise<unknown>): Promise<string | undefined> {
@@ -101,9 +129,7 @@ describe('steering (decisions 95-96)', () => {
   it('5. a steer while the request is open waits, the run stays awaiting, and it drains at the first model step after the command', async () => {
     const rm = createTool({ name: 'rm', description: 'rm', input: textInput, effects: { destructive: true }, execute: () => 'removed' });
     const { agent, store, model } = build({ script: [{ toolCalls: [{ name: 'rm', input: { text: 'x' } }] }, { text: 'done' }], tools: [rm] });
-    const first = run({ agent, session: 's', input: 'x' });
-    const paused = await first.outcome;
-    if (paused.status !== 'awaiting') throw new Error(paused.status);
+    const { first, requestId } = await pausedRun(agent);
 
     const second = resume({ agent, sessionId: 's', runId: first.runId });
     const steered = second.submit({ type: 'steer', text: 'now summarize' });
@@ -113,7 +139,7 @@ describe('steering (decisions 95-96)', () => {
     expect((await store.runs.get({ sessionId: 's', runId: first.runId }))?.status).toBe('awaiting');
     expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.role)).toEqual(['user', 'assistant']);
 
-    await second.submit({ type: 'approve', requestId: paused.requestId });
+    await second.submit({ type: 'approve', requestId });
     const events = await collect(second);
     expect((await second.outcome).status).toBe('completed');
     await steered;
@@ -125,9 +151,7 @@ describe('steering (decisions 95-96)', () => {
   it('5b. a steer waiting on an open request is rejected not_running when the run is cancelled instead', async () => {
     const rm = createTool({ name: 'rm', description: 'rm', input: textInput, effects: { destructive: true }, execute: () => 'removed' });
     const { agent, store } = build({ script: [{ toolCalls: [{ name: 'rm', input: { text: 'x' } }] }, { text: 'done' }], tools: [rm] });
-    const first = run({ agent, session: 's', input: 'x' });
-    const paused = await first.outcome;
-    if (paused.status !== 'awaiting') throw new Error(paused.status);
+    const { first } = await pausedRun(agent);
 
     const second = resume({ agent, sessionId: 's', runId: first.runId });
     const steered = second.submit({ type: 'steer', text: 'nope' });
@@ -143,12 +167,10 @@ describe('steering (decisions 95-96)', () => {
     let steered: Promise<void> | undefined;
     const rm = createTool({ name: 'rm', description: 'rm', input: textInput, effects: { destructive: true }, execute: () => { steered = second.submit({ type: 'steer', text: 'now summarize' }); return 'removed'; } });
     const { agent, store, model } = build({ script: [{ toolCalls: [{ name: 'rm', input: { text: 'x' } }] }, { text: 'done' }], tools: [rm] });
-    const first = run({ agent, session: 's', input: 'x' });
-    const paused = await first.outcome;
-    if (paused.status !== 'awaiting') throw new Error(paused.status);
+    const { first, requestId } = await pausedRun(agent);
 
     second = resume({ agent, sessionId: 's', runId: first.runId });
-    await second.submit({ type: 'approve', requestId: paused.requestId });
+    await second.submit({ type: 'approve', requestId });
     const events = await collect(second);
     expect((await second.outcome).status).toBe('completed');
     await steered;

@@ -9,6 +9,7 @@ import { AgentError } from '../errors.js';
 import { newId } from '../ids.js';
 import { ZERO_USAGE } from '../model/usage.js';
 import { createRunAbort } from './abort.js';
+import { detachRun } from './answer.js';
 import { createEmitter } from './events.js';
 import { createRunHandle } from './handle.js';
 import { enqueueSteer, rejectSteering } from './steering.js';
@@ -35,9 +36,22 @@ export function start<Resources>(args: RunArgs<Resources>, compacting: boolean):
   const runId = newId();
   const abort = createRunAbort({ ...(args.signal ? { external: args.signal } : {}), timeoutMs: args.agent.limits.timeoutMs });
   const steering: SteerQueue = [];
-  const handle = createRunHandle({ runId, sessionId: args.session, abort, steer: (text) => enqueueSteer(steering, text) });
+  // The context exists only once setup has run; a command that arrives before that finds no acceptor.
+  let ctx: TurnContext | undefined;
+  const handle = createRunHandle({
+    runId, sessionId: args.session, agentId: args.agent.definition.id, abort,
+    steer: (text) => enqueueSteer(steering, text),
+    // The run answers its own pause (decision 122): the acceptor is installed by the loop's pause.
+    onCommand: async (command) => {
+      const accept = ctx?.accept;
+      if (!accept) throw new AgentError({ code: 'not_found', message: `run ${runId} has no open request` });
+      await accept(command);
+    },
+    // Before the context exists there is no pause to leave; the run is over or never started.
+    detach: () => { if (ctx !== undefined) void detachRun(ctx); },
+  });
   void (async () => {
-    const ctx = await setupRun(args, runId, abort, handle, steering, compacting);
+    ctx = await setupRun(args, runId, abort, handle, steering, compacting);
     if (!ctx) return;
     ctx.heartbeat = startHeartbeat(ctx.store, ctx.sessionId, runId);
     await runTurn(ctx, { kind: 'model' });

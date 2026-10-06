@@ -7,7 +7,8 @@ import type { SessionRow, Snapshot } from './turn.js';
 export interface ChatOptions {
   store: Store;
   config: PapoConfig;
-  providers: ModelProvider[];
+  /** The configured providers, by the id a model reference names them with (decision 123): `providersOf(config.providers)`. */
+  providers: ReadonlyMap<string, ModelProvider>;
   /** Where the agent works; the sessions' partition key. */
   workspace: string;
   /** The store's root; global skills live under `<home>/skills`. */
@@ -151,8 +152,9 @@ export interface Chat {
    * One turn. A missing `sessionId` starts a session; `settings` given here are stored on the session
    * first. While a run of the session is still going here the text steers it (decision 95): it lands
    * in the transcript before the next model step, and `Started.steered` says so; a turn that pauses on a
-   * decision before the text lands keeps it as a held steer (`Started.held`, `Queued.steer`) for when it
-   * resumes. AgentError('writer_busy') while the session already waits on a decision; answer it first.
+   * decision before the text lands keeps the steer in that turn (decisions 95, 122), where it lands at the
+   * next model step after the decision. `Started.held` with `Queued.steer` is the fallback for a turn this
+   * process has let go of. AgentError('writer_busy') while the session already waits on a decision; answer it first.
    */
   say(args: { sessionId?: string; text: string; settings?: Partial<Settings> }): Promise<Started>;
   /**
@@ -166,7 +168,12 @@ export interface Chat {
   unqueue(sessionId: string, id: string): Promise<void>;
   /** What waits to be the session's next turns, in order. */
   queued(sessionId: string): Promise<Queued[]>;
-  /** The outcome of the run attached to the session, or undefined when none is; a queued head that is starting counts as attached. */
+  /**
+   * Where the run attached to the session stopped: the pause's `awaiting` outcome, or the one it ended with
+   * (decision 122). Asked again after a decision, it waits on the continuation, so a caller that keeps asking
+   * follows a turn across its pauses to its end. Undefined when no run is attached; a queued head that is
+   * starting counts as attached.
+   */
   wait(sessionId: string): Promise<RunOutcome | undefined>;
   approve(sessionId: string, args?: { always?: boolean }): Promise<void>;
   /** Refuses a waiting approval, or declines a waiting question; the tool's result carries the reason. */
@@ -185,6 +192,6 @@ export interface Chat {
   remove(sessionId: string): Promise<void>;
   /** Called with the session whose state changed; returns the unsubscribe. */
   subscribe(listener: ChatListener): () => void;
-  /** Cancels every attached run. */
+  /** Cancels every attached run that is working; one waiting on a decision is left `awaiting` for `resume()` (decision 122). */
   close(): Promise<void>;
 }

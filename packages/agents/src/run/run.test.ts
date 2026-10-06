@@ -1,17 +1,20 @@
 import type { AgentOptions } from '../types/agent.js';
 import type { RunEvent } from '../types/event.js';
 import type { RunOutcome } from '../types/outcome.js';
+import type { RunHandle } from '../types/run.js';
+import type { Store } from '../types/store.js';
 import type { FakeStep } from '../types/testing.js';
 import type { Tool, ToolDefinition } from '../types/tool.js';
 import { describe, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent/create-agent.js';
-import { AgentError, ModelError } from '../errors.js';
+import { AgentError, ModelError, StoreError } from '../errors.js';
 import { textOf } from '../message/helpers.js';
 import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
 import { createTool } from '../tool/create-tool.js';
 import { compact } from './compact.js';
 import { pauseForInput } from './pause.js';
+import { resume } from './resume.js';
 import { HEARTBEAT_MS, run } from './run.js';
 
 const echoInput = { type: 'object' as const, properties: { text: { type: 'string' as const } }, required: ['text'], additionalProperties: false };
@@ -36,6 +39,24 @@ async function collect(handle: { events: AsyncIterable<RunEvent> }): Promise<Run
   for await (const e of handle.events) out.push(e);
   return out;
 }
+
+/**
+ * A reader over a handle's stream that stops at the next `run.finished` (decision 122): the first call reads up to
+ * the pause, the next up to whatever ends the run. One iterator stays open, so the reads are sequential.
+ */
+function pauser(handle: { events: AsyncIterable<RunEvent> }): () => Promise<RunEvent[]> {
+  const it = handle.events[Symbol.asyncIterator]();
+  return async () => {
+    const out: RunEvent[] = [];
+    for (;;) {
+      const next = await it.next();
+      if (next.done) return out;
+      out.push(next.value);
+      if (next.value.type === 'run.finished') return out;
+    }
+  };
+}
+const outcomeOf = (events: RunEvent[]): RunOutcome => (events.at(-1) as { outcome: RunOutcome }).outcome;
 const types = (events: RunEvent[]) => events.map((e) => e.type);
 const ref = (handle: { sessionId: string; runId: string }) => ({ sessionId: handle.sessionId, runId: handle.runId });
 
@@ -148,12 +169,12 @@ describe('run: hooks and approvals', () => {
     expect((await handle.outcome).status).toBe('completed');
   });
 
-  it('7. a destructive tool pauses the run as awaiting and keeps the writer claim', async () => {
+  it('7. a destructive tool pauses the run as awaiting, keeps the writer claim and waits on its own handle', async () => {
     const execute = vi.fn(() => 'r');
     const { agent, store } = build({ tools: [echoTool(execute, { effects: { destructive: true } })] });
     const handle = run({ agent, session: 's', input: 'x' });
-    const events = await collect(handle);
-    const outcome = await handle.outcome;
+    const events = await pauser(handle)();
+    const outcome = outcomeOf(events);
     expect(execute).not.toHaveBeenCalled();
     expect(types(events).slice(-4)).toEqual(['tool.proposed', 'approval.requested', 'run.paused', 'run.finished']);
     expect(outcome).toMatchObject({ status: 'awaiting', kind: 'approval', sessionId: 's', runId: handle.runId, steps: 1 });
@@ -163,15 +184,28 @@ describe('run: hooks and approvals', () => {
     expect(await store.runs.get(ref(handle))).toMatchObject({ status: 'awaiting', pendingRequestId: requestId });
     expect((await store.sessions.get({ sessionId: 's' }))?.activeWriterRunId).toBe(handle.runId);
     expect(handle.status()).toBe('awaiting');
-    await expect(handle.submit({ type: 'approve', requestId })).rejects.toMatchObject({ code: 'not_found' });
+
+    // The run answers its own pause (decision 122): a wrong requestId first, the real one after.
+    await expect(handle.submit({ type: 'approve', requestId: 'nope' })).rejects.toMatchObject({ code: 'not_found' });
+    expect(handle.status()).toBe('awaiting');
+    expect(execute).not.toHaveBeenCalled();
+    await handle.submit({ type: 'approve', requestId });
+    expect(await handle.outcome).toMatchObject({ status: 'completed', steps: 2 });
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(handle.status()).toBe('completed');
+    expect((await store.sessions.get({ sessionId: 's' }))?.activeWriterRunId).toBeUndefined();
+    expect(types(await collect(handle))).toEqual([
+      'run.started', 'model.started', 'model.completed', 'tool.proposed', 'approval.requested', 'run.paused', 'run.finished',
+      'approval.resolved', 'run.resumed', 'tool.started', 'tool.completed', 'model.started', 'model.completed', 'run.finished',
+    ]);
   });
 
   it('a tool that pauses for input leaves its step started and the run awaiting kind input', async () => {
     const questions = [{ id: 'color', question: 'Which color?', options: [{ label: 'red' }, { label: 'blue' }] }];
     const { agent, store } = build({ tools: [echoTool(() => pauseForInput({ questions }))] });
     const handle = run({ agent, session: 's', input: 'x' });
-    const events = await collect(handle);
-    const outcome = await handle.outcome;
+    const events = await pauser(handle)();
+    const outcome = outcomeOf(events);
     expect(types(events).slice(-5)).toEqual(['tool.proposed', 'tool.started', 'input.requested', 'run.paused', 'run.finished']);
     expect(outcome).toMatchObject({ status: 'awaiting', kind: 'input', sessionId: 's', runId: handle.runId, steps: 1 });
     const requestId = outcome.status === 'awaiting' ? outcome.requestId : '';
@@ -182,6 +216,31 @@ describe('run: hooks and approvals', () => {
     expect(steps[1]).toMatchObject({ kind: 'tool', status: 'started' });
     expect(steps[1] && 'endedAt' in steps[1]).toBe(false);
     expect(await store.runs.get(ref(handle))).toMatchObject({ status: 'awaiting', pendingRequestId: requestId, steps: 1, usage: { inputTokens: 1, outputTokens: 1 } });
+
+    // The same handle answers: the questions are completed with the answers and the model hears them.
+    const answers = { color: 'red' };
+    await handle.submit({ type: 'answer', requestId, answers });
+    expect(await handle.outcome).toMatchObject({ status: 'completed' });
+    expect(types(await collect(handle)).slice(-4)).toEqual(['tool.completed', 'model.started', 'model.completed', 'run.finished']);
+    expect((await store.runs.listSteps(ref(handle)))[1]).toMatchObject({ kind: 'tool', status: 'completed', original: { detail: { answers } } });
+  });
+
+  it('a batch of two calls where the first pauses: the approve runs it and the second follows in order', async () => {
+    const order: string[] = [];
+    const rm = createTool({ name: 'rm', description: 'rm', input: echoInput, effects: { destructive: true }, execute: (i) => { order.push(`rm:${(i as { text: string }).text}`); return 'r'; } });
+    const { agent, store } = build({
+      script: [{ toolCalls: [{ name: 'echo', input: { text: 'a' } }, { name: 'rm', input: { text: 'b' } }] }, { text: 'done' }],
+      tools: [echoTool((i) => { order.push(`echo:${(i as { text: string }).text}`); return 'e'; }), rm],
+    });
+    const handle = run({ agent, session: 's', input: 'x' });
+    const outcome = outcomeOf(await pauser(handle)());
+    if (outcome.status !== 'awaiting') throw new Error(outcome.status);
+    expect(order).toEqual(['echo:a']);
+
+    await handle.submit({ type: 'approve', requestId: outcome.requestId });
+    expect((await handle.outcome).status).toBe('completed');
+    expect(order).toEqual(['echo:a', 'rm:b']);
+    expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.role)).toEqual(['user', 'assistant', 'tool', 'tool', 'assistant']);
   });
 
   it('8. a remembered approval skips the pause', async () => {
@@ -267,6 +326,207 @@ describe('run: hooks and approvals', () => {
     const h2 = run({ agent: clash.agent, session: 's', input: 'x' });
     await collect(h2);
     expect(await h2.outcome).toMatchObject({ status: 'failed', error: { code: 'invalid_options', message: 'capability "dup" contributes a duplicate tool "echo"' } });
+  });
+});
+
+describe('run: a capability leaves out the tools it is told to (tools/02 task 04)', () => {
+  const at = (name: string, content: string) => createTool({ name, description: 'd', input: { type: 'object' }, execute: () => content });
+
+  it('drops the excluded name, so the agent tool of that name is the one that runs', async () => {
+    const { agent, model, store } = build({
+      script: [{ toolCalls: [{ name: 'write_file', input: {} }] }, { text: 'ok' }],
+      tools: [at('write_file', 'agent')],
+      capabilities: [{ id: 'files', exclude: ['write_file'], tools: () => [at('write_file', 'capability'), at('read_file', 'read')] }],
+    });
+    const handle = run({ agent, session: 's', input: 'x' });
+    await collect(handle);
+    expect((await handle.outcome).status).toBe('completed');
+    expect(model.requests[0]!.tools.map((t) => t.name)).toEqual(['write_file', 'read_file']);
+    expect((await store.runs.listSteps(ref(handle)))[1]).toMatchObject({ kind: 'tool', name: 'write_file', original: { content: 'agent' } });
+  });
+
+  it('still fails on a duplicate nobody excluded', async () => {
+    const { agent } = build({ tools: [at('write_file', 'agent')], capabilities: [{ id: 'files', tools: () => [at('write_file', 'capability')] }] });
+    const handle = run({ agent, session: 's', input: 'x' });
+    await collect(handle);
+    expect(await handle.outcome).toMatchObject({ status: 'failed', error: { code: 'invalid_options', message: 'capability "files" contributes a duplicate tool "write_file"' } });
+  });
+
+  it('counts defer.over over the tools that remain, not the ones it dropped', async () => {
+    const { agent, model } = build({
+      capabilities: [{ id: 'three', exclude: ['a'], defer: { over: 1 }, tools: () => [at('a', 'a'), at('b', 'b'), at('c', 'c')] }],
+    });
+    const handle = run({ agent, session: 's', input: 'x' });
+    await collect(handle);
+    expect(model.requests[0]!.tools.map((t) => t.name)).toEqual(['echo', 'b', 'load_tools']);
+    expect(model.requests[0]!.instructions).toContain('\n## tools\n');
+  });
+});
+
+describe('run: a run answers its own pause (decision 122)', () => {
+  const destructive = () => echoTool(undefined, { effects: { destructive: true } });
+
+  it('writes the request and the awaiting record before it announces them', async () => {
+    const store = createMemoryStore();
+    const atRequested: Promise<string | undefined>[] = [];
+    let handle!: RunHandle;
+    const { agent } = build({
+      store,
+      tools: [destructive()],
+      hooks: { onEvent: (event) => { if (event.type === 'approval.requested') atRequested.push(store.runs.get(ref(handle)).then((r) => r?.status)); } },
+    });
+    handle = run({ agent, session: 's', input: 'x' });
+    const outcome = outcomeOf(await pauser(handle)());
+    if (outcome.status !== 'awaiting') throw new Error(outcome.status);
+    // The observer read the record at the moment approval.requested was published.
+    expect(await Promise.all(atRequested)).toEqual(['awaiting']);
+    expect(await store.requests.get({ ...ref(handle), requestId: outcome.requestId })).toBeDefined();
+
+    await handle.submit({ type: 'approve', requestId: outcome.requestId });
+    expect((await handle.outcome).status).toBe('completed');
+  });
+
+  it('takes an approve submitted from inside an onEvent observer of approval.requested', async () => {
+    const seen: string[] = [];
+    let handle!: RunHandle;
+    const { agent } = build({
+      tools: [destructive()],
+      hooks: { onEvent: (event) => { if (event.type === 'approval.requested') { seen.push(event.requestId); void handle.submit({ type: 'approve', requestId: event.requestId }); } } },
+    });
+    handle = run({ agent, session: 's', input: 'x' });
+    const events = await collect(handle);
+    expect(await handle.outcome).toMatchObject({ status: 'completed' });
+    expect(seen).toHaveLength(1);
+    // The decision reaches the pause before it has finished announcing itself, so only the ends are fixed.
+    const t = types(events);
+    expect(t.slice(0, 5)).toEqual(['run.started', 'model.started', 'model.completed', 'tool.proposed', 'approval.requested']);
+    expect(t.slice(-5)).toEqual(['tool.started', 'tool.completed', 'model.started', 'model.completed', 'run.finished']);
+    expect(t).toContain('run.paused');
+    expect(t).toContain('approval.resolved');
+    expect(t).toContain('run.resumed');
+    expect(t.filter((x) => x === 'run.finished')).toHaveLength(2);
+  });
+
+  it('a second pause in the same run waits again on the same handle', async () => {
+    const { agent } = build({
+      script: [{ toolCalls: [{ name: 'echo', input: { text: 'a' } }] }, { toolCalls: [{ name: 'echo', input: { text: 'b' } }] }, { text: 'done' }],
+      tools: [destructive()],
+    });
+    const handle = run({ agent, session: 's', input: 'x' });
+    const wait = pauser(handle);
+    const first = outcomeOf(await wait());
+    if (first.status !== 'awaiting') throw new Error(first.status);
+    await handle.submit({ type: 'approve', requestId: first.requestId });
+
+    const second = outcomeOf(await wait());
+    expect(second).toMatchObject({ status: 'awaiting', kind: 'approval' });
+    expect(second.status === 'awaiting' && second.requestId).not.toBe(first.requestId);
+    await handle.submit({ type: 'approve', requestId: second.status === 'awaiting' ? second.requestId : '' });
+    expect((await handle.outcome).status).toBe('completed');
+  });
+
+  it('a steer while waiting lands after the command and before the next model step', async () => {
+    const { agent, model } = build({ tools: [destructive()] });
+    const handle = run({ agent, session: 's', input: 'x' });
+    const outcome = outcomeOf(await pauser(handle)());
+    if (outcome.status !== 'awaiting') throw new Error(outcome.status);
+    const steered = handle.submit({ type: 'steer', text: 'and say bye' });
+    await handle.submit({ type: 'approve', requestId: outcome.requestId });
+    expect((await handle.outcome).status).toBe('completed');
+    await steered;
+    expect(types(await collect(handle)).slice(-5)).toEqual(['tool.completed', 'run.steered', 'model.started', 'model.completed', 'run.finished']);
+    expect(textOf(model.requests[1]!.messages.at(-1)!)).toBe('and say bye');
+  });
+
+  it('a cancel while waiting denies the request with the stopped wording and ends the run cancelled', async () => {
+    const execute = vi.fn(() => 'r');
+    const { agent, store } = build({ tools: [echoTool(execute, { effects: { destructive: true } })] });
+    const handle = run({ agent, session: 's', input: 'x' });
+    const outcome = outcomeOf(await pauser(handle)());
+    if (outcome.status !== 'awaiting') throw new Error(outcome.status);
+
+    handle.cancel({ reason: 'later' });
+    expect(await handle.outcome).toMatchObject({ status: 'cancelled', reason: 'later', steps: 1 });
+    expect(execute).not.toHaveBeenCalled();
+    expect(types(await collect(handle)).slice(-3)).toEqual(['approval.resolved', 'run.resumed', 'run.finished']);
+    expect(await store.requests.get({ ...ref(handle), requestId: outcome.requestId })).toMatchObject({ resolvedAt: expect.any(String) });
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect(transcript.map((m) => [m.role, m.source])).toEqual([['user', 'input'], ['assistant', 'model'], ['tool', 'tool'], ['user', 'system']]);
+    expect(transcript[2]!.parts[0]).toMatchObject({ type: 'toolResult', isError: true, content: 'The turn was stopped' });
+  });
+
+  it('a resume() in this process of a run whose run() handle is waiting is refused writer_busy', async () => {
+    const { agent } = build({ tools: [destructive()] });
+    const handle = run({ agent, session: 's', input: 'x' });
+    const outcome = outcomeOf(await pauser(handle)());
+    if (outcome.status !== 'awaiting') throw new Error(outcome.status);
+
+    const other = resume({ agent, sessionId: 's', runId: handle.runId });
+    expect(await other.outcome).toMatchObject({ status: 'failed', error: { code: 'writer_busy' } });
+    // The handle that holds it still answers.
+    await handle.submit({ type: 'approve', requestId: outcome.requestId });
+    expect((await handle.outcome).status).toBe('completed');
+  });
+});
+
+describe('run: every handle ends with run.finished (decision 122)', () => {
+  it('a store whose sessions.get throws still ends the stream with run.finished', async () => {
+    const base = createMemoryStore();
+    const store: Store = { ...base, sessions: { ...base.sessions, get: async () => { throw new Error('store down'); } } };
+    const { agent } = build({ store });
+    const handle = run({ agent, session: 's', input: 'x' });
+    const events = await collect(handle);
+    expect(types(events)).toEqual(['run.finished']);
+    expect(outcomeOf(events)).toMatchObject({ status: 'failed', error: { code: 'internal', message: 'store down' }, steps: 0 });
+    expect(outcomeOf(events)).toEqual(await handle.outcome);
+    // The failure came before the run record existed, so the event is the handle's alone.
+    expect(await base.runs.get(ref(handle))).toBeUndefined();
+  });
+
+  it('a store whose runs.update throws ends the stream with the outcome the run settled on', async () => {
+    const base = createMemoryStore();
+    const store: Store = { ...base, runs: { ...base.runs, update: async () => { throw new Error('write refused'); } } };
+    const { agent } = build({ store });
+    const handle = run({ agent, session: 's', input: 'x' });
+    const events = await collect(handle);
+    expect(types(events).at(-1)).toBe('run.finished');
+    expect(outcomeOf(events)).toMatchObject({ status: 'failed', error: { code: 'internal', message: 'write refused' } });
+    expect(events.filter((e) => e.type === 'run.finished')).toHaveLength(1);
+    expect(types(await base.runs.listEvents(ref(handle)))).not.toContain('run.finished');
+  });
+
+  it('superseded ends the stream with run.finished and writes no finish for it', async () => {
+    const base = createMemoryStore();
+    let emitted = 0;
+    const store: Store = {
+      ...base,
+      runs: {
+        ...base.runs,
+        appendEvent: async (event) => {
+          emitted += 1;
+          // run.started, model.started and model.completed land; the tool proposal finds the log moved on.
+          if (emitted > 3) throw new StoreError({ code: 'seq_gap', message: `run ${event.runId}: expected seq ${event.seq - 1}, got ${event.seq}` });
+          await base.runs.appendEvent(event);
+        },
+      },
+    };
+    const { agent } = build({ store });
+    const handle = run({ agent, session: 's', input: 'x' });
+    const events = await collect(handle);
+    expect(types(events).at(-1)).toBe('run.finished');
+    expect(outcomeOf(events)).toMatchObject({ status: 'failed', error: { code: 'superseded' } });
+    expect(outcomeOf(events)).toEqual(await handle.outcome);
+    expect(types(await base.runs.listEvents(ref(handle)))).not.toContain('run.finished');
+  });
+
+  it('a completed run publishes exactly one run.finished, and it is the one the store holds', async () => {
+    const { agent, store } = build();
+    const handle = run({ agent, session: 's', input: 'x' });
+    const events = await collect(handle);
+    expect(events.filter((e) => e.type === 'run.finished')).toHaveLength(1);
+    const stored = await store.runs.listEvents(ref(handle));
+    expect(stored.filter((e) => e.type === 'run.finished')).toHaveLength(1);
+    expect(events).toHaveLength(stored.length);
   });
 });
 
@@ -432,7 +692,9 @@ describe('run: a caller-supplied messageId (cli/03 F2)', () => {
     const second = run({ agent, session: 's', input: 'twice', messageId: 'dup' });
     const events = await collect(second);
     expect(await second.outcome).toMatchObject({ status: 'failed', error: { code: 'already_exists' }, steps: 0 });
-    expect(events).toEqual([]);
+    // Nothing ran and nothing was written, so the one event is the run.finished the handle publishes itself.
+    expect(types(events)).toEqual(['run.finished']);
+    expect(outcomeOf(events)).toEqual(await second.outcome);
     expect(await store.runs.get(ref(second))).toBeUndefined();
     expect(await store.runs.list({ sessionId: 's' })).toHaveLength(1);
     expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.id)).toHaveLength(2);

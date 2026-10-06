@@ -1,4 +1,5 @@
 import type { RunEvent } from '../types/event.js';
+import type { RunOutcome } from '../types/outcome.js';
 import type { Denial } from '../types/store.js';
 import type { FakeStep } from '../types/testing.js';
 import type { Tool } from '../types/tool.js';
@@ -8,6 +9,7 @@ import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
 import { createAskUserTool } from '../tool/ask-user.js';
 import { createTool } from '../tool/create-tool.js';
+import { liveRuns } from './answer.js';
 import { resume } from './resume.js';
 import { run } from './run.js';
 
@@ -20,6 +22,30 @@ async function collect(handle: { events: AsyncIterable<RunEvent> }): Promise<Run
   const out: RunEvent[] = [];
   for await (const e of handle.events) out.push(e);
   return out;
+}
+
+/** Reads a handle's events up to its next `run.finished` (decision 122); a fresh handle reports the pause. */
+async function collectUntilPaused(handle: { events: AsyncIterable<RunEvent> }): Promise<RunEvent[]> {
+  const out: RunEvent[] = [];
+  for await (const e of handle.events) { out.push(e); if (e.type === 'run.finished') break; }
+  return out;
+}
+
+/**
+ * Runs a turn to its pause and stands in for the process that paused it having exited (decision 122), so the
+ * resume() in this process may reattach.
+ */
+async function pausedOutcome(handle: { events: AsyncIterable<RunEvent>; runId: string }): Promise<Extract<RunOutcome, { status: 'awaiting' }>> {
+  const outcome = lastOutcome(await collectUntilPaused(handle));
+  if (outcome.status !== 'awaiting') throw new Error(outcome.status);
+  liveRuns.delete(handle.runId);
+  return outcome;
+}
+
+function lastOutcome(events: RunEvent[]): RunOutcome {
+  const last = events.at(-1);
+  if (!last || last.type !== 'run.finished') throw new Error('the run did not finish');
+  return last.outcome;
 }
 
 describe('denials on the run record and the outcome (cli/03 F3)', () => {
@@ -83,9 +109,7 @@ describe('denials on the run record and the outcome (cli/03 F3)', () => {
     const model = createFakeModel({ script: [{ toolCalls: [{ name: 'rm', input: { text: 'x' }, callId: 'c-rm' }] }, { text: 'not removed then' }] });
     const agent = createAgent({ id: 'a', instructions: 'be brief', model, store, tools: [rm] });
     const paused = run({ agent, session: 's', input: 'remove x' });
-    await collect(paused);
-    const awaiting = await paused.outcome;
-    if (awaiting.status !== 'awaiting') throw new Error(awaiting.status);
+    const awaiting = await pausedOutcome(paused);
     expect(awaiting.denials).toEqual([]);
 
     const handle = resume({ agent, sessionId: 's', runId: paused.runId });
@@ -108,9 +132,7 @@ describe('denials on the run record and the outcome (cli/03 F3)', () => {
     const model = createFakeModel({ script: [{ toolCalls: [{ name: 'ask_user', input: { questions }, callId: 'c-ask' }] }, { text: 'fine' }] });
     const agent = createAgent({ id: 'a', instructions: 'be brief', model, store, tools: [ask] });
     const paused = run({ agent, session: 's', input: 'ask me' });
-    await collect(paused);
-    const awaiting = await paused.outcome;
-    if (awaiting.status !== 'awaiting') throw new Error(awaiting.status);
+    const awaiting = await pausedOutcome(paused);
 
     const handle = resume({ agent, sessionId: 's', runId: paused.runId });
     const done = collect(handle);
@@ -132,9 +154,7 @@ describe('denials on the run record and the outcome (cli/03 F3)', () => {
     const paused = createFakeModel({ script: [{ toolCalls: [{ name: 'nope', input: {}, callId: 'c-x' }, { name: 'rm', input: { text: 'y' }, callId: 'c-rm' }] }, { text: 'ok' }] });
     const pausing = createAgent({ id: 'b', instructions: 'be brief', model: paused, store, tools: [rm] });
     const first = run({ agent: pausing, session: 't', input: 'go' });
-    await collect(first);
-    const awaiting = await first.outcome;
-    if (awaiting.status !== 'awaiting') throw new Error(awaiting.status);
+    const awaiting = await pausedOutcome(first);
     const denial: Denial = { callId: 'c-x', name: 'nope', input: {}, reason: 'Unknown tool "nope"', by: 'invalid' };
     expect(awaiting.denials).toEqual([denial]);
     expect((await store.runs.get({ sessionId: 't', runId: first.runId }))?.denials).toEqual([denial]);

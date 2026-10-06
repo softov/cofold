@@ -1,7 +1,7 @@
 ---
 title: A run answers its own pause
 domain: agent
-status: planned
+status: built
 priority: high
 created: 2026-10-06
 revalidated: 2026-10-06
@@ -106,11 +106,11 @@ export function validateCommand(ctx: TurnContext, pending: PendingRequest, comma
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The wait for a command is shared](task-01-the-wait-for-a-command-is-shared.md) | todo | - |
-| [02 - The run waits at its pause on its own handle](task-02-the-run-waits-at-its-pause.md) | todo | 01 |
-| [03 - Every handle ends with run.finished](task-03-every-handle-ends-with-run-finished.md) | todo | 02 |
-| [04 - papo answers the handle it holds](task-04-papo-answers-the-handle-it-holds.md) | todo | 02, 03 |
-| [05 - The examples and the README](task-05-the-examples-and-the-readme.md) | todo | 02, 03 |
+| [01 - The wait for a command is shared](task-01-the-wait-for-a-command-is-shared.md) | done | - |
+| [02 - The run waits at its pause on its own handle](task-02-the-run-waits-at-its-pause.md) | done | 01 |
+| [03 - Every handle ends with run.finished](task-03-every-handle-ends-with-run-finished.md) | done | 02 |
+| [04 - papo answers the handle it holds](task-04-papo-answers-the-handle-it-holds.md) | done | 02, 03 |
+| [05 - The examples and the README](task-05-the-examples-and-the-readme.md) | done | 02, 03 |
 | [06 - ahpd drops its pause workarounds](task-06-ahpd-drops-its-pause-workarounds.md) | todo | 04, 05, a cofold release |
 
 ## Risks and tradeoffs
@@ -122,17 +122,18 @@ export function validateCommand(ctx: TurnContext, pending: PendingRequest, comma
 
 ## Resume state
 
-- **Done so far:** nothing.
-- **Next action:** [task-01-the-wait-for-a-command-is-shared.md](task-01-the-wait-for-a-command-is-shared.md).
+- **Done so far:** tasks 01-05 built; [implemented.md](implemented.md) and [deferred.md](deferred.md) written.
+- **Next action:** none in cofold. Task 06 is ahpd work after a cofold release; see [deferred.md](deferred.md).
+- **Resolved:** `packages/store-file/src/store.test.ts`'s "a session folder copied to another root resumes there" broke under this plan - a pause keeps its handle open, so `await first.outcome` never resolves, and the run stays in `liveRuns`, so a same-process `resume()` is refused `writer_busy`. Softov's answer was to fix the test: it now reads the pause off the events and models the second process with a fresh module registry, option (b) below, as `packages/papo/src/chat.test.ts`'s `otherProcess` does. The test's point is unchanged, and the workspace's `pnpm check` is clean. See [implemented.md](implemented.md).
 - **Open questions:** none.
-- **Watch out for:** `exactOptionalPropertyTypes` (conditional spreads, never `key: undefined`); `processCalls` must continue the same `calls` array after the command, not re-read the transcript, so the rest of the batch keeps its order; `settle` is no longer the pause's last step, so the steering queue must not be rejected at a pause.
+- **Watch out for:** `exactOptionalPropertyTypes` (conditional spreads, never `key: undefined`); `processCalls` must continue the same `calls` array after the command, not re-read the transcript, so the rest of the batch keeps its order; `settle` is no longer the pause's last step, so the steering queue must not be rejected at a pause; an observer that submits during `approval.requested` is a microtask ahead of the pause's own `run.paused`, so only the ordinary path has the strict order.
 
 ## Final verification checklist
 
-- [ ] A `run()` that pauses on an approval takes `approve` on the same handle and completes there; the tool runs once.
-- [ ] An answer submitted from an `onEvent` observer of `approval.requested` is taken.
-- [ ] Each of the four paths without a `run.finished` today ends its stream with one.
-- [ ] `examples/agents/pause-resume.ts` and `ask-user.ts` run.
-- [ ] papo: approve, deny, answer and cancel on a paused turn work in one process and after a restart.
-- [ ] `pnpm check` in cofold is clean.
-- [ ] `plans/index.md` updated.
+- [x] A `run()` that pauses on an approval takes `approve` on the same handle and completes there; the tool runs once.
+- [x] An answer submitted from an `onEvent` observer of `approval.requested` is taken.
+- [x] Each of the four paths without a `run.finished` today ends its stream with one.
+- [x] `examples/agents/pause-resume.ts` and `ask-user.ts` run.
+- [x] papo: approve, deny, answer and cancel on a paused turn work in one process and after a restart.
+- [x] `pnpm check` in cofold is clean - `pnpm typecheck` clean and `pnpm test` 937 of 937, after `@cofold/store-file`'s copied-folder test was fixed (see *Resume state*).
+- [x] `plans/index.md` updated.
