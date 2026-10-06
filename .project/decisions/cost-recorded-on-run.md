@@ -5,7 +5,7 @@ date: 2026-09-16
 refs:
   - code://packages/agents/src/types/store.ts#L38 - `RunRecord.usage`, where `cost?` goes
   - code://packages/agents/src/run/turn.ts#L128-L137 - `finishRun` writes usage and steps; cost goes with them
-  - code://packages/agents/src/run/resume.ts#L207-L222 - `countersOf`: paused from the record, dead from the step log
+  - code://packages/agents/src/run/resume.ts#L228-L252 - `countersOf`: paused from the record, dead from the step log
   - code://packages/papo/src/claude/chat.ts#L395-L398 - papo's Claude backend already sums input, cache read and cache creation into `inputTokens`
 ---
 

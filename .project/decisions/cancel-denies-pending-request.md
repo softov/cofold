@@ -3,10 +3,10 @@ title: 120 - A cancel on an awaiting run denies its pending request and finishes
 status: accepted
 date: 2026-09-16
 refs:
-  - code://packages/agents/src/run/handle.ts#L45-L60 - `submit(cancel)` aborts; `resume()`'s `waitForCommand` turns that into a detach (decision 86, p3, no file)
-  - code://packages/agents/src/run/resume.ts#L125-L133 - `onAbort`: `finishDetached(abortOutcome)`, the request stays open
-  - code://packages/papo/src/chat.ts#L281-L292 - papo denies the pending request itself because the harness would not
-  - code://ahpd/packages/agent-claude/src/session.ts#L2420-L2445 - ahpd's cancel: every pending confirmation settled `deny 'The turn was stopped'`, `interrupt()`, turn `cancelled`
+  - code://packages/agents/src/run/handle.ts#L46-L51 - `cancel()` and `submit({ type: 'cancel' })`, which abort the run
+  - code://packages/agents/src/run/resume.ts#L159-L167 - `onAbort` in `waitForCommand`: the abort answers the pending request as a deny through `apply`, also when the cancel came before the wait began
+  - code://packages/papo/src/chat.ts#L480-L495 - papo's `cancel`, which cancels the handle and leaves the deny to the harness
+  - code://ahpd/packages/agent-claude/src/session/turns.ts#L548-L561 - ahpd's cancel: every pending confirmation settled `deny 'The turn was stopped'`, `interrupt()`, turn `cancelled`
   - code://.project/plans/cli/01-papo/plan.md#L29 - cli/01 decision 6, the workaround this replaces
   - code://.project/plans/agent/01-harness-core-p5-streaming-context-usage/task-08-second-adapter.md - built there (cli/03 F6)
 ---
