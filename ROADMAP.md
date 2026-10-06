@@ -24,6 +24,8 @@ What is built works: `npm run check` is green, and the five example programs run
 
 - **Command aliases**, and a deprecation path (`deprecated: "use X"` that warns on stderr and hides from help).
 
+- **Shared turn separation.** papo and ahpd each cut a session into turns and each accumulate a live turn from its events, and the two cuts differ: ahpd makes one turn per user message for AHP, papo one per run for its blocks. The projections stay in each program ([decision 124](.project/decisions/turns-stay-in-each-program.md)); what could be shared is only the boundary, where one turn ends and the next starts, including the messages a compaction summary covers. Worth doing when a third program needs the same cut.
+
 - **i18n.** Not planned. Say so rather than half-doing it.
 
 ## Open questions
