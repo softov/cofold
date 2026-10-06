@@ -1,6 +1,6 @@
 ---
 title: The terminal asks before a remove
-status: implemented
+status: done
 depends: [task-01-the-declaration-says-what-it-does-to-what.md]
 layer: "terminal"
 refs:

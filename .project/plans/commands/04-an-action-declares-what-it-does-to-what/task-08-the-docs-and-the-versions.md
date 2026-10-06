@@ -1,6 +1,6 @@
 ---
 title: The docs and the versions
-status: implemented
+status: done
 depends: [task-02-the-reference-names-the-effect.md, task-04-an-openapi-operation-declares-its-effect.md, task-07-petshop-declares-its-pets.md, task-09-a-path-parameter-is-a-required-input.md]
 layer: "docs"
 refs:
@@ -39,3 +39,5 @@ The docs and each package README say what `effect` and `resource` mean and what 
 ## Resume
 
 Docs built 2026-10-06, awaiting review: `02-actions.md` (*What it does, to what*), `07-mcp.md` (*Hints from the effect*), `09-remote.md` (*Effect and resource*, and `x-cli` under *OpenAPI*), `01-getting-started.md` (`--yes`), and one paragraph in each of the four package READMEs. The versions are not bumped: they are chosen at release, as the plan says.
+
+Versions chosen 2026-10-06 by Softov (minor bumps): commands 0.3.0, mcp 0.3.0, remote 0.5.0, terminal 0.3.0, and config 0.3.1 with no code change, so its range moves to `@cofold/commands` ^0.3.0.

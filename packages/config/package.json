@@ -1,6 +1,6 @@
 {
   "name": "@cofold/config",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "description": "Layered configuration as a capability: explicit path over environment over project file over user file, each saying where a value came from.",
   "license": "MIT",

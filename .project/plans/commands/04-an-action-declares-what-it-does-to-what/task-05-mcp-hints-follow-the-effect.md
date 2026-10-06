@@ -1,6 +1,6 @@
 ---
 title: MCP hints follow the effect
-status: implemented
+status: done
 depends: [task-01-the-declaration-says-what-it-does-to-what.md]
 layer: "mcp"
 refs:

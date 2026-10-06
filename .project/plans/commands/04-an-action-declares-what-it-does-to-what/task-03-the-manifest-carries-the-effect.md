@@ -1,6 +1,6 @@
 ---
 title: The manifest carries the effect and the resource
-status: implemented
+status: done
 depends: [task-01-the-declaration-says-what-it-does-to-what.md]
 layer: "remote"
 refs:

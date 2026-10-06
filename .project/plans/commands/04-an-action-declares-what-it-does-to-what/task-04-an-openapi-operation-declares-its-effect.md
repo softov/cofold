@@ -1,6 +1,6 @@
 ---
 title: An OpenAPI operation declares its effect in x-cli
-status: implemented
+status: done
 depends: [task-03-the-manifest-carries-the-effect.md]
 layer: "remote"
 refs:

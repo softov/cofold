@@ -1,7 +1,7 @@
 ---
 title: A command typed without its required argument says which argument it needs
 domain: commands
-status: active
+status: built
 priority: medium
 created: 2026-09-29
 revalidated: 2026-09-29
@@ -48,7 +48,7 @@ No decision records of its own; the choices below are scope.
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The missing argument is named](task-01-the-missing-argument-is-named.md) | implemented | - |
+| [01 - The missing argument is named](task-01-the-missing-argument-is-named.md) | done | - |
 
 ## Risks and tradeoffs
 
@@ -56,8 +56,8 @@ No decision records of its own; the choices below are scope.
 
 ## Resume state
 
-- **Done so far:** task 01 implemented on 2026-10-06, awaiting Softov's review; nothing committed.
-- **Next action:** Softov reviews; then a `@cofold/terminal` release, which Softov validates before the tag.
+- **Done so far:** task 01 done 2026-10-06, reviewed by Softov; released in `@cofold/terminal` 0.3.0. See [implemented.md](implemented.md).
+- **Next action:** none; ahpd daemon 09 task 03 takes it.
 - **Open questions:** none.
 - **Watch out for:** the `Did you mean` for a real typo must stay as it is.
 

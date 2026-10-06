@@ -1,6 +1,6 @@
 {
   "name": "@cofold/terminal",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "The terminal rendering of a command registry: argv in, help, completion, output modes and exit codes out.",
   "license": "MIT",

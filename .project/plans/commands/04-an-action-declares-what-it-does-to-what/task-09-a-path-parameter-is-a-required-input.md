@@ -1,6 +1,6 @@
 ---
 title: A path parameter is a required input
-status: implemented
+status: done
 depends: []
 layer: "remote"
 refs:

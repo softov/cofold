@@ -1,6 +1,6 @@
 {
   "name": "@cofold/mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "Serve a command registry as MCP tools: over stdio with no dependencies, or Streamable HTTP through the official SDK.",
   "license": "MIT",

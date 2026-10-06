@@ -1,6 +1,6 @@
 ---
 title: The declaration says what it does to what
-status: implemented
+status: done
 depends: []
 layer: "commands"
 refs:

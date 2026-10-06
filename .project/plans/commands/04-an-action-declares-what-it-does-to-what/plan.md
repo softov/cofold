@@ -1,7 +1,7 @@
 ---
 title: An action declares what it does to what
 domain: commands
-status: active
+status: built
 priority: high
 created: 2026-10-06
 revalidated: 2026-10-06
@@ -123,15 +123,15 @@ export interface Resource {
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The declaration says what it does to what](task-01-the-declaration-says-what-it-does-to-what.md) | implemented | - |
-| [02 - The reference names the effect and the resource](task-02-the-reference-names-the-effect.md) | implemented | 01 |
-| [03 - The manifest carries the effect and the resource](task-03-the-manifest-carries-the-effect.md) | implemented | 01 |
-| [04 - An OpenAPI operation declares its effect in x-cli](task-04-an-openapi-operation-declares-its-effect.md) | implemented | 03 |
-| [05 - MCP hints follow the effect](task-05-mcp-hints-follow-the-effect.md) | implemented | 01 |
-| [06 - The terminal asks before a remove](task-06-the-terminal-asks-before-a-remove.md) | implemented | 01 |
-| [07 - petshop declares its pets](task-07-petshop-declares-its-pets.md) | implemented | 03, 05, 06 |
-| [08 - The docs and the versions](task-08-the-docs-and-the-versions.md) | implemented | 02, 04, 07, 09 |
-| [09 - A path parameter is a required input](task-09-a-path-parameter-is-a-required-input.md) | implemented | - |
+| [01 - The declaration says what it does to what](task-01-the-declaration-says-what-it-does-to-what.md) | done | - |
+| [02 - The reference names the effect and the resource](task-02-the-reference-names-the-effect.md) | done | 01 |
+| [03 - The manifest carries the effect and the resource](task-03-the-manifest-carries-the-effect.md) | done | 01 |
+| [04 - An OpenAPI operation declares its effect in x-cli](task-04-an-openapi-operation-declares-its-effect.md) | done | 03 |
+| [05 - MCP hints follow the effect](task-05-mcp-hints-follow-the-effect.md) | done | 01 |
+| [06 - The terminal asks before a remove](task-06-the-terminal-asks-before-a-remove.md) | done | 01 |
+| [07 - petshop declares its pets](task-07-petshop-declares-its-pets.md) | done | 03, 05, 06 |
+| [08 - The docs and the versions](task-08-the-docs-and-the-versions.md) | done | 02, 04, 07, 09 |
+| [09 - A path parameter is a required input](task-09-a-path-parameter-is-a-required-input.md) | done | - |
 
 ## Risks and tradeoffs
 
@@ -143,8 +143,8 @@ export interface Resource {
 
 ## Resume state
 
-- **Done so far:** tasks 01 to 09 implemented on 2026-10-06, awaiting Softov's review; nothing committed.
-- **Next action:** Softov reviews; tasks that pass move to `done`, then `implemented.md` and the close. The package versions are chosen at release.
+- **Done so far:** tasks 01 to 09 done 2026-10-06, reviewed by Softov; versions commands 0.3.0, mcp 0.3.0, remote 0.5.0, terminal 0.3.0, config 0.3.1. See [implemented.md](implemented.md).
+- **Next action:** none; ahpd takes it in its plan daemon 16.
 - **Open questions:** none.
 - **Watch out for:** `commandFor` copies fields by name, so a field not added there vanishes silently; `exactOptionalPropertyTypes` means `compact` or a conditional spread, never `effect: undefined`; vitest's stdin is not a TTY, so tests inject `confirm` rather than rely on the process.
 

@@ -1,6 +1,6 @@
 ---
 title: petshop declares its pets
-status: implemented
+status: done
 depends: [task-03-the-manifest-carries-the-effect.md, task-05-mcp-hints-follow-the-effect.md, task-06-the-terminal-asks-before-a-remove.md]
 layer: "examples"
 refs:
