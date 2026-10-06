@@ -1,5 +1,9 @@
 # @cofold/mcp
 
+[![npm](https://img.shields.io/npm/v/%40cofold%2Fmcp)](https://www.npmjs.com/package/@cofold/mcp)
+[![CI](https://github.com/softov/cofold/actions/workflows/ci.yml/badge.svg)](https://github.com/softov/cofold/actions/workflows/ci.yml)
+![license MIT](https://img.shields.io/badge/license-MIT-blue)
+
 **A command registry, read by an agent.**
 
 The same actions as MCP tools: `@cofold/mcp` builds the descriptors, `@cofold/mcp/stdio` serves them over stdio with no dependencies, and `@cofold/mcp/server` mounts Streamable HTTP through the official SDK, declared as an optional peer.

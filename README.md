@@ -2,8 +2,23 @@
 
 **Declare once. Run it anywhere: a terminal, an agent, a daemon.**
 
-[![license](https://img.shields.io/npm/l/@cofold/commands.svg)](LICENSE)
-[![node](https://img.shields.io/node/v/@cofold/commands.svg)](https://www.npmjs.com/package/@cofold/commands)
+[![CI](https://github.com/softov/cofold/actions/workflows/ci.yml/badge.svg)](https://github.com/softov/cofold/actions/workflows/ci.yml)
+[![@cofold/commands](https://img.shields.io/npm/v/%40cofold%2Fcommands?label=%40cofold%2Fcommands)](https://www.npmjs.com/package/@cofold/commands)
+[![@cofold/terminal](https://img.shields.io/npm/v/%40cofold%2Fterminal?label=%40cofold%2Fterminal)](https://www.npmjs.com/package/@cofold/terminal)
+[![@cofold/mcp](https://img.shields.io/npm/v/%40cofold%2Fmcp?label=%40cofold%2Fmcp)](https://www.npmjs.com/package/@cofold/mcp)
+[![@cofold/remote](https://img.shields.io/npm/v/%40cofold%2Fremote?label=%40cofold%2Fremote)](https://www.npmjs.com/package/@cofold/remote)
+[![@cofold/config](https://img.shields.io/npm/v/%40cofold%2Fconfig?label=%40cofold%2Fconfig)](https://www.npmjs.com/package/@cofold/config)
+[![@cofold/yaml](https://img.shields.io/npm/v/%40cofold%2Fyaml?label=%40cofold%2Fyaml)](https://www.npmjs.com/package/@cofold/yaml)
+[![@cofold/sdk](https://img.shields.io/npm/v/%40cofold%2Fsdk?label=%40cofold%2Fsdk)](https://www.npmjs.com/package/@cofold/sdk)
+![license MIT](https://img.shields.io/badge/license-MIT-blue)
+![node >=22](https://img.shields.io/badge/node-%3E%3D22-5fa04e)
+![runs on Node, Bun, Deno](https://img.shields.io/badge/runs%20on-Node%20%7C%20Bun%20%7C%20Deno-495057)
+![zero runtime dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
+
+[![@cofold/agents](https://img.shields.io/npm/v/%40cofold%2Fagents?label=%40cofold%2Fagents)](https://www.npmjs.com/package/@cofold/agents)
+[![@cofold/tools](https://img.shields.io/npm/v/%40cofold%2Ftools?label=%40cofold%2Ftools)](https://www.npmjs.com/package/@cofold/tools)
+[![@cofold/model-openai-compat](https://img.shields.io/npm/v/%40cofold%2Fmodel-openai-compat?label=%40cofold%2Fmodel-openai-compat)](https://www.npmjs.com/package/@cofold/model-openai-compat)
+[![@cofold/store-file](https://img.shields.io/npm/v/%40cofold%2Fstore-file?label=%40cofold%2Fstore-file)](https://www.npmjs.com/package/@cofold/store-file)
 
 cofold is one family of TypeScript packages, zero runtime dependencies each, that share a rule: a thing is declared once and every surface is a rendering of that declaration.
 For a command, the surfaces are the terminal, MCP, HTTP and a generated reference.

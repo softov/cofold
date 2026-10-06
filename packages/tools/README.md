@@ -1,5 +1,9 @@
 # @cofold/tools
 
+[![npm](https://img.shields.io/npm/v/%40cofold%2Ftools)](https://www.npmjs.com/package/@cofold/tools)
+[![CI](https://github.com/softov/cofold/actions/workflows/ci.yml/badge.svg)](https://github.com/softov/cofold/actions/workflows/ci.yml)
+![license MIT](https://img.shields.io/badge/license-MIT-blue)
+
 The tools every agent on `@cofold/agents` gets, as capabilities: files, shell, web and memory.
 Each capability is a `Capability` (its tools plus one instructions section), every tool is `createTool`, and nothing here is a second registry.
 Zero dependencies beyond `node:fs`, `node:path` and `node:child_process`.

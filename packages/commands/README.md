@@ -3,6 +3,7 @@
 **Declare a command once. Run it anywhere.**
 
 [![npm](https://img.shields.io/npm/v/@cofold/commands.svg)](https://www.npmjs.com/package/@cofold/commands)
+[![CI](https://github.com/softov/cofold/actions/workflows/ci.yml/badge.svg)](https://github.com/softov/cofold/actions/workflows/ci.yml)
 [![node](https://img.shields.io/node/v/@cofold/commands.svg)](https://www.npmjs.com/package/@cofold/commands)
 [![types](https://img.shields.io/npm/types/@cofold/commands.svg)](https://www.npmjs.com/package/@cofold/commands)
 [![dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#packages)

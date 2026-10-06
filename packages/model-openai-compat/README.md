@@ -1,5 +1,9 @@
 # @cofold/model-openai-compat
 
+[![npm](https://img.shields.io/npm/v/%40cofold%2Fmodel-openai-compat)](https://www.npmjs.com/package/@cofold/model-openai-compat)
+[![CI](https://github.com/softov/cofold/actions/workflows/ci.yml/badge.svg)](https://github.com/softov/cofold/actions/workflows/ci.yml)
+![license MIT](https://img.shields.io/badge/license-MIT-blue)
+
 Chat Completions adapter for `@cofold/agents`, streaming by default.
 `openaiCompatProvider({...})` returns a `ModelProvider` (catalog + adapter factory); `openaiCompat({...})` is the one-model shortcut.
 The target server is configuration only.

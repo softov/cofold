@@ -1,5 +1,8 @@
 # @cofold/papo
 
+[![CI](https://github.com/softov/cofold/actions/workflows/ci.yml/badge.svg)](https://github.com/softov/cofold/actions/workflows/ci.yml)
+![license MIT](https://img.shields.io/badge/license-MIT-blue)
+
 Talk to an agent that runs in this process.
 `papo` is a screen (the transcript, a composer, the block that asks before a destructive tool runs) and a shell (`papo say`, `papo approve`, `papo session list`) over the same conversations, kept on disk under `~/.cofold` per workspace.
 The agent reads and edits files, runs commands, fetches the web and keeps notes across sessions (`@cofold/tools`), and asks before anything destructive.

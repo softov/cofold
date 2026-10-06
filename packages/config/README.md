@@ -1,5 +1,9 @@
 # @cofold/config
 
+[![npm](https://img.shields.io/npm/v/%40cofold%2Fconfig)](https://www.npmjs.com/package/@cofold/config)
+[![CI](https://github.com/softov/cofold/actions/workflows/ci.yml/badge.svg)](https://github.com/softov/cofold/actions/workflows/ci.yml)
+![license MIT](https://img.shields.io/badge/license-MIT-blue)
+
 **Finding the configuration, not parsing it.**
 
 A capability that resolves `--config` over the environment over a project file over the user's config directory, each layer merging leaf by leaf, and says which file a value came from.

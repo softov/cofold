@@ -1,5 +1,9 @@
 # @cofold/store-file
 
+[![npm](https://img.shields.io/npm/v/%40cofold%2Fstore-file)](https://www.npmjs.com/package/@cofold/store-file)
+[![CI](https://github.com/softov/cofold/actions/workflows/ci.yml/badge.svg)](https://github.com/softov/cofold/actions/workflows/ci.yml)
+![license MIT](https://img.shields.io/badge/license-MIT-blue)
+
 The first durable `Store` for `@cofold/agents`: one folder per session, JSONL logs per run, a `writer.lock` with a heartbeat as the fence.
 Also `fileSkillSource`, the on-disk `SkillSource` for `skills()`.
 Zero dependencies beyond `node:fs`, `node:path`, `node:os`.

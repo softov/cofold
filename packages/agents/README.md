@@ -1,5 +1,9 @@
 # @cofold/agents
 
+[![npm](https://img.shields.io/npm/v/%40cofold%2Fagents)](https://www.npmjs.com/package/@cofold/agents)
+[![CI](https://github.com/softov/cofold/actions/workflows/ci.yml/badge.svg)](https://github.com/softov/cofold/actions/workflows/ci.yml)
+![license MIT](https://img.shields.io/badge/license-MIT-blue)
+
 Agent runtime: contracts, JSON Schema validation, `createTool`, `createAgent`, `run`, `resume`, `createAskUserTool`, `skills`, an in-memory `Store`, and a scripted fake model.
 Zero runtime dependencies.
 A model conducts a conversation, proposes tools, the runtime authorizes and executes them, one turn is a run.

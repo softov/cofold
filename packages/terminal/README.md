@@ -1,5 +1,9 @@
 # @cofold/terminal
 
+[![npm](https://img.shields.io/npm/v/%40cofold%2Fterminal)](https://www.npmjs.com/package/@cofold/terminal)
+[![CI](https://github.com/softov/cofold/actions/workflows/ci.yml/badge.svg)](https://github.com/softov/cofold/actions/workflows/ci.yml)
+![license MIT](https://img.shields.io/badge/license-MIT-blue)
+
 **The terminal rendering of a command registry.**
 
 argv in, one of three output shapes out, and nothing about what the commands mean: the standard global options, help derived from the declaration, completion asked of the running program, and an exit code taxonomy a script can switch on.
