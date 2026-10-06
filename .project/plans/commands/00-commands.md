@@ -18,4 +18,6 @@ The `commands` domain is the command framework: `@cofold/commands` (the declarat
 
 - [02 - A program chooses its configuration layers and names its project file](02-a-program-chooses-its-config-layers/plan.md), built.
 
-Next free number: `03`.
+- [03 - A command typed without its required argument says which argument it needs](03-a-missing-argument-is-named/plan.md), planned.
+
+Next free number: `04`.

@@ -20,6 +20,8 @@ What is built works: `npm run check` is green, and the five example programs run
 
 - **`--help` for a specific option**, pagination for long help, and terminal width awareness. All small.
 
+- **An OpenAPI document from a registry.** `cofold/remote` reads OpenAPI into a manifest; nothing writes one. A served registry could publish `openapi.json` beside its manifest, from the same `meta.http`, with `x-cli` carrying the pattern, the group, the effect and the resource.
+
 - **Command aliases**, and a deprecation path (`deprecated: "use X"` that warns on stderr and hides from help).
 
 - **i18n.** Not planned. Say so rather than half-doing it.
