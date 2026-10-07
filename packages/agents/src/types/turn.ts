@@ -5,7 +5,7 @@ import type { RunCommand } from './command.js';
 import type { Emitter } from './emitter.js';
 import type { RunEvent } from './event.js';
 import type { RunInfo } from './hooks.js';
-import type { ToolCallPart, ToolResultPart } from './message.js';
+import type { ImagePart, TextPart, ToolCallPart, ToolResultPart } from './message.js';
 import type { Usage } from './model.js';
 import type { RunOutcome, RunStatus } from './outcome.js';
 import type { RunHandle } from './run.js';
@@ -34,8 +34,8 @@ export interface ToolCallDeps {
   loaded: Set<string>;
 }
 
-/** One `submit({ type: 'steer' })` waiting for the loop; its promise settles once the text is in the transcript (decision 95). */
-export interface Steer { text: string; resolve: () => void; reject: (e: Error) => void }
+/** One `submit({ type: 'steer' })` waiting for the loop; its promise settles once the message is in the transcript (decision 95). */
+export interface Steer { text: string; parts?: (TextPart | ImagePart)[]; resolve: () => void; reject: (e: Error) => void }
 export type SteerQueue = Steer[];
 
 /** Everything the loop needs; built by run() for a fresh turn and by resume() from a stored run. */

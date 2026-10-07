@@ -1,7 +1,7 @@
 ---
 title: A steer carries image and text parts, not only a string
 domain: agent
-status: planned
+status: built
 priority: medium
 created: 2026-10-07
 revalidated: 2026-10-07
@@ -10,12 +10,13 @@ changes: []
 creates: []
 decisions: []
 refs:
-  - "[code://packages/agents/src/types/command.ts#L16](../../../../packages/agents/src/types/command.ts#L16) - the `steer` command, `text` only"
-  - "[code://packages/agents/src/types/turn.ts#L37-L38](../../../../packages/agents/src/types/turn.ts#L37-L38) - `Steer`, a queued steer with `text` only"
-  - "[code://packages/agents/src/run/steering.ts#L6-L22](../../../../packages/agents/src/run/steering.ts#L6-L22) - `enqueueSteer` and `drainSteering`, which builds a message of one text part"
-  - "[code://packages/agents/src/run/handle.ts#L61-L65](../../../../packages/agents/src/run/handle.ts#L61-L65) - `submit` passes `command.text` to the run"
-  - "[code://packages/agents/src/run/run.ts#L43](../../../../packages/agents/src/run/run.ts#L43) - `steer: (text) => enqueueSteer(...)`"
-  - "[code://packages/agents/src/types/run.ts#L14](../../../../packages/agents/src/types/run.ts#L14) - a run's `input` is `string | ContentPart[]`, which a steer does not match"
+  - "[code://packages/agents/src/types/command.ts#L20](../../../../packages/agents/src/types/command.ts#L20) - the `steer` command: `text` and the optional `parts`"
+  - "[code://packages/agents/src/types/turn.ts#L37-L38](../../../../packages/agents/src/types/turn.ts#L37-L38) - `Steer`, the queued steer with `text` and its `parts`"
+  - "[code://packages/agents/src/run/steering.ts#L6-L29](../../../../packages/agents/src/run/steering.ts#L6-L29) - `enqueueSteer`, `partsOf` and `drainSteering`: the queue and the message a steer becomes"
+  - "[code://packages/agents/src/run/handle.ts#L62-L66](../../../../packages/agents/src/run/handle.ts#L62-L66) - `submit` passes `command.text` and `command.parts` to the run"
+  - "[code://packages/agents/src/run/run.ts#L43](../../../../packages/agents/src/run/run.ts#L43) - `steer: (text, parts) => enqueueSteer(...)`"
+  - "[code://packages/agents/src/run/resume.ts#L54-L58](../../../../packages/agents/src/run/resume.ts#L54-L58) - the resumed handle's own `steer`, which enqueues the same way"
+  - "[code://packages/agents/src/types/run.ts#L14](../../../../packages/agents/src/types/run.ts#L14) - a run's `input` is `string | ContentPart[]`, the shape a steer now matches"
   - "file:///github/ahpd/.project/plans/plugin/36-a-cofold-turn-reads-its-attachments/plan.md - the ahpd plan that sends a steered message's attachments"
 ---
 
@@ -51,12 +52,13 @@ handle.submit({ type: 'steer', text, parts }) -> args.steer -> enqueueSteer -> d
 | --- | --- | --- |
 | A steer takes image and text parts | Softov, 2026-10-07, chose "cofold steer takes content" for ahpd plugin 36 | 01 |
 | The command keeps `text` and adds an optional `parts: (TextPart \| ImagePart)[]`; the message is the text part, if the text is not empty, then the parts | (defaulted: an existing caller that sends `text` is unchanged) | 01 |
+| papo's steer stays text-only in this plan; widening `say` and `queue` to carry parts waits for later | Softov, 2026-10-07, "change papo latter and sent nothing now" | 01 |
 
 ## Tasks
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - A steer carries its parts to the transcript](task-01-a-steer-carries-its-parts.md) | todo | - |
+| [01 - A steer carries its parts to the transcript](task-01-a-steer-carries-its-parts.md) | done | - |
 
 ## Risks and tradeoffs
 
@@ -64,14 +66,14 @@ handle.submit({ type: 'steer', text, parts }) -> args.steer -> enqueueSteer -> d
 
 ## Resume state
 
-- **Done so far:** nothing.
-- **Next action:** [task-01-a-steer-carries-its-parts.md](task-01-a-steer-carries-its-parts.md).
+- **Done so far:** task 01 implemented 2026-10-07; see [implemented.md](implemented.md).
+- **Next action:** none. Reviewed and closed on 2026-10-07.
 - **Open questions:** none.
-- **Watch out for:** papo holds a steer across a decision; the held steer must keep its parts.
+- **Watch out for:** `@cofold/agents` only: papo's steer stays text-only, so a held steer carries no parts; the message is the text part first, then the parts, with the text part left out only when `text` is empty and a part carries the message, so an empty text with an image gives a message with the image alone and an empty text with no parts gives the empty text message it always did.
 
 ## Final verification checklist
 
-- [ ] A test: a steer with an image part puts a message with that part in the transcript, and `run.steered` carries it.
-- [ ] A test: a steer with `text` only is unchanged.
-- [ ] The repo's typecheck and test commands pass.
-- [ ] `plans/index.md` updated.
+- [x] A test: a steer with an image part puts a message with that part in the transcript, and `run.steered` carries it.
+- [x] A test: a steer with `text` only is unchanged.
+- [x] The repo's typecheck and test commands pass.
+- [x] `plans/index.md` updated.

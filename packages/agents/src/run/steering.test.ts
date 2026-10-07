@@ -1,5 +1,6 @@
 import type { AgentOptions } from '../types/agent.js';
 import type { RunEvent } from '../types/event.js';
+import type { ImagePart } from '../types/message.js';
 import type { ModelAdapter } from '../types/model.js';
 import type { RunOutcome } from '../types/outcome.js';
 import type { RunHandle } from '../types/run.js';
@@ -22,6 +23,8 @@ function echoTool(execute?: ToolDefinition['execute'], over: Partial<ToolDefinit
 }
 
 const callEcho = (text = 'hi'): FakeStep => ({ toolCalls: [{ name: 'echo', input: { text } }] });
+
+const image: ImagePart = { type: 'image', mimeType: 'image/png', data: 'aGk=' };
 
 function build(opts: { script?: FakeStep[]; tools?: Tool<any, any>[]; model?: (fake: ModelAdapter) => ModelAdapter } & Omit<Partial<AgentOptions>, 'tools' | 'model'> = {}) {
   const { script, tools, model: wrap, ...rest } = opts;
@@ -177,5 +180,60 @@ describe('steering (decisions 95-96)', () => {
     expect(types(events).slice(-5)).toEqual(['tool.completed', 'run.steered', 'model.started', 'model.completed', 'run.finished']);
     expect((await store.sessions.listMessages({ sessionId: 's' })).map((m) => m.role)).toEqual(['user', 'assistant', 'tool', 'user', 'assistant']);
     expect(textOf(model.requests[1]!.messages.at(-1)!)).toBe('now summarize');
+  });
+
+  it('7. a steer with text and an image gives one message with both parts, and run.steered carries it', async () => {
+    let handle!: RunHandle;
+    let steered!: Promise<void>;
+    const { agent, store, model } = build({ tools: [echoTool(() => { steered = handle.submit({ type: 'steer', text: 'and look at this', parts: [image] }); return 'echo'; })] });
+    handle = run({ agent, session: 's', input: 'x' });
+    const events = await collect(handle);
+    await steered;
+    expect((await handle.outcome).status).toBe('completed');
+
+    const steer = events.find((e) => e.type === 'run.steered');
+    expect(steer && steer.type === 'run.steered' && steer.message.parts).toEqual([{ type: 'text', text: 'and look at this' }, image]);
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect(transcript[3]!.parts).toEqual([{ type: 'text', text: 'and look at this' }, image]);
+    // The model's next step sees the image too.
+    expect(model.requests[1]!.messages[3]!.parts).toEqual([{ type: 'text', text: 'and look at this' }, image]);
+  });
+
+  it('8. a steer with an empty text and one image gives a message with the image only', async () => {
+    let handle!: RunHandle;
+    let steered!: Promise<void>;
+    const { agent, store } = build({ tools: [echoTool(() => { steered = handle.submit({ type: 'steer', text: '', parts: [image] }); return 'echo'; })] });
+    handle = run({ agent, session: 's', input: 'x' });
+    await collect(handle);
+    await steered;
+
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect(transcript[3]!.parts).toEqual([image]);
+  });
+
+  it('9. a steer with a text only gives the message it always did', async () => {
+    let handle!: RunHandle;
+    let steered!: Promise<void>;
+    const { agent, store, model } = build({ tools: [echoTool(() => { steered = handle.submit({ type: 'steer', text: 'and say bye' }); return 'echo'; })] });
+    handle = run({ agent, session: 's', input: 'x' });
+    await collect(handle);
+    await steered;
+
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect(transcript[3]!.parts).toEqual([{ type: 'text', text: 'and say bye' }]);
+    expect(textOf(model.requests[1]!.messages[3]!)).toBe('and say bye');
+  });
+
+  it('10. a steer with an empty text and no parts gives the empty text part it always did', async () => {
+    let handle!: RunHandle;
+    let steered!: Promise<void>;
+    const { agent, store, model } = build({ tools: [echoTool(() => { steered = handle.submit({ type: 'steer', text: '' }); return 'echo'; })] });
+    handle = run({ agent, session: 's', input: 'x' });
+    await collect(handle);
+    await steered;
+
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect(transcript[3]!.parts).toEqual([{ type: 'text', text: '' }]);
+    expect(model.requests[1]!.messages[3]!.parts).toEqual([{ type: 'text', text: '' }]);
   });
 });

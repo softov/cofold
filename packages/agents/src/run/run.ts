@@ -40,7 +40,7 @@ export function start<Resources>(args: RunArgs<Resources>, compacting: boolean):
   let ctx: TurnContext | undefined;
   const handle = createRunHandle({
     runId, sessionId: args.session, agentId: args.agent.definition.id, abort,
-    steer: (text) => enqueueSteer(steering, text),
+    steer: (text, parts) => enqueueSteer(steering, text, parts),
     // The run answers its own pause (decision 122): the acceptor is installed by the loop's pause.
     onCommand: async (command) => {
       const accept = ctx?.accept;

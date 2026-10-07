@@ -1,10 +1,17 @@
-import type { Message } from '../types/message.js';
-import type { SteerQueue, TurnContext } from '../types/turn.js';
+import type { ContentPart, ImagePart, Message, TextPart } from '../types/message.js';
+import type { Steer, SteerQueue, TurnContext } from '../types/turn.js';
 import { AgentError } from '../errors.js';
 import { newId } from '../ids.js';
 
-export function enqueueSteer(queue: SteerQueue, text: string): Promise<void> {
-  return new Promise((resolve, reject) => queue.push({ text, resolve, reject }));
+export function enqueueSteer(queue: SteerQueue, text: string, parts?: (TextPart | ImagePart)[]): Promise<void> {
+  return new Promise((resolve, reject) => queue.push({ text, ...(parts !== undefined ? { parts } : {}), resolve, reject }));
+}
+
+/** The message a steer becomes: its parts, with the text part first unless the text is empty and the parts alone carry the message (decision 95). */
+function partsOf(steer: Steer): ContentPart[] {
+  const parts = steer.parts ?? [];
+  const text: TextPart[] = steer.text === '' && parts.length > 0 ? [] : [{ type: 'text', text: steer.text }];
+  return [...text, ...parts];
 }
 
 /**
@@ -16,7 +23,7 @@ export async function drainSteering(ctx: TurnContext): Promise<void> {
   const pending = ctx.steering.splice(0);
   if (pending.length === 0) return;
   const now = new Date().toISOString();
-  const messages: Message[] = pending.map((s) => ({ id: newId(), role: 'user', source: 'input', parts: [{ type: 'text', text: s.text }], createdAt: now }));
+  const messages: Message[] = pending.map((s) => ({ id: newId(), role: 'user', source: 'input', parts: partsOf(s), createdAt: now }));
   await ctx.store.sessions.appendMessages({ sessionId: ctx.sessionId, runId: ctx.runId, messages });
   for (const message of messages) await ctx.emit({ type: 'run.steered', message });
   for (const s of pending) s.resolve();

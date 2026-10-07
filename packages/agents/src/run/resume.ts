@@ -51,10 +51,10 @@ export function resume<Resources = Record<string, unknown>>(args: ResumeArgs<Res
     // A steer is not the resuming command (decision 95, amended 2026-09-17): while the request is open it waits
     // in the queue and drains at the first model step after the command, as a message typed under a permission
     // prompt does in the reference; a run that settles first (a cancel) rejects it `not_running`.
-    steer: async (text) => {
+    steer: async (text, parts) => {
       await ready;
       if (handle.status() !== 'running') throw new AgentError({ code: 'not_running', message: `run ${runId} is not running` });
-      return enqueueSteer(steering, text);
+      return enqueueSteer(steering, text, parts);
     },
     detach: () => { if (ctx !== undefined) void detachRun(ctx); },
   });

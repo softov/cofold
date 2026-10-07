@@ -33,7 +33,7 @@ Reference: [00-agent.md](agent/00-agent.md)
 | [04 - Policy rules: allow, ask or deny per tool call, recorded on the run](agent/04-policy-rules/plan.md) | high | built (2026-09-16; every task done) | 01 (p3) | papo rule lists (cli) |
 | [05 - A run answers its own pause](agent/05-a-run-answers-its-own-pause/plan.md) | high | built 2026-10-06 ([implemented.md](agent/05-a-run-answers-its-own-pause/implemented.md), [deferred.md](agent/05-a-run-answers-its-own-pause/deferred.md)) | - | ahpd drops its pause workarounds, after a cofold release |
 | [06 - Permission modes and reasoning effort are library data](agent/06-modes-and-effort-are-library-data/plan.md) | medium | built 2026-10-06 ([implemented.md](agent/06-modes-and-effort-are-library-data/implemented.md), [deferred.md](agent/06-modes-and-effort-are-library-data/deferred.md)) | - | ahpd drops its mode and effort copies, after a cofold release |
-| [07 - A steer carries image and text parts, not only a string](agent/07-a-steer-carries-images-and-text-parts/plan.md) | medium | planned 2026-10-07 | - | ahpd plugin 36, steered attachments |
+| [07 - A steer carries image and text parts, not only a string](agent/07-a-steer-carries-images-and-text-parts/plan.md) | medium | built 2026-10-07 ([implemented.md](agent/07-a-steer-carries-images-and-text-parts/implemented.md), [deferred.md](agent/07-a-steer-carries-images-and-text-parts/deferred.md)) | - | ahpd plugin 36, steered attachments |
 
 Next free number in `agent`: `08`.
 

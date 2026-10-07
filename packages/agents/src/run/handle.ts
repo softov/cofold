@@ -1,6 +1,7 @@
 import type { RunAbort } from '../types/abort.js';
 import type { RunCommand } from '../types/command.js';
 import type { RunEvent } from '../types/event.js';
+import type { ImagePart, TextPart } from '../types/message.js';
 import type { RunOutcome, RunStatus } from '../types/outcome.js';
 import type { InternalRunHandle } from '../types/turn.js';
 import { AgentError } from '../errors.js';
@@ -18,7 +19,7 @@ export function createRunHandle(args: {
   agentId: string;
   abort: RunAbort;
   /** Receives a steer for the running turn; resolves once it is in the transcript (decision 95). */
-  steer: (text: string) => Promise<void>;
+  steer: (text: string, parts?: (TextPart | ImagePart)[]) => Promise<void>;
   /** Receives approve | deny | answer across the run's own pause (decision 122); both run() and resume() install it. */
   onCommand: (command: Exclude<RunCommand, { type: 'cancel' | 'steer' }>) => Promise<void>;
   /** Leaves a paused run in this process without answering it (review fix 4); does nothing once the run is over. */
@@ -61,7 +62,7 @@ export function createRunHandle(args: {
       if (command.type === 'steer') {
         // While the run waits at a pause it is not closed, so a steer lands in its queue and drains after the command.
         if (closed) throw new AgentError({ code: 'not_running', message: `run ${args.runId} is not running` });
-        return args.steer(command.text);
+        return args.steer(command.text, command.parts);
       }
       // A closed handle has no request left to answer (review fix 3): the run is over, so the command is refused
       // here rather than reaching a loop that, or a context that, has already finished.
