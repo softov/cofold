@@ -301,9 +301,10 @@ interface Opened {
 
 /**
  * Opens the file at `resolved` for a write, as the file `resolved.real` names when the call starts. An existing file
- * opens `r+` and is refused unless the descriptor's device and inode are those of `resolved.real`; a missing one opens
- * `wx`, so a file or link put at the name first fails the open instead of being followed. `create` false refuses a
- * missing file.
+ * opens `r+` and is refused unless the descriptor's device and inode are those of `resolved.real`; a missing one is
+ * created at `resolved.real`, the target when `resolved.absolute` is a dangling link, with its folders made and the
+ * open `wx`, so a file or link put at that path first fails the open instead of being followed. `create` false
+ * refuses a missing file.
  */
 async function openChecked(resolved: ResolvedPath, shown: string, create: boolean): Promise<Opened> {
   const checked = await stat(resolved.real, { bigint: true }).catch((e: NodeJS.ErrnoException) => {
@@ -312,8 +313,8 @@ async function openChecked(resolved: ResolvedPath, shown: string, create: boolea
   });
   if (checked === undefined) {
     if (!create) throw new Error(`no file at ${shown}`);
-    await mkdir(dirname(resolved.absolute), { recursive: true });
-    const handle = await open(resolved.absolute, 'wx').catch((e: NodeJS.ErrnoException) => {
+    await mkdir(dirname(resolved.real), { recursive: true });
+    const handle = await open(resolved.real, 'wx').catch((e: NodeJS.ErrnoException) => {
       throw e.code === 'EEXIST' ? changed(shown) : e;
     });
     return { handle, created: true, stats: await statOrClose(handle) };

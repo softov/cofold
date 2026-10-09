@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { access, lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
@@ -162,6 +162,21 @@ describe('write_file and edit_file write the file they checked (plugin/22 task 0
     linkOnOpen('planted.txt', join(outside, 'planted.txt'));
     await expect(call('write_file', { path: 'planted.txt', content: 'x' })).rejects.toThrow('planted.txt changed after it was checked; nothing was written');
     expect(await missing(join(outside, 'planted.txt'))).toBe(true);
+  });
+
+  it('write_file through a dangling link creates its target and leaves the link in place', async () => {
+    await symlink(join(outside, 'deep', 'new.txt'), join(workspace, 'dl'));
+    expect(await missing(join(outside, 'deep', 'new.txt'))).toBe(true);
+    expect(await call('write_file', { path: 'dl', content: 'made' })).toBe('created dl (4 bytes)');
+    expect(await readFile(join(outside, 'deep', 'new.txt'), 'utf8')).toBe('made');
+    expect((await lstat(join(workspace, 'dl'))).isSymbolicLink()).toBe(true);
+  });
+
+  it('write_file through a dangling link refuses a file put at its target between the check and the open', async () => {
+    await symlink(join(outside, 'taken.txt'), join(workspace, 'dl-taken'));
+    opening.before = () => writeFile(join(outside, 'taken.txt'), 'theirs');
+    await expect(call('write_file', { path: 'dl-taken', content: 'x' })).rejects.toThrow('dl-taken changed after it was checked; nothing was written');
+    expect(await readFile(join(outside, 'taken.txt'), 'utf8')).toBe('theirs');
   });
 
   it('writes and edits through a link that stays inside the workspace, onto its target', async () => {
