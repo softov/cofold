@@ -62,6 +62,7 @@ Reference: none yet (this plan is the domain's first).
 | [01 - @cofold/tools: the tools every agent gets](tools/01-standard-tools/plan.md) | high | built (manual run owed) | agent/01 (p3), cli/01 | a useful papo |
 | [02 - Tools declare what they touch](tools/02-tools-declare-what-they-touch/plan.md) | high | built 2026-10-06 ([implemented.md](tools/02-tools-declare-what-they-touch/implemented.md), [deferred.md](tools/02-tools-declare-what-they-touch/deferred.md)) | - | ahpd drops its tool-name tables, after a cofold release |
 | [03 - The library takes the configuration object](tools/03-the-library-takes-the-config-object/plan.md) | high | built 2026-10-06 ([implemented.md](tools/03-the-library-takes-the-config-object/implemented.md), [deferred.md](tools/03-the-library-takes-the-config-object/deferred.md)) | - | ahpd adopts the config exports, after a cofold release |
+| [04 - A harness can turn off the rule that a write needs a read first](tools/04-a-harness-can-turn-off-read-before-write/plan.md) | high | planned 2026-10-09 | - | ahpd plugin 40 task 09, after a release Softov makes |
 
 Next free number in `tools`: `04`.
 
