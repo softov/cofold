@@ -28,6 +28,9 @@ export function createFileStore(options: FileStoreOptions): Store {
   const sessionDirs = new Map<string, string>();
   /** runDir -> last persisted seq; the writer fence makes it authoritative within a process (decision 82). */
   const lastSeq = new Map<string, number>();
+  /** Run key -> the run's last pending `appendEvent`; each call waits on the one before it, so one run's events write in call order. */
+  const appends = new Map<string, Promise<void>>();
+  const runKey = (sessionId: string, runId: string) => `${encodeSegment(sessionId)}/${encodeSegment(runId)}`;
   const now = () => new Date().toISOString();
 
   async function findSessionDir(sessionId: string): Promise<string | undefined> {
@@ -94,6 +97,23 @@ export function createFileStore(options: FileStoreOptions): Store {
     return holder;
   }
 
+  /** Appends one event after its `seq` check; `appendEvent` runs these one at a time per run. */
+  async function writeEvent(event: RunEvent): Promise<void> {
+    const { sessionDir, runDir } = await requireRunDir(event);
+    await lock.assertNotSuperseded(sessionDir, event.runId);
+    const file = join(runDir, 'events.jsonl');
+    let last = lastSeq.get(runDir);
+    if (last === undefined) {
+      const lines = await readLines<RunEvent>(file);
+      last = lines.length ? lines[lines.length - 1]!.seq : 0;
+    }
+    if (event.seq !== last + 1) {
+      throw new StoreError({ code: 'seq_gap', message: `run ${event.runId}: expected seq ${last + 1}, got ${event.seq}` });
+    }
+    await appendLine(file, event);
+    lastSeq.set(runDir, event.seq);
+  }
+
   return {
     sessions: {
       async get({ sessionId }) {
@@ -131,6 +151,8 @@ export function createFileStore(options: FileStoreOptions): Store {
         await rm(dir, { recursive: true, force: true });
         sessionDirs.delete(sessionId);
         for (const key of [...lastSeq.keys()]) if (key.startsWith(dir)) lastSeq.delete(key);
+        const prefix = `${encodeSegment(sessionId)}/`;
+        for (const key of [...appends.keys()]) if (key.startsWith(prefix)) appends.delete(key);
       },
       async truncate({ sessionId, throughMessageId }) {
         const dir = await requireSessionDir(sessionId);
@@ -142,6 +164,7 @@ export function createFileStore(options: FileStoreOptions): Store {
           const runDir = runDirOf(dir, runId);
           await rm(runDir, { recursive: true, force: true });
           for (const key of [...lastSeq.keys()]) if (key.startsWith(runDir)) lastSeq.delete(key);
+          appends.delete(runKey(sessionId, runId));
         }
         const record = await readJson<SessionRecord>(join(dir, 'session.json'));
         if (record) await writeAtomic(join(dir, 'session.json'), { ...record, updatedAt: now() });
@@ -252,19 +275,14 @@ export function createFileStore(options: FileStoreOptions): Store {
         await writeAtomic(join(runDir, 'run.json'), r);
       },
       async appendEvent(event) {
-        const { sessionDir, runDir } = await requireRunDir(event);
-        await lock.assertNotSuperseded(sessionDir, event.runId);
-        const file = join(runDir, 'events.jsonl');
-        let last = lastSeq.get(runDir);
-        if (last === undefined) {
-          const lines = await readLines<RunEvent>(file);
-          last = lines.length ? lines[lines.length - 1]!.seq : 0;
-        }
-        if (event.seq !== last + 1) {
-          throw new StoreError({ code: 'seq_gap', message: `run ${event.runId}: expected seq ${last + 1}, got ${event.seq}` });
-        }
-        await appendLine(file, event);
-        lastSeq.set(runDir, event.seq);
+        const key = runKey(event.sessionId, event.runId);
+        const previous = appends.get(key);
+        const write = () => writeEvent(event);
+        const current = previous ? previous.then(write, write) : write();
+        appends.set(key, current);
+        const settle = () => { if (appends.get(key) === current) appends.delete(key); };
+        current.then(settle, settle);
+        return current;
       },
       async listEvents({ sessionId, runId, afterSeq = 0 }) {
         const { runDir } = await requireRunDir({ sessionId, runId });

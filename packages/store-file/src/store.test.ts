@@ -159,6 +159,27 @@ describe('createFileStore layout', () => {
     expect((await fresh.runs.listEvents({ sessionId: 's', runId: 'r' })).map((e) => e.seq)).toEqual([1, 2, 3]);
   });
 
+  it('writes appends started together on one run in call order', async () => {
+    const store = createFileStore({ root: await tempRoot() });
+    await store.sessions.create({ sessionId: 's', agentId: 'a' });
+    await store.runs.create(runRecord('s', 'r'));
+    const ev = (seq: number) => ({ seq, runId: 'r', sessionId: 's', agentId: 'a', at: 'now', type: 'model.started' as const, step: seq });
+    await Promise.all([store.runs.appendEvent(ev(1)), store.runs.appendEvent(ev(2)), store.runs.appendEvent(ev(3))]);
+    expect((await store.runs.listEvents({ sessionId: 's', runId: 'r' })).map((e) => e.seq)).toEqual([1, 2, 3]);
+  });
+
+  it('runs the next append on a run after one fails', async () => {
+    const store = createFileStore({ root: await tempRoot() });
+    await store.sessions.create({ sessionId: 's', agentId: 'a' });
+    await store.runs.create(runRecord('s', 'r'));
+    const ev = (seq: number) => ({ seq, runId: 'r', sessionId: 's', agentId: 'a', at: 'now', type: 'model.started' as const, step: seq });
+    const failed = codeOf(store.runs.appendEvent(ev(2)));
+    const next = store.runs.appendEvent(ev(1));
+    expect(await failed).toBe('seq_gap');
+    await next;
+    expect((await store.runs.listEvents({ sessionId: 's', runId: 'r' })).map((e) => e.seq)).toEqual([1]);
+  });
+
   it('folds steps.jsonl by invocationId and caps oversized detail', async () => {
     const root = await tempRoot();
     const store = createFileStore({ root });

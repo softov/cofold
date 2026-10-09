@@ -34,6 +34,7 @@ Reference: [00-agent.md](agent/00-agent.md)
 | [05 - A run answers its own pause](agent/05-a-run-answers-its-own-pause/plan.md) | high | built 2026-10-06 ([implemented.md](agent/05-a-run-answers-its-own-pause/implemented.md), [deferred.md](agent/05-a-run-answers-its-own-pause/deferred.md)) | - | ahpd drops its pause workarounds, after a cofold release |
 | [06 - Permission modes and reasoning effort are library data](agent/06-modes-and-effort-are-library-data/plan.md) | medium | built 2026-10-06 ([implemented.md](agent/06-modes-and-effort-are-library-data/implemented.md), [deferred.md](agent/06-modes-and-effort-are-library-data/deferred.md)) | - | ahpd drops its mode and effort copies, after a cofold release |
 | [07 - A steer carries image and text parts, not only a string](agent/07-a-steer-carries-images-and-text-parts/plan.md) | medium | built 2026-10-07 ([implemented.md](agent/07-a-steer-carries-images-and-text-parts/implemented.md), [deferred.md](agent/07-a-steer-carries-images-and-text-parts/deferred.md)) | - | ahpd plugin 36, steered attachments |
+| [08 - A run's events are written in the order they were emitted](agent/08-a-runs-events-are-written-in-the-order-emitted/plan.md) | high | built 2026-10-09 ([implemented.md](agent/08-a-runs-events-are-written-in-the-order-emitted/implemented.md)) | - | ahpd plugin 40 task 02, after a store-file release |
 
 Next free number in `agent`: `08`.
 
