@@ -3,6 +3,8 @@ export interface FilesOptions {
   maxLines?: number;
   /** Rows `search_files` returns when `limit` is absent; default 200. */
   maxMatches?: number;
+  /** Refuse a write or an edit to a file the session did not read, or that changed since the read; default `true`. */
+  requireRead?: boolean;
 }
 
 export interface ReadFileInput {

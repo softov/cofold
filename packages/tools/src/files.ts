@@ -45,15 +45,16 @@ const rules = (workspace: string) => [
 export function files(options: FilesOptions = {}): Capability {
   const maxLines = options.maxLines ?? DEFAULT_MAX_LINES;
   const maxMatches = options.maxMatches ?? DEFAULT_MAX_MATCHES;
+  const requireRead = options.requireRead ?? true;
   return {
     id: 'files',
     instructions: (args) => rules(args.workspace ?? process.cwd()),
-    tools: (args) => fileTools({ workspace: args.workspace ?? process.cwd(), sessionId: args.sessionId, maxLines, maxMatches }),
+    tools: (args) => fileTools({ workspace: args.workspace ?? process.cwd(), sessionId: args.sessionId, maxLines, maxMatches, requireRead }),
   };
 }
 
-function fileTools(args: { workspace: string; sessionId: string; maxLines: number; maxMatches: number }): Tool<any, any>[] {
-  const { workspace, sessionId, maxLines, maxMatches } = args;
+function fileTools(args: { workspace: string; sessionId: string; maxLines: number; maxMatches: number; requireRead: boolean }): Tool<any, any>[] {
+  const { workspace, sessionId, maxLines, maxMatches, requireRead } = args;
   const at = (path: string) => resolveWithin(workspace, path).absolute;
   const shown = (absolute: string) => displayPath(workspace, absolute);
   /**
@@ -114,7 +115,7 @@ function fileTools(args: { workspace: string; sessionId: string; maxLines: numbe
       const resolved = resolveWithin(workspace, input.path);
       const opened = await openChecked(resolved, shown(resolved.absolute), true);
       try {
-        if (!opened.created) assertCurrent(sessionId, resolved.real, opened.stats, shown(resolved.absolute));
+        if (!opened.created && requireRead) assertCurrent(sessionId, resolved.real, opened.stats, shown(resolved.absolute));
         await writeThrough(opened.handle, input.content);
         remember(sessionId, resolved.real, await opened.handle.stat({ bigint: true }));
       } finally {
@@ -146,7 +147,7 @@ function fileTools(args: { workspace: string; sessionId: string; maxLines: numbe
       const absolute = resolved.absolute;
       const opened = await openChecked(resolved, shown(absolute), false);
       try {
-        assertCurrent(sessionId, resolved.real, opened.stats, shown(absolute));
+        if (requireRead) assertCurrent(sessionId, resolved.real, opened.stats, shown(absolute));
         const text = textOfBuffer(await opened.handle.readFile(), shown(absolute));
         const count = text.split(input.old).length - 1;
         if (count === 0) throw new Error(`old text not found in ${shown(absolute)}`);

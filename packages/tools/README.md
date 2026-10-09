@@ -25,7 +25,7 @@ An absent key is on, so `{}` is files, shell and web; `workspace` names the run'
 
 | Key | What it builds |
 | --- | --- |
-| `files` | `files()`, on when absent |
+| `files` | `files()`, on when absent; `{ requireRead: false }` turns the read-before-write refusal off |
 | `shell` | `shell()`, on when absent |
 | `web` | `web()` (`web_fetch` alone) when `true`, on when absent; `{ search }` adds `web_search` over those providers, asked in the key order the section writes them |
 | `memory` | `memory({ dir: memoryDir })`, on when absent but only when a `memoryDir` is given; no folder, no memory |
@@ -56,7 +56,7 @@ Reads go anywhere; `write_file` and `edit_file` declare `effects.destructive`, s
 | `list_files` | `pattern`, `cwd?` | One entry per line, folders with a trailing `/`; `node_modules` and `.git` skipped unless the pattern names them; 1000 entries at most. | the `pattern` |
 | `search_files` | `pattern` (regex), `path?`, `glob?`, `ignoreCase?`, `limit?` | `file:line:text` rows, 200 by default; binary files and files over 2 MiB skipped. | the `pattern` |
 
-`files({ maxLines, maxMatches })` changes the two defaults.
+`files({ maxLines, maxMatches, requireRead })` changes the two defaults and the read-before-write refusal.
 Every result is the text the model reads; every refusal is a thrown `Error` with one sentence, which the harness turns into an `isError` result.
 For `rules()` (`@cofold/agents`), a path tool names the resolved path as its subject: relative to the workspace with forward slashes when inside it (`src/a.ts`, whatever spelling the model used), absolute when outside, so a rule such as `{ tool: 'edit_file', match: 'src/*' }` cannot be slipped past with `./` or `..`.
 `write_file` and `edit_file` also declare `writes(input)`, that same absolute path, which is how a host's `acceptEdits` tells an edit from a call that has to ask; the three read-only tools declare none.
@@ -64,6 +64,7 @@ The subject is the string `tool.proposed` carries, so a host draws the path of a
 
 `write_file` and `edit_file` resolve the path again when they run and write through the descriptor they open: an existing file is refused unless the descriptor is the file at the real path `resolveWithin` returns (`real`), and a new file is opened exclusively, so a link put at the name in between fails the open instead of being followed.
 A write or an edit to an existing file is refused unless the session read it with `read_file` and its `mtime` and size have not changed since; the tool's own write counts as a read. The record is per session id and lasts the process, so after a restart a file is read again before it is changed. A new file needs no read.
+`requireRead: false` turns that refusal off, so a write replaces a file the session never read or one that changed under it; reads are still recorded, and the check that the descriptor opened is the file at the resolved path stays on either way.
 
 ## `shell()`
 

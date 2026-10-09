@@ -10,7 +10,8 @@ export interface SearchConfig {
 
 /** Which standard capabilities a run gets; a key left out is on (decision 123). */
 export interface ToolsConfig {
-  files?: boolean;
+  /** `true` is `files()`; an object carries its options. */
+  files?: boolean | { requireRead?: boolean };
   shell?: boolean;
   /** `true` is `web_fetch` alone; an object adds `web_search` over its providers. */
   web?: boolean | { search?: SearchConfig };

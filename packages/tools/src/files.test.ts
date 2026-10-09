@@ -245,6 +245,52 @@ describe('a write to a file changed since the session read it is refused (plugin
   });
 });
 
+describe('files({ requireRead: false }) turns the read-before-write refusal off', () => {
+  /** The file tools one run of `sessionId` gets, from `capability` (a fresh `files()` by default). */
+  const runOf = async (sessionId: string, capability = files()) => {
+    const list = await capability.tools!(argsFor(workspace, sessionId));
+    const byName = new Map(list.map((tool) => [tool.name, tool]));
+    return (name: string, input: unknown) => Promise.resolve(byName.get(name)!.execute(input, { ...ctx, sessionId }));
+  };
+  const off = () => files({ requireRead: false });
+  const notRead = (name: string) => `${name} was not read in this session; read it with read_file first`;
+
+  it('writes and edits a file the session never read', async () => {
+    await writeFile(join(workspace, 'optout-unread.txt'), 'one\n');
+    const run = await runOf('optout-unread', off());
+    expect(await run('edit_file', { path: 'optout-unread.txt', old: 'one', new: 'two' })).toBe('edited optout-unread.txt: 1 replacement');
+    expect(await run('write_file', { path: 'optout-unread.txt', content: 'three' })).toBe('replaced optout-unread.txt (5 bytes)');
+    expect(await readFile(join(workspace, 'optout-unread.txt'), 'utf8')).toBe('three');
+  });
+
+  it('writes and edits a file that changed from outside since the read', async () => {
+    await writeFile(join(workspace, 'optout-moved.txt'), 'before');
+    const run = await runOf('optout-moved', off());
+    await run('read_file', { path: 'optout-moved.txt' });
+    await writeFile(join(workspace, 'optout-moved.txt'), 'someone else wrote this');
+    expect(await run('edit_file', { path: 'optout-moved.txt', old: 'else', new: 'other' })).toBe('edited optout-moved.txt: 1 replacement');
+    await writeFile(join(workspace, 'optout-moved.txt'), 'written again');
+    expect(await run('write_file', { path: 'optout-moved.txt', content: 'x' })).toBe('replaced optout-moved.txt (1 bytes)');
+  });
+
+  it('still records what a read saw, so a later run with the rule on can write it', async () => {
+    await writeFile(join(workspace, 'optout-record.txt'), 'start');
+    await (await runOf('optout-record', off()))('read_file', { path: 'optout-record.txt' });
+    expect(await (await runOf('optout-record'))('write_file', { path: 'optout-record.txt', content: 'next' })).toBe('replaced optout-record.txt (4 bytes)');
+  });
+
+  it('refuses an unread file and a file the session read without the option, as before', async () => {
+    await writeFile(join(workspace, 'optout-default.txt'), 'kept');
+    const run = await runOf('optout-default');
+    await expect(run('write_file', { path: 'optout-default.txt', content: 'x' })).rejects.toThrow(notRead('optout-default.txt'));
+    await expect(run('edit_file', { path: 'optout-default.txt', old: 'kept', new: 'x' })).rejects.toThrow(notRead('optout-default.txt'));
+    await run('read_file', { path: 'optout-default.txt' });
+    await writeFile(join(workspace, 'optout-default.txt'), 'someone else wrote this');
+    await expect(run('write_file', { path: 'optout-default.txt', content: 'x' })).rejects.toThrow('optout-default.txt changed since it was read; read it again with read_file first');
+    expect(await readFile(join(workspace, 'optout-default.txt'), 'utf8')).toBe('someone else wrote this');
+  });
+});
+
 describe('resolveWithin', () => {
   it('resolves relative paths against the workspace and says when one leaves it', () => {
     const root = resolve(sep, 'ws');

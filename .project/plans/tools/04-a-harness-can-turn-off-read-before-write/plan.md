@@ -1,7 +1,7 @@
 ---
 title: A harness can turn off the rule that a write needs a read first
 domain: tools
-status: planned
+status: active
 priority: high
 created: 2026-10-09
 revalidated: 2026-10-09
@@ -62,7 +62,7 @@ tools config { files: { requireRead: false } } -> standardCapabilities -> files(
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The file tools take requireRead](task-01-the-file-tools-take-require-read.md) | todo | - |
+| [01 - The file tools take requireRead](task-01-the-file-tools-take-require-read.md) | done | - |
 | [02 - The change is tested against ahpd before any release](task-02-release-tested-against-ahpd.md) | todo | 01 |
 
 ## Risks and tradeoffs
@@ -72,8 +72,8 @@ tools config { files: { requireRead: false } } -> standardCapabilities -> files(
 
 ## Resume state
 
-- **Done so far:** nothing; planned 2026-10-09.
-- **Next action:** Softov reads this plan; then [task-01-the-file-tools-take-require-read.md](task-01-the-file-tools-take-require-read.md).
+- **Done so far:** task 01 done 2026-10-09, `pnpm check` green; nothing released.
+- **Next action:** [task-02-release-tested-against-ahpd.md](task-02-release-tested-against-ahpd.md), against ahpd plugin/40 tasks 01-08 with a packed tarball; the release follows it.
 - **Open questions:** none.
 - **Watch out for:** the re-check after open is a separate rule, from ahpd plugin 22 task 02; do not turn it off with this option.
 

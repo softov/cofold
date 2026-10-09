@@ -13,7 +13,16 @@ import { duckduckgo } from './search/duckduckgo.js';
 export const TOOLS_SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
-    files: { type: 'boolean' },
+    files: {
+      anyOf: [
+        { type: 'boolean' },
+        {
+          type: 'object',
+          properties: { requireRead: { type: 'boolean' } },
+          additionalProperties: false,
+        },
+      ],
+    },
     shell: { type: 'boolean' },
     web: {
       anyOf: [
@@ -50,7 +59,7 @@ export const TOOLS_SCHEMA: JsonSchema = {
  */
 export function standardCapabilities(config: ToolsConfig, args: { workspace: string; memoryDir?: string }): Capability[] {
   return [
-    ...(config.files !== false ? [files()] : []),
+    ...(config.files !== false ? [files(config.files === true ? undefined : config.files)] : []),
     ...(config.shell !== false ? [shell()] : []),
     ...(config.web !== false ? [web({ search: searchProviders(config.web === true ? undefined : config.web?.search) })] : []),
     ...(config.memory !== false && args.memoryDir !== undefined ? [memory({ dir: args.memoryDir })] : []),
