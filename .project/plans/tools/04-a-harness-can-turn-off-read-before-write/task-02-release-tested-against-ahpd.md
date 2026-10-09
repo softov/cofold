@@ -1,6 +1,6 @@
 ---
 title: The change is tested against ahpd before any release
-status: todo
+status: done
 depends: [task-01-the-file-tools-take-require-read.md]
 layer: "tools"
 refs:
@@ -29,4 +29,6 @@ The version and the release are Softov's; this task changes neither.
 
 ## Resume
 
-- ahpd plugin 40 tasks 01-08 come first; its task 09 takes the release Softov makes.
+- ahpd plugin 40 tasks 01-08 passed against packed tarballs of `b904cd1`.
+- Softov released `@cofold/tools` 0.4.0 and `@cofold/store-file` 0.2.1 at `release-2026-10-09-2`.
+- ahpd main `9c5491e` runs on the published 0.4.0, and its full suite passes 4648 tests.

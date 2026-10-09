@@ -1,7 +1,7 @@
 ---
 title: A harness can turn off the rule that a write needs a read first
 domain: tools
-status: active
+status: built
 priority: high
 created: 2026-10-09
 revalidated: 2026-10-09
@@ -63,7 +63,7 @@ tools config { files: { requireRead: false } } -> standardCapabilities -> files(
 | Task | Status | Depends on |
 | --- | --- | --- |
 | [01 - The file tools take requireRead](task-01-the-file-tools-take-require-read.md) | done | - |
-| [02 - The change is tested against ahpd before any release](task-02-release-tested-against-ahpd.md) | todo | 01 |
+| [02 - The change is tested against ahpd before any release](task-02-release-tested-against-ahpd.md) | done | 01 |
 
 ## Risks and tradeoffs
 
@@ -72,15 +72,15 @@ tools config { files: { requireRead: false } } -> standardCapabilities -> files(
 
 ## Resume state
 
-- **Done so far:** task 01 done 2026-10-09, `pnpm check` green; nothing released.
-- **Next action:** [task-02-release-tested-against-ahpd.md](task-02-release-tested-against-ahpd.md), against ahpd plugin/40 tasks 01-08 with a packed tarball; the release follows it.
+- **Done so far:** tasks 01 and 02; released in `@cofold/tools` 0.4.0.
+- **Next action:** none; see [implemented.md](implemented.md).
 - **Open questions:** none.
 - **Watch out for:** the re-check after open is a separate rule, from ahpd plugin 22 task 02; do not turn it off with this option.
 
 ## Final verification checklist
 
-- [ ] A write to an unread file succeeds with `requireRead: false`, and is refused without it.
-- [ ] A `tools` config with `files: { requireRead: false }` passes `TOOLS_SCHEMA`.
-- [ ] `files: { requireRead: 1 }` and `files: { other: true }` fail `TOOLS_SCHEMA`.
-- [ ] ahpd's agent-cofold suite passes against the packed package.
-- [ ] `plans/index.md` updated.
+- [x] A write to an unread file succeeds with `requireRead: false`, and is refused without it.
+- [x] A `tools` config with `files: { requireRead: false }` passes `TOOLS_SCHEMA`.
+- [x] `files: { requireRead: 1 }` and `files: { other: true }` fail `TOOLS_SCHEMA`.
+- [x] ahpd's agent-cofold suite passes against the packed package.
+- [x] `plans/index.md` updated.
