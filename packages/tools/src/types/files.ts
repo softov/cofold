@@ -50,6 +50,8 @@ export interface SearchFilesInput {
 export interface ResolvedPath {
   /** Absolute and normalized. */
   absolute: string;
+  /** Where `absolute` lands on disk now: links followed, and a missing tail appended to its nearest existing ancestor. */
+  real: string;
   /** The workspace itself, or under it. */
   inside: boolean;
 }

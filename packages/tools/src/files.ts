@@ -1,9 +1,10 @@
-import { glob, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
-import type { Dirent } from 'node:fs';
+import { glob, mkdir, open, readFile, stat } from 'node:fs/promises';
+import type { FileHandle } from 'node:fs/promises';
+import type { BigIntStats, Dirent } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { Capability, Tool } from '@cofold/agents';
 import { createTool } from '@cofold/agents';
-import type { EditFileInput, FilesOptions, ListFilesInput, ReadFileInput, SearchFilesInput, WriteFileInput } from './types/files.js';
+import type { EditFileInput, FilesOptions, ListFilesInput, ReadFileInput, ResolvedPath, SearchFilesInput, WriteFileInput } from './types/files.js';
 import { displayPath, resolveWithin } from './paths.js';
 
 const DEFAULT_MAX_LINES = 2000;
@@ -16,6 +17,19 @@ const MAX_SEARCHED_BYTES = 2 * 1024 * 1024;
 /** Entries `list_files` returns before it stops. */
 const MAX_ENTRIES = 1000;
 const SKIPPED = new Set(['node_modules', '.git']);
+
+/**
+ * What each session last saw of a file, by session id and then real path: the `mtime` in nanoseconds and the size
+ * that `read_file`, or the session's own write, left. It lasts the process; a session the map does not hold has read
+ * nothing.
+ */
+const seen = new Map<string, Map<string, Seen>>();
+
+/** A file as a session last saw it. */
+interface Seen {
+  mtimeNs: bigint;
+  size: bigint;
+}
 
 const rules = (workspace: string) => [
   `Relative paths resolve against the workspace, ${workspace}. Reads may go anywhere; writes outside the workspace ask first.`,
@@ -34,12 +48,12 @@ export function files(options: FilesOptions = {}): Capability {
   return {
     id: 'files',
     instructions: (args) => rules(args.workspace ?? process.cwd()),
-    tools: (args) => fileTools({ workspace: args.workspace ?? process.cwd(), maxLines, maxMatches }),
+    tools: (args) => fileTools({ workspace: args.workspace ?? process.cwd(), sessionId: args.sessionId, maxLines, maxMatches }),
   };
 }
 
-function fileTools(args: { workspace: string; maxLines: number; maxMatches: number }): Tool<any, any>[] {
-  const { workspace, maxLines, maxMatches } = args;
+function fileTools(args: { workspace: string; sessionId: string; maxLines: number; maxMatches: number }): Tool<any, any>[] {
+  const { workspace, sessionId, maxLines, maxMatches } = args;
   const at = (path: string) => resolveWithin(workspace, path).absolute;
   const shown = (absolute: string) => displayPath(workspace, absolute);
   /**
@@ -65,8 +79,9 @@ function fileTools(args: { workspace: string; maxLines: number; maxMatches: numb
     effects: { reads: true },
     subject: (input) => subject(input.path),
     execute: async (input) => {
-      const absolute = at(input.path);
-      const text = await readText(absolute, shown(absolute));
+      const resolved = resolveWithin(workspace, input.path);
+      const absolute = resolved.absolute;
+      const text = await readText(resolved, shown(absolute), sessionId);
       if (text === '') return `${shown(absolute)} is empty`;
       const lines = text.split('\n');
       if (lines.at(-1) === '') lines.pop();
@@ -96,11 +111,16 @@ function fileTools(args: { workspace: string; maxLines: number; maxMatches: numb
     subject: (input) => subject(input.path),
     writes: (input) => at(input.path),
     execute: async (input) => {
-      const absolute = at(input.path);
-      const existed = await exists(absolute);
-      await mkdir(dirname(absolute), { recursive: true });
-      await writeFile(absolute, input.content, 'utf8');
-      return `${existed ? 'replaced' : 'created'} ${shown(absolute)} (${Buffer.byteLength(input.content)} bytes)`;
+      const resolved = resolveWithin(workspace, input.path);
+      const opened = await openChecked(resolved, shown(resolved.absolute), true);
+      try {
+        if (!opened.created) assertCurrent(sessionId, resolved.real, opened.stats, shown(resolved.absolute));
+        await writeThrough(opened.handle, input.content);
+        remember(sessionId, resolved.real, await opened.handle.stat({ bigint: true }));
+      } finally {
+        await opened.handle.close();
+      }
+      return `${opened.created ? 'created' : 'replaced'} ${shown(resolved.absolute)} (${Buffer.byteLength(input.content)} bytes)`;
     },
   });
 
@@ -122,14 +142,22 @@ function fileTools(args: { workspace: string; maxLines: number; maxMatches: numb
     subject: (input) => subject(input.path),
     writes: (input) => at(input.path),
     execute: async (input) => {
-      const absolute = at(input.path);
-      const text = await readText(absolute, shown(absolute));
-      const count = text.split(input.old).length - 1;
-      if (count === 0) throw new Error(`old text not found in ${shown(absolute)}`);
-      if (count > 1 && !input.all) throw new Error(`old text occurs ${count} times in ${shown(absolute)}; add context to make it unique, or pass all: true`);
-      const next = input.all ? text.replaceAll(input.old, input.new) : text.replace(input.old, () => input.new);
-      await writeFile(absolute, next, 'utf8');
-      return `edited ${shown(absolute)}: ${count} replacement${count === 1 ? '' : 's'}`;
+      const resolved = resolveWithin(workspace, input.path);
+      const absolute = resolved.absolute;
+      const opened = await openChecked(resolved, shown(absolute), false);
+      try {
+        assertCurrent(sessionId, resolved.real, opened.stats, shown(absolute));
+        const text = textOfBuffer(await opened.handle.readFile(), shown(absolute));
+        const count = text.split(input.old).length - 1;
+        if (count === 0) throw new Error(`old text not found in ${shown(absolute)}`);
+        if (count > 1 && !input.all) throw new Error(`old text occurs ${count} times in ${shown(absolute)}; add context to make it unique, or pass all: true`);
+        const next = input.all ? text.replaceAll(input.old, input.new) : text.replace(input.old, () => input.new);
+        await writeThrough(opened.handle, next);
+        remember(sessionId, resolved.real, await opened.handle.stat({ bigint: true }));
+        return `edited ${shown(absolute)}: ${count} replacement${count === 1 ? '' : 's'}`;
+      } finally {
+        await opened.handle.close();
+      }
     },
   });
 
@@ -224,14 +252,98 @@ async function* filesUnder(root: string, pattern: string | undefined): AsyncGene
   }
 }
 
-async function readText(absolute: string, shown: string): Promise<string> {
-  const buffer = await readFile(absolute).catch((e: NodeJS.ErrnoException) => {
+/** The text of the file at `resolved`, recorded as what `sessionId` last saw of it. */
+async function readText(resolved: ResolvedPath, shown: string, sessionId: string): Promise<string> {
+  const refused = (e: NodeJS.ErrnoException) => {
     if (e.code === 'ENOENT') throw new Error(`no file at ${shown}`);
     if (e.code === 'EISDIR') throw new Error(`${shown} is a folder; use list_files`);
     throw e;
-  });
+  };
+  const handle = await open(resolved.absolute, 'r').catch(refused);
+  try {
+    const stats = await handle.stat({ bigint: true });
+    const text = textOfBuffer(await handle.readFile().catch(refused), shown);
+    remember(sessionId, resolved.real, stats);
+    return text;
+  } finally {
+    await handle.close();
+  }
+}
+
+/** Refuses a write to a file `sessionId` never read, or whose `mtime` or size moved since it last saw it. */
+function assertCurrent(sessionId: string, real: string, stats: BigIntStats, shown: string): void {
+  const last = seen.get(sessionId)?.get(real);
+  if (last === undefined) throw new Error(`${shown} was not read in this session; read it with read_file first`);
+  if (last.mtimeNs !== stats.mtimeNs || last.size !== stats.size) throw new Error(`${shown} changed since it was read; read it again with read_file first`);
+}
+
+/** Records `stats` as what `sessionId` last saw of the file at `real`. */
+function remember(sessionId: string, real: string, { mtimeNs, size }: BigIntStats): void {
+  let files = seen.get(sessionId);
+  if (files === undefined) seen.set(sessionId, files = new Map());
+  files.set(real, { mtimeNs, size });
+}
+
+/** A file's bytes as the text the tools work on: refused when binary, line ends as `\n`. */
+function textOfBuffer(buffer: Buffer, shown: string): string {
   if (isBinary(buffer)) throw new Error(`${shown} is binary`);
   return buffer.toString('utf8').replaceAll('\r\n', '\n');
+}
+
+/** A file opened for a write, with what its descriptor says it is. */
+interface Opened {
+  handle: FileHandle;
+  /** The open made the file. */
+  created: boolean;
+  stats: BigIntStats;
+}
+
+/**
+ * Opens the file at `resolved` for a write, as the file `resolved.real` names when the call starts. An existing file
+ * opens `r+` and is refused unless the descriptor's device and inode are those of `resolved.real`; a missing one opens
+ * `wx`, so a file or link put at the name first fails the open instead of being followed. `create` false refuses a
+ * missing file.
+ */
+async function openChecked(resolved: ResolvedPath, shown: string, create: boolean): Promise<Opened> {
+  const checked = await stat(resolved.real, { bigint: true }).catch((e: NodeJS.ErrnoException) => {
+    if (e.code === 'ENOENT') return undefined;
+    throw e;
+  });
+  if (checked === undefined) {
+    if (!create) throw new Error(`no file at ${shown}`);
+    await mkdir(dirname(resolved.absolute), { recursive: true });
+    const handle = await open(resolved.absolute, 'wx').catch((e: NodeJS.ErrnoException) => {
+      throw e.code === 'EEXIST' ? changed(shown) : e;
+    });
+    return { handle, created: true, stats: await statOrClose(handle) };
+  }
+  if (checked.isDirectory()) throw new Error(`${shown} is a folder; use list_files`);
+  const handle = await open(resolved.absolute, 'r+').catch((e: NodeJS.ErrnoException) => {
+    throw e.code === 'ENOENT' ? changed(shown) : e;
+  });
+  const stats = await statOrClose(handle);
+  if (stats.dev !== checked.dev || stats.ino !== checked.ino) {
+    await handle.close();
+    throw changed(shown);
+  }
+  return { handle, created: false, stats };
+}
+
+async function statOrClose(handle: FileHandle): Promise<BigIntStats> {
+  try { return await handle.stat({ bigint: true }); }
+  catch (e) { await handle.close(); throw e; }
+}
+
+function changed(shown: string): Error {
+  return new Error(`${shown} changed after it was checked; nothing was written`);
+}
+
+/** Replaces the whole content of the file open at `handle` with `text`. */
+async function writeThrough(handle: FileHandle, text: string): Promise<void> {
+  const bytes = Buffer.from(text, 'utf8');
+  let done = 0;
+  while (done < bytes.length) done += (await handle.write(bytes, done, bytes.length - done, done)).bytesWritten;
+  await handle.truncate(bytes.length);
 }
 
 /** The text of a searchable file; undefined when it is binary or too large. */
@@ -244,10 +356,6 @@ async function textOf(absolute: string): Promise<string | undefined> {
 
 function isBinary(buffer: Buffer): boolean {
   return buffer.subarray(0, 8192).includes(0);
-}
-
-async function exists(absolute: string): Promise<boolean> {
-  return (await stat(absolute).catch(() => undefined)) !== undefined;
 }
 
 function compile(pattern: string, ignoreCase: boolean): RegExp {

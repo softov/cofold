@@ -7,14 +7,16 @@ const MAX_LINKS = 40;
 
 /**
  * Resolves `path` against `workspace` (relative ones) and says whether the result stays inside it.
- * `absolute` is lexical; `inside` compares real paths, so a symlink out of the workspace is outside.
+ * `absolute` is lexical; `real` is where it lands on disk now, and `inside` compares real paths, so a symlink out of
+ * the workspace is outside.
  */
 export function resolveWithin(workspace: string, path: string): ResolvedPath {
   const root = resolve(workspace);
   const absolute = resolve(root, path);
-  const rel = relative(realPath(root), realPath(absolute));
+  const real = realPath(absolute);
+  const rel = relative(realPath(root), real);
   const inside = rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
-  return { absolute, inside };
+  return { absolute, real, inside };
 }
 
 /**

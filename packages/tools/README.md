@@ -62,6 +62,9 @@ For `rules()` (`@cofold/agents`), a path tool names the resolved path as its sub
 `write_file` and `edit_file` also declare `writes(input)`, that same absolute path, which is how a host's `acceptEdits` tells an edit from a call that has to ask; the three read-only tools declare none.
 The subject is the string `tool.proposed` carries, so a host draws the path of a call it is about to be asked about.
 
+`write_file` and `edit_file` resolve the path again when they run and write through the descriptor they open: an existing file is refused unless the descriptor is the file at the real path `resolveWithin` returns (`real`), and a new file is opened exclusively, so a link put at the name in between fails the open instead of being followed.
+A write or an edit to an existing file is refused unless the session read it with `read_file` and its `mtime` and size have not changed since; the tool's own write counts as a read. The record is per session id and lasts the process, so after a restart a file is read again before it is changed. A new file needs no read.
+
 ## `shell()`
 
 `shell_exec({ command, cwd?, timeoutMs? })` runs one command through the platform's shell (`sh -c`; `powershell.exe -NoProfile -NonInteractive -Command` on Windows) in the workspace and returns `exit <code>`, stdout, then stderr under a `--- stderr ---` line.

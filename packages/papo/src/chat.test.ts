@@ -814,6 +814,7 @@ describe('createChat', () => {
       const editing = testChat({
         script: [
           { toolCalls: [{ name: 'write_file', input: { path: 'sub/../out.txt', content: 'inside' } }] },
+          { toolCalls: [{ name: 'read_file', input: { path: 'notes.md' } }] },
           { toolCalls: [{ name: 'edit_file', input: { path: 'notes.md', old: 'hello', new: 'bye' } }] },
           { toolCalls: [{ name: 'write_file', input: { path: outside, content: 'outside' } }] },
           { toolCalls: [{ name: 'shell_exec', input: { command: 'echo hi' } }] },

@@ -1,11 +1,25 @@
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { CapabilityArgs, Tool, ToolContext } from '@cofold/agents';
 import { createMemoryStore } from '@cofold/agents';
 import { files } from './files.js';
 import { displayPath, resolveWithin } from './paths.js';
+
+/** A step run once, just before the next `open` from `node:fs/promises`: a stand-in for another process. */
+const opening = vi.hoisted(() => ({ before: undefined as (() => Promise<void>) | undefined }));
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  const open: typeof actual.open = async (...args) => {
+    const before = opening.before;
+    opening.before = undefined;
+    await before?.();
+    return actual.open(...args);
+  };
+  return { ...actual, open };
+});
 
 let workspace: string;
 let tools: Map<string, Tool<any, any>>;
@@ -13,7 +27,7 @@ let tools: Map<string, Tool<any, any>>;
 const store = createMemoryStore();
 const kv = { agent: store.kv({ kind: 'agent', agentId: 't' }), shared: store.kv({ kind: 'shared', namespace: 'default' }) };
 const ctx: ToolContext = { agentId: 't', sessionId: 's', runId: 'r', callId: 'c', invocationId: 'i', signal: new AbortController().signal, kv, resources: {} };
-const argsFor = (workspace: string): CapabilityArgs => ({ agentId: 't', sessionId: 's', runId: 'r', workspace, kv, signal: ctx.signal });
+const argsFor = (workspace: string, sessionId = 's'): CapabilityArgs => ({ agentId: 't', sessionId, runId: 'r', workspace, kv, signal: ctx.signal });
 const call = (name: string, input: unknown) => {
   const tool = tools.get(name);
   if (!tool) throw new Error(`no tool ${name}`);
@@ -83,6 +97,7 @@ describe('files()', () => {
 
   it('edit_file replaces exactly one occurrence, every one with all, and refuses zero or several', async () => {
     await writeFile(join(workspace, 'edit.txt'), 'one two one\nthree\n');
+    await call('read_file', { path: 'edit.txt' });
     await expect(call('edit_file', { path: 'edit.txt', old: 'four', new: 'x' })).rejects.toThrow('old text not found in edit.txt');
     await expect(call('edit_file', { path: 'edit.txt', old: 'one', new: 'x' })).rejects.toThrow('old text occurs 2 times in edit.txt; add context to make it unique, or pass all: true');
     expect(await call('edit_file', { path: 'edit.txt', old: 'three', new: '$& $1' })).toBe('edited edit.txt: 1 replacement');
@@ -110,14 +125,134 @@ describe('files()', () => {
   });
 });
 
+describe('write_file and edit_file write the file they checked (plugin/22 task 02)', () => {
+  let outside: string;
+  beforeAll(async () => { outside = await mkdtemp(join(tmpdir(), 'cofold-outside-')); });
+  afterAll(() => rm(outside, { recursive: true, force: true }));
+  afterEach(() => { opening.before = undefined; });
+
+  /** Just before the tool opens the file, puts a link to `target` at `name` in the workspace. */
+  const linkOnOpen = (name: string, target: string) => {
+    opening.before = async () => {
+      await rm(join(workspace, name), { force: true });
+      await symlink(target, join(workspace, name));
+    };
+  };
+  const missing = (path: string) => access(path).then(() => false, () => true);
+
+  it('write_file refuses a file swapped for a link out of the workspace between the check and the open', async () => {
+    await writeFile(join(outside, 'secret.txt'), 'kept');
+    await writeFile(join(workspace, 'swap.txt'), 'inside');
+    await call('read_file', { path: 'swap.txt' });
+    linkOnOpen('swap.txt', join(outside, 'secret.txt'));
+    await expect(call('write_file', { path: 'swap.txt', content: 'x' })).rejects.toThrow('swap.txt changed after it was checked; nothing was written');
+    expect(await readFile(join(outside, 'secret.txt'), 'utf8')).toBe('kept');
+  });
+
+  it('edit_file refuses a file swapped for a link out of the workspace between the check and the open', async () => {
+    await writeFile(join(outside, 'other.txt'), 'inside too');
+    await writeFile(join(workspace, 'swap-edit.txt'), 'inside');
+    await call('read_file', { path: 'swap-edit.txt' });
+    linkOnOpen('swap-edit.txt', join(outside, 'other.txt'));
+    await expect(call('edit_file', { path: 'swap-edit.txt', old: 'inside', new: 'x' })).rejects.toThrow('swap-edit.txt changed after it was checked; nothing was written');
+    expect(await readFile(join(outside, 'other.txt'), 'utf8')).toBe('inside too');
+  });
+
+  it('write_file refuses a new file whose name became a link between the check and the open', async () => {
+    linkOnOpen('planted.txt', join(outside, 'planted.txt'));
+    await expect(call('write_file', { path: 'planted.txt', content: 'x' })).rejects.toThrow('planted.txt changed after it was checked; nothing was written');
+    expect(await missing(join(outside, 'planted.txt'))).toBe(true);
+  });
+
+  it('writes and edits through a link that stays inside the workspace, onto its target', async () => {
+    await writeFile(join(workspace, 'target.txt'), 'first');
+    await symlink(join(workspace, 'target.txt'), join(workspace, 'alias.txt'));
+    await call('read_file', { path: 'alias.txt' });
+    expect(await call('write_file', { path: 'alias.txt', content: 'second line' })).toBe('replaced alias.txt (11 bytes)');
+    expect(await call('edit_file', { path: 'alias.txt', old: 'second', new: 'third' })).toBe('edited alias.txt: 1 replacement');
+    expect(await readFile(join(workspace, 'target.txt'), 'utf8')).toBe('third line');
+  });
+
+  it('write_file creates a new file inside, and truncates a longer one it replaces', async () => {
+    expect(await call('write_file', { path: 'made/here.txt', content: 'a long first text' })).toBe('created made/here.txt (17 bytes)');
+    expect(await call('write_file', { path: 'made/here.txt', content: 'short' })).toBe('replaced made/here.txt (5 bytes)');
+    expect(await readFile(join(workspace, 'made', 'here.txt'), 'utf8')).toBe('short');
+  });
+});
+
+describe('a write to a file changed since the session read it is refused (plugin/22 task 03)', () => {
+  /** The file tools one run of `sessionId` gets, from `capability` (a fresh `files()` by default). */
+  const runOf = async (sessionId: string, capability = files()) => {
+    const list = await capability.tools!(argsFor(workspace, sessionId));
+    const byName = new Map(list.map((tool) => [tool.name, tool]));
+    return (name: string, input: unknown) => Promise.resolve(byName.get(name)!.execute(input, { ...ctx, sessionId }));
+  };
+  const notRead = (name: string) => `${name} was not read in this session; read it with read_file first`;
+  const changedSinceRead = (name: string) => `${name} changed since it was read; read it again with read_file first`;
+
+  it('lets a session write and edit a file it read', async () => {
+    await writeFile(join(workspace, 'fresh-1.txt'), 'one\n');
+    const run = await runOf('read-then-write');
+    await run('read_file', { path: 'fresh-1.txt' });
+    expect(await run('edit_file', { path: 'fresh-1.txt', old: 'one', new: 'two' })).toBe('edited fresh-1.txt: 1 replacement');
+    expect(await run('write_file', { path: 'fresh-1.txt', content: 'three' })).toBe('replaced fresh-1.txt (5 bytes)');
+    expect(await run('edit_file', { path: 'fresh-1.txt', old: 'three', new: 'four' })).toBe('edited fresh-1.txt: 1 replacement');
+    expect(await readFile(join(workspace, 'fresh-1.txt'), 'utf8')).toBe('four');
+  });
+
+  it('refuses a write or an edit to an existing file the session never read', async () => {
+    await writeFile(join(workspace, 'unread.txt'), 'kept');
+    const run = await runOf('never-read');
+    await expect(run('write_file', { path: 'unread.txt', content: 'x' })).rejects.toThrow(notRead('unread.txt'));
+    await expect(run('edit_file', { path: 'unread.txt', old: 'kept', new: 'x' })).rejects.toThrow(notRead('unread.txt'));
+    expect(await readFile(join(workspace, 'unread.txt'), 'utf8')).toBe('kept');
+  });
+
+  it('refuses a write or an edit to a file changed from outside since the read, until it is read again', async () => {
+    await writeFile(join(workspace, 'moved-on.txt'), 'before');
+    const run = await runOf('changed-outside');
+    await run('read_file', { path: 'moved-on.txt' });
+    await writeFile(join(workspace, 'moved-on.txt'), 'someone else wrote this');
+    await expect(run('write_file', { path: 'moved-on.txt', content: 'x' })).rejects.toThrow(changedSinceRead('moved-on.txt'));
+    await expect(run('edit_file', { path: 'moved-on.txt', old: 'else', new: 'x' })).rejects.toThrow(changedSinceRead('moved-on.txt'));
+    expect(await readFile(join(workspace, 'moved-on.txt'), 'utf8')).toBe('someone else wrote this');
+    await run('read_file', { path: 'moved-on.txt' });
+    expect(await run('edit_file', { path: 'moved-on.txt', old: 'else', new: 'other' })).toBe('edited moved-on.txt: 1 replacement');
+  });
+
+  it('writes a new file without a read, and writes it again after', async () => {
+    const run = await runOf('new-file');
+    expect(await run('write_file', { path: 'brand-new.txt', content: 'a' })).toBe('created brand-new.txt (1 bytes)');
+    expect(await run('write_file', { path: 'brand-new.txt', content: 'bb' })).toBe('replaced brand-new.txt (2 bytes)');
+  });
+
+  it('keeps the record across the runs of a session, and not across sessions', async () => {
+    await writeFile(join(workspace, 'two-runs.txt'), 'start');
+    await (await runOf('across-runs'))('read_file', { path: 'two-runs.txt' });
+    await expect((await runOf('another-session'))('write_file', { path: 'two-runs.txt', content: 'x' })).rejects.toThrow(notRead('two-runs.txt'));
+    expect(await (await runOf('across-runs'))('write_file', { path: 'two-runs.txt', content: 'next' })).toBe('replaced two-runs.txt (4 bytes)');
+  });
+
+  it('forgets what was read when the process restarts, so a write needs a read again', async () => {
+    await writeFile(join(workspace, 'restart.txt'), 'start');
+    await (await runOf('restarted'))('read_file', { path: 'restart.txt' });
+    vi.resetModules();
+    const { files: afterRestart } = await import('./files.js');
+    const run = await runOf('restarted', afterRestart());
+    await expect(run('write_file', { path: 'restart.txt', content: 'x' })).rejects.toThrow(notRead('restart.txt'));
+    await run('read_file', { path: 'restart.txt' });
+    expect(await run('write_file', { path: 'restart.txt', content: 'x' })).toBe('replaced restart.txt (1 bytes)');
+  });
+});
+
 describe('resolveWithin', () => {
   it('resolves relative paths against the workspace and says when one leaves it', () => {
     const root = resolve(sep, 'ws');
-    expect(resolveWithin(root, 'src/a.ts')).toEqual({ absolute: join(root, 'src', 'a.ts'), inside: true });
-    expect(resolveWithin(root, '.')).toEqual({ absolute: root, inside: true });
-    expect(resolveWithin(root, '../other')).toEqual({ absolute: resolve(sep, 'other'), inside: false });
-    expect(resolveWithin(root, '..')).toEqual({ absolute: resolve(sep), inside: false });
-    expect(resolveWithin(root, join(root, '..sibling'))).toEqual({ absolute: join(root, '..sibling'), inside: true });
+    expect(resolveWithin(root, 'src/a.ts')).toMatchObject({ absolute: join(root, 'src', 'a.ts'), inside: true });
+    expect(resolveWithin(root, '.')).toMatchObject({ absolute: root, inside: true });
+    expect(resolveWithin(root, '../other')).toMatchObject({ absolute: resolve(sep, 'other'), inside: false });
+    expect(resolveWithin(root, '..')).toMatchObject({ absolute: resolve(sep), inside: false });
+    expect(resolveWithin(root, join(root, '..sibling'))).toMatchObject({ absolute: join(root, '..sibling'), inside: true });
     expect(resolveWithin(root, resolve(sep, 'ws2', 'x')).inside).toBe(false);
     expect(displayPath(root, join(root, 'src', 'a.ts'))).toBe('src/a.ts');
     expect(displayPath(root, resolve(sep, 'other')).replaceAll('\\', '/')).toBe(resolve(sep, 'other').replaceAll('\\', '/'));
@@ -133,10 +268,12 @@ describe('resolveWithin', () => {
       await symlink(elsewhere, join(ws, 'link'), 'dir');
       await symlink(ws, join(base, 'alias'), 'dir');
       await symlink(join(elsewhere, 'later.txt'), join(ws, 'dangling'));
-      expect(resolveWithin(ws, 'link/new.txt')).toEqual({ absolute: join(ws, 'link', 'new.txt'), inside: false });
+      expect(resolveWithin(ws, 'link/new.txt')).toMatchObject({ absolute: join(ws, 'link', 'new.txt'), inside: false });
       expect(resolveWithin(ws, 'link').inside).toBe(false);
+      expect(resolveWithin(ws, 'link/new.txt').real).toBe(join(realpathSync(elsewhere), 'new.txt'));
+      expect(resolveWithin(ws, 'sub/new.txt').real).toBe(join(realpathSync(ws), 'sub', 'new.txt'));
       expect(resolveWithin(ws, 'dangling').inside).toBe(false);
-      expect(resolveWithin(ws, 'sub/new.txt')).toEqual({ absolute: join(ws, 'sub', 'new.txt'), inside: true });
+      expect(resolveWithin(ws, 'sub/new.txt')).toMatchObject({ absolute: join(ws, 'sub', 'new.txt'), inside: true });
       expect(resolveWithin(join(base, 'alias'), 'sub/new.txt').inside).toBe(true);
       expect(resolveWithin(ws, join(base, 'alias', 'x')).inside).toBe(true);
     } finally {
