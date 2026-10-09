@@ -1,10 +1,17 @@
 ---
-title: Handoff - where the work stands (2026-09-16)
+title: Handoff - where the work stands
 ---
 
 # Handoff
 
 Written for: the next session, cold. Read this, then `.project/plans/index.md`, then the plan named under *Next*.
+
+## Now (2026-10-09)
+
+- Released `release-2026-10-09`: agents 0.2.1, tools 0.3.0, model-openai-compat 0.2.0, store-file 0.2.0. It was released before ahpd was tested against it, and ahpd's agent-cofold suite failed 25 tests on it. From now on, a release is tested against the consumer first.
+- ahpd takes the range in its plugin/40, tasks 01-08.
+- Next here: [tools/04](../plans/tools/04-a-harness-can-turn-off-read-before-write/plan.md), `files({ requireRead: false })`. Task 02 tests the packed package against ahpd plugin/40 tasks 01-08. The version and the release are Softov's.
+- The sections below are from 2026-09-16 to 2026-09-18 and were not rechecked.
 
 ## Rules the user set this day (follow them before anything else)
 
