@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import type { AskAnswers, RunUsage, SkillIndexEntry } from '@cofold/agents';
+import type { AskAnswers, SlashCommandInfo } from '@cofold/agents';
 import { splitModel } from '@cofold/model-openai-compat';
 import { workspaceSlug } from '@cofold/store-file';
 import type { ChatAnswer, ChatSendStatus } from '@textui/chat';
@@ -12,19 +12,17 @@ import type { ArgChoices, ArgSpec, BoxProps, Disposable, ServiceKey, TextUIApp }
 import { createBag, defineComponent, serviceKey, useApp, useStoreValue, useTheme } from '@textui/core';
 import { KeyHints, Row, registerBuiltins } from '@textui/widgets';
 import type { Papo } from '../commands.js';
-import { AUTO_COMPACT_AT } from '../agent.js';
 import { rememberedOf } from '../commands.js';
-import { redactedConfig, renderUsage } from '../commands/runtime.js';
 import { exportPath, toMarkdown } from '../export.js';
 import { toAskAnswers } from '../questions.js';
 import type { ModelRow, ProviderRow } from '../types/chat.js';
 import type { Settings } from '../types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from '../types/settings.js';
-import type { Snapshot, Turn } from '../types/turn.js';
+import type { Snapshot } from '../types/turn.js';
 import { ChatScreen } from './chat.js';
 import { PapoInfo, showInfo } from './info.js';
 import { SessionsScreen } from './sessions.js';
-import { ANSWERS, CHAT_SCOPE, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, PLACE, PROVIDERS, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SKILLS, SNAPSHOT } from './state.js';
+import { ANSWERS, CHAT_SCOPE, COMMANDS, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, PLACE, PROVIDERS, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SNAPSHOT } from './state.js';
 
 /** The words on the chips and in the picker, for the values the configuration spells: Claude Code's four modes (cli/03 F8). */
 export const PERMISSION_LABELS: Record<Settings['permissions'], { label: string; description: string }> = {
@@ -58,8 +56,11 @@ export interface Controller extends Disposable {
   remove(sessionId: string): Promise<void>;
   /** Change what the open conversation runs with; before it exists, what it will start with. */
   configure(patch: Partial<Settings>): Promise<void>;
-  /** Fold the open conversation into a summary; a run of its own, watched like a turn. */
-  compact(): Promise<void>;
+}
+
+/** A client command's name in the `/` menu: the last part of its id, `help` for `app.help`. */
+export function slashName(commandId: string): string {
+  return commandId.split('.').at(-1) ?? commandId;
 }
 
 export const CONTROLLER: ServiceKey<Controller> = serviceKey<Controller>('papo.controller');
@@ -161,18 +162,6 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
       const current = open();
       if (current === null) return;
       try { await chat.cancel(current); } catch (error: unknown) { report(error); }
-    },
-
-    async compact() {
-      const current = open();
-      if (current === null) { report(new Error('compact: nothing said yet')); return; }
-      try {
-        await chat.say({ sessionId: current, text: '/compact' });
-        app.store.set(ERROR, null);
-        await reload(current);
-      } catch (error: unknown) {
-        report(error);
-      }
     },
 
     async remove(sessionId) {
@@ -518,37 +507,6 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
       run: () => { app.store.set(MARKDOWN, !(app.store.get<boolean>(MARKDOWN) ?? true)); },
     },
     {
-      id: 'chat.compact', title: 'Compact', category: 'Chat', slots: ['palette'], description: 'Fold the conversation so far into a summary the model continues from',
-      run: () => void controller.compact(),
-    },
-    {
-      id: 'chat.autocompact', title: 'Auto-compact', category: 'Chat', slots: ['palette'], keepOpen: true,
-      description: 'Fold the conversation before a turn once it nears the context budget',
-      get badge(): string { return settings()?.autoCompact === false ? 'off' : 'on'; },
-      run: () => { void controller.configure({ autoCompact: !(settings()?.autoCompact ?? true) }); },
-    },
-    {
-      id: 'chat.status', title: 'Status', category: 'Chat', slots: ['palette'], description: 'Session, model, mode, folders, tokens',
-      run: () => showInfo(app, { title: 'Status', lines: statusLines() }),
-    },
-    {
-      id: 'chat.usage', title: 'Usage', category: 'Chat', slots: ['palette'], description: 'Tokens by kind, steps, tool calls and refusals, per turn and in total',
-      run: () => { void usageLines().then((lines) => showInfo(app, { title: 'Usage', lines })).catch((error: unknown) => app.store.set(ERROR, error instanceof Error ? error.message : String(error))); },
-    },
-    {
-      id: 'chat.skill', title: 'Skill', category: 'Chat', slots: ['palette'], description: 'Put /<skill> in the field',
-      args: [{
-        name: 'name', type: 'string' as const, required: true, description: 'Which skill',
-        descriptions: 'below' as const,
-        choices: () => (app.store.get<SkillIndexEntry[]>(SKILLS) ?? []).map((skill) => ({ value: skill.name, label: `/${skill.name}`, description: skill.description })),
-      }],
-      run: (args: Record<string, unknown>) => {
-        app.store.set(DRAFT, `/${String(args['name'])} `);
-        if (app.store.get<string>(SCREEN) !== 'chat') void controller.open(null).then(() => app.screens.push('chat'));
-        app.focus.focus('chat.composer');
-      },
-    },
-    {
       id: 'chat.memory', title: 'Memory', category: 'Chat', slots: ['palette'], description: 'What the agent remembers about this workspace',
       run: async () => {
         const path = memoryIndexPath();
@@ -596,10 +554,6 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
       run: (args: Record<string, unknown>) => { app.setTheme(String(args['id'])); },
     },
     {
-      id: 'app.config', title: 'Configuration', category: 'Navigation', slots: ['palette'], description: 'What is in force, keys redacted',
-      run: () => showInfo(app, { title: 'Configuration', lines: JSON.stringify(redactedConfig(papo), null, 2).split('\n') }),
-    },
-    {
       id: 'app.help', title: 'Help', category: 'Navigation', slots: ['palette'], description: 'Every command and key',
       run: () => showInfo(app, { title: 'Help', lines: helpLines() }),
     },
@@ -608,49 +562,24 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
   const snapshot = (): Snapshot | null => app.store.get<Snapshot | null>(SNAPSHOT) ?? null;
   const open = (): string | null => app.store.get<string | null>(OPEN) ?? null;
   const memoryIndexPath = () => join(papo.home, 'memory', workspaceSlug({ workspace: papo.workspace }), 'MEMORY.md');
-  const total = (turns: Turn[]) => turns.reduce((sum, turn) => ({ input: sum.input + turn.usage.inputTokens, output: sum.output + turn.usage.outputTokens }), { input: 0, output: 0 });
 
-  function statusLines(): string[] {
-    const current = snapshot();
-    const chosen = settings();
-    const sum = total(current?.turns ?? []);
-    return [
-      `session      ${current?.session.id ?? '(not started)'}${current !== null ? `  ${current.session.title}` : ''}`,
-      `model        ${chosen?.model || 'first listed model'}`,
-      `permissions  ${chosen === null ? '' : PERMISSION_LABELS[chosen.permissions].label}`,
-      `thinking     ${chosen === null ? '' : REASONING_LABELS[chosen.reasoning]}`,
-      `auto-compact ${chosen === null ? '' : chosen.autoCompact ? `on, at ${Math.floor(papo.config.context.maxTokens * AUTO_COMPACT_AT)} of ${papo.config.context.maxTokens} tokens` : 'off'}`,
-      `workspace    ${papo.workspace}`,
-      `home         ${papo.home}`,
-      `turns        ${current?.turns.length ?? 0}${current?.running ? '  (one running)' : ''}${current !== null && current.queued.length > 0 ? `  (${current.queued.length} queued)` : ''}`,
-      `tokens       ${sum.input} in, ${sum.output} out`,
-    ];
-  }
-
-  /** The runtime's own sum (CLI-06.1), the same table the shell prints, plus what each turn asked. */
-  async function usageLines(): Promise<string[]> {
-    const current = open();
-    if (current === null) return ['Nothing said yet.'];
-    const used = await papo.chat.usage(current);
-    if (used.runs.length === 0) return ['Nothing said yet.'];
-    const turns = snapshot()?.turns ?? [];
-    const asked = used.runs.map((_run: RunUsage, index: number) => {
-      const turn = turns[index];
-      return `${String(index + 1).padStart(3)}  ${turn === undefined ? '' : turn.input.replace(/\s+/g, ' ').slice(0, 60)}`;
-    });
-    return [...renderUsage(used).trimEnd().split('\n'), '', ...asked, '', 'Counts are what the provider reported; a count it did not report is blank.'];
-  }
-
+  /** The runtime's commands, then the client commands it does not list, each once. */
   function helpLines(): string[] {
     const bound = new Map<string, string[]>();
     for (const binding of app.keybindings.list()) {
       if (binding.args !== undefined) continue;
       bound.set(binding.commandId, [...(bound.get(binding.commandId) ?? []), String(binding.keys)]);
     }
-    const rows = app.commands.list({ slot: 'palette', enabledOnly: false }).map((command) =>
-      `  /${command.id.split('.').at(-1)}  ${command.title.padEnd(36)} ${(bound.get(command.id) ?? []).join(', ')}`);
+    const runtime = (app.store.get<SlashCommandInfo[]>(COMMANDS) ?? []).filter((command) => command.kind === 'runtime');
+    const names = new Set(runtime.map((command) => command.name));
+    const rows = [
+      ...runtime.map((command) => `  /${command.name}  ${command.description}`),
+      ...app.commands.list({ slot: 'palette', enabledOnly: false })
+        .filter((command) => !names.has(slashName(command.id)))
+        .map((command) => `  /${slashName(command.id)}  ${command.title.padEnd(36)} ${(bound.get(command.id) ?? []).join(', ')}`),
+    ];
     return [
-      'Type / in the field for a skill or one of these; ctrl+p opens the same list.',
+      'Type / in the field for one of these or a skill; /skills lists the skills, ctrl+p the client commands.',
       '',
       ...rows,
       '',
@@ -658,6 +587,7 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
       'On the catalogue: enter opens, n starts, d deletes, r refreshes.',
     ];
   }
+
 
   function editorName(): string {
     return process.env['VISUAL'] || process.env['EDITOR'] || (process.platform === 'win32' ? 'notepad' : 'vi');
@@ -694,10 +624,10 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
   for (const binding of keys) bag.add(app.keybindings.register(binding));
 
   app.store.set(PLACE, { workspace: options.papo.workspace, home: options.papo.home });
-  // The skills, once: what the slash menu offers beside the palette's commands.
-  void options.papo.chat.skills()
-    .then((rows) => app.store.set(SKILLS, rows))
-    .catch((error: unknown) => app.store.set(ERROR, `skills: ${error instanceof Error ? error.message : String(error)}`));
+  // The runtime's commands and the prompt commands, once: what the slash menu offers before the client's own.
+  void options.papo.chat.commands()
+    .then((rows) => app.store.set(COMMANDS, rows))
+    .catch((error: unknown) => app.store.set(ERROR, `commands: ${error instanceof Error ? error.message : String(error)}`));
   // The providers, once; nothing is asked of them until a provider is chosen on the chip (`modelsOf`).
   void options.papo.chat.providers()
     .then((rows) => app.store.set(PROVIDERS, rows))

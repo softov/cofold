@@ -1,6 +1,6 @@
 ---
 title: The screen shows the runtime's list and keeps only client commands
-status: todo
+status: implemented
 depends: [task-05-papo-service.md]
 layer: papo screen
 refs:
@@ -37,3 +37,10 @@ The client copies of runtime commands are gone.
 - Run papo at two terminal sizes and open the `/` menu.
 
 ## Resume
+
+- Implemented on `build/agents/a03`, awaiting review.
+- The `/` list comes from a `COMMANDS` store that `chat.commands()` fills at boot. It replaces the `SKILLS` store.
+- A client command's `/` name is the last part of its id (`slashName`): `help` for `app.help`.
+- The composer highlights the first match, and `compact` comes after `autocompact`. So the list puts the name typed in full first, then the names it starts. Without this, `/compact` and enter picked `autocompact`.
+- A skill without an `argumentHint` is now sent as it is picked. Before, it always became the draft.
+- The screen tests for the `/` menu run at 100x30 and 60x24 (`it.each(SIZES)`).

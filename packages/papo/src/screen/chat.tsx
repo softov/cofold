@@ -2,28 +2,41 @@ import type { ChatAnswer, ChatCommand, ChatSendStatus, ComposerOption } from '@t
 import { ChatComposer, ChatHitl, ChatInputStatus, ChatSessionHead, ChatTranscript, openPicker, settingIcon, valueIcon } from '@textui/chat';
 import type { BindingPath, RenderOutput } from '@textui/core';
 import { defineComponent, useApp, useCapabilities, useFocusScope, useMemo, useRequiredService, useStore, useStoreValue } from '@textui/core';
-import type { SkillIndexEntry } from '@cofold/agents';
+import type { SlashCommandInfo } from '@cofold/agents';
 import { Column, Divider, argumentOf } from '@textui/widgets';
 import { QUEUED_BLOCK, toBlocks } from '../blocks.js';
 import type { Settings } from '../types/settings.js';
 import type { Snapshot } from '../types/turn.js';
-import { CONTROLLER, PERMISSION_LABELS, REASONING_LABELS } from './app.js';
-import { ANSWERS, CHAT_SCOPE, DRAFT, EXPANDED, INPUT_STATUS, MARKDOWN, PLACE, SETTINGS, SKILLS, SNAPSHOT } from './state.js';
+import { CONTROLLER, PERMISSION_LABELS, REASONING_LABELS, slashName } from './app.js';
+import { ANSWERS, CHAT_SCOPE, COMMANDS, DRAFT, EXPANDED, INPUT_STATUS, MARKDOWN, PLACE, SETTINGS, SNAPSHOT } from './state.js';
 import { sessionView } from './sessions.js';
 
 /**
- * What a slash offers: the skills first (a `session` command is sent as `/<name> ...`, which is how
- * the agent is told to read one), then the palette's own commands (a `client` command runs here).
+ * What a slash offers (plan agent/03, "The `/` menu"): the runtime's commands, then the prompt
+ * commands, both sent as `/<name> ...`; then the client commands the runtime does not list, named by
+ * `slashName` and run here. A `compose.*` entry the runtime shadows keeps its chip and key.
  */
 function useSlashCommands(): ChatCommand[] {
   const app = useApp();
-  const skills = useStoreValue<SkillIndexEntry[]>(SKILLS, []) ?? [];
-  return useMemo(() => [
-    ...skills.map((skill): ChatCommand => ({ id: skill.name, kind: 'session', title: skill.name, description: skill.description })),
-    ...app.commands.list({ slot: 'palette', enabledOnly: true }).map((command): ChatCommand => ({
-      id: command.id, kind: 'client', title: command.title, ...(command.description !== undefined ? { description: command.description } : {}),
-    })),
-  ], [skills, app]);
+  const listed = useStoreValue<SlashCommandInfo[]>(COMMANDS, []) ?? [];
+  const draft = useStoreValue<string>(DRAFT, '') ?? '';
+  const typed = draft.startsWith('/') && !draft.includes(' ') ? draft.slice(1).toLowerCase() : '';
+  return useMemo(() => {
+    const names = new Set(listed.map((command) => command.name));
+    // The name typed in full first, then the names it starts: `/compact` and enter is `compact`, not `autocompact`.
+    const rank = (name: string): number => (name === typed ? 0 : name.startsWith(typed) ? 1 : 2);
+    return [
+      ...listed.map((command): ChatCommand => ({
+        id: command.name, kind: 'session', title: command.name, description: command.description,
+        ...(command.argumentHint !== undefined ? { hint: command.argumentHint } : {}),
+      })),
+      ...app.commands.list({ slot: 'palette', enabledOnly: true })
+        .filter((command) => !names.has(slashName(command.id)))
+        .map((command): ChatCommand => ({
+          id: slashName(command.id), kind: 'client', title: command.title, ...(command.description !== undefined ? { description: command.description } : {}),
+        })),
+    ].sort((a, b) => rank(a.id) - rank(b.id));
+  }, [listed, app, typed]);
 }
 
 /**
@@ -162,12 +175,18 @@ export const ChatScreen: (props: Record<string, never>) => RenderOutput =
           placeholder={pending !== null ? 'Answer the block above first' : 'Say something, or / for a skill or a command'}
           commands={commands}
           onCommand={(picked: ChatCommand) => {
-            // A skill is typed, not run: the draft becomes `/<name> ` and the person finishes the line.
-            if (picked.kind === 'session') { app.store.set(DRAFT, `/${picked.id} `); app.focus.focus('chat.composer'); return; }
+            // A runtime or prompt command is sent; one that takes an argument becomes the draft `/<name> ` to finish.
+            if (picked.kind === 'session') {
+              if (picked.hint !== undefined) { app.store.set(DRAFT, `/${picked.id} `); app.focus.focus('chat.composer'); return; }
+              app.store.set(DRAFT, '');
+              void controller.send(`/${picked.id}`);
+              return;
+            }
             app.store.set(DRAFT, '');
-            const command = app.commands.get(picked.id);
-            if (command && argumentOf(command)) { openPicker(app, { commandId: picked.id, anchorId: 'chat.composer', descriptions: 'below' }); return; }
-            void app.execute(picked.id, undefined, 'palette');
+            const command = app.commands.list({ slot: 'palette', enabledOnly: true }).find((each) => slashName(each.id) === picked.id);
+            if (command === undefined) return;
+            if (argumentOf(command)) { openPicker(app, { commandId: command.id, anchorId: 'chat.composer', descriptions: 'below' }); return; }
+            void app.execute(command.id, undefined, 'palette');
           }}
           onChange={(value: string) => app.store.set(DRAFT, value)}
           onSubmit={(value: string) => void controller.send(value)}
