@@ -324,7 +324,7 @@ describe('the shell', () => {
     const { run } = shell({ script: [{ text: 'Hello back.' }, { text: 'We said hello.' }, { text: 'Still here.' }] });
     const said = await run('say', 'Hello there');
     const sessionId = /session (\S+)\n$/.exec(said.out)?.[1] as string;
-    const compacted = await run('compact', sessionId);
+    const compacted = await run('say', '-s', sessionId, '/compact');
     expect(compacted.code).toBe(0);
     expect(compacted.out).toMatch(/\[Context compacted: \d+ tokens to \d+\.\]\nSummary of the conversation so far:\n\nWe said hello\./);
 
@@ -337,6 +337,16 @@ describe('the shell', () => {
     const all = await run('session', 'show', sessionId, '--all');
     expect(all.out).toContain('> /compact');
     expect(all.out.indexOf('> Hello there')).toBeLessThan(all.out.indexOf('> /compact'));
+  });
+
+  it('lists the runtime commands and the skills', async () => {
+    const { run } = shell({ script: [] });
+    const listed = await run('commands');
+    expect(listed.code).toBe(0);
+    expect(listed.out).toMatch(/\/compact\s+runtime\s+/);
+    expect(listed.out).toMatch(/\/status\s+runtime\s+/);
+    expect(listed.out).toMatch(/\/model <provider\/model>\s+runtime\s+/);
+    expect(listed.out).toMatch(/\/init\s+prompt\s+/);
   });
 
   it('lists the providers and the models of each, and a provider that is down neither hides the others nor loses its own error', async () => {

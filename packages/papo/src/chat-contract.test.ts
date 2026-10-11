@@ -201,6 +201,12 @@ describe.each([cofold, claude])('the chat contract on $name', (rig) => {
     await chat.close();
   });
 
+  it('commands: the runtime lists compact', async () => {
+    const { chat } = rig.open([]);
+    expect(await chat.commands()).toContainEqual(expect.objectContaining({ name: 'compact', kind: 'runtime' }));
+    await chat.close();
+  });
+
   it('remove: the session is gone from the list and from snapshot', async () => {
     const { chat } = rig.open(['text']);
     const started = await chat.say({ text: 'Hello' });

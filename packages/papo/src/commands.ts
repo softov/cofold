@@ -326,22 +326,6 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
   });
 
   registry.action({
-    id: 'compact',
-    group: 'talk',
-    summary: 'Fold the conversation so far into a summary the model continues from',
-    needs: ['papo'],
-    input: { session: { type: 'string', description: 'The session', minLength: 1 } },
-    required: ['session'],
-    surfaces: { cli: { pattern: ['compact', ':session'] }, mcp: true },
-    run: async ({ input, papo }) => {
-      const started = await withAgentErrors(() => papo.chat.say({ sessionId: input.session, text: '/compact' }));
-      const outcome = await papo.chat.wait(started.sessionId);
-      const snapshot = await papo.chat.snapshot(started.sessionId);
-      return output({ sessionId: started.sessionId, runId: started.runId, outcome }, () => renderOutcome(snapshot, outcome, { runId: started.runId }));
-    },
-  });
-
-  registry.action({
     id: 'usage',
     group: 'sessions',
     summary: 'What a session used: tokens by kind, steps, tool calls and refusals, per turn and in total',
@@ -510,6 +494,20 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     run: async ({ papo }) => {
       const rows = await papo.chat.skills();
       return output(rows, () => renderTable(['skill', 'description'], rows.map((row) => [`/${row.name}`, row.description])));
+    },
+  });
+
+  registry.action({
+    id: 'commands',
+    group: 'setup',
+    summary: "The runtime's commands and the skills; send /<name> in a message to run one",
+    needs: ['papo'],
+    effect: 'read',
+    surfaces: { cli: { pattern: ['commands'] }, mcp: true },
+    run: async ({ papo }) => {
+      const rows = await papo.chat.commands();
+      return output(rows, () => renderTable(['command', 'kind', 'description'],
+        rows.map((row) => [`/${row.name}${row.argumentHint !== undefined ? ` ${row.argumentHint}` : ''}`, row.kind, row.description])));
     },
   });
 
