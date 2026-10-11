@@ -165,19 +165,20 @@ papo --backend claude                            # the screen, over Claude Code
 papo --backend claude say -p auto "Run the tests and fix what fails"
 ```
 
-What is the same: the transcript, the confirmation block (the CLI's `canUseTool` becomes it, under the CLI's own sentence when it sends one; `Always, this session` sends the CLI's suggested rules back with every destination rewritten to `session`, so the rule holds for the rest of the session and nothing is written into a settings file; the option is withheld when the CLI says the rule would grant more than the ask), the question form (`AskUserQuestion`), `/compact`, `/usage`, `/status`, the session list, `session show` and `session export`.
+What is the same: the transcript, the confirmation block (the CLI's `canUseTool` becomes it, under the CLI's own sentence when it sends one; `Always, this session` sends the CLI's suggested rules back with every destination rewritten to `session`, so the rule holds for the rest of the session and nothing is written into a settings file; the option is withheld when the CLI says the rule would grant more than the ask), the question form (`AskUserQuestion`), `papo usage`, the session list, `session show` and `session export`.
 Settings (`model`, `permissions`, `reasoning`) are kept per session in the file store under `--home`, at the same key the cofold backend uses, so they survive a restart and `session set` reads the same thing on both backends.
 What differs, because it is the CLI's:
 
 - Models are `claude/<name>` as `supportedModels()` lists them; a `model` of another provider in the configuration is ignored with a warning, and the CLI's default is used.
 - `permissions`: the four names are the CLI's own and are passed through as its `permissionMode` (`bypassPermissions` with the flag the SDK asks for); changing the mode on a session with a live process restarts that process on the same session, as a thinking change does. papo's `rules` are kept and listed for the session but not applied: the CLI reads its own settings files (`settingSources`), and `Always, this session` sends the CLI's suggested rules back to it rather than adding a papo rule.
 - `reasoning` is the CLI's `effort` (`off` sends none); changing it on a session with a live process restarts that process on the same session.
-- `autoCompact` stays on: the CLI compacts on its own; `/autocompact` off is refused with that sentence. `/compact` sends the CLI its own command; afterwards the transcript is what the CLI keeps, the summary first (shown as a `(context compacted)` turn) and the turns after it.
+- The `/` menu and `papo commands` list the CLI's own commands, its skills among them, and a line that starts with `/` goes to the CLI unchanged; `papo skills` lists none. A slash line said while a turn runs is queued, as on the cofold backend.
+- `autoCompact` is kept for the session but the CLI compacts on its own; `/autocompact` is the CLI's. `/compact` sends the CLI its own command; afterwards the transcript is what the CLI keeps, the summary first (shown as a `(context compacted)` turn) and the turns after it.
 - A decision waits in the process that asked, not on disk: `papo say` that stops at a tool denies it (and every further one the turn stops at) and says so; approvals and answers happen on the screen (`papo chat`), where the process lives.
 - A message said while a turn runs is pushed to the CLI, which takes it into the running turn as its own client does; the CLI records it as a user message, so the transcript shows it as a turn boundary after the tool result. The queue is papo's, the same as on the cofold backend.
 - `session delete` removes the CLI's session file; `session list` is the workspace's sessions in `~/.claude/projects/`.
 - Failed turns are the CLI's result (`error_*`, or a `success` carrying `is_error` when the API refused) and are kept only in the process that saw them; the CLI's transcript has no record of them.
-- `/usage` counts a reply once however many entries the CLI stored it as (it writes one per content block, so thinking, text and a tool call of one reply share an id).
+- `papo usage` counts a reply once however many entries the CLI stored it as (it writes one per content block, so thinking, text and a tool call of one reply share an id).
 
 The harness's own tools, skills and memory are not involved; the CLI brings its own.
 

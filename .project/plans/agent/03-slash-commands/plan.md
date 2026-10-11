@@ -146,7 +146,7 @@ say('/compact')
 | [05 - papo's Chat lists the runtime's commands and declares its own](task-05-papo-service.md) | implemented | 02, 03 |
 | [06 - The screen shows the runtime's list and keeps only client commands](task-06-papo-screen.md) | implemented | 05 |
 | [07 - The shell lists commands and loses the compact action](task-07-papo-shell.md) | implemented | 05 |
-| [08 - The Claude backend lists its own commands](task-08-claude-backend.md) | todo | 05, 07 |
+| [08 - The Claude backend lists its own commands](task-08-claude-backend.md) | implemented | 05, 07 |
 
 ## Risks and tradeoffs
 
@@ -156,8 +156,8 @@ say('/compact')
 
 ## Resume state
 
-- **Done so far:** revalidated 2026-10-11 against `4174eeb`; tasks 01, 02, 03, 05, 06 and 07 implemented on `build/agents/a03`, awaiting review.
-- **Next action:** [task-04-docs-and-release-check.md](task-04-docs-and-release-check.md) and [task-08-claude-backend.md](task-08-claude-backend.md).
+- **Done so far:** revalidated 2026-10-11 against `4174eeb`; tasks 01, 02, 03, 05, 06, 07 and 08 implemented on `build/agents/a03`, awaiting review.
+- **Next action:** [task-04-docs-and-release-check.md](task-04-docs-and-release-check.md), then review of 05 to 08.
 - **Open questions:** none.
 - **Watch out for:** `/compact` makes a model call; a test that expects no model request is wrong.
 
