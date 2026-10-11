@@ -86,6 +86,7 @@ export function createAgent<Resources = Record<string, unknown>>(options: AgentO
     model: options.model,
     tools,
     capabilities,
+    slashCommands: [...(options.slashCommands ?? [])],
     store,
     hooks: options.hooks ?? {},
     policy,

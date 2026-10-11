@@ -139,7 +139,7 @@ say('/compact')
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The slash command contracts](task-01-contracts.md) | todo | - |
+| [01 - The slash command contracts](task-01-contracts.md) | implemented | - |
 | [02 - The harness runs a runtime command, and /compact is one](task-02-the-harness-runs-a-command.md) | todo | 01 |
 | [03 - The harness expands a skill](task-03-the-harness-expands-a-skill.md) | todo | 01 |
 | [04 - The README describes slash commands, and agents 0.2.2 passes ahpd's suite](task-04-docs-and-release-check.md) | todo | 02, 03 |

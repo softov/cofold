@@ -1,6 +1,6 @@
 ---
 title: The slash command contracts
-status: todo
+status: implemented
 depends: []
 layer: agents
 refs:

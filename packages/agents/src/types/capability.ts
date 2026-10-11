@@ -1,3 +1,4 @@
+import type { PromptCommand, SlashCommand } from './slash-command.js';
 import type { KvScope } from './store.js';
 import type { Tool } from './tool.js';
 
@@ -33,4 +34,8 @@ export interface Capability {
   tools?(args: CapabilityArgs): Tool<any, any>[] | Promise<Tool<any, any>[]>;
   /** Text appended to the agent instructions under a `## <id>` heading; undefined contributes nothing this run. */
   instructions?(args: CapabilityArgs): string | undefined | Promise<string | undefined>;
+  /** Runtime commands, fixed for the agent's life; read once by createAgent. */
+  slashCommands?: readonly SlashCommand[];
+  /** Prompt commands for a session's workspace, read when a slash line or a menu needs them; `skills()` gives one per skill. */
+  prompts?(args: { workspace?: string }): Promise<PromptCommand[]>;
 }
