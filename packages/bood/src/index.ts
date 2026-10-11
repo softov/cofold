@@ -52,7 +52,7 @@ export {
   creatures,
 } from "./creatures/index.js";
 export { defineCreature } from "./creatures/define.js";
-export { disc, polar, rounded, smooth } from "./creatures/draw.js";
+export { disc, polar, rounded, smooth, perimeter } from "./creatures/draw.js";
 export type { Point } from "./creatures/draw.js";
 export { referenceScene, scene } from "./scene.js";
 export type { SceneOptions } from "./scene.js";

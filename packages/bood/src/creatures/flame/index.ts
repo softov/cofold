@@ -26,6 +26,6 @@ export default defineCreature({
   eyes: { centerX: 4250, centerY: 3300, gap: 750, scale: 0.66 },
   mouth: { x: 4250, y: 4100 },
   actions: ["flare", "wiggle"],
-  flow: { frames: [flame(1.5), flame(3), flame(4.5)], ms: 1800 },
+  flow: { frames: [flame(1.5), flame(3), flame(4.5)], ms: 3400 },
   turn: 0.07,
 });

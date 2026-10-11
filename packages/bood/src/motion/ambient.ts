@@ -299,8 +299,9 @@ export function glance(
   y: number,
   from = { x: 0, y: 0 },
 ): BoodPlay {
-  const [left, right] = eyeGeometry(creatures[body], mood, "dark");
-  const room = pupilRoom(left);
+  const creature = creatures[body];
+  const [left, right] = eyeGeometry(creature, mood, "dark");
+  const room = pupilRoom(left, creature.iris);
   const start = {
     pupils: { x: from.x * room.x, y: from.y * room.y },
     glints: { x: from.x * room.x * 0.6, y: from.y * room.y * 0.6 },

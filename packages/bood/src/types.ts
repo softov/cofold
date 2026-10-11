@@ -160,6 +160,19 @@ export interface MouthPlacement {
   y: number;
   shapes?: Partial<Record<BoodMood, MouthShape>>;
 }
+/**
+ * A dot eye drawn as an animal's eye: a coloured iris that stays put and a
+ * big round pupil with a glint that looks about inside it. For a body whose
+ * eye holes show what is behind it, such as the owl's, where a lone dark dot
+ * would vanish.
+ */
+export interface IrisPlacement {
+  /** The iris's radius, about the size of the eye hole. */
+  r: number;
+  /** The pupil's radius. */
+  pupil: number;
+  color: string;
+}
 export interface AntennaPlacement {
   x: number;
   y: number;
@@ -174,7 +187,10 @@ export interface BoodCreature {
   /** The body's paths for a mood. Most bodies are the same in every mood. */
   parts: (mood: BoodMood) => BodyPart[];
   eyes: EyePlacement;
-  mouth: MouthPlacement;
+  /** With dot eyes, each eye is an iris and a pupil instead of a dot. */
+  iris?: IrisPlacement;
+  /** False for a body with no mouth of its own, as the owl, whose beak is drawn in its parts. */
+  mouth: MouthPlacement | false;
   antenna?: AntennaPlacement;
   /** False for a body drawn with no brows. */
   brows?: boolean;

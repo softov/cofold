@@ -61,3 +61,48 @@ export function polar(
 export function disc(x: number, y: number, k: number): string {
   return `M ${x - k} ${y} A ${k} ${k} 0 1 0 ${x + k} ${y} A ${k} ${k} 0 1 0 ${x - k} ${y} Z`;
 }
+
+/**
+ * `count` points spread evenly round the polygon's edge, from its first point,
+ * with each corner pulled in by `round` toward its neighbours, so a smooth
+ * curve through them has straight sides and soft corners. Two shapes spread
+ * with the same count blend point for point, so a body can flow from one into
+ * the other.
+ */
+export function perimeter(
+  polygon: Point[],
+  count: number,
+  round = 0.35,
+): Point[] {
+  const edges = polygon.map((p, i) => {
+    const q = polygon[(i + 1) % polygon.length] as Point;
+    return { p, q, length: Math.hypot(q[0] - p[0], q[1] - p[1]) };
+  });
+  const step = edges.reduce((sum, edge) => sum + edge.length, 0) / count;
+  const points: Point[] = [];
+  let edge = 0;
+  let walked = 0;
+  for (let i = 0; i < count; i += 1) {
+    let s = i * step - walked;
+    while (s > (edges[edge]?.length ?? 0) && edge < edges.length - 1) {
+      s -= (edges[edge] as (typeof edges)[number]).length;
+      walked += (edges[edge] as (typeof edges)[number]).length;
+      edge += 1;
+    }
+    const { p, q, length } = edges[edge] as (typeof edges)[number];
+    points.push([
+      p[0] + ((q[0] - p[0]) * s) / length,
+      p[1] + ((q[1] - p[1]) * s) / length,
+    ]);
+  }
+  // On a straight side a point is already midway between its neighbours, so
+  // only the corners move.
+  return points.map((p, i) => {
+    const a = points[(i - 1 + count) % count] as Point;
+    const b = points[(i + 1) % count] as Point;
+    return [
+      p[0] + round * ((a[0] + b[0]) / 2 - p[0]),
+      p[1] + round * ((a[1] + b[1]) / 2 - p[1]),
+    ];
+  });
+}

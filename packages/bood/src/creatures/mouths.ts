@@ -28,26 +28,3 @@ export const smallMouth: Partial<Record<BoodMood, MouthShape>> = {
   happy: openOval,
   surprised: openOval,
 };
-
-const closedBeak: MouthShape = (x, y) =>
-  `M ${x - 95} ${y - 80} L ${x + 95} ${y - 80} L ${x} ${y + 140} Z`;
-const openBeak: MouthShape = (x, y) =>
-  `M ${x - 110} ${y - 90} Q ${x} ${y - 30} ${x + 110} ${y - 90} Q ${x + 50} ${y + 80} ${x} ${y + 170} Q ${x - 50} ${y + 80} ${x - 110} ${y - 90} Z`;
-
-/** The owl's beak. */
-export const beak: Partial<Record<BoodMood, MouthShape>> = {
-  idle: closedBeak,
-  observing: closedBeak,
-  thinking: closedBeak,
-  planning: closedBeak,
-  executing: closedBeak,
-  reflecting: closedBeak,
-  waiting_external: closedBeak,
-  learning: closedBeak,
-  failed: closedBeak,
-  neutral: closedBeak,
-  sad: closedBeak,
-  error: openBeak,
-  happy: openBeak,
-  surprised: openBeak,
-};

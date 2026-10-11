@@ -9,6 +9,7 @@ import type {
   BoodCreature,
   BoodMood,
   BoodScheme,
+  IrisPlacement,
   MouthShape,
 } from "./types.js";
 
@@ -77,7 +78,9 @@ export function mouthColor(mood: BoodMood): string {
   return mouthColorByMood[mood] ?? "#60a5fa";
 }
 
+/** The mouth's path, or "" for a body with no mouth. */
 export function mouthPath(creature: BoodCreature, mood: BoodMood): string {
+  if (creature.mouth === false) return "";
   const { x, y, shapes } = creature.mouth;
   return (shapes?.[mood] ?? DEFAULT_MOUTH_SHAPES[mood])(x, y);
 }
@@ -251,11 +254,19 @@ export function eyeGeometry(
   ];
 }
 
-/** How far a pupil may wander from rest, in drawing units. */
-export function pupilRoom(eye: EyeGeometry): { x: number; y: number } {
+/**
+ * How far a pupil may wander from rest, in drawing units. With an iris, no
+ * further than keeps the iris's pupil inside it, so one glance fits both kinds
+ * of eye.
+ */
+export function pupilRoom(
+  eye: EyeGeometry,
+  iris?: IrisPlacement,
+): { x: number; y: number } {
+  const inIris = iris === undefined ? Infinity : iris.r - iris.pupil - 60;
   return {
-    x: Math.max(0, eye.rx - eye.pr - 60),
-    y: Math.max(0, eye.ry - eye.pr - 60),
+    x: Math.max(0, Math.min(eye.rx - eye.pr - 60, inIris)),
+    y: Math.max(0, Math.min(eye.ry - eye.pr - 60, inIris)),
   };
 }
 

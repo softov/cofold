@@ -151,7 +151,7 @@ export function action(
 ): BoodPlay {
   const creature = creatures[body];
   const [left] = eyeGeometry(creature, "idle", "dark");
-  const reach = pupilRoom(left).x;
+  const reach = pupilRoom(left, creature.iris).x;
   const { color } = options;
   const filled = options.filled ?? false;
   const layers: BoodLayer[] = [];

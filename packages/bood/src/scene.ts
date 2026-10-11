@@ -204,7 +204,51 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
     eye.rotate !== 0
       ? { transform: `rotate(${eye.rotate} ${eye.cx} ${eye.cy})` }
       : {};
-  if ((options.eyes ?? "dots") === "dots") {
+  const iris = creature.iris;
+  if ((options.eyes ?? "dots") === "dots" && iris !== undefined) {
+    // The iris stays put; each pupil, with its glint, looks about inside it.
+    const y = creature.eyes.centerY;
+    layers.push({
+      target: "eyes",
+      nodes: [left, right].map((eye) => ({
+        tag: "circle",
+        // A dark rim keeps the iris apart from a body of a like colour.
+        attrs: {
+          cx: eye.cx,
+          cy: y,
+          r: iris.r,
+          fill: iris.color,
+          stroke: FACE_INK,
+          "stroke-width": 70,
+        },
+      })),
+    });
+    (
+      [
+        ["pupilL", left],
+        ["pupilR", right],
+      ] as const
+    ).forEach(([target, eye]) =>
+      layers.push({
+        target,
+        nodes: [
+          {
+            tag: "circle",
+            attrs: { cx: eye.cx, cy: y, r: iris.pupil, fill: FACE_INK },
+          },
+          {
+            tag: "circle",
+            attrs: {
+              cx: eye.cx - iris.pupil * 0.35,
+              cy: y - iris.pupil * 0.35,
+              r: iris.pupil * 0.28,
+              fill: "#ffffff",
+            },
+          },
+        ],
+      }),
+    );
+  } else if ((options.eyes ?? "dots") === "dots") {
     // Each dot eye in its own layer, so each tilts about its own middle as it looks.
     (
       [
@@ -274,7 +318,7 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
     }
   }
 
-  if (options.mouth ?? false) {
+  if ((options.mouth ?? false) && creature.mouth !== false) {
     layers.push({
       target: "mouth",
       nodes: [

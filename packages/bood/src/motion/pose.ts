@@ -46,7 +46,7 @@ function values(
   const f = Math.max(-1, Math.min(1, pose.facing));
   const lift = Math.max(-1, Math.min(1, pose.lift ?? 0));
   const [left] = eyeGeometry(creature, mood, "dark");
-  const room = pupilRoom(left);
+  const room = pupilRoom(left, creature.iris);
   // The dot eyes lean with a sideways look, as a glance leans them.
   const tilt = eyeTilt(f, -lift);
   // The face slides toward the side it turns to and narrows about its middle,

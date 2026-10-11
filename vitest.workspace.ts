@@ -18,6 +18,7 @@ export default defineWorkspace([
   { test: { name: '@cofold/store-file', root: 'packages/store-file', typecheck } },
   { test: { name: '@cofold/tools', root: 'packages/tools', typecheck } },
   { test: { name: '@cofold/papo', root: 'packages/papo', typecheck } },
+  { test: { name: '@cofold/bood', root: 'packages/bood', typecheck } },
   { test: { name: 'examples-commands', root: 'examples/commands' } },
   { test: { name: 'examples-agents', root: 'examples/agents' } },
 ]);

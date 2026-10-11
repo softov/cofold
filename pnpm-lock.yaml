@@ -61,6 +61,8 @@ importers:
         specifier: workspace:^
         version: link:../sdk
 
+  packages/bood: {}
+
   packages/commands:
     dependencies:
       '@cofold/sdk':
