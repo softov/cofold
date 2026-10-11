@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>bood playground</title>
+    <link rel="icon" href="/src/creatures/robot/reference.svg" />
+    <link rel="stylesheet" href="/dev/playground.css" />
+  </head>
+  <body data-scheme="dark">
+    <header class="top">
+      <h1>bood</h1>
+      <span class="sub">@cofold/bood playground</span>
+      <nav class="tabs" role="tablist">
+        <button class="tab" data-tab="stage" aria-selected="true">Stage</button>
+        <button class="tab" data-tab="grid" aria-selected="false">
+          All creatures
+        </button>
+        <button class="tab" data-tab="refs" aria-selected="false">
+          References
+        </button>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <aside class="panel" id="panel">
+        <section>
+          <h2>Creature</h2>
+          <label class="row"
+            >Body
+            <select id="body"></select
+          ></label>
+          <label class="row"
+            >Mood
+            <select id="mood"></select
+          ></label>
+          <div class="row swatches" id="colors"></div>
+          <div class="row toggles">
+            <label><input type="checkbox" id="filled" checked /> Filled</label>
+            <label><input type="checkbox" id="brows" checked /> Brows</label>
+            <label><input type="checkbox" id="mouth" checked /> Mouth</label>
+            <label><input type="checkbox" id="detail" checked /> Detail</label>
+          </div>
+          <div class="row seg" id="eyes">
+            <button data-eyes="dots" aria-pressed="true">Dot eyes</button>
+            <button data-eyes="bood" aria-pressed="false">Ring eyes</button>
+          </div>
+          <div class="row seg" id="scheme">
+            <button data-scheme="dark" aria-pressed="true">Dark</button>
+            <button data-scheme="light" aria-pressed="false">Light</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>Head</h2>
+          <label class="row slider"
+            ><span>Facing</span>
+            <input
+              type="range"
+              id="facing"
+              min="-1"
+              max="1"
+              step="0.01"
+              value="0"
+            /><output id="facingOut">0</output></label
+          >
+          <label class="row slider"
+            ><span>Lift</span>
+            <input
+              type="range"
+              id="lift"
+              min="-1"
+              max="1"
+              step="0.01"
+              value="0"
+            /><output id="liftOut">0</output></label
+          >
+          <div class="row buttons">
+            <button id="walkLeft">◀ Walk left</button>
+            <button id="walkRight">Walk right ▶</button>
+          </div>
+          <label class="row"
+            ><input type="checkbox" id="follow" /> Look at the pointer</label
+          >
+        </section>
+
+        <section>
+          <h2>
+            Moves <span class="legend"><i></i> this body's own</span>
+          </h2>
+          <div class="chips" id="moves"></div>
+          <h2>Transits</h2>
+          <div class="row seg" id="transitMode">
+            <button data-mode="both" aria-pressed="true">
+              Leave and return
+            </button>
+            <button data-mode="hide" aria-pressed="false">Hide</button>
+            <button data-mode="show" aria-pressed="false">Show</button>
+          </div>
+          <div class="chips" id="transits"></div>
+          <h2>Moments</h2>
+          <div class="row buttons">
+            <button id="blink">Blink</button>
+            <button id="glance">Glance</button>
+            <button id="swing">Swing</button>
+            <button id="pop">Pop</button>
+          </div>
+        </section>
+
+        <section>
+          <h2>Playback</h2>
+          <label class="row"
+            ><input type="checkbox" id="life" checked /> Alive (blinks, glances,
+            swings)</label
+          >
+          <div class="row seg" id="rate">
+            <button data-rate="0.25" aria-pressed="false">¼×</button>
+            <button data-rate="0.5" aria-pressed="false">½×</button>
+            <button data-rate="1" aria-pressed="true">1×</button>
+            <button data-rate="2" aria-pressed="false">2×</button>
+          </div>
+          <div class="row buttons"><button id="pause">Pause</button></div>
+        </section>
+      </aside>
+
+      <section class="view" id="view-stage">
+        <div class="stage" id="stage">
+          <div class="floor"></div>
+          <div class="walker" id="walker">
+            <div class="figure" id="figure"></div>
+          </div>
+        </div>
+        <p class="hint" id="caption"></p>
+      </section>
+
+      <section class="view" id="view-grid" hidden>
+        <div class="grid" id="grid"></div>
+      </section>
+
+      <section class="view" id="view-refs" hidden>
+        <p class="hint">
+          Generated by <code>npm run references</code> into
+          <code>src/creatures/&lt;name&gt;/reference.svg</code>. Recolour with
+          the CSS variable <code>--bood-color</code>.
+        </p>
+        <div class="grid refs" id="refs"></div>
+      </section>
+    </main>
+
+    <script type="module" src="/dev/playground.js"></script>
+  </body>
+</html>

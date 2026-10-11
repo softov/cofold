@@ -1,0 +1,60 @@
+{
+  "name": "@cofold/bood",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The bood creatures: bodies, faces and moods as data, motion as keyframes, drawn by any renderer. No dependencies.",
+  "license": "MIT",
+  "author": "Luiz Fernando Softov <lfs@softov.dev>",
+  "funding": "https://github.com/sponsors/softov",
+  "homepage": "https://github.com/softov/cofold#readme",
+  "bugs": {
+    "url": "https://github.com/softov/cofold/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/softov/cofold.git",
+    "directory": "packages/bood"
+  },
+  "keywords": [
+    "bood",
+    "creature",
+    "avatar",
+    "svg",
+    "animation",
+    "agent",
+    "zero-dependency"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./dom": {
+      "types": "./dist/dom.d.ts",
+      "default": "./dist/dom.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json && node dev/serve.mjs",
+    "references": "tsc -p tsconfig.json && node scripts/references.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist"
+  }
+}
