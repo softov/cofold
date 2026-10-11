@@ -1,7 +1,7 @@
 ---
 title: AGENT-03 - Slash commands: runtime commands the harness runs, prompt commands it expands, client commands the client keeps
 domain: agent
-status: planned
+status: active
 priority: high
 created: 2026-09-16
 revalidated: 2026-10-11
