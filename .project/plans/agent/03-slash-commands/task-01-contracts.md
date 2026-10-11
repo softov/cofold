@@ -4,36 +4,42 @@ status: todo
 depends: []
 layer: agents
 refs:
-  - code://packages/agents/src/types/command.ts
-  - code://packages/agents/src/types/message.ts#L34
+  - "[code://packages/agents/src/types/agent.ts#L45-L64](../../../../packages/agents/src/types/agent.ts#L45-L64) - `AgentOptions`, which gets `slashCommands`"
+  - "[code://packages/agents/src/types/capability.ts#L18-L36](../../../../packages/agents/src/types/capability.ts#L18-L36) - `Capability`, which gets `slashCommands` and `prompts`"
+  - "[code://packages/agents/src/types/message.ts#L34](../../../../packages/agents/src/types/message.ts#L34) - `MessageSource`"
+  - "[code://packages/agents/src/types/event.ts#L14-L44](../../../../packages/agents/src/types/event.ts#L14-L44) - `RunEventBody`"
 ---
 
 ## Objective
 
-`SlashCommand`, `SlashCommandContext` and `SlashCommandInfo` exist in `@cofold/agents`, an agent definition and a capability can carry commands, a message can be a `command` or a `notice`, and the two events are typed. Nothing runs yet.
+The types for runtime commands, prompt commands, the three new message sources and the two command events exist and are exported.
+Nothing runs them yet.
 
 ## Files
 
-- `CREATE: packages/agents/src/types/slash-command.ts` - `SlashCommand { name; description; argumentHint?; run(ctx): Promise<string | undefined> }`, `SlashCommandContext { agent; session; args; store; signal; emit }`, `SlashCommandInfo { name; description; argumentHint? }` (decision 2).
-- `UPDATE: packages/agents/src/types/message.ts:34` - `MessageSource` gains `'command' | 'notice'` (decision 7).
-- `UPDATE: packages/agents/src/types/event.ts` - `command.started { name; args }`, `command.finished { name; output? }` (decision 8).
-- `UPDATE: packages/agents/src/types/agent.ts` - `AgentDefinition.slashCommands?: SlashCommand[]`; `Agent.slashCommands: readonly SlashCommand[]` (decision 3).
-- `UPDATE: packages/agents/src/types/capability.ts:18-30` - `slashCommands?(args: CapabilityArgs): SlashCommand[] | Promise<SlashCommand[]>` (decision 3).
-- `UPDATE: packages/agents/src/types/run.ts` - delete `CompactArgs` (decision 4).
-- `UPDATE: packages/agents/src/types/contracts.test-d.ts` - a `SlashCommand` without `run` fails; a `MessageSource` of `'command'` is accepted.
-- `UPDATE: packages/agents/src/index.ts` - export the three types.
+- `CREATE: packages/agents/src/types/slash-command.ts` - `SlashCommand`, `SlashCommandContext`, `PromptCommand`, `SlashCommandInfo`.
+- `UPDATE: packages/agents/src/types/index.ts` - export the new file.
+- `UPDATE: packages/agents/src/types/agent.ts:45-64` - `AgentOptions.slashCommands`; `Agent.slashCommands`.
+- `UPDATE: packages/agents/src/types/capability.ts:18-36` - `Capability.slashCommands` and `Capability.prompts`.
+- `UPDATE: packages/agents/src/types/message.ts:34` - add `command`, `notice` and `skill` to `MessageSource`.
+- `UPDATE: packages/agents/src/types/event.ts:14-44` - `command.started` and `command.finished`.
+- `UPDATE: packages/agents/src/types/contracts.test-d.ts` - type tests for the new shapes.
 
 ## Steps
 
-1. Write `types/slash-command.ts` per decision 2; `name` documented as `/^[a-z][a-z0-9_-]{0,63}$/`.
-2. Add the two sources, the two events, the two fields, the capability method.
-3. Delete `CompactArgs`; `run.ts` refers to it until task 02 removes `compact()`, so the typecheck is red between the two tasks.
-4. Type tests.
+1. Write `SlashCommand { name; description; argumentHint?; run(ctx: SlashCommandContext): Promise<string | undefined> }`.
+2. Write `SlashCommandContext { agent; sessionId; runId; workspace?; args: string; store; kv; signal }`, the same reach as `CapabilityArgs`.
+3. Write `PromptCommand { name; description; argumentHint?; expand(args: string): Promise<string> }`.
+4. Write `SlashCommandInfo { name; description; argumentHint?; kind: 'runtime' | 'prompt' }`.
+5. Add `slashCommands?: SlashCommand[]` to `AgentOptions`, and `readonly slashCommands: readonly SlashCommand[]` to `Agent`.
+6. Add `slashCommands?: readonly SlashCommand[]` and `prompts?(args: { workspace?: string }): Promise<PromptCommand[]>` to `Capability`.
+7. Add `'command' | 'notice' | 'skill'` to `MessageSource`, with one comment line each from decision 3.
+8. Add `{ type: 'command.started'; name: string; args: string }` and `{ type: 'command.finished'; name: string; output?: string }` to `RunEventBody`.
+9. Add type tests for each new shape.
 
 ## Validation
 
-- `npx tsc -p packages/agents/tsconfig.test.json --noEmit` after task 02.
-- The `contracts.test-d.ts` cases above.
+- `pnpm --filter @cofold/agents typecheck` passes.
+- `contracts.test-d.ts` holds a `SlashCommand`, a `PromptCommand` and both events.
 
 ## Resume
-

@@ -1,40 +1,44 @@
 ---
-title: AGENT-03 - Slash commands: internal ones the runtime lists and runs, external ones the client keeps
+title: AGENT-03 - Slash commands: runtime commands the harness runs, prompt commands it expands, client commands the client keeps
 domain: agent
 status: planned
 priority: high
 created: 2026-09-16
-revalidated: 2026-09-16
+revalidated: 2026-10-11
 requires:
   - plans/agent/01-harness-core-p5-streaming-context-usage/plan.md
-  - plans/cli/02-papo-commands/plan.md
   - plans/cli/03-papo-claude/plan.md
+decisions:
+  - decisions/slash-commands-run-in-the-runtime.md
+  - decisions/slash-command-sources.md
+  - decisions/transcript-only-message-sources.md
+  - decisions/compact-stays-as-a-wrapper.md
+  - decisions/papo-queues-a-slash-line-during-a-turn.md
+  - decisions/papo-declares-its-own-runtime-commands.md
+  - decisions/claude-backend-lists-its-commands-once.md
 refs:
-  - code://packages/agents/src/run/run.ts#L29-L58 - `run()` and `compact()` both go through `start(args, compacting)`; `compact()` is a run whose input is the ask (`source: 'system'`) and whose one step writes the `summary` message
-  - code://packages/agents/src/run/context.ts#L46 - `contextOf(history)`: the newest `summary` first, then every message no summary covers. Nothing else is filtered by `source`
-  - code://packages/agents/src/types/message.ts#L34 - `MessageSource = 'input' | 'model' | 'tool' | 'hook' | 'summary' | 'system'`
-  - code://packages/agents/src/types/command.ts - `RunCommand` is `approve | deny | answer | cancel` (steer planned): the handle's control commands. The name "command" is taken by that; the new concept is a *slash command*
-  - code://packages/agents/src/types/capability.ts#L18-L30 - a `Capability` contributes `tools()` and `instructions()`; the shape a slash-command contribution mirrors
-  - code://packages/agents/src/capabilities/skills.ts - `listSkills(sources)` and the prompt rule "send `/<name>`"; a skill is a prompt the model reads, not a command the runtime runs
-  - code://packages/papo/src/chat.ts#L88-L96 - papo keeps `Settings { model, permissions, reasoning, autoCompact }` per session in `kv` and rebuilds the `Agent` from them for every turn (`agentFor`)
-  - code://packages/papo/src/agent.ts - `buildAgent`: the definition papo hands the harness (instructions, capabilities, policy, skills, context); the one place papo can register commands the runtime runs
-  - code://packages/papo/src/screen/app.tsx#L367-L505 - the client commands: `app.*`, `session.*`, `view.*`, `chat.*`; the `/` list is `skills + app.commands.list({ slot: 'palette' })` (chat.tsx:17-26)
-  - code://packages/papo/src/screen/chat.tsx#L132-L139 - a picked skill becomes the draft `/<name> `; a picked client command runs through `app.execute`
-  - code://packages/papo/src/turns.ts#L46-L47 - `source: 'input' | 'system'` is a turn's input; `summary` a summary part; `notice` parts exist (used by the Claude projection for `<local-command-stdout>`)
-  - code://packages/papo/src/claude/project.ts#L10-L11 - Claude's transcript after a command: a user message `<command-name>/compact</command-name>...` (the echo) and a user message `<local-command-stdout>Compacted </local-command-stdout>` (the output); projected as input `/compact` + notice `Compacted`
-  - code://packages/agents/src/run/compact.ts - the compaction step; `/compact` calls it
-  - code://packages/agents/src/capabilities/skills.ts:listSkills - the shape of `listSlashCommands`
-  - code://packages/papo/src/claude/project.ts - how a command run reads in a transcript (echo + notice); the harness writes the same two messages, typed
-  - npm://@anthropic-ai/claude-agent-sdk@^0.3.273 - supportedCommands() lists what Claude's runtime runs; the reference for internal commands
+  - "[code://packages/agents/src/run/run.ts#L71-L115](../../../../packages/agents/src/run/run.ts#L71-L115) - `setupRun`: run record, claim, capabilities, input message, `run.started`"
+  - "[code://packages/agents/src/run/compact.ts#L52-L80](../../../../packages/agents/src/run/compact.ts#L52-L80) - `writeSummary`, which uses the run's input as the ask in a `compact()` run"
+  - "[code://packages/agents/src/run/turn.ts#L221-L233](../../../../packages/agents/src/run/turn.ts#L221-L233) - the loop's compact branch"
+  - "[code://packages/agents/src/run/context.ts#L45-L50](../../../../packages/agents/src/run/context.ts#L45-L50) - `contextOf`"
+  - "[code://packages/agents/src/types/capability.ts#L18-L36](../../../../packages/agents/src/types/capability.ts#L18-L36) - `Capability`"
+  - "[code://packages/agents/src/capabilities/skills.ts](../../../../packages/agents/src/capabilities/skills.ts) - `skills()` and `listSkills`"
+  - "[code://packages/agents/src/types/agent.ts#L45-L64](../../../../packages/agents/src/types/agent.ts#L45-L64) - `AgentOptions`, which gets `slashCommands`"
+  - "[code://packages/papo/src/chat.ts#L436-L478](../../../../packages/papo/src/chat.ts#L436-L478) - `say`, which steers a running turn, and `compact`"
+  - "[code://packages/papo/src/agent.ts#L41-L73](../../../../packages/papo/src/agent.ts#L41-L73) - `buildAgent`"
+  - "[code://packages/papo/src/screen/app.tsx#L387-L678](../../../../packages/papo/src/screen/app.tsx#L387-L678) - the client commands"
+  - "[code://packages/papo/src/claude/chat.ts#L356-L359](../../../../packages/papo/src/claude/chat.ts#L356-L359) - Claude `skills()`"
+  - git://5da7143 - the plan as written on 2026-09-16, before this revalidation
 ---
 
-# AGENT-03 - Slash commands: internal ones the runtime lists and runs, external ones the client keeps
+# AGENT-03 - Slash commands
 
 ## Goal
 
-A person types `/compact` and the runtime does it: the harness lists the command, runs it inside the turn loop, and writes the echo and the output into the transcript, exactly as Claude Code's runtime does for its own `/compact`.
-Today papo does this in the client ([app.tsx:419-427](../../../../packages/papo/src/screen/app.tsx#L419-L427) calls `chat.compact()`), so on the Claude backend the screen shows Claude's `/compact` next to papo's, and the harness has no idea a command exists.
-This plan moves every command that belongs to the runtime into the runtime (internal commands), leaves the client the few that are about the terminal (external commands), and makes the `/` menu the list the runtime gives, on both backends.
+A person types `/compact` and the runtime runs it.
+The harness lists the command, runs it as a turn, and writes the typed line and the output to the transcript.
+A person types `/review` and the harness puts the skill's text in the turn, so the model acts on it at once.
+papo keeps only the commands that are about its terminal, and its `/` menu shows the runtime's list on both backends.
 
 ## Reconnaissance
 
@@ -42,96 +46,127 @@ The files read and the patterns to reuse are the `refs` above, each with its not
 
 ### Searches performed
 
-- `rg "slash|SlashCommand" packages/agents/src` - nothing: the harness has no command concept.
-- `rg "chat\.compact|controller\.compact" packages/papo/src` - the client command, the controller method, the shell action `compact <session>`, `Chat.compact()`.
-- `papo --backend claude skills` on the real CLI (0.3.273) - what its runtime lists: `/compact /autocompact /clear /config /context /effort /model /rename /init /review /mcp /usage /cost /insights /memory /agents /doctor /output-style /fast /color ...` plus every skill. The runtime lists nearly everything; the client keeps the look.
+- `rg "slash|SlashCommand" packages/agents/src` - nothing; the harness has no command concept.
+- `rg "compact" packages/papo/src` - `Chat.compact()`, the screen's `chat.compact`, the shell and MCP action `compact <session>`.
+- `/github/pi` `agent-session.ts` - pi registers extension commands at load, and expands `/skill:<name>` in the session.
 
-### Runtime path (after this plan)
+### Three kinds of slash line
 
 ```
-composer "/compact"  → Chat.say(text)
-  → cofold backend: run({ agent, session, input })
-      → start(): parseSlash(input) matches a listed command
-      → store input message { role: 'user', source: 'command', parts: [text '/compact'] }
-      → command.run({ agent, session, args, store, emit })      (compact: writes the summary message)
-      → store output message { role: 'user', source: 'notice', parts: [text 'Compacted'] }
-      → run.finished { status: 'completed' }; no model step
-  → claude backend: the CLI runs its own; the transcript shows its echo and stdout
-papo turns.ts: source 'command' → Turn.input; 'notice' → notice part; 'summary' → summary part
-papo `/` menu = Chat.commands() + Chat.skills() + client commands whose name the runtime does not list
+/name args
+ ├─ runtime command  (compact, status, usage, model, ...)  -> the harness runs it; no model step, except /compact
+ ├─ prompt command   (each skill)                          -> the harness expands it; the model acts on it
+ └─ client command   (help, theme, quit, clear, ...)        -> papo's screen; never reaches the runtime
+anything else                                               -> the model, as text
+```
+
+### Where the commands come from
+
+```
+createAgent                                  per session
+ ├─ AgentOptions.slashCommands  (papo's)      └─ Capability.prompts({ workspace })
+ ├─ Capability.slashCommands    (fixed)           └─ skills(): one per skill
+ └─ built-ins: compact
+ = Agent.slashCommands  -> listSlashCommands(agent)      = listPromptCommands(agent, { workspace })
+```
+
+### Runtime path
+
+```
+say('/compact')
+ └─ run() -> setupRun: record, claim, capabilities
+      ├─ runtime command: input { source: command } -> command.started -> run(ctx) -> { source: notice } -> command.finished -> run.finished
+      ├─ /compact:        input { source: command } -> one model step writes the summary -> { source: notice } -> run.finished
+      ├─ prompt command:  input { source: input } + { source: skill } -> the model step as usual
+      └─ otherwise:       input { source: input } -> the model step as usual
 ```
 
 ### Gaps
 
-- No `SlashCommand` type, no registry, no interception in `start()`, no `command` / `notice` message sources, no events.
-- `Chat` has `compact()` (a client-shaped method) and no `commands()`.
-- papo's runtime-worthy commands are client commands with overlays (`chat.status`, `chat.cost`, `app.config`, `chat.skill`, `chat.compact`, `chat.autocompact`).
-- The Claude backend types its commands as skills.
-- `Not found: any test that types a slash command into the harness - searched "say('/" in packages/agents, packages/papo.`
+- No `SlashCommand` type, no list on the agent, no recognition in `setupRun`, no `command`, `notice` or `skill` source, no events.
+- `writeSummary` uses a `compact()` run's input as the ask; a `command` input is out of the request, so the ask would be lost.
+- `skills()` tells the model to read a skill on `/<name>`; the harness does not expand it.
+- papo's `say` steers a slash line into a running turn.
+- papo runs `/compact`, `/status`, `/usage`, `/config`, `/skills` and `/autocompact` in the client.
+- The Claude backend lists its commands as skills.
 
 ## Decisions locked in
 
-| # | Decision | Rationale / source |
+| # | Decision |
+| --- | --- |
+| 1 | [A runtime command is a run in the harness, and a client command never reaches the runtime](../../../decisions/slash-commands-run-in-the-runtime.md) |
+| 2 | [Runtime commands are a fixed list at createAgent; skills are prompt commands the harness expands per session](../../../decisions/slash-command-sources.md) |
+| 3 | [The command and notice sources stay out of every request; the skill source goes to the model](../../../decisions/transcript-only-message-sources.md) |
+| 4 | [compact() stays exported and runs /compact](../../../decisions/compact-stays-as-a-wrapper.md) |
+| 5 | [papo queues a slash line typed while a turn runs](../../../decisions/papo-queues-a-slash-line-during-a-turn.md) |
+| 6 | [papo declares /status, /usage, /model and the setting commands](../../../decisions/papo-declares-its-own-runtime-commands.md) |
+| 7 | [On the Claude backend, commands() is supportedCommands() and skills() is empty](../../../decisions/claude-backend-lists-its-commands-once.md) |
+
+| What | Source | Task |
 | --- | --- | --- |
-| 1 | Two kinds, named so everywhere: an **internal command** is listed and run by the runtime (the harness, or Claude's CLI); an **external command** is the client's (papo's screen or shell) and never reaches the runtime. `/compact`, `/autocompact`, `/model`, `/reasoning`, `/permissions`, `/status`, `/cost`, `/config`, `/skills`, `/context` are internal. `/theme`, `/help`, `/quit`, `/markdown`, `/export`, `/retry`, `/clear`, `/memory` (opens an editor) are external | User (2026-09-16): "this was supposed to be a harness command, something that came from the runner, not made in the client"; the real CLI's `supportedCommands()` lists the internal ones above |
-| 2 | `packages/agents/src/types/slash-command.ts`: `SlashCommand { name: string; description: string; argumentHint?: string; run(ctx: SlashCommandContext): Promise<string \| undefined> }` where `SlashCommandContext { agent, session, args: string, store, signal, emit }` and the returned text is the output (undefined: no output message). `name` matches `/^[a-z][a-z0-9_-]{0,63}$/` | One concept, one type; `RunCommand` (the handle's control) keeps its name, so this is a *slash* command throughout |
-| 3 | Where commands come from: `AgentDefinition.slashCommands?: SlashCommand[]` and `Capability.slashCommands?(args): SlashCommand[]`, plus the harness's built-ins, resolved once by `createAgent` into `Agent.slashCommands: readonly SlashCommand[]` (definition's first, then capabilities', then built-ins; a later one of the same name is dropped with `AgentError('already_exists')` at `createAgent`, not at run time). `listSlashCommands(agent): SlashCommandInfo[]` (`{ name, description, argumentHint? }`) is exported | Same shape as tools and instructions; the program (papo) registers what is its own, the harness ships what is the harness's |
-| 4 | Built-in: `compact` ("Fold the conversation so far into a summary the model continues from"; output `Compacted`). It runs the compaction step of p5 Task 6 (`run/compact.ts`) inside the command run: the summary message is written, then the notice. `compact()` as a separate exported run is removed; `contextOf` unchanged | The runtime owns compaction; a second entry point for the same thing is the boilerplate rule broken |
-| 5 | Interception, in `start()` before the run record is written: a string input (or a single text part) matching `/^\/([a-z][a-z0-9_-]*)(?:\s+([\s\S]*))?$/` whose name is in `agent.slashCommands` is a *command run*: input message `{ role: 'user', source: 'command', parts: [{ type: 'text', text: <the line as typed> }] }`, `run.started`, `command.started { name, args }`, `run(ctx)`, output message `{ role: 'user', source: 'notice', parts: [text] }` when text came back, `command.finished { name, output? }`, `run.finished { status: 'completed', message: <output or input>, usage: 0, steps: 0 }`. A throw → `run.finished { status: 'failed', error }` with no notice. No model step, no tools, no hooks | Claude's transcript shape (echo, stdout) typed instead of marked up; a run so `wait` / `subscribe` / the store see it like any turn |
-| 6 | A slash line whose name is not a listed command goes to the model as text, as today (a skill is invoked that way; so is a typo). A name that is both a command and a skill is the command | Claude does the same; the model never sees a command run |
-| 7 | `MessageSource` gains `'command'` and `'notice'`; `contextOf` leaves both out of every request (they are the transcript's, not the model's). `listMessages` unchanged | The model does not read `Compacted`; Claude's `local-command-stdout` is not sent either |
-| 8 | Events: `command.started { name, args }`, `command.finished { name, output? }` in `types/event.ts`, between `run.started` and `run.finished` | Same as every other step kind; a program can show "compacting..." |
-| 9 | papo registers its internal commands in `buildAgent` (`packages/papo/src/agent.ts`) as `definition.slashCommands`, each a closure over `{ store, kv, config, providers, workspace, home }`: `status` (session, model, mode, reasoning, workspace, home, tokens so far), `cost` (usage per turn and total, from the run records), `config` (the redacted configuration as JSON), `skills` (the list `listSkills` gives), `context` (what the next request carries: messages counted, estimated tokens, the budget), `model [ref]` (no arg: the catalogue; an arg: set it), `reasoning [level]`, `permissions [mode]`, `autocompact [on\|off]` (no arg: show). The setters write the same `kv` settings `configure()` writes, so the chips and `session set` agree with them | The runtime runs them and the transcript records them; the words are papo's, so papo declares them, the harness only runs them |
-| 10 | The overlays go: `PapoInfo` and `showInfo` are deleted with the client commands `chat.compact`, `chat.autocompact`, `chat.status`, `chat.cost`, `chat.skill`, `app.config`; their output is a notice in the transcript, where Claude puts it. `app.help` stays external and lists the runtime's commands (from `Chat.commands()`) and the client's | One place for a command's output; the screen test `answers /status, /cost, /config and /help ... in one overlay` is rewritten to read the notice |
-| 11 | `Chat` gains `commands(): Promise<SlashCommandInfo[]>` and loses `compact()`; the shell action `compact <session>` is deleted (`papo say -s <id> /compact` is the way, as it is on the CLI); `papo commands` lists them beside `papo skills`. The `-a on\|off` flag on `say` / `session set` stays (a setting is settable outside a command) | The service exposes the runtime's list; a client-shaped method for one command is what went wrong |
-| 12 | The `/` menu in the composer: `Chat.commands()` (kind `session`, sent as typed through `say`), then `Chat.skills()` (as today), then external commands whose name is not in the runtime's list (an external `clear` disappears on the Claude backend, which lists its own). A picked internal command with an `argumentHint` becomes the draft `/<name> ` for the person to finish; without one it is sent at once | One list, the runtime's names win; Claude's menu behaves so |
-| 13 | Claude backend: `commands()` is `supportedCommands()` (`SlashCommandInfo` is what Claude's `SlashCommand` already is); `skills()` becomes the skills alone when the SDK tells them apart (0.3.273 does not: everything is in `supportedCommands()`, so `skills()` returns `[]` there and the list shows once); `say('/x')` passes through unchanged; the `autoCompact` refusal in `checkSettings` goes with the setting's special-casing (Claude's `/autocompact` is Claude's) | One `/compact` per backend; what is listed is what runs |
-| 14 | Contract test (`chat-contract.test.ts`): the `compact` scenario becomes `say('/compact')` on both backends, asserting a turn whose input is `/compact`, a `summary` part somewhere, a `notice` part on that turn; a new `commands` scenario asserts `commands()` includes `compact` on both | Decision 10 of cli/03: the same story, the same snapshot |
-| 15 | Not in this plan: steering (p5 Task 1), streaming (p5 Task 5, next after this), `/rename` (no title in the store), `/mcp`, Claude's other commands beyond listing them | Scope |
-| 16 | `/help` is external: the client's overlay (`PapoInfo`) stays for it alone and lists `Chat.commands()` first, then the external commands | User (2026-09-16): external, overlay; Claude's CLI does it in the client |
-| 17 | `/clear` is external in papo (start a new conversation; the store keeps the old one); on the Claude backend the runtime's `/clear` is listed and papo's is hidden, per decision 12 | User (2026-09-16) |
-| 18 | `/model`, `/reasoning`, `/permissions`, `/autocompact` with no argument print the current value and the choices as a notice; the same in the shell and on the screen. Claude opens a picker for `/model`: a divergence logged in `deferred.md`, checked after this plan | User (2026-09-16) |
-| 19 | The chips keep writing through `Chat.configure()`; a setting is data and a command is one way to set it. Chip changes are not echoed into the transcript | User (2026-09-16) |
+| `SlashCommand { name, description, argumentHint?, run(ctx) }`; `run` returns the output text or `undefined`; `name` matches `^[a-z][a-z0-9_-]{0,63}$` | Softov, 2026-09-16 | 01 |
+| A duplicate runtime command name fails `createAgent` with `invalid_options`, as a duplicate capability id does | `create-agent.ts` | 02 |
+| A line is a command when it is a string or one text part matching `^/([a-z][a-z0-9_-]*)(?:\s+([\s\S]*))?$`; text with an image is never a command | (defaulted: a command takes text) | 02 |
+| A name that is a runtime command and a skill is the runtime command; an unknown name goes to the model as text | Softov, 2026-09-16; Claude does the same | 02, 03 |
+| A command run emits `command.started { name, args }` and `command.finished { name, output? }` between `run.started` and `run.finished` | follows decision 1 | 01, 02 |
+| A command that throws ends the run `failed` with no notice | (defaulted: as a failed step) | 02 |
+| `/compact` makes one model call, so its run counts that step, its usage and its cost | `writeSummary` | 02 |
+| `/compact` sends a new ask and puts the `command` message in `summarizes` | `contextOf` drops `command` messages | 02 |
+| Client commands: `/help`, `/theme`, `/quit`, `/markdown`, `/export`, `/memory`, `/clear`, `/retry`, and the turn controls (stop, queue, unqueue, approve, deny) | Softov, 2026-09-16; refreshed 2026-10-11 | 06 |
+| `/usage` is a runtime command, like `/status` | Softov, 2026-10-11, asked "Is /usage (was /cost) an internal command like /status?": "Internal" | 05 |
+| `/model`, `/reasoning`, `/permissions` and `/autocompact` with no argument write the current value and the choices as a notice | Softov, 2026-09-16 | 05 |
+| The choices for `/reasoning` and `/permissions` come from `EFFORT_LEVELS` and `PERMISSION_MODES` as papo offers them | agent/06 | 05 |
+| The chips keep writing through `Chat.configure()`, and a chip change is not written to the transcript | Softov, 2026-09-16 | 05 |
+| The `/` menu: runtime commands, then prompt commands, then client commands whose name the runtime does not list; a runtime command replaces the `compose.*` entry of the same name | Softov, 2026-09-16; `compose.model` is in the palette today | 06 |
+| A picked command with an `argumentHint` becomes the draft `/<name> `; one without is sent at once | Softov, 2026-09-16 | 06 |
+| `/help` keeps its overlay and lists the runtime's commands first; `/memory`, `/export` keep theirs | Softov, 2026-09-16; `showInfo` serves them | 06 |
+| `Chat` gets `commands()` and loses `compact()`; the shell and MCP action `compact <session>` goes; `papo commands` lists them | Softov, 2026-09-16 | 05, 07 |
+| The contract test runs `say('/compact')` on both backends, and a `commands` scenario finds `compact` on both | cli/03 decision 10 | 07, 08 |
+| `@cofold/agents` goes to 0.2.2, and ahpd's agent-cofold suite passes against it before the release | decision 4; the memory test-the-consumer-before-a-release | 04 |
 
 ## Proposed architecture
 
-- **Data flow** - composer or shell → `Chat.say('/name args')` → cofold: `run()` → `start()` sees a listed name → command run (messages `command`, `notice`) → store; claude: the CLI. Reads: `Chat.commands()` → cofold: `listSlashCommands(agent)`; claude: `supportedCommands()`.
-- **Event flow** - `run.started` → `command.started` → (`context.compacted` for `compact`) → `command.finished` → `run.finished`; papo's `subscribe` fires on each as today.
-- **State flow** - settings changed by `/model`, `/reasoning`, `/permissions`, `/autocompact` land in the same `kv` record `configure()` writes; the next turn's agent is built from it (`agentFor`), the chips read it from the snapshot.
-- **Layer responsibilities** - agents: the type, the registry, the interception, the two message sources, the events, `compact` · papo: its own internal commands (declared on the definition), `Chat.commands()`, the menu, the projection of `command` / `notice`, the deletion of the client copies · claude backend: the list from the SDK, pass-through.
-- **Source-of-truth files** - `packages/agents/src/types/slash-command.ts`, `types/message.ts`, `types/event.ts`, `types/agent.ts`; `packages/papo/src/types/chat.ts`.
+- **Data flow** - `say('/name args')` → `run()` → `setupRun` reads the line → a runtime command run, a prompt expansion, or a model turn.
+- **Event flow** - `run.started` → `command.started` → (`context.compacted` for `/compact`) → `command.finished` → `run.finished`.
+- **State flow** - `/model`, `/reasoning`, `/permissions` and `/autocompact` write the settings record that `configure()` writes; the next turn's agent reads it.
+- **Layer responsibilities**
+  - agents: the types, the lists, recognition, the sources, the events, `/compact` and skill expansion.
+  - papo: its runtime commands, `commands()`, the queue for a slash line, and the menu.
+  - papo on Claude: the SDK's list, passed through.
+- **Source-of-truth files** - `packages/agents/src/types/slash-command.ts`, made by task 01; [`code://packages/agents/src/types/message.ts`](../../../../packages/agents/src/types/message.ts); [`code://packages/papo/src/types/chat.ts`](../../../../packages/papo/src/types/chat.ts).
 
 ## Tasks
 
 | Task | Status | Depends on |
 | --- | --- | --- |
 | [01 - The slash command contracts](task-01-contracts.md) | todo | - |
-| [02 - The registry, the interception in start(), and compact as a command](task-02-registry-built-ins.md) | todo | 01 |
-| [03 - The harness README names slash commands](task-03-tests-readme.md) | todo | 02 |
-| [04 - papo's Chat lists the runtime's commands and declares its own internal ones](task-04-service.md) | todo | 02 |
-| [05 - The screen renders the runtime's list and keeps only the external commands](task-05-screen.md) | todo | 04 |
-| [06 - The shell lists commands, loses the compact action, and the docs say internal and external](task-06-shell-docs.md) | todo | 04 |
-| [07 - The Claude backend lists its own commands and nothing else](task-07-claude-backend.md) | todo | 04, 06 |
-
-Tasks 01-03 are the harness, 04-06 papo, 07 the Claude backend.
-The typecheck is red between 01 and 02 (a deleted type); `pnpm check` runs after 02.
+| [02 - The harness runs a runtime command, and /compact is one](task-02-the-harness-runs-a-command.md) | todo | 01 |
+| [03 - The harness expands a skill](task-03-the-harness-expands-a-skill.md) | todo | 01 |
+| [04 - The README describes slash commands, and agents 0.2.2 passes ahpd's suite](task-04-docs-and-release-check.md) | todo | 02, 03 |
+| [05 - papo's Chat lists the runtime's commands and declares its own](task-05-papo-service.md) | todo | 02, 03 |
+| [06 - The screen shows the runtime's list and keeps only client commands](task-06-papo-screen.md) | todo | 05 |
+| [07 - The shell lists commands and loses the compact action](task-07-papo-shell.md) | todo | 05 |
+| [08 - The Claude backend lists its own commands](task-08-claude-backend.md) | todo | 05, 07 |
 
 ## Risks and tradeoffs
 
-- The transcript of an existing session with the old `compact()` run (input `source: 'system'` "Summarize the conversation so far.") still projects: `turns.ts` keeps `system` as an input. No migration.
-- `/model` with no argument prints as a notice (decision 18); Claude's opens a picker. Logged in `deferred.md` to check after this plan.
-- `PapoInfo` stays for `/help` alone (decision 16); every other overlay use goes.
+- A session written before this plan has `compact()` runs with a `system` ask; `turns.ts` keeps `system` as an input, so it still shows.
+- ahpd shows `command`, `notice` and `skill` messages as user text until it maps them; see [deferred.md](deferred.md).
+- A program that steers a slash line through `handle.steer` sends text to the model; only papo's `say` queues it.
 
 ## Resume state
 
-- **Done so far:** plan written 2026-09-16 after the user found two `/compact` on the Claude backend.
-- **Next action:** [task-01-contracts.md](task-01-contracts.md); then 02 (the typecheck is red between them), then 03-07 in the table's order. Build and commit per task; `pnpm check` after 02 and after every later task.
-- **Open questions:** none; 1-4 were locked 2026-09-16 as decisions 16-19.
-- **Watch out for:** `start()` must intercept before the writer claim is taken? No: a command run takes the claim like any turn (a `/compact` while a turn runs is `writer_busy`, as today).
+- **Done so far:** revalidated 2026-10-11 against `4174eeb`; nothing built.
+- **Next action:** [task-01-contracts.md](task-01-contracts.md), then 02 and 03.
+- **Open questions:** none.
+- **Watch out for:** `/compact` makes a model call; a test that expects no model request is wrong.
 
 ## Final verification checklist
 
-- [ ] `pnpm check` green.
-- [ ] `papo` (cofold): `/compact`, `/status`, `/model` from the menu land in the transcript as input + notice; no overlay remains.
-- [ ] `papo --backend claude`: the `/` menu lists Claude's commands once; `/compact` runs the CLI's.
-- [ ] cli/02, cli/03, index.md updated.
+- [ ] `say('/compact')` writes a `command`, a `summary` and a `notice` message on the cofold backend, and no request carries the `command` or the `notice`.
+- [ ] `say('/review x')` on a session with a `review` skill sends the skill's text and `x` in the first model request.
+- [ ] A slash line typed during a turn starts after the turn, as its own run.
+- [ ] `compact()` still works and writes `/compact` as its input.
+- [ ] The `/` menu shows each name once on both backends.
+- [ ] `pnpm check` passes; ahpd's agent-cofold suite passes against the packed `@cofold/agents`.
+- [ ] `plans/index.md` updated.
