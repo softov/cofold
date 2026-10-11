@@ -64,6 +64,12 @@ describe("scalars", () => {
     for (const word of words) expect(text).toContain(`: "${word}"`);
   });
 
+  it("quotes text that a YAML 1.2 core schema reader reads as another type", () => {
+    const words = ["True", "TRUE", "False", "FALSE", "Null", "NULL", "+1", "+1.5", "0x1F", "0o17", ".inf", "-.Inf", "+.INF", ".nan", ".NaN", ".NAN"];
+    const text = roundTrip(Object.fromEntries(words.map((word) => [word, word])));
+    for (const word of words) expect(text).toContain(`"${word}": "${word}"`);
+  });
+
   it("quotes text that starts with an indicator", () => {
     const text = roundTrip(["- a", "a: b", "#x", "[a]", "{a}", "&a", "*a", "!a", "|", ">", "%a", "@a", "`a", "'a'", '"a"', "? a", ",a"]);
     expect(text).toContain('- "- a"\n- "a: b"\n- "#x"\n');
@@ -74,8 +80,8 @@ describe("scalars", () => {
   });
 
   it("leaves ordinary text plain", () => {
-    expect(roundTrip({ url: "http://host/path", version: "1.0.0", word: "don't", hash: "C#", Yes: "True" })).toBe(
-      "url: http://host/path\nversion: 1.0.0\nword: don't\nhash: C#\nYes: True\n",
+    expect(roundTrip({ url: "http://host/path", version: "1.0.0", word: "don't", hash: "C#", Yes: "on" })).toBe(
+      "url: http://host/path\nversion: 1.0.0\nword: don't\nhash: C#\nYes: on\n",
     );
   });
 

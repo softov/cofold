@@ -16,8 +16,11 @@ interface Literal {
 /** What a plain scalar may not start with: a YAML indicator or a quote. */
 const INDICATORS = "-?:,[]{}#&*!|>'\"%@`";
 
-/** Plain text that `scalar` reads as null, a boolean or a number. */
-const TYPED = /^(?:~|null|true|false|-?\d+|-?(?:\d+\.\d*|\.\d+)(?:[eE][-+]?\d+)?|-?\d+[eE][-+]?\d+)$/u;
+/**
+ * Plain text that `scalar`, or another reader of the YAML 1.2 core schema,
+ * reads as null, a boolean or a number.
+ */
+const TYPED = /^(?:~|null|Null|NULL|true|True|TRUE|false|False|FALSE|[-+]?\d+|0o[0-7]+|0x[\da-fA-F]+|[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$/u;
 
 /** Characters plain text may not hold: controls, line separators, lone surrogates, and flow brackets. */
 const UNPLAIN = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\ud800-\udfff[\]{}]|:\s|:$|\s#|[:-]\s+[|>][1-9+-]*$/u;
