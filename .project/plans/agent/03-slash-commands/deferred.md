@@ -11,3 +11,4 @@ date: 2026-10-11
 | `/mcp` and MCP prompts as prompt commands | the MCP client | the MCP client plan |
 | Claude's commands beyond listing them | the CLI runs them | unplanned |
 | `/model` with no argument as a picker | Claude opens one, and papo writes a notice | after this plan |
+| A resumed turn keeps its `skill` message out of an auto-compact | `resume()` does not restore `skillMessageId`; the skill is folded into the summary, and the message stays in the store | unplanned |
