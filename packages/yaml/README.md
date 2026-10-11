@@ -9,7 +9,7 @@
 Parsing with source-aware errors, and document loading with local and remote references, JSON pointers and bounded reads. No dependencies, no I/O in the parser.
 
 ```ts
-import { parseYaml, loadYaml } from "@cofold/yaml";
+import { parseYaml, stringifyYaml, loadYaml } from "@cofold/yaml";
 ```
 
 Part of the [cofold](https://github.com/softov/cofold) family.

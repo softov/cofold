@@ -1,6 +1,6 @@
 ---
 title: The docs describe the writer
-status: todo
+status: implemented
 depends: [task-01-stringify-yaml.md]
 layer: "docs"
 refs:
@@ -27,3 +27,5 @@ A reader of the manual page and the README knows that `stringifyYaml` exists and
 - `rg -n "stringifyYaml" docs/commands/11-yaml.md packages/yaml/README.md` finds both.
 
 ## Resume
+
+Built 2026-10-11, awaiting review. `11-yaml.md` has a paragraph on `stringifyYaml` after the `parseYaml` paragraph: what it writes, when multi-line text is quoted instead of a block, what it quotes, what it skips and what it refuses. The README import line names `stringifyYaml`.

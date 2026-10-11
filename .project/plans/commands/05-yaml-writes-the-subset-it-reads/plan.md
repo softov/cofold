@@ -1,7 +1,7 @@
 ---
 title: "@cofold/yaml writes the subset it reads"
 domain: commands
-status: planned
+status: active
 priority: high
 created: 2026-10-10
 revalidated: 2026-10-10
@@ -59,7 +59,7 @@ ahpd store -> stringifyYaml(record) -> frontmatter text -> file -> parseYaml -> 
 | Task | Status | Depends on |
 | --- | --- | --- |
 | [01 - stringifyYaml writes what parseYaml reads](task-01-stringify-yaml.md) | implemented | - |
-| [02 - The docs describe the writer](task-02-the-docs-describe-the-writer.md) | todo | 01 |
+| [02 - The docs describe the writer](task-02-the-docs-describe-the-writer.md) | implemented | 01 |
 
 ## Risks and tradeoffs
 
@@ -68,13 +68,15 @@ ahpd store -> stringifyYaml(record) -> frontmatter text -> file -> parseYaml -> 
 
 ## Resume state
 
-- **Done so far:** nothing.
-- **Next action:** [task-01-stringify-yaml.md](task-01-stringify-yaml.md).
-- **Open questions:** none.
-- **Watch out for:** a release of `@cofold/yaml` needs Softov's approval, and ahpd uses the writer only after it is published.
+- **Done so far:** tasks 01 and 02 implemented 2026-10-11, awaiting review. `stringifyYaml` is in `packages/yaml/src/stringify.ts`, with 21 round-trip tests in `stringify.test.ts`. No version bump and no release.
+- **Next action:** Softov reviews the build; then the release of `@cofold/yaml`, which needs his approval.
+- **Open questions:**
+  - The key `<<` is refused with `YamlError`, because `parseYaml` refuses it quoted or plain. The other way is to make `parseYaml` read a quoted `"<<"` as an ordinary key, as YAML does. The refusal is in place until Softov decides.
+  - Text that YAML 1.2 core reads as another type but `parseYaml` reads as text, such as `True`, `NULL`, `0x1F` or `.inf`, is written plain, because task 01 quotes only what `scalar` reads as another type. Another YAML reader of the same file reads those as a boolean, null or a number. Quoting them too is a one-line change.
+- **Watch out for:** a release of `@cofold/yaml` needs Softov's approval, and ahpd uses the writer only after it is published. A cycle in the value is not detected and overflows the stack. `parseYaml` refuses more than 128 levels by default, so a deeper value needs `maxDepth` when it is read back.
 
 ## Final verification checklist
 
-- [ ] `pnpm -r typecheck` and the `@cofold/yaml` tests pass.
-- [ ] The round-trip test passes for every case in task 01.
-- [ ] `plans/index.md` updated.
+- [x] `pnpm -r typecheck` and the `@cofold/yaml` tests pass.
+- [x] The round-trip test passes for every case in task 01.
+- [x] `plans/index.md` updated.
