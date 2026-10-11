@@ -1,4 +1,4 @@
-import type { AskAnswers, ModelInfo, ModelProvider, RunOutcome, SessionUsage, SkillIndexEntry, Store, Tool } from '@cofold/agents';
+import type { AskAnswers, ModelInfo, ModelProvider, RunOutcome, SessionUsage, SkillIndexEntry, SlashCommandInfo, Store, Tool } from '@cofold/agents';
 import type { ClaudeSdkSubset } from './claude.js';
 import type { PapoConfig } from './config.js';
 import type { Settings } from './settings.js';
@@ -59,6 +59,8 @@ export interface Started {
    * turn when the decision resumes it; `runId` is that turn's.
    */
   held?: true;
+  /** The text is a slash line said while a turn runs (AGENT-03.5): it waits in the queue as the next turn; `runId` is the running turn's. */
+  queued?: true;
 }
 
 /**
@@ -141,6 +143,11 @@ export interface Chat {
   providers(): Promise<ProviderRow[]>;
   /** The skills the agent may read: global ones under `<home>/skills` and the workspace's own; what a slash offers. */
   skills(): Promise<SkillIndexEntry[]>;
+  /**
+   * What a slash line may name: the runtime's commands, then its prompt commands (one per skill) whose name no
+   * runtime command takes. Asks nothing of the model or the network.
+   */
+  commands(): Promise<SlashCommandInfo[]>;
   sessions(): Promise<SessionRow[]>;
   /**
    * The session as the screen draws it: the model's view of the transcript (cli/03 F1), so after a
@@ -154,7 +161,9 @@ export interface Chat {
    * in the transcript before the next model step, and `Started.steered` says so; a turn that pauses on a
    * decision before the text lands keeps the steer in that turn (decisions 95, 122), where it lands at the
    * next model step after the decision. `Started.held` with `Queued.steer` is the fallback for a turn this
-   * process has let go of. AgentError('writer_busy') while the session already waits on a decision; answer it first.
+   * process has let go of. A line that starts with `/` is never a steer: while a turn runs it waits in the queue,
+   * and `Started.queued` says so (AGENT-03.5). AgentError('writer_busy') while the session already waits on a
+   * decision; answer it first.
    */
   say(args: { sessionId?: string; text: string; settings?: Partial<Settings> }): Promise<Started>;
   /**
@@ -181,8 +190,6 @@ export interface Chat {
   answer(sessionId: string, answers: AskAnswers): Promise<void>;
   /** Stops the turn: a running one is aborted; one waiting on a decision has it denied and ends cancelled (decision 120). */
   cancel(sessionId: string): Promise<void>;
-  /** Fold the conversation so far into a summary, as a run of its own; `wait` sees it end. Refused while a turn runs or waits. */
-  compact(sessionId: string): Promise<Started>;
   /**
    * What the session used, run by run and in total, from the runtime's own records (CLI-06.1): tokens
    * by kind, model steps, tool calls that ran and calls refused. Never a price. AgentError('not_found')

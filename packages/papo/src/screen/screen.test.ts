@@ -385,7 +385,7 @@ describe('the screen', () => {
     t.press('enter');
     await settle(t, 30);
     // The model's view: the compaction turn first, with the tokens before and after, then the tail it kept verbatim.
-    expect(t.hasText('(context compacted)')).toBe(true);
+    expect(t.hasText('Compacted')).toBe(true);
     expect(t.hasText('Context compacted:')).toBe(true);
     expect(t.hasText('tokens to')).toBe(true);
     expect(t.hasText('We said hello.')).toBe(true);

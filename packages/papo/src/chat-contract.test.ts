@@ -177,16 +177,19 @@ describe.each([cofold, claude])('the chat contract on $name', (rig) => {
     await asking.close();
   });
 
-  it('compact: a summary turn appears, the next turn goes on from it, and a busy session refuses', async () => {
+  it('/compact: a summary turn appears, the next turn goes on from it, and a session waiting on a decision refuses', async () => {
     const { chat } = rig.open(['text', 'text', 'text', 'tool']);
     const started = await chat.say({ text: 'Hello there' });
     await chat.wait(started.sessionId);
-    const folded = await chat.compact(started.sessionId);
+    const folded = await chat.say({ sessionId: started.sessionId, text: '/compact' });
     expect(folded.sessionId).toBe(started.sessionId);
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
     const after = await chat.snapshot(started.sessionId);
     expect(after.running).toBe(false);
-    expect(after.turns.flatMap((turn) => turn.parts).filter((part) => part.kind === 'summary')).toHaveLength(1);
+    const parts = after.turns.flatMap((turn) => turn.parts);
+    expect(parts.filter((part) => part.kind === 'summary')).toHaveLength(1);
+    // The typed line is a turn of its own, and the runtime's word for it is a notice there.
+    expect(after.turns.find((turn) => turn.input === '/compact')?.parts).toContainEqual(expect.objectContaining({ kind: 'notice', text: 'Compacted' }));
 
     await chat.say({ sessionId: started.sessionId, text: 'Again' });
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
@@ -194,7 +197,7 @@ describe.each([cofold, claude])('the chat contract on $name', (rig) => {
 
     await chat.say({ sessionId: started.sessionId, text: 'Delete a' });
     await chat.wait(started.sessionId);
-    await expect(chat.compact(started.sessionId)).rejects.toMatchObject({ code: 'writer_busy' });
+    await expect(chat.say({ sessionId: started.sessionId, text: '/compact' })).rejects.toMatchObject({ code: 'writer_busy' });
     await chat.close();
   });
 

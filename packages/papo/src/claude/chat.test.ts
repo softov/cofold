@@ -205,7 +205,7 @@ describe('createClaudeChat', () => {
     await chat.say({ sessionId: started.sessionId, text: 'Second' });
     await chat.wait(started.sessionId);
 
-    const compacting = await chat.compact(started.sessionId);
+    const compacting = await chat.say({ sessionId: started.sessionId, text: '/compact' });
     expect(compacting.sessionId).toBe(started.sessionId);
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
     const after = await chat.snapshot(started.sessionId);
@@ -226,7 +226,6 @@ describe('createClaudeChat', () => {
     expect(steered).toEqual({ sessionId: started.sessionId, runId: started.runId, steered: true });
     // Shown at once, from what this process pushed; the store has it once the turn ends.
     expect((await chat.snapshot(started.sessionId)).turns.map((turn) => turn.input)).toEqual(['Run it', 'Also, be brief']);
-    await expect(chat.compact(started.sessionId)).rejects.toMatchObject({ code: 'writer_busy' });
 
     gate.release('slept');
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');

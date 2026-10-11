@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { Agent, ModelProvider, Rule, SkillSource, Store, Tool } from '@cofold/agents';
+import type { Agent, ModelProvider, Rule, SkillSource, SlashCommand, Store, Tool } from '@cofold/agents';
 import { createAgent, createAskUserTool, effortOf, policyOf, rules, skills } from '@cofold/agents';
 import { workspaceSlug } from '@cofold/store-file';
 import { resolveWithin, standardCapabilities } from '@cofold/tools';
@@ -25,6 +25,8 @@ export interface AgentArgs {
   instructions: string;
   /** Beyond `ask_user`; a `--demo-tools` flag or a later plugin adds them. */
   tools?: Tool<any, any>[];
+  /** papo's runtime commands (AGENT-03.6), before the harness's `compact`. */
+  commands?: SlashCommand[];
   warn(message: string): void;
 }
 
@@ -53,6 +55,7 @@ export function buildAgent(args: AgentArgs): Agent {
     model: args.provider.model({ id: args.modelId, params }),
     context: { maxTokens, ...(settings.autoCompact ? { autoCompactTokens: Math.floor(maxTokens * AUTO_COMPACT_AT) } : {}) },
     tools: [createAskUserTool(), ...(args.tools ?? [])],
+    ...(args.commands !== undefined ? { slashCommands: args.commands } : {}),
     capabilities: [
       ...standardCapabilities(config.tools, {
         workspace: args.workspace,

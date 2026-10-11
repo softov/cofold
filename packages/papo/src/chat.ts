@@ -1,14 +1,15 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Agent, ApprovalPayload, Message, ModelInfo, ModelProvider, PendingRequest, RunHandle, RunOutcome, RunRecord, StopReason } from '@cofold/agents';
-import { AgentError, compact, contextOf, listSkills, newId, resume, run, sessionUsage } from '@cofold/agents';
+import type { Agent, ApprovalPayload, Message, ModelAdapter, ModelInfo, ModelProvider, PendingRequest, RunHandle, RunOutcome, RunRecord, SlashCommand, StopReason } from '@cofold/agents';
+import { AgentError, listPromptCommands, listSkills, listSlashCommands, newId, resume, run, sessionUsage } from '@cofold/agents';
 import { providerFor, splitModel } from '@cofold/model-openai-compat';
 import { fileSkillSource } from '@cofold/store-file';
 import { AGENT_ID, buildAgent } from './agent.js';
+import { runtimeCommands } from './commands/runtime.js';
 import { createQueues } from './queue.js';
 import { checkRules } from './rules.js';
-import { projectTurns, titleOf } from './turns.js';
+import { projectTurns, titleOf, viewOf } from './turns.js';
 import type { Chat, ChatListener, ChatOptions, ModelRow, ProviderRow, Started } from './types/chat.js';
 import type { Settings } from './types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
@@ -40,6 +41,21 @@ interface Attached {
 
 /** The package folder: `<here>/skills/<name>/SKILL.md` are the prompts papo ships. */
 const SHIPPED_ROOT = fileURLToPath(new URL('..', import.meta.url));
+
+/**
+ * The provider an agent built only to list its commands is given: listing reads the agent's lists and the
+ * capabilities' prompts, never the model, so this model refuses every request.
+ */
+const LISTING_PROVIDER: ModelProvider = {
+  id: 'papo:listing',
+  listModels: async () => [],
+  model: ({ id }): ModelAdapter => ({
+    id: 'papo:listing',
+    modelId: id,
+    features: { tools: true, streaming: false, images: false, structuredOutput: false, reasoning: false },
+    complete: () => Promise.reject(new AgentError({ code: 'invalid_options', message: 'the listing agent has no model' })),
+  }),
+};
 
 /** Where a session's own choices live in the workspace kv; the same key on both backends, so `session set` reads one thing. */
 export function settingsKey(sessionId: string): string {
@@ -151,12 +167,25 @@ export function createChat(options: ChatOptions): Chat {
     };
   }
 
+  /** papo's runtime commands (AGENT-03.6), over the service's own settings, skills and models. */
+  const commands: SlashCommand[] = runtimeCommands({
+    config, workspace, home,
+    settings: (sessionId) => settingsOf(sessionId),
+    configure: (sessionId, patch) => chat.configure(sessionId, patch),
+    skills: () => chat.skills(),
+    models: () => chat.models(),
+  });
+
   async function agentFor(settings: Settings): Promise<Agent> {
     const model = settings.model === '' ? await modelRef() : settings.model;
     const { provider, modelId } = providerOf(model);
     settings = { ...settings, model };
+    return agentWith(settings, provider, modelId);
+  }
+
+  async function agentWith(settings: Settings, provider: ModelProvider, modelId: string): Promise<Agent> {
     return buildAgent({
-      config, settings, provider, modelId, store, home, workspace, skills: skillSources, instructions: await instructions(), warn,
+      config, settings, provider, modelId, store, home, workspace, skills: skillSources, instructions: await instructions(), commands, warn,
       ...(options.tools !== undefined ? { tools: options.tools } : {}),
     });
   }
@@ -363,6 +392,15 @@ export function createChat(options: ChatOptions): Chat {
 
     skills: async () => [...(await listSkills({ sources: skillSources, workspace })).values()].map(({ entry }) => entry),
 
+    async commands() {
+      // Built on a model that is never called: the lists need no provider, so the menu opens without the network.
+      const agent = await agentWith(await settingsOf(undefined), LISTING_PROVIDER, 'listing');
+      const runtime = listSlashCommands(agent);
+      const names = new Set(runtime.map((command) => command.name));
+      // A runtime command wins over a skill of the same name, as the harness runs it.
+      return [...runtime, ...(await listPromptCommands(agent, { workspace })).filter((command) => !names.has(command.name))];
+    },
+
     async sessions() {
       const rows: SessionRow[] = [];
       for (const session of await store.sessions.list({ workspace, agentId: AGENT_ID })) {
@@ -384,8 +422,8 @@ export function createChat(options: ChatOptions): Chat {
       const session = await store.sessions.get({ sessionId });
       if (session === undefined) throw new AgentError({ code: 'not_found', message: `session ${sessionId} is not there` });
       const all = await store.sessions.listMessages({ sessionId });
-      // The screen shows what the model sees (cli/03 F1); `--all` shows the whole transcript.
-      const messages = options?.all === true ? all : contextOf(all);
+      // The screen shows what the model sees (cli/03 F1), with the commands typed; `--all` shows the whole transcript.
+      const messages = options?.all === true ? all : viewOf(all);
       const listed = await store.runs.list({ sessionId });
       const runs = [...listed].reverse();
       const last = inForce(listed, session.activeWriterRunId);
@@ -441,6 +479,11 @@ export function createChat(options: ChatOptions): Chat {
       // A person spoke: whatever a cancel held back may start again on the next settle (CLI-04.1).
       queues.release(id);
       if (patch !== undefined) await patchSettings(id, patch);
+      // A slash line waits for the running turn to settle and starts as its own turn, so the runtime reads it (AGENT-03.5).
+      if (running !== undefined && text.startsWith('/')) {
+        await queues.add(id, { text });
+        return { sessionId: id, runId: running.handle.runId, queued: true } satisfies Started;
+      }
       // A turn still running here takes the text as a steer (decision 95): it lands before the next
       // model step. A turn that settled first refuses it `not_running`, and the text starts a new one.
       if (running !== undefined) {
@@ -462,19 +505,6 @@ export function createChat(options: ChatOptions): Chat {
       attach(id, { handle, agent, stop: stopOf() });
       notify(id);
       return { sessionId: id, runId: handle.runId } satisfies Started;
-    },
-
-    async compact(sessionId) {
-      await requireSession(sessionId);
-      const last = await newest(sessionId);
-      if (last?.status === 'awaiting' || (last?.status === 'running' && attached.has(sessionId))) {
-        throw new AgentError({ code: 'writer_busy', message: `session ${sessionId} is busy; wait, answer or cancel it first` });
-      }
-      const agent = await agentFor(await settingsOf(sessionId));
-      const handle = compact({ agent, session: sessionId });
-      attach(sessionId, { handle, agent, stop: stopOf() });
-      notify(sessionId);
-      return { sessionId, runId: handle.runId } satisfies Started;
     },
 
     async usage(sessionId) {

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { CanUseTool, Options, SDKMessage, SDKResultMessage, SDKSessionInfo, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { RunOutcome, RunUsage, SessionUsage, SkillIndexEntry, Usage } from '@cofold/agents';
+import type { RunOutcome, RunUsage, SessionUsage, SkillIndexEntry, SlashCommandInfo, Usage } from '@cofold/agents';
 import { AgentError, ZERO_USAGE, addUsage, newId } from '@cofold/agents';
 import { createFileStore } from '@cofold/store-file';
 import { settingsKey } from '../chat.js';
@@ -19,7 +19,7 @@ import { loadClaudeSdk } from './sdk.js';
 
 /** The provider id papo shows Claude's models under: refs are `claude/<model>`. */
 export const CLAUDE_PROVIDER = 'claude';
-/** What `compact()` sends; the CLI's own command. */
+/** The CLI's own compaction command: a turn that sends it is compacting. */
 export const COMPACT_COMMAND = '/compact';
 
 /** A queue a `for await` reads from: what the CLI process takes its user messages through. */
@@ -358,6 +358,16 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       return commands.map((command): SkillIndexEntry => ({ name: command.name, description: command.description, ref: command.name }));
     },
 
+    async commands() {
+      const commands = await withQuery((query) => query.supportedCommands());
+      return commands.map((command): SlashCommandInfo => ({
+        name: command.name,
+        description: command.description,
+        ...(command.argumentHint !== '' ? { argumentHint: command.argumentHint } : {}),
+        kind: 'runtime',
+      }));
+    },
+
     async sessions() {
       const listed = await (await sdk()).listSessions({ dir: workspace });
       const rows = listed.map((info): SessionRow => ({
@@ -480,12 +490,6 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       if (held === undefined) return;
       if (held.decision !== null) held.decision.resolve(denial('The turn was stopped'));
       if (held.running) await held.query.interrupt();
-    },
-
-    async compact(sessionId) {
-      // The CLI's command is a turn of its own, never a steer into a running one.
-      if (live.get(sessionId)?.running) throw new AgentError({ code: 'writer_busy', message: `session ${sessionId} is still answering; wait or cancel it` });
-      return send(sessionId, COMPACT_COMMAND);
     },
 
     async remove(sessionId) {

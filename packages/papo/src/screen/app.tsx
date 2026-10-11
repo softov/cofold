@@ -13,7 +13,8 @@ import { createBag, defineComponent, serviceKey, useApp, useStoreValue, useTheme
 import { KeyHints, Row, registerBuiltins } from '@textui/widgets';
 import type { Papo } from '../commands.js';
 import { AUTO_COMPACT_AT } from '../agent.js';
-import { redactedConfig, rememberedOf, renderUsage } from '../commands.js';
+import { rememberedOf } from '../commands.js';
+import { redactedConfig, renderUsage } from '../commands/runtime.js';
 import { exportPath, toMarkdown } from '../export.js';
 import { toAskAnswers } from '../questions.js';
 import type { ModelRow, ProviderRow } from '../types/chat.js';
@@ -166,7 +167,7 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
       const current = open();
       if (current === null) { report(new Error('compact: nothing said yet')); return; }
       try {
-        await chat.compact(current);
+        await chat.say({ sessionId: current, text: '/compact' });
         app.store.set(ERROR, null);
         await reload(current);
       } catch (error: unknown) {

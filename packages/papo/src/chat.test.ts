@@ -731,7 +731,7 @@ describe('createChat', () => {
     expect(executions()).toBe(3);
   });
 
-  it('compacts a session into a summary turn the next turn starts from, and refuses while busy', async () => {
+  it('/compact folds a session into a summary turn the next turn starts from, and is refused while a decision waits', async () => {
     const { tool } = deleteFileTool();
     const { chat, provider, store } = testChat({
       script: [{ text: 'Hello back.' }, { text: 'We greeted each other.' }, { text: 'Still here.' }, { toolCalls: [{ name: 'delete_file', input: { path: 'a' } }] }],
@@ -739,31 +739,111 @@ describe('createChat', () => {
     });
     const started = await chat.say({ text: 'Hello there' });
     await chat.wait(started.sessionId);
-    const folded = await chat.compact(started.sessionId);
+    const folded = await chat.say({ sessionId: started.sessionId, text: '/compact' });
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
-    // The screen shows the model's view (cli/03 F1): the compaction's turn first, with the tokens before and after,
-    // then the tail the compaction kept verbatim; the ask itself is covered by the summary and gone.
+    // The screen shows the model's view (cli/03 F1) with the command typed: the compaction's turn first, its summary
+    // with the tokens before and after and the runtime's notice, then the tail the compaction kept verbatim.
     const snapshot = await chat.snapshot(started.sessionId);
-    expect(snapshot.turns.map((turn) => turn.input)).toEqual(['(context compacted)', 'Hello there']);
-    expect(snapshot.turns[0]).toMatchObject({ id: folded.runId, state: 'complete', steps: 1, parts: [{ kind: 'summary', text: 'Summary of the conversation so far:\n\nWe greeted each other.', before: expect.any(Number), after: expect.any(Number) }] });
+    expect(snapshot.turns.map((turn) => turn.input)).toEqual(['/compact', 'Hello there']);
+    expect(snapshot.turns[0]).toMatchObject({
+      id: folded.runId, state: 'complete', steps: 1,
+      parts: [{ kind: 'summary', text: 'Summary of the conversation so far:\n\nWe greeted each other.', before: expect.any(Number), after: expect.any(Number) }, { kind: 'notice', text: 'Compacted' }],
+    });
     expect(snapshot.turns[1]).toMatchObject({ id: started.runId, parts: [{ kind: 'text', text: 'Hello back.' }] });
-    // `--all`: everything, in the order it happened, the summary inside the compaction run's turn.
+    // `--all`: everything, in the order it happened, the summary inside the command's turn.
     const all = await chat.snapshot(started.sessionId, { all: true });
-    expect(all.turns.map((turn) => turn.input)).toEqual(['Hello there', 'Summarize the conversation so far.']);
-    expect(all.turns[1]).toMatchObject({ id: folded.runId, parts: [{ kind: 'summary', before: expect.any(Number) }] });
-    // A process that did not see the compaction reads the numbers, and the run, from the store's events.
+    expect(all.turns.map((turn) => turn.input)).toEqual(['Hello there', '/compact']);
+    expect(all.turns[1]).toMatchObject({ id: folded.runId, parts: [{ kind: 'summary', before: expect.any(Number) }, { kind: 'notice', text: 'Compacted' }] });
+    // A process that did not see the compaction reads the numbers from the store's events.
     const other = testChat({ script: [], store });
-    expect((await other.chat.snapshot(started.sessionId)).turns[0]).toMatchObject({ id: folded.runId, input: '(context compacted)', parts: [{ kind: 'summary', before: expect.any(Number), after: expect.any(Number) }] });
+    expect((await other.chat.snapshot(started.sessionId)).turns[0]).toMatchObject({ id: folded.runId, input: '/compact', parts: [{ kind: 'summary', before: expect.any(Number), after: expect.any(Number) }, { kind: 'notice' }] });
 
     await chat.say({ sessionId: started.sessionId, text: 'Again?' });
     await chat.wait(started.sessionId);
     const { requests } = provider.model({ id: 'scripted' }) as FakeModel;
     // The summary first, then the tail a compaction keeps verbatim (agent/01-p5 task 08, cli/03 F1), then the new input.
     expect(requests.at(-1)!.messages.map((m) => m.source)).toEqual(['summary', 'input', 'model', 'input']);
+    expect((await chat.snapshot(started.sessionId)).turns.map((turn) => turn.input)).toEqual(['/compact', 'Hello there', 'Again?']);
 
     await chat.say({ sessionId: started.sessionId, text: 'Delete a' });
     expect((await chat.wait(started.sessionId))?.status).toBe('awaiting');
-    await expect(chat.compact(started.sessionId)).rejects.toMatchObject({ code: 'writer_busy' });
+    await expect(chat.say({ sessionId: started.sessionId, text: '/compact' })).rejects.toMatchObject({ code: 'writer_busy' });
+  });
+
+  it('/status writes a notice with the model and the mode, and asks nothing of the model', async () => {
+    const { chat, provider } = testChat({ script: [] });
+    const started = await chat.say({ text: '/status', settings: { permissions: 'acceptEdits' } });
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    const snapshot = await chat.snapshot(started.sessionId);
+    expect(snapshot.turns).toHaveLength(1);
+    expect(snapshot.turns[0]).toMatchObject({ input: '/status', state: 'complete', steps: 0 });
+    const notice = snapshot.turns[0]?.parts[0];
+    expect(notice).toMatchObject({ kind: 'notice' });
+    expect(notice?.kind === 'notice' ? notice.text : '').toMatch(/model +fake\/scripted/);
+    expect(notice?.kind === 'notice' ? notice.text : '').toMatch(/permissions +acceptEdits/);
+    expect((provider.model({ id: 'scripted' }) as FakeModel).requests).toEqual([]);
+  });
+
+  it('/model, /reasoning, /permissions and /autocompact answer the value and the choices, and with one write what the chips read', async () => {
+    const { chat } = testChat({ script: [] });
+    const started = await chat.say({ text: '/reasoning' });
+    await chat.wait(started.sessionId);
+    expect((await chat.snapshot(started.sessionId)).turns[0]?.parts[0]).toMatchObject({ kind: 'notice', text: 'reasoning: off\nchoices: off, low, medium, high' });
+
+    await chat.say({ sessionId: started.sessionId, text: '/model fake/other' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    await chat.say({ sessionId: started.sessionId, text: '/permissions dontAsk' });
+    await chat.wait(started.sessionId);
+    await chat.say({ sessionId: started.sessionId, text: '/autocompact on' });
+    await chat.wait(started.sessionId);
+    expect(await chat.settings(started.sessionId)).toMatchObject({ model: 'fake/other', permissions: 'dontAsk', autoCompact: true });
+    const turns = (await chat.snapshot(started.sessionId)).turns;
+    expect(turns.at(-1)?.parts[0]).toMatchObject({ kind: 'notice', text: 'autocompact: on' });
+
+    // A value the setting does not take fails the turn and changes nothing.
+    await chat.say({ sessionId: started.sessionId, text: '/permissions sometimes' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('failed');
+    expect((await chat.settings(started.sessionId)).permissions).toBe('dontAsk');
+  });
+
+  it('a slash line said while a turn runs waits in the queue and runs after the turn', async () => {
+    const gate = gateTool();
+    const { chat } = testChat({ script: [{ toolCalls: [{ name: 'wait_for', input: {} }] }, { text: 'Done.' }, { text: 'We waited.' }], tools: [gate.tool] });
+    const started = await chat.say({ text: 'Wait for me' });
+    await gate.entered();
+    const queued = await chat.say({ sessionId: started.sessionId, text: '/compact' });
+    expect(queued).toEqual({ sessionId: started.sessionId, runId: started.runId, queued: true });
+    expect((await chat.queued(started.sessionId)).map((waiting) => waiting.text)).toEqual(['/compact']);
+
+    gate.release();
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    // `wait` covers the queued head while it starts, then follows it to its end.
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    const all = await chat.snapshot(started.sessionId, { all: true });
+    expect(all.turns.map((turn) => turn.input)).toEqual(['Wait for me', '/compact']);
+    expect(all.turns[0]?.parts.map((part) => part.kind)).toEqual(['tool', 'text']);
+    expect(all.turns[1]?.parts).toContainEqual(expect.objectContaining({ kind: 'notice', text: 'Compacted' }));
+  });
+
+  it('commands() lists the runtime commands, compact among them, then a prompt command per skill, without a model', async () => {
+    const { chat, provider } = testChat({ script: [{ text: 'Reviewed.' }], config: { model: undefined } });
+    const commands = await chat.commands();
+    const names = commands.map((command) => command.name);
+    expect(names).toEqual(expect.arrayContaining(['status', 'usage', 'model', 'compact', 'init', 'review']));
+    expect(commands.find((command) => command.name === 'compact')).toMatchObject({ kind: 'runtime' });
+    expect(commands.find((command) => command.name === 'review')).toMatchObject({ kind: 'prompt' });
+    expect(commands.find((command) => command.name === 'model')).toMatchObject({ argumentHint: '<provider/model>' });
+    // The runtime's first, then the skills.
+    expect(names.indexOf('compact')).toBeLessThan(names.indexOf('review'));
+    expect(new Set(names).size).toBe(names.length);
+    // Listed on a model that is never asked: the provider was not reached.
+    expect(provider.asked).toEqual([]);
+
+    // A skill said is one line in its turn; the model reads the skill's text.
+    const started = await chat.say({ text: '/review the parser' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    const turn = (await chat.snapshot(started.sessionId)).turns[0];
+    expect(turn).toMatchObject({ input: '/review the parser', parts: [{ kind: 'notice', text: 'Skill: review' }, { kind: 'text', text: 'Reviewed.' }] });
   });
 
   it('lists the shipped skills after the home ones, a home skill of the same name winning', async () => {
