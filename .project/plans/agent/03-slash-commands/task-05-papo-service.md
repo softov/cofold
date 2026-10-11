@@ -47,7 +47,7 @@ papo declares its runtime commands, `Chat.commands()` lists the runtime's comman
 ## Resume
 
 - Implemented on `build/agents/a03`, awaiting review.
-- The screen view is `viewOf` in `turns.ts`. It keeps the command and notice messages that `contextOf` drops, and puts a `/compact` line and its notice around the summary, so the compaction is the `/compact` turn.
+- The screen view is `viewOf` in `turns.ts`. It keeps the command and notice messages that `contextOf` drops. It puts a `/compact` line and its notice around the summary, so the compaction is the `/compact` turn.
 - A `skill` message is a notice part `Skill: <name>`.
 - `renderUsage` and `redactedConfig` moved to `commands/runtime.ts`, so that `chat.ts` does not import `commands.ts`.
-- To keep this commit green, the callers of `compact()` now send `/compact`: the screen controller, the shell `compact` action, the contract test, and the Claude backend. The Claude backend got `commands()`. Tasks 06, 07 and 08 finish these.
+- To keep this commit green, the callers of `compact()` now send `/compact`. They are the screen controller, the shell `compact` action, the contract test, and the Claude backend. The Claude backend got `commands()`. Tasks 06, 07 and 08 finish these.
