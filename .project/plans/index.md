@@ -17,8 +17,9 @@ Reference: [00-commands.md](commands/00-commands.md)
 | [02 - A program chooses its configuration layers and names its project file](commands/02-a-program-chooses-its-config-layers/plan.md) | high | built 2026-09-28 ([implemented.md](commands/02-a-program-chooses-its-config-layers/implemented.md)) | - | ahpd daemon/08 |
 | [03 - A command typed without its required argument says which argument it needs](commands/03-a-missing-argument-is-named/plan.md) | medium | built 2026-10-06 ([implemented.md](commands/03-a-missing-argument-is-named/implemented.md)) | - | ahpd daemon/09 task 03 |
 | [04 - An action declares what it does to what](commands/04-an-action-declares-what-it-does-to-what/plan.md) | high | built 2026-10-06 ([implemented.md](commands/04-an-action-declares-what-it-does-to-what/implemented.md)) | - | ahpd `/api/cli-manifest` resource explorer |
+| [05 - @cofold/yaml writes the subset it reads](commands/05-yaml-writes-the-subset-it-reads/plan.md) | high | planned 2026-10-10 | - | ahpd plugin 45, ahpd host 80 |
 
-Next free number in `commands`: `05`. The framework's open items live in [`/ROADMAP.md`](../../ROADMAP.md) until one is planned.
+Next free number in `commands`: `06`. The framework's open items live in [`/ROADMAP.md`](../../ROADMAP.md) until one is planned.
 
 ## agent
 
