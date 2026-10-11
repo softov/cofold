@@ -142,7 +142,7 @@ say('/compact')
 | [01 - The slash command contracts](task-01-contracts.md) | implemented | - |
 | [02 - The harness runs a runtime command, and /compact is one](task-02-the-harness-runs-a-command.md) | implemented | 01 |
 | [03 - The harness expands a skill](task-03-the-harness-expands-a-skill.md) | implemented | 01 |
-| [04 - The README describes slash commands, and agents 0.2.2 passes ahpd's suite](task-04-docs-and-release-check.md) | todo | 02, 03 |
+| [04 - The README describes slash commands, and agents 0.2.2 passes ahpd's suite](task-04-docs-and-release-check.md) | implemented | 02, 03 |
 | [05 - papo's Chat lists the runtime's commands and declares its own](task-05-papo-service.md) | implemented | 02, 03 |
 | [06 - The screen shows the runtime's list and keeps only client commands](task-06-papo-screen.md) | implemented | 05 |
 | [07 - The shell lists commands and loses the compact action](task-07-papo-shell.md) | implemented | 05 |
@@ -156,10 +156,11 @@ say('/compact')
 
 ## Resume state
 
-- **Done so far:** revalidated 2026-10-11 against `4174eeb`; tasks 01, 02, 03, 05, 06, 07 and 08 implemented on `build/agents/a03`, awaiting review.
-- **Next action:** [task-04-docs-and-release-check.md](task-04-docs-and-release-check.md), then review of 05 to 08.
+- **Done so far:** revalidated 2026-10-11 against `4174eeb`; tasks 01 to 08 implemented on `build/agents/a03`, awaiting review.
+- **Next action:** review of 01 to 08, then the `@cofold/agents` 0.2.2 release.
 - **Open questions:** none.
 - **Watch out for:** `/compact` makes a model call; a test that expects no model request is wrong.
+- **ahpd:** its typecheck fails against 0.2.2 until it maps the two command events; its tests pass.
 
 ## Final verification checklist
 

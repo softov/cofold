@@ -1,6 +1,6 @@
 ---
 title: The README describes slash commands, and agents 0.2.2 passes ahpd's suite
-status: todo
+status: implemented
 depends: [task-02-the-harness-runs-a-command.md, task-03-the-harness-expands-a-skill.md]
 layer: docs
 refs:
@@ -31,3 +31,6 @@ The agents README explains the three kinds of slash line, and the package is rea
 - The README examples type-check if copied into a test file.
 
 ## Resume
+
+- **Done so far:** the README has a "Slash commands" section with one example per kind, the Compaction section names `/compact`, and the version is 0.2.2. The README examples type-check in a test file. ahpd's agent-cofold suite passes against the packed 0.2.2: 223 of 223, as against 0.2.1.
+- **Watch out for:** ahpd's `pnpm typecheck` fails against 0.2.2 at `packages/agent-cofold/src/mapping.ts:718`: its exhaustive event switch does not handle `command.started` and `command.finished`. See [deferred.md](deferred.md).
