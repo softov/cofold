@@ -131,7 +131,7 @@ describe('streaming (decisions 102, 104, 105)', () => {
     const compacting = build({ store, script: [{ text: 'They said hi; I greeted them.' }] });
     const handle = compact({ agent: compacting.agent, session: 's' });
     const events = await collect(handle);
-    expect(types(events)).toEqual(['run.started', 'model.started', 'model.completed', 'context.compacted', 'run.finished']);
+    expect(types(events)).toEqual(['run.started', 'command.started', 'model.started', 'model.completed', 'context.compacted', 'command.finished', 'run.finished']);
     expect(await handle.outcome).toMatchObject({ status: 'completed', steps: 1 });
   });
 

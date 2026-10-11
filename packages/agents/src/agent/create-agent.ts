@@ -1,9 +1,11 @@
 import type { Agent, AgentDefinition, AgentOptions, Policy, ResolvedContext } from '../types/agent.js';
 import type { Capability } from '../types/capability.js';
 import type { Limits } from '../types/limits.js';
+import type { SlashCommand } from '../types/slash-command.js';
 import type { Tool } from '../types/tool.js';
 import { AgentError } from '../errors.js';
 import { DEFAULT_DECIDE } from '../policy/rules.js';
+import { BUILTIN_SLASH_COMMANDS, SLASH_NAME_PATTERN } from '../run/slash.js';
 import { createMemoryStore } from '../store/memory.js';
 import { DEFAULT_LIMITS } from './limits.js';
 
@@ -50,6 +52,19 @@ export function createAgent<Resources = Record<string, unknown>>(options: AgentO
     capabilities.push(cap);
   }
 
+  const slashCommands: SlashCommand[] = [];
+  const slashNames = new Set<string>();
+  for (const command of [...(options.slashCommands ?? []), ...capabilities.flatMap((cap) => cap.slashCommands ?? []), ...BUILTIN_SLASH_COMMANDS]) {
+    if (!SLASH_NAME_PATTERN.test(command.name)) {
+      throw new AgentError({ code: 'invalid_options', message: `agent "${options.id}": slash command "${command.name}" must match ${SLASH_NAME_PATTERN}` });
+    }
+    if (slashNames.has(command.name)) {
+      throw new AgentError({ code: 'invalid_options', message: `agent "${options.id}": duplicate slash command "${command.name}"` });
+    }
+    slashNames.add(command.name);
+    slashCommands.push(command);
+  }
+
   const warn = options.warn ?? ((message: string) => console.warn(message));
   let store = options.store;
   if (!store) {
@@ -86,7 +101,7 @@ export function createAgent<Resources = Record<string, unknown>>(options: AgentO
     model: options.model,
     tools,
     capabilities,
-    slashCommands: [...(options.slashCommands ?? [])],
+    slashCommands,
     store,
     hooks: options.hooks ?? {},
     policy,
