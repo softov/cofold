@@ -78,7 +78,6 @@ function sequence(items: unknown[], indent: number, out: string[]): void {
 function mapping(value: Record<string, unknown>, indent: number, out: string[], first: string): void {
   const pad = " ".repeat(indent);
   entries(value).forEach((key, at) => {
-    if (key === "<<") throw new YamlError("The key << is a merge key, which parseYaml refuses", out.length + 1);
     entry(`${at === 0 && first !== "" ? first : pad}${keyOf(key)}:`, value[key], indent, out);
   });
 }
@@ -129,8 +128,9 @@ function plain(text: string): boolean {
     && !TYPED.test(text);
 }
 
+/** A key as written: plain when it can be, and quoted otherwise, as `<<` always is, because plain it is a merge key. */
 function keyOf(key: string): string {
-  return plain(key) && !UNPLAIN_KEY.test(key) ? key : quoted(key);
+  return key !== "<<" && plain(key) && !UNPLAIN_KEY.test(key) ? key : quoted(key);
 }
 
 function quoted(text: string): string {

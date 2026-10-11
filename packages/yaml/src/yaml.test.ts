@@ -125,6 +125,10 @@ describe("what it refuses", () => {
     refuses("<<: x\n", "merge keys");
   });
 
+  it("reads a quoted << as an ordinary key", () => {
+    expect(parseYaml('"<<": x\na:\n  \'<<\': 1\n')).toEqual({ "<<": "x", a: { "<<": 1 } });
+  });
+
   it("refuses more than one document", () => {
     refuses("a: 1\n---\nb: 2\n", "one document per file");
   });

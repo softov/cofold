@@ -145,6 +145,10 @@ describe("multi-line text", () => {
 });
 
 describe("keys", () => {
+  it("quotes the key <<, which plain is a merge key", () => {
+    expect(roundTrip({ "<<": 1, a: { "<<": "x" } })).toBe('"<<": 1\na:\n  "<<": x\n');
+  });
+
   it("quotes a key that is not a plain key", () => {
     const keys = ["a:b", "a: b", "with space", "- dash", "-", "", "1", "true", "null", "#x", "a #b", "it's 'q'", "a[0]", "x,y", "line\nbreak", "__proto__"];
     const value: Record<string, unknown> = {};
@@ -168,7 +172,4 @@ describe("what it refuses", () => {
     }
   });
 
-  it("refuses the merge key, which the parser refuses", () => {
-    expect(() => stringifyYaml({ "<<": 1 })).toThrow(YamlError);
-  });
 });

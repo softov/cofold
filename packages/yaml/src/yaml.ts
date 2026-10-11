@@ -250,8 +250,10 @@ function mapping(lines: Line[], at: number, indent: number): [Record<string, unk
     if (colon === -1) {
       throw new YamlError(`"${line.text}" is not a mapping entry: a key is written "name: value"`, line.number);
     }
-    const key = String(scalar(line.text.slice(0, colon).trim(), line.number));
-    if (key === "<<") throw new YamlError("This parser does not read merge keys", line.number);
+    const written = line.text.slice(0, colon).trim();
+    // A quoted "<<" is an ordinary key, as YAML 1.2 reads it; only the plain one is a merge key.
+    if (written === "<<") throw new YamlError("This parser does not read merge keys", line.number);
+    const key = String(scalar(written, line.number));
     if (Object.hasOwn(map, key)) throw new YamlError(`${key} is given twice`, line.number);
 
     const rest = line.text.slice(colon + 1).trim();
