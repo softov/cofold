@@ -11,19 +11,23 @@ import { createChat } from '../chat.js';
 import { rememberInto } from '../commands.js';
 import { deleteFileTool, fakeProvider, gateTool, providerMap, testChat, testConfig } from '../testing.js';
 import { registerPapo } from './app.js';
-import { DRAFT, OPEN } from './state.js';
+import type { Info } from './info.js';
+import { DRAFT, INFO, OPEN } from './state.js';
 
 async function settle(t: Harness, times = 12): Promise<void> {
   for (let i = 0; i < times; i++) await t.settle();
 }
 
-async function screen(args: { script: FakeStep[]; tools?: Tool<any, any>[]; home?: string; workspace?: string }): Promise<{ t: Harness; quit: () => boolean }> {
+/** The terminal sizes a layout test runs at: the default, and a narrow one under the shell's breakpoints. */
+const SIZES = [{ width: 100, height: 30 }, { width: 60, height: 24 }];
+
+async function screen(args: { script: FakeStep[]; tools?: Tool<any, any>[]; home?: string; workspace?: string; size?: { width: number; height: number } }): Promise<{ t: Harness; quit: () => boolean }> {
   const workspace = args.workspace ?? '/work';
   const { chat } = testChat({ script: args.script, workspace, ...(args.tools !== undefined ? { tools: args.tools } : {}), ...(args.home !== undefined ? { home: args.home } : {}) });
   let quit = false;
   const t = await renderApp({
-    width: 100,
-    height: 30,
+    width: args.size?.width ?? 100,
+    height: args.size?.height ?? 30,
     shell: 'workbench',
     theme: 'paper',
     onBoot: (app) => registerPapo(app, {
@@ -193,25 +197,31 @@ describe('the screen', () => {
     await t.unmount();
   });
 
-  it('offers the skills and the palette commands after a slash: a skill completes the draft, a command runs', async () => {
+  it.each(SIZES)('offers the runtime commands, the skills and the client commands after a slash, each name once ($width x $height)', async (size) => {
     const home = await mkdtemp(join(tmpdir(), 'papo-skills-'));
     await mkdir(join(home, 'skills', 'review'), { recursive: true });
     await writeFile(join(home, 'skills', 'review', 'SKILL.md'), ['---', 'name: review', 'description: Review the change', '---', 'Look hard.', ''].join('\n'));
     try {
-      const { t, quit } = await screen({ script: [{ text: 'Reviewed.' }], home });
+      const { t, quit } = await screen({ script: [{ text: 'Reviewed.' }], home, size });
       t.press('n');
       await settle(t);
+      // The runtime's `model` replaces the client's `compose.model` in the menu; the chip stays.
+      t.type('/mod');
+      await settle(t);
+      expect(t.text().split('\n').filter((line) => /^\s*(▸\s*)?\/model\s{2,}/.test(line))).toHaveLength(1);
+      // A command with an argument becomes the draft to finish.
+      t.press('enter');
+      await settle(t);
+      expect(t.app.store.get(DRAFT)).toBe('/model ');
+      t.app.store.set(DRAFT, '');
+      await settle(t);
+      // A skill without one is sent as it is picked.
       t.type('/rev');
       await settle(t);
       expect(t.hasText('Review the change')).toBe(true);
       t.press('enter');
-      await settle(t);
-      expect(t.hasText('/review')).toBe(true);
-      expect(t.hasText('Reviewed.')).toBe(false);
-      t.type('the diff');
-      t.press('enter');
       await settle(t, 30);
-      expect(t.hasText('/review the diff')).toBe(true);
+      expect(t.hasText('Skill: review')).toBe(true);
       expect(t.hasText('Reviewed.')).toBe(true);
       t.type('/quit');
       await settle(t);
@@ -280,8 +290,8 @@ describe('the screen', () => {
     await t.unmount();
   });
 
-  it('answers /status, /usage, /config and /help from the store, in one overlay that esc closes', async () => {
-    const { t } = await screen({ script: [{ text: 'Hello back.' }] });
+  it('answers /status, /usage and /config as notices in the transcript, and /help in an overlay with the runtime commands first', async () => {
+    const { t } = await screen({ script: [{ text: 'Hello back.' }], size: { width: 100, height: 40 } });
     t.press('n');
     await settle(t);
     t.type('Hello there');
@@ -290,38 +300,32 @@ describe('the screen', () => {
 
     t.type('/status');
     t.press('enter');
-    await settle(t);
+    await settle(t, 30);
     expect(t.hasText('model        fake/scripted')).toBe(true);
-    expect(t.hasText('turns        1')).toBe(true);
-    t.press('escape');
-    await settle(t);
-    expect(t.hasText('workspace    /work')).toBe(false);
+    expect(t.hasText('workspace    /work')).toBe(true);
+    expect(t.app.store.get<Info | null>(INFO) ?? null).toBeNull();
 
     t.type('/usage');
     t.press('enter');
-    await settle(t);
-    // The runtime's table: the turn's row, the sums, and what was asked; never a price.
-    console.log('USAGE', t.text());
-    expect(t.hasText('Hello there')).toBe(true);
-    expect(t.hasText('turn')).toBe(true);
+    await settle(t, 30);
+    // The runtime's table: the turn's row and the sums; never a price.
     expect(t.hasText('total')).toBe(true);
     expect(t.hasText('refused')).toBe(true);
     expect(t.hasText('$')).toBe(false);
-    expect(t.hasText('Cost')).toBe(false);
-    t.press('escape');
-    await settle(t);
 
     t.type('/config');
     t.press('enter');
-    await settle(t);
+    await settle(t, 30);
     expect(t.hasText('"baseUrl": "http://fake.invalid/v1"')).toBe(true);
-    t.press('escape');
-    await settle(t);
 
     t.type('/help');
     t.press('enter');
     await settle(t);
-    expect(t.hasText('/quit  Quit')).toBe(true);
+    const lines = t.app.store.get<Info>(INFO)?.lines ?? [];
+    const at = (name: string): number => lines.findIndex((line) => line.startsWith(`  /${name} `));
+    expect(at('compact')).toBeGreaterThan(-1);
+    expect(at('compact')).toBeLessThan(at('theme'));
+    expect(lines.filter((line) => line.startsWith('  /model ')).length).toBe(1);
     expect(t.hasText('ctrl+q')).toBe(true);
     t.press('escape');
     await settle(t);
@@ -374,7 +378,7 @@ describe('the screen', () => {
     }
   });
 
-  it('/compact folds the conversation into a summary turn and /autocompact toggles the setting', async () => {
+  it('/compact folds the conversation into a summary turn and /autocompact on changes the setting', async () => {
     const { t } = await screen({ script: [{ text: 'Hello back.' }, { text: 'We said hello.' }] });
     t.press('n');
     await settle(t);
@@ -385,44 +389,31 @@ describe('the screen', () => {
     t.press('enter');
     await settle(t, 30);
     // The model's view: the compaction turn first, with the tokens before and after, then the tail it kept verbatim.
-    expect(t.hasText('(context compacted)')).toBe(true);
+    expect(t.hasText('Compacted')).toBe(true);
     expect(t.hasText('Context compacted:')).toBe(true);
     expect(t.hasText('tokens to')).toBe(true);
     expect(t.hasText('We said hello.')).toBe(true);
     expect(t.hasText('Hello back.')).toBe(true);
 
+    t.type('/autocompact on');
+    t.press('enter');
+    await settle(t, 30);
+    expect(t.hasText('autocompact: on')).toBe(true);
     t.type('/status');
     t.press('enter');
-    await settle(t);
-    expect(t.hasText('auto-compact off')).toBe(true);
-    t.press('escape');
-    await settle(t);
-    t.type('/autocompact');
-    t.press('enter');
-    await settle(t);
-    t.type('/status');
-    t.press('enter');
-    await settle(t);
+    await settle(t, 30);
     expect(t.hasText('auto-compact on, at 25600 of 32000 tokens')).toBe(true);
-    t.press('escape');
-    await settle(t);
     await t.unmount();
   });
 
-  it('/skill opens a picker of the skills and puts the chosen one in the field', async () => {
+  it('/skills lists the skills as a notice', async () => {
     const { t } = await screen({ script: [] });
     t.press('n');
     await settle(t);
-    t.type('/skill');
+    t.type('/skills');
     t.press('enter');
-    await settle(t);
-    expect(t.hasText('Write or refresh AGENTS.md')).toBe(true);
-    t.type('init');
-    await settle(t);
-    t.press('enter');
-    await settle(t);
-    expect(t.hasText('/init')).toBe(true);
-    expect(t.app.store.get(DRAFT)).toBe('/init ');
+    await settle(t, 30);
+    expect(t.hasText('/init  Write or refresh AGENTS.md')).toBe(true);
     await t.unmount();
   });
 

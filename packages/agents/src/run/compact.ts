@@ -8,25 +8,25 @@ import { textOf } from '../message/helpers.js';
 import { costOf } from '../model/cost.js';
 import { addUsage } from '../model/usage.js';
 import { assembleRequest, contextOf, estimateMessageTokens, groupUnits, summarizedIds } from './context.js';
-import { start } from './run.js';
+import { run } from './run.js';
 import { summarize as describe } from './turn.js';
 
 const now = () => new Date().toISOString();
 
-/** What a `compact()` run says, as its input message; `source: 'system'` so a reader can tell it from the person's words. */
+/** The ask a summary step sends last, `source: 'system'`; it is never written to the transcript. */
 export const COMPACT_INPUT = 'Summarize the conversation so far.';
 
 /**
- * A run whose only step folds the session so far into a summary message (AGENT-01-p5 Task 6): its
- * input is the ask, `source: 'system'`; its outcome's message is the summary. Later requests start
- * at that summary; nothing is deleted.
+ * The `/compact` run (AGENT-01-p5 Task 6; AGENT-03): its only step folds the session so far into a summary
+ * message. Its input is the `command` message `/compact`; its outcome's message is the summary. Later requests
+ * start at that summary; nothing is deleted.
  */
 export function compact<Resources = Record<string, unknown>>(args: CompactArgs<Resources>): RunHandle {
-  return start({
-    agent: args.agent, session: args.session, input: [{ type: 'text', text: COMPACT_INPUT }],
+  return run({
+    agent: args.agent, session: args.session, input: '/compact',
     ...(args.messageId !== undefined ? { messageId: args.messageId } : {}),
     ...(args.signal ? { signal: args.signal } : {}),
-  }, true);
+  });
 }
 
 const SUMMARY_RULES = [
@@ -44,7 +44,7 @@ export function historyEstimate(ctx: Pick<TurnContext, 'agent'>, history: Messag
 
 /**
  * One model step that folds everything no summary stands for yet into a new summary message, appended
- * to the session and announced with `context.compacted`. Used by `compact()` (the whole run) and by
+ * to the session and announced with `context.compacted`. Used by a `/compact` run (the whole run) and by
  * the loop when `context.autoCompactTokens` is passed; the latter keeps the turn's own input out of
  * the summary, since it is what the turn is about to answer. Throws what the model throws; the caller
  * decides what that means for the run.
@@ -53,15 +53,16 @@ export async function writeSummary(ctx: TurnContext, history: Message[]): Promis
   const { agent, store, sessionId, runId, abort, emit, counters } = ctx;
   const already = summarizedIds(history);
   // The turn's own input is never summarized nor kept as tail: an auto-compact is about to answer it, and a
-  // `compact()` run's input is the ask itself, sent last and covered by the summary so it does not linger.
+  // `/compact` run's input is the `command` message, covered by the summary so it does not linger.
+  // A prompt command's `skill` message goes with the input it expands.
   const own = history.find((message) => message.id === ctx.inputMessageId);
-  const candidates = history.filter((message) => !already.has(message.id) && message.id !== ctx.inputMessageId);
+  const candidates = history.filter((message) => !already.has(message.id) && message.id !== ctx.inputMessageId && message.id !== ctx.skillMessageId);
   // The newest units stay verbatim while they fit in `compactKeepTokens` (cli/03 F1); a unit is never split, so a
   // tool call stays next to its results. What is kept is neither summarized nor listed in `summarizes`.
   const { covered, kept } = splitTail(candidates, agent.context.compactKeepTokens, agent.context.estimateTokens);
   const estimatedTokens = historyEstimate(ctx, history);
-  // A `compact()` run already ends with the ask as its input; an auto-compact asks in passing.
-  const ask: Message = ctx.compact && own ? own : { id: newId(), role: 'user', source: 'system', parts: [{ type: 'text', text: COMPACT_INPUT }], createdAt: now() };
+  // The ask is sent last and never written: a `/compact` input is a `command` message, which no request carries.
+  const ask: Message = { id: newId(), role: 'user', source: 'system', parts: [{ type: 'text', text: COMPACT_INPUT }], createdAt: now() };
   const summarized = ctx.compact && own ? [...covered, own] : covered;
   const request = assembleRequest({
     instructions: `${ctx.instructions}\n\n## summary\n${SUMMARY_RULES}`,

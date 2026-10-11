@@ -31,7 +31,14 @@ export interface ToolResultPart {
 export type ContentPart = TextPart | ImagePart | ReasoningPart | ToolCallPart | ToolResultPart;
 
 /** Where a message came from; kept so context assembly can tell instructions, input, tool output and summaries apart. */
-export type MessageSource = 'input' | 'model' | 'tool' | 'hook' | 'summary' | 'system';
+export type MessageSource =
+  | 'input' | 'model' | 'tool' | 'hook' | 'summary' | 'system'
+  /** The slash line of a runtime command, as typed; never in a request. */
+  | 'command'
+  /** A runtime command's output; never in a request. */
+  | 'notice'
+  /** A prompt command's expanded text, after the typed line; the model reads it like input. */
+  | 'skill';
 
 export interface Message {
   id: string;

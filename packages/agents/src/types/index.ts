@@ -12,6 +12,7 @@ export type * from './outcome.js';
 export type * from './policy.js';
 export type * from './provider.js';
 export type * from './run.js';
+export type * from './slash-command.js';
 export type { JsonSchema, JsonSchemaType, SchemaIssue, SchemaResult, StandardIssue, StandardResult, StandardSchema } from '@cofold/sdk';
 export type * from './store.js';
 export type * from './tool.js';

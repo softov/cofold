@@ -1,6 +1,6 @@
 ---
 title: The shell lists commands and loses the compact action
-status: todo
+status: implemented
 depends: [task-05-papo-service.md]
 layer: papo
 refs:
@@ -37,3 +37,8 @@ refs:
 - `pnpm --filter @cofold/papo test` passes.
 
 ## Resume
+
+- Implemented on `build/agents/a03`, awaiting review.
+- `papo commands` prints `/name <hint>`, the kind (`runtime` or `prompt`) and the description.
+- `session show` already printed a `command` message as `> line` and a `notice` as `[text]`; no change was needed.
+- The contract scenario already ran `say('/compact')` from task 05. It checks for one `summary` part in the session and a `notice` part in the `/compact` turn. On the Claude backend the summary is a turn of its own before the others. So the scenario does not require it inside the `/compact` turn.

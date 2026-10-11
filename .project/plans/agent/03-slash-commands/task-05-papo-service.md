@@ -1,6 +1,6 @@
 ---
 title: papo's Chat lists the runtime's commands and declares its own
-status: todo
+status: implemented
 depends: [task-02-the-harness-runs-a-command.md, task-03-the-harness-expands-a-skill.md]
 layer: papo
 refs:
@@ -45,3 +45,9 @@ papo declares its runtime commands, `Chat.commands()` lists the runtime's comman
 - `pnpm --filter @cofold/papo test` passes.
 
 ## Resume
+
+- Implemented on `build/agents/a03`, awaiting review.
+- The screen view is `viewOf` in `turns.ts`. It keeps the command and notice messages that `contextOf` drops. It puts a `/compact` line and its notice around the summary, so the compaction is the `/compact` turn.
+- A `skill` message is a notice part `Skill: <name>`.
+- `renderUsage` and `redactedConfig` moved to `commands/runtime.ts`, so that `chat.ts` does not import `commands.ts`.
+- To keep this commit green, the callers of `compact()` now send `/compact`. They are the screen controller, the shell `compact` action, the contract test, and the Claude backend. The Claude backend got `commands()`. Tasks 06, 07 and 08 finish these.

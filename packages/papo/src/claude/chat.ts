@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { CanUseTool, Options, SDKMessage, SDKResultMessage, SDKSessionInfo, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { RunOutcome, RunUsage, SessionUsage, SkillIndexEntry, Usage } from '@cofold/agents';
+import type { RunOutcome, RunUsage, SessionUsage, SlashCommandInfo, Usage } from '@cofold/agents';
 import { AgentError, ZERO_USAGE, addUsage, newId } from '@cofold/agents';
 import { createFileStore } from '@cofold/store-file';
 import { settingsKey } from '../chat.js';
@@ -19,7 +19,7 @@ import { loadClaudeSdk } from './sdk.js';
 
 /** The provider id papo shows Claude's models under: refs are `claude/<model>`. */
 export const CLAUDE_PROVIDER = 'claude';
-/** What `compact()` sends; the CLI's own command. */
+/** The CLI's own compaction command: a turn that sends it is compacting. */
 export const COMPACT_COMMAND = '/compact';
 
 /** A queue a `for await` reads from: what the CLI process takes its user messages through. */
@@ -107,7 +107,7 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
   // needed, not once: a pick on the model chip changes `config.model` while papo runs (decision CLI-05.1).
   const configured = (): string => (config.model !== undefined && config.model.startsWith(`${CLAUDE_PROVIDER}/`) ? config.model : '');
   if (config.model !== undefined && configured() === '') warn(`model "${config.model}" is not written ${CLAUDE_PROVIDER}/<model>; the claude backend uses the CLI's default`);
-  const defaults = (): Settings => ({ model: configured(), permissions: config.permissions, reasoning: config.reasoning, autoCompact: true });
+  const defaults = (): Settings => ({ model: configured(), permissions: config.permissions, reasoning: config.reasoning, autoCompact: config.context.autoCompact });
 
   /** The defaults under the session's own choices, read from the kv; nothing is cached, so a restart reads the same. */
   async function settingsOf(sessionId: string | undefined): Promise<Settings> {
@@ -123,10 +123,6 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
   }
 
   function checkSettings(patch: Partial<Settings>): void {
-    // The screen sends every setting it shows; only turning the CLI's compaction off is refused.
-    if (patch.autoCompact === false) {
-      throw new AgentError({ code: 'invalid_options', message: 'the claude backend compacts on its own; autocompact cannot be turned off there' });
-    }
     if (patch.model !== undefined && patch.model !== '' && !patch.model.startsWith(`${CLAUDE_PROVIDER}/`)) {
       throw new AgentError({ code: 'invalid_options', message: `model "${patch.model}" must be written ${CLAUDE_PROVIDER}/<model> on the claude backend` });
     }
@@ -293,6 +289,11 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
     // A person spoke: whatever a cancel held back may start again on the next settle (CLI-04.1).
     queues.release(id);
     const chosen = patch !== undefined ? await patchSettings(id, patch) : await settingsOf(id);
+    // A slash line waits for the running turn to settle and goes to the CLI as its own turn (AGENT-03.5).
+    if (held?.running && held.turn !== undefined && text.startsWith('/')) {
+      await queues.add(id, { text });
+      return { sessionId: id, runId: held.turn.runId, queued: true };
+    }
     if (held?.running && held.turn !== undefined) {
       // The prompt stays open for the life of the process, so a message pushed mid-turn is the CLI's to
       // take into the running turn, as the reference does (ahpd `steer`); shown here until the store has it.
@@ -353,9 +354,19 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       }));
     },
 
+    // The CLI lists its skills among its commands, without saying which is which (AGENT-03.7): `commands()` has them.
     async skills() {
+      return [];
+    },
+
+    async commands() {
       const commands = await withQuery((query) => query.supportedCommands());
-      return commands.map((command): SkillIndexEntry => ({ name: command.name, description: command.description, ref: command.name }));
+      return commands.map((command): SlashCommandInfo => ({
+        name: command.name,
+        description: command.description,
+        ...(command.argumentHint !== '' ? { argumentHint: command.argumentHint } : {}),
+        kind: 'runtime',
+      }));
     },
 
     async sessions() {
@@ -480,12 +491,6 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       if (held === undefined) return;
       if (held.decision !== null) held.decision.resolve(denial('The turn was stopped'));
       if (held.running) await held.query.interrupt();
-    },
-
-    async compact(sessionId) {
-      // The CLI's command is a turn of its own, never a steer into a running one.
-      if (live.get(sessionId)?.running) throw new AgentError({ code: 'writer_busy', message: `session ${sessionId} is still answering; wait or cancel it` });
-      return send(sessionId, COMPACT_COMMAND);
     },
 
     async remove(sessionId) {

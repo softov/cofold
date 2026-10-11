@@ -1,6 +1,6 @@
 ---
 title: The harness runs a runtime command, and /compact is one
-status: todo
+status: implemented
 depends: [task-01-contracts.md]
 layer: agents
 refs:

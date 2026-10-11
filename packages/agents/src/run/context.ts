@@ -37,16 +37,21 @@ export function summarizedIds(history: Message[]): Set<string> {
   return ids;
 }
 
+/** Sources that stay in the transcript and out of every request: a runtime command's line and its output (AGENT-03). */
+const TRANSCRIPT_ONLY: ReadonlySet<Message['source']> = new Set(['command', 'notice']);
+
 /**
  * What a request is assembled from (AGENT-01-p5 Task 6): the newest summary first, then every message
  * no summary stands for, in transcript order. An auto-compacted turn's own input is such a message:
- * it sits before the summary on disk and after it in the request. The originals stay in the store.
+ * it sits before the summary on disk and after it in the request. `command` and `notice` messages are
+ * left out. The originals stay in the store.
  */
 export function contextOf(history: Message[]): Message[] {
-  const at = history.findLastIndex((message) => message.source === 'summary');
-  if (at === -1) return history;
-  const covered = summarizedIds(history);
-  return [history[at]!, ...history.filter((message) => message.source !== 'summary' && !covered.has(message.id))];
+  const sent = history.filter((message) => !TRANSCRIPT_ONLY.has(message.source));
+  const at = sent.findLastIndex((message) => message.source === 'summary');
+  if (at === -1) return sent;
+  const covered = summarizedIds(sent);
+  return [sent[at]!, ...sent.filter((message) => message.source !== 'summary' && !covered.has(message.id))];
 }
 
 /** The `recent` strategy (decision 60): newest units first while they fit; the newest unit always goes in. */

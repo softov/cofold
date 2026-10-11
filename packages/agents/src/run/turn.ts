@@ -32,6 +32,7 @@ import { historyEstimate, writeSummary } from './compact.js';
 import { assembleRequest } from './context.js';
 import { LOAD_TOOLS, createLoadToolsTool, instructionsOf, readLoaded, requestToolsOf } from './deferred.js';
 import { startHeartbeat } from './run.js';
+import { COMPACTED, COMPACT_COMMAND } from './slash.js';
 import { drainSteering, rejectSteering } from './steering.js';
 import { executeTool, handleToolCall } from './tools.js';
 
@@ -48,7 +49,7 @@ export function createTurnContext(args: {
   steering: SteerQueue;
   counters: TurnContext['counters'];
   claimed: boolean;
-  /** A `compact()` run; default false (resume() never resumes one: it has no pause). */
+  /** A `/compact` run; default false (resume() never resumes one: it has no pause). */
   compact?: boolean;
   inputMessageId?: string;
 }): TurnContext {
@@ -218,7 +219,7 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
       ctx.run.step = counters.steps;
 
       let history = await store.sessions.listMessages({ sessionId });
-      // A compact() run is the summary step and nothing else; a turn compacts in passing when the
+      // A `/compact` run is the summary step and nothing else; a turn compacts in passing when the
       // history has grown past the threshold, then goes on with the summary in place of it.
       const threshold = agent.context.autoCompactTokens;
       if (ctx.compact || (threshold !== undefined && historyEstimate(ctx, history) > threshold)) {
@@ -229,7 +230,12 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
           if (abort.signal.aborted) return await finishRun(ctx, await interrupt(ctx, [], 0));
           return await finishRun(ctx, fail(ctx, e instanceof ModelError ? e.code : 'internal', `summary: ${(e as Error).message}`, summarize(e)));
         }
-        if (ctx.compact) return await finishRun(ctx, { status: 'completed', message: summary, ...tally(ctx) });
+        if (ctx.compact) {
+          const notice: Message = { id: newId(), role: 'user', source: 'notice', parts: [{ type: 'text', text: COMPACTED }], createdAt: now() };
+          await store.sessions.appendMessages({ sessionId, runId, messages: [notice] });
+          await emit({ type: 'command.finished', name: COMPACT_COMMAND.name, output: COMPACTED });
+          return await finishRun(ctx, { status: 'completed', message: summary, ...tally(ctx) });
+        }
         counters.steps += 1;
         ctx.run.step = counters.steps;
         history = await store.sessions.listMessages({ sessionId });

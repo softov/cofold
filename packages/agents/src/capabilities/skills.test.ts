@@ -1,10 +1,13 @@
 import type { CapabilityArgs } from '../types/capability.js';
 import type { SkillSource } from '../types/skills.js';
+import type { SlashCommand } from '../types/slash-command.js';
 import type { ToolContext } from '../types/tool.js';
 import { describe, expect, it, vi } from 'vitest';
 import { createAgent } from '../agent/create-agent.js';
 import { AgentError } from '../errors.js';
+import { textOf } from '../message/helpers.js';
 import { run } from '../run/run.js';
+import { listPromptCommands } from '../run/slash.js';
 import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
 import { skills } from './skills.js';
@@ -40,6 +43,7 @@ describe('skills()', () => {
     expect(cap.id).toBe('skills');
     const text = await cap.instructions!(args);
     expect(text).toContain('read_skill({ name })');
+    expect(text).not.toContain('/<name>');
     expect(text?.endsWith('\n\n- deploy: Ship it\n- review: Review a PR')).toBe(true);
     expect(await skills({ sources: [memorySource({})] }).instructions!(args)).toBeUndefined();
   });
@@ -87,5 +91,75 @@ describe('skills()', () => {
     const steps = await agent.store.runs.listSteps({ sessionId: 's', runId: handle.runId });
     expect(steps[1]).toMatchObject({ kind: 'tool', name: 'read_skill', status: 'completed' });
     expect(steps[2]).toMatchObject({ kind: 'tool', name: 'read_skill', status: 'failed' });
+  });
+});
+
+describe('skills as prompt commands (AGENT-03)', () => {
+  const sources = () => [memorySource({ review: { description: 'Review a PR', body: 'Read the diff.\n' }, deploy: { description: 'Ship it', body: 'Run the checklist.' } })];
+
+  it('/review x writes an input and a skill message, and the first request carries both', async () => {
+    const model = createFakeModel({ script: [{ text: 'Reviewing.' }] });
+    const agent = createAgent({ id: 'a', instructions: 'be brief', model, store: createMemoryStore(), capabilities: [skills({ sources: sources() })] });
+    const handle = run({ agent, session: 's', input: '/review x' });
+    expect(await handle.outcome).toMatchObject({ status: 'completed', steps: 1 });
+    const transcript = await agent.store.sessions.listMessages({ sessionId: 's' });
+    expect(transcript.map((m) => [m.role, m.source])).toEqual([['user', 'input'], ['user', 'skill'], ['assistant', 'model']]);
+    expect(textOf(transcript[0]!)).toBe('/review x');
+    expect(textOf(transcript[1]!)).toBe('<skill name="review">\nRead the diff.\n</skill>\n\nx');
+    expect(model.requests[0]!.messages.map((m) => [m.source, textOf(m)])).toEqual([['input', '/review x'], ['skill', textOf(transcript[1]!)]]);
+  });
+
+  it('a skill with no arguments expands to the skill alone', async () => {
+    const [deploy] = (await skills({ sources: sources() }).prompts!({})).filter((c) => c.name === 'deploy');
+    expect(await deploy!.expand('')).toBe('<skill name="deploy">\nRun the checklist.\n</skill>');
+  });
+
+  it('a name that is a runtime command and a skill runs the runtime command', async () => {
+    const model = createFakeModel({ script: [] });
+    const review: SlashCommand = { name: 'review', description: 'The runtime one', run: async () => 'ran' };
+    const agent = createAgent({ id: 'a', instructions: 'be brief', model, store: createMemoryStore(), slashCommands: [review], capabilities: [skills({ sources: sources() })] });
+    const handle = run({ agent, session: 's', input: '/review x' });
+    expect(await handle.outcome).toMatchObject({ status: 'completed', steps: 0 });
+    expect(model.requests).toHaveLength(0);
+    expect((await agent.store.sessions.listMessages({ sessionId: 's' })).map((m) => m.source)).toEqual(['command', 'notice']);
+  });
+
+  it('listPromptCommands lists each skill once, with its description, for the workspace', async () => {
+    const list = vi.fn(async ({ workspace }: { workspace?: string }) => [
+      { name: 'review', description: 'Review a PR', ref: `${workspace}:review` },
+      { name: 'Upper', description: 'Not a command name', ref: `${workspace}:Upper` },
+    ]);
+    const other = memorySource({ review: { description: 'from b', body: 'B' } });
+    const agent = createAgent({
+      id: 'a', instructions: 'x', model: createFakeModel({ script: [] }), store: createMemoryStore(),
+      capabilities: [skills({ sources: [{ list, read: other.read }, other] })],
+    });
+    expect(await listPromptCommands(agent, { workspace: 'W' })).toEqual([{ name: 'review', description: 'Review a PR', kind: 'prompt' }]);
+    expect(list).toHaveBeenCalledWith({ workspace: 'W' });
+  });
+
+  it('a skill that does not expand is told to warn, and the turn goes on without it', async () => {
+    const warn = vi.fn();
+    const broken: SkillSource = { list: async () => [{ name: 'review', description: 'd', ref: 'r' }], read: async () => { throw new Error('gone'); } };
+    const model = createFakeModel({ script: [{ text: 'ok' }] });
+    const agent = createAgent({ id: 'a', instructions: 'x', model, store: createMemoryStore(), warn, capabilities: [skills({ sources: [broken] })] });
+    expect(await run({ agent, session: 's', input: '/review x' }).outcome).toMatchObject({ status: 'completed' });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('/review'));
+    expect(warn.mock.calls[0]![0]).toContain('gone');
+    expect(model.requests[0]!.messages.map((m) => m.source)).toEqual(['input']);
+  });
+
+  it('an auto-compaction before the first step keeps the skill with its input', async () => {
+    const store = createMemoryStore();
+    const long = 'x'.repeat(400);
+    const first = createAgent({ id: 'a', instructions: 'x', model: createFakeModel({ script: [{ text: long }] }), store });
+    await run({ agent: first, session: 's', input: long }).outcome;
+    const model = createFakeModel({ script: [{ text: 'Folded.' }, { text: 'Reviewing.' }] });
+    const agent = createAgent({
+      id: 'a', instructions: 'x', model, store, capabilities: [skills({ sources: sources() })],
+      context: { maxTokens: 10_000, autoCompactTokens: 150, compactKeepTokens: 0 },
+    });
+    expect(await run({ agent, session: 's', input: '/review x' }).outcome).toMatchObject({ status: 'completed', steps: 2 });
+    expect(model.requests[1]!.messages.map((m) => m.source)).toEqual(['summary', 'input', 'skill']);
   });
 });

@@ -61,10 +61,10 @@ const outcome = await handle.outcome;
 if (outcome.status === 'completed') console.log(textOf(outcome.message));
 ```
 
-`createAgent` validates the options once and returns a frozen value with no methods: `definition`, `model`, `tools`, `capabilities`, `store`, `hooks`, `policy`, `limits`, `context`, `params`, `resources`.
+`createAgent` validates the options once and returns a frozen value with no methods: `definition`, `model`, `tools`, `capabilities`, `slashCommands`, `store`, `hooks`, `policy`, `limits`, `context`, `params`, `resources`.
 Without a `store` it uses an in-memory store and warns once; pass a real store for anything but tests.
 
-`run({ agent, session, input, messageId?, workspace?, signal? })` returns a `RunHandle` synchronously and executes the turn in the background. `messageId` is the input message's id (default `newId()`), so a client can match `run.started` to its own send; it must be new in the session, or the handle finishes `failed { code: 'already_exists' }` with nothing written. `compact()` takes one for its ask too.
+`run({ agent, session, input, messageId?, workspace?, signal? })` returns a `RunHandle` synchronously and executes the turn in the background. `messageId` is the input message's id (default `newId()`), so a client can match `run.started` to its own send; it must be new in the session, or the handle finishes `failed { code: 'already_exists' }` with nothing written. `compact()` takes one for its `/compact` line too.
 
 - `events`: every `RunEvent` from `seq` 1, replayed to any iterator; the stream ends after the last `run.finished`, the one that is not `awaiting`. A pause's `run.finished { awaiting }` is mid-stream: the run goes on after it and the stream keeps delivering (decision 122). While a model step streams, `model.delta { step, kind: 'text' | 'reasoning', text }` carries each fragment as it arrives; deltas are persisted and replayed like every other event, tool-call fragments are never published, and `model.completed` still carries the whole message.
 - `outcome`: resolves exactly once, when the run really ends, to one of `completed | stopped | cancelled | failed`; it never resolves at a pause and never rejects. Every outcome carries `usage`, `steps` and, when the adapter has `pricing`, `cost` in USD (absent means unknown, never zero); the run record carries the same.
@@ -85,7 +85,7 @@ Limits: `maxSteps`, `maxToolCalls`, `timeoutMs`, `maxCost` (USD per run, `0` = n
 Every model request carries `cacheKey`, the session id, for adapters that key a provider-side prompt cache.
 A model step streams when the adapter has `stream()` and its `features.streaming` is true (there is no agent option; turn it off per model with `features: { streaming: false }`); the reply is assembled from the adapter's final `done` event, so nothing is validated or executed before the stream is complete, and a stream that ends without `done` fails the step (`invalid_response`) with no assistant message written. The compaction summary step never streams.
 
-Capabilities (`{ id, tools?(args), instructions?(args) }`) are resolved at the start of every run and contribute tools plus a `## <id>` section to the instructions.
+Capabilities (`{ id, tools?(args), instructions?(args), slashCommands?, prompts?(args) }`) are resolved at the start of every run and contribute tools plus a `## <id>` section to the instructions.
 `exclude: ['write_file']` leaves out the capability's tools of those names, so a tool of the same name from the agent or another capability takes the name instead of the run failing `invalid_options` on the clash; a name the capability does not contribute is ignored, and `defer.over` counts what is left.
 
 ## Pause and resume
@@ -200,7 +200,7 @@ A tool of your own can pause the same way with `pauseForInput({ questions })`.
 
 ## Skills
 
-`skills({ sources })` is the first core capability: it lists the available skills under `## skills` in the instructions and adds one `read_skill({ name, path? })` tool.
+`skills({ sources })` is the first core capability: it lists the available skills under `## skills` in the instructions, adds one `read_skill({ name, path? })` tool, and gives one prompt command per skill (see "Slash commands").
 A `SkillSource` is `{ list({ workspace }), read({ ref, path? }) }`; `@cofold/store-file` ships `fileSkillSource({ root })` for `<root>/skills/<name>/SKILL.md` and `<workspace>/.agents/skills/<name>/SKILL.md`.
 Duplicate names across sources: the first source wins, with one warning.
 
@@ -211,20 +211,55 @@ import { fileSkillSource } from '@cofold/store-file';
 const agent = createAgent({ ..., capabilities: [skills({ sources: [fileSkillSource({ root })] })] });
 ```
 
+## Slash commands
+
+A slash line is an input that is `/name args` and nothing else: a string, or one text part. `run()` looks the name up before the turn starts, and there are three kinds of command.
+
+A runtime command runs in the harness, with no model step. The typed line is written as a `command` message and the text `run` returns as a `notice` message; neither is ever sent to the model. The run emits `command.started { name, args }` and `command.finished { name, output? }` between `run.started` and `run.finished`, and a command that throws ends it `failed { code: 'command_error' }` with no notice.
+
+```ts
+import { createAgent, run, type SlashCommand } from '@cofold/agents';
+
+const status: SlashCommand = {
+  name: 'status',
+  description: 'Show the session',
+  run: async ({ sessionId, args }) => `session ${sessionId} ${args}`,
+};
+const agent = createAgent({ id, instructions, model, store, slashCommands: [status] });
+run({ agent, session: 's', input: '/status' });   // events: run.started, command.started, command.finished, run.finished
+```
+
+A prompt command is expanded for the model. `skills()` gives one per skill: the typed line is written as input, followed by a `skill` message with the SKILL.md inside `<skill name="...">` tags and the arguments after it, and the turn goes on as usual.
+
+```ts
+const agent = createAgent({ id, instructions, model, store, capabilities: [skills({ sources })] });
+run({ agent, session: 's', workspace, input: '/review src/auth.ts' });   // the first request ends with the review skill and "src/auth.ts"
+```
+
+A client command belongs to the program that reads the line, and never reaches `run()`. Any name the agent does not know, and a line with an image, goes to the model as text.
+
+```ts
+if (line === '/quit') process.exit(0);   // the client's own
+else run({ agent, session: 's', input: line });
+```
+
+Runtime commands come from `AgentOptions.slashCommands`, then each capability's `slashCommands`, then the built-in `/compact`, and a duplicate name fails `createAgent` with `invalid_options`. Prompt commands come from `Capability.prompts({ workspace })` and are read per session. A name that is both is the runtime command. A name matches `/^[a-z][a-z0-9_-]{0,63}$/`.
+`listSlashCommands(agent)` and `listPromptCommands(agent, { workspace })` (async) return `SlashCommandInfo { name, description, argumentHint?, kind: 'runtime' | 'prompt' }` for a client's menu.
+
 ## Compaction
 
 A request carries the instructions and the history up to `context.maxTokens` (32 000 by default), newest turns first; what does not fit is left out.
-Before that silently loses the beginning, the history can be folded into one summary message: `compact({ agent, session })` is a run of one model step whose input is the ask (`source: 'system'`) and whose outcome's message is the summary (`role: 'user'`, `source: 'summary'`, `summarizes: [ids]`), appended to the session like any message.
+Before that silently loses the beginning, the history can be folded into one summary message with `/compact`, a built-in runtime command. Its run is one model step: the input is the `command` message `/compact`, the outcome's message is the summary (`role: 'user'`, `source: 'summary'`, `summarizes: [ids]`), appended to the session like any message, and a `notice` `Compacted` follows it. `compact({ agent, session })` runs `/compact`.
 From then on a request carries the newest summary first, then every message no summary stands for; the originals stay on disk for the record and the screen.
 A compaction keeps a verbatim tail: the newest units (a tool call with its results counts as one, never split) whose estimate fits in `context.compactKeepTokens` (default 20% of `maxTokens`; `0` keeps nothing) are left out of the summary and of `summarizes`, so the model sees summary, tail, input in that order. `contextOf(history)` is exported as the one answer to "what does the model see of this session". The `context.compacted` event says `summarized`, `kept`, `estimatedTokens` (before) and `afterTokens` (after).
 `context.autoCompactTokens` does the same in passing: a turn whose history is estimated above it writes the summary first (an extra model step, `context.compacted` event) and then answers, keeping its own input out of the summary since that is what it is about to answer.
 
 ```ts
 const agent = createAgent({ ..., context: { maxTokens: 64_000, autoCompactTokens: 48_000 } });
-const handle = compact({ agent, session: 'abc' });   // events: run.started, model.started, model.completed, context.compacted, run.finished
+const handle = compact({ agent, session: 'abc' });   // events: run.started, command.started, model.started, model.completed, context.compacted, command.finished, run.finished
 ```
 
-The summary step sends no tools and skips the `beforeModel` / `afterModel` hooks; a model error fails the run as `summary: <message>`, and an empty reply is `invalid_response`.
+The summary step sends no tools, ends its request with an ask that is never written, and skips the `beforeModel` / `afterModel` hooks; a model error fails the run as `summary: <message>`, and an empty reply is `invalid_response`.
 
 ## Deferred tools
 
@@ -294,7 +329,7 @@ Messages carry `text`, `image`, `reasoning`, `toolCall` and `toolResult` parts; 
 src/types/      contracts only: interfaces and type aliases, no runtime values
 src/agent/      createAgent, DEFAULT_LIMITS
 src/capabilities/ skills
-src/run/        run, resume, the loop (turn.ts), run handle, context assembly, tool handling, pause signal
+src/run/        run, resume, the loop (turn.ts), run handle, context assembly, tool handling, pause signal, slash commands
 src/message/    textOf, toolCallsOf, INTERRUPTED, INTERRUPTED_TOOL
 src/model/      ZERO_USAGE, addUsage, costOf, effortOf and the effort levels
 src/policy/     rules, policyOf, the permission modes and their descriptions

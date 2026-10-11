@@ -41,6 +41,10 @@ export type RunEventBody =
    * messages are covered, `kept` stay verbatim as the tail, `estimatedTokens` before and `afterTokens` after (cli/03 F1, F7).
    */
   | { type: 'context.compacted'; messageId: string; summarized: number; kept: number; estimatedTokens: number; afterTokens: number }
+  /** A runtime command run started; `args` is what follows the name on the typed line (AGENT-03). */
+  | { type: 'command.started'; name: string; args: string }
+  /** A runtime command run ended without a throw; `output` is the notice's text when it wrote one. */
+  | { type: 'command.finished'; name: string; output?: string }
   | { type: 'run.finished'; outcome: RunOutcome };
 
 export type RunEvent = EventBase & RunEventBody;

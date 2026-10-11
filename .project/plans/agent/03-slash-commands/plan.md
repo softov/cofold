@@ -122,7 +122,7 @@ say('/compact')
 | `/help` keeps its overlay and lists the runtime's commands first; `/memory`, `/export` keep theirs | Softov, 2026-09-16; `showInfo` serves them | 06 |
 | `Chat` gets `commands()` and loses `compact()`; the shell and MCP action `compact <session>` goes; `papo commands` lists them | Softov, 2026-09-16 | 05, 07 |
 | The contract test runs `say('/compact')` on both backends, and a `commands` scenario finds `compact` on both | cli/03 decision 10 | 07, 08 |
-| `@cofold/agents` goes to 0.2.2, and ahpd's agent-cofold suite passes against it before the release | decision 4; the memory test-the-consumer-before-a-release | 04 |
+| `@cofold/agents` goes to 0.3.0, and ahpd's agent-cofold suite passes against it before the release | decision 4; the memory test-the-consumer-before-a-release | 04 |
 
 ## Proposed architecture
 
@@ -139,14 +139,14 @@ say('/compact')
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The slash command contracts](task-01-contracts.md) | todo | - |
-| [02 - The harness runs a runtime command, and /compact is one](task-02-the-harness-runs-a-command.md) | todo | 01 |
-| [03 - The harness expands a skill](task-03-the-harness-expands-a-skill.md) | todo | 01 |
-| [04 - The README describes slash commands, and agents 0.2.2 passes ahpd's suite](task-04-docs-and-release-check.md) | todo | 02, 03 |
-| [05 - papo's Chat lists the runtime's commands and declares its own](task-05-papo-service.md) | todo | 02, 03 |
-| [06 - The screen shows the runtime's list and keeps only client commands](task-06-papo-screen.md) | todo | 05 |
-| [07 - The shell lists commands and loses the compact action](task-07-papo-shell.md) | todo | 05 |
-| [08 - The Claude backend lists its own commands](task-08-claude-backend.md) | todo | 05, 07 |
+| [01 - The slash command contracts](task-01-contracts.md) | implemented | - |
+| [02 - The harness runs a runtime command, and /compact is one](task-02-the-harness-runs-a-command.md) | implemented | 01 |
+| [03 - The harness expands a skill](task-03-the-harness-expands-a-skill.md) | implemented | 01 |
+| [04 - The README describes slash commands, and agents 0.3.0 passes ahpd's suite](task-04-docs-and-release-check.md) | implemented | 02, 03 |
+| [05 - papo's Chat lists the runtime's commands and declares its own](task-05-papo-service.md) | implemented | 02, 03 |
+| [06 - The screen shows the runtime's list and keeps only client commands](task-06-papo-screen.md) | implemented | 05 |
+| [07 - The shell lists commands and loses the compact action](task-07-papo-shell.md) | implemented | 05 |
+| [08 - The Claude backend lists its own commands](task-08-claude-backend.md) | implemented | 05, 07 |
 
 ## Risks and tradeoffs
 
@@ -156,10 +156,11 @@ say('/compact')
 
 ## Resume state
 
-- **Done so far:** revalidated 2026-10-11 against `4174eeb`; nothing built.
-- **Next action:** [task-01-contracts.md](task-01-contracts.md), then 02 and 03.
+- **Done so far:** revalidated 2026-10-11 against `4174eeb`; tasks 01 to 08 implemented on `build/agents/a03`, awaiting review.
+- **Next action:** review of 01 to 08, then the `@cofold/agents` 0.3.0 release.
 - **Open questions:** none.
 - **Watch out for:** `/compact` makes a model call; a test that expects no model request is wrong.
+- **ahpd:** its typecheck fails against 0.3.0 until it maps the two command events; its tests pass.
 
 ## Final verification checklist
 

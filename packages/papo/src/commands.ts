@@ -9,6 +9,7 @@ import { providersOf } from '@cofold/model-openai-compat';
 import { createFileStore, resolveHome } from '@cofold/store-file';
 import { renderTable } from '@cofold/terminal';
 import { compactedNotice } from './blocks.js';
+import { redactedConfig, renderUsage } from './commands/runtime.js';
 import { createChat } from './chat.js';
 import { createClaudeChat } from './claude/chat.js';
 import { loadConfig, rememberConfig } from './config.js';
@@ -114,16 +115,6 @@ export function rememberInto(args: { config: PapoConfig; cwd: string; env?: Node
     const { model, ...rest } = patch;
     Object.assign(args.config, rest, model !== undefined && model !== '' ? { model } : {});
     return files;
-  };
-}
-
-/** The configuration as it may be shown: keys replaced, the two folders added. */
-export function redactedConfig(papo: Papo): Record<string, unknown> {
-  return {
-    ...papo.config,
-    providers: papo.config.providers.map((provider) => ({ ...provider, ...(provider.apiKey !== undefined ? { apiKey: '[redacted]' } : {}) })),
-    workspace: papo.workspace,
-    home: papo.home,
   };
 }
 
@@ -335,22 +326,6 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
   });
 
   registry.action({
-    id: 'compact',
-    group: 'talk',
-    summary: 'Fold the conversation so far into a summary the model continues from',
-    needs: ['papo'],
-    input: { session: { type: 'string', description: 'The session', minLength: 1 } },
-    required: ['session'],
-    surfaces: { cli: { pattern: ['compact', ':session'] }, mcp: true },
-    run: async ({ input, papo }) => {
-      const started = await withAgentErrors(() => papo.chat.compact(input.session));
-      const outcome = await papo.chat.wait(started.sessionId);
-      const snapshot = await papo.chat.snapshot(started.sessionId);
-      return output({ sessionId: started.sessionId, runId: started.runId, outcome }, () => renderOutcome(snapshot, outcome, { runId: started.runId }));
-    },
-  });
-
-  registry.action({
     id: 'usage',
     group: 'sessions',
     summary: 'What a session used: tokens by kind, steps, tool calls and refusals, per turn and in total',
@@ -523,6 +498,20 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
   });
 
   registry.action({
+    id: 'commands',
+    group: 'setup',
+    summary: "The runtime's commands and the skills; send /<name> in a message to run one",
+    needs: ['papo'],
+    effect: 'read',
+    surfaces: { cli: { pattern: ['commands'] }, mcp: true },
+    run: async ({ papo }) => {
+      const rows = await papo.chat.commands();
+      return output(rows, () => renderTable(['command', 'kind', 'description'],
+        rows.map((row) => [`/${row.name}${row.argumentHint !== undefined ? ` ${row.argumentHint}` : ''}`, row.kind, row.description])));
+    },
+  });
+
+  registry.action({
     id: 'config.show',
     group: 'setup',
     summary: 'The configuration in force, keys redacted',
@@ -592,29 +581,6 @@ function renderOutcome(snapshot: Snapshot, outcome: RunOutcome | undefined, abou
   }
   lines.push(`session ${snapshot.session.id}`);
   return `${lines.join('\n')}\n`;
-}
-
-/**
- * The usage table: one row per run, the sums under it. A count the provider never reported (cache,
- * reasoning) is left out as a column rather than shown as zeros, so what is there is what was measured.
- */
-export function renderUsage(used: SessionUsage): string {
-  if (used.runs.length === 0) return 'Nothing said yet.\n';
-  const maybe = (value: number | undefined): string => (value === undefined ? '' : String(value));
-  const header = ['turn', 'state', 'in', 'out', 'cache read', 'cache write', 'reasoning', 'steps', 'tools', 'refused'];
-  const rows = used.runs.map((run, index) => [
-    String(index + 1), run.status, String(run.usage.inputTokens), String(run.usage.outputTokens),
-    maybe(run.usage.cacheReadTokens), maybe(run.usage.cacheWriteTokens), maybe(run.usage.reasoningTokens),
-    String(run.steps), String(run.toolCalls), String(run.denials),
-  ]);
-  rows.push([
-    'total', '', String(used.usage.inputTokens), String(used.usage.outputTokens),
-    maybe(used.usage.cacheReadTokens), maybe(used.usage.cacheWriteTokens), maybe(used.usage.reasoningTokens),
-    String(used.steps), String(used.toolCalls), String(used.denials),
-  ]);
-  const kept = header.map((_name, column) => column < 4 || column > 6 || rows.some((row) => row[column] !== ''));
-  const pick = (row: string[]): string[] => row.filter((_cell, column) => kept[column]);
-  return renderTable(pick(header), rows.map(pick));
 }
 
 function renderPending(snapshot: Snapshot): string[] {

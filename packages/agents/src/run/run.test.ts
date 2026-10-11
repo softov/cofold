@@ -701,13 +701,13 @@ describe('run: a caller-supplied messageId (cli/03 F2)', () => {
     expect((await store.sessions.get({ sessionId: 's' }))?.activeWriterRunId).toBeUndefined();
   });
 
-  it('compact() takes a messageId for its ask too', async () => {
+  it('compact() takes a messageId for its /compact input too', async () => {
     const store = createMemoryStore();
     await collect(run({ agent: build({ store, script: [{ text: 'Hello.' }] }).agent, session: 's', input: 'Hi' }));
     const handle = compact({ agent: build({ store, script: [{ text: 'Greeted.' }] }).agent, session: 's', messageId: 'ask-1' });
     const events = await collect(handle);
     expect(await handle.outcome).toMatchObject({ status: 'completed' });
-    expect(events[0]).toMatchObject({ type: 'run.started', input: { id: 'ask-1', source: 'system' } });
+    expect(events[0]).toMatchObject({ type: 'run.started', input: { id: 'ask-1', source: 'command', parts: [{ type: 'text', text: '/compact' }] } });
     expect(await store.runs.get(ref(handle))).toMatchObject({ inputMessageId: 'ask-1' });
   });
 });

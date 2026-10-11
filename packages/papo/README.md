@@ -94,11 +94,11 @@ approve <session> [--always]    let the waiting tool call run
 deny <session> [-r TEXT]        refuse it
 answer <session> id=value...    answer the agent's questions; repeat an id for a multi-select
 cancel <session>                stop the turn: a running one is aborted; one waiting on a decision has it denied and ends cancelled
-compact <session>               fold the conversation so far into a summary
 usage <session>                 what it used: tokens by kind, steps, tool calls and refusals, per turn and in total; no prices
 session list | show [--all] | delete   show prints what the model sees; --all every turn, the compacted ones included
 session export <session> [-o FILE]   the conversation as Markdown
 skills                          the skills the agent may read; `say "/name ..."` invokes one
+commands                        the runtime's commands and the skills; `say -s ID /compact` runs one
 session set <session> [-m -p -t -a] [--deny RULE]... [--ask RULE]... [--allow RULE]...   the model, the permission mode, the thinking level, auto-compaction; add rules
 session rules <session>         the mode and every rule the session runs under, with its origin (session or config)
 providers                       the configured providers; which one a new conversation starts on
@@ -122,23 +122,33 @@ While the agent answers, `enter` steers: the message lands in the running turn b
 A `Queue` chip leads the row then (`tab`, `enter`): the draft becomes the next turn instead, listed as a queued row at the end of the transcript, and starts when the turn ends, never after `ctrl+c`; `enter` on a queued row drops it.
 Queued while nothing runs (`/queue`, `papo queue`), a message is the next turn at once, as in Claude Code.
 
-`/` opens a menu: the skills first (chosen, one becomes `/name ` in the field, and sending the line tells the agent to read that skill), then the commands, which are the palette's:
+`/` opens a menu: the runtime's commands first, then the skills, then the screen's own commands.
+A command that takes an argument becomes `/name ` in the field; the others are sent as they are picked.
+
+The runtime's commands are the same list `papo commands` prints. They run in the harness, not in the model, and their answer is a notice in the transcript. A line typed while a turn runs is queued and runs after it.
 
 | | |
 | --- | --- |
-| `/model`, `/permissions`, `/thinking` | The three settings, as pickers. |
-| `/compact` | Fold the conversation so far into a summary the model continues from. Afterwards the transcript is the model's view: the compaction turn first (`(context compacted)`, with `Context compacted: N tokens to M.`), then the turns the compaction kept verbatim, then what follows; the folded turns are in the store and `papo session show --all` prints them. |
-| `/autocompact` | Switch the automatic version for this session: the same fold, done before a turn once the conversation passes 80% of `context.maxTokens`. |
-| `/status`, `/usage` | The session, model, mode, folders and token totals; what each turn used (tokens by kind, steps, tool calls, refusals), never a price. |
-| `/skill` | Pick a skill from the list. `/init` writes or refreshes `AGENTS.md`; `/review` reviews the working tree; both ship with papo, and a skill of the same name under `~/.cofold/skills` or `<workspace>/.agents/skills` replaces it. |
+| `/compact` | Fold the conversation so far into a summary the model continues from. Afterwards the transcript is the model's view: the `/compact` turn first, with the summary and `Context compacted: N tokens to M.`, then the turns the compaction kept verbatim, then what follows; the folded turns are in the store and `papo session show --all` prints them. |
+| `/autocompact on\|off` | Switch the automatic version for this session: the same fold, done before a turn once the conversation passes 80% of `context.maxTokens`. |
+| `/model`, `/permissions`, `/reasoning` | Without an argument, the setting and its choices; with one, the new value (`/model fake/other`). The chips under the field change the same settings. |
+| `/status`, `/usage`, `/context` | The session, model, mode, rules, folders and token totals; what each turn used (tokens by kind, steps, tool calls, refusals), never a price; how much of the context the conversation fills. |
+| `/config`, `/skills` | The configuration with keys redacted; the skills. |
+
+A skill is a `/name` too: sending the line tells the agent to read that skill, and the transcript shows `Skill: name`. `/init` writes or refreshes `AGENTS.md`; `/review` reviews the working tree; both ship with papo, and a skill of the same name under `~/.cofold/skills` or `<workspace>/.agents/skills` replaces it.
+
+The screen's own commands never reach the runtime; `ctrl+p` lists them too:
+
+| | |
+| --- | --- |
 | `/memory` | What the agent remembers about this workspace (`~/.cofold/memory/<workspace>/MEMORY.md`), with a button that opens it in `$VISUAL`, `$EDITOR`, or the platform's editor. |
 | `/export` | The conversation as Markdown, to `<workspace>/papo-<session>.md`. |
 | `/retry` | The last message again, as a new turn. |
 | `/clear`, `/new` | A new conversation; the current one stays in the catalogue. |
 | `/stop`, `/approve`, `/deny` | What `ctrl+c`, `a` and `d` do. |
 | `/queue`, `/unqueue` | Hold what is in the field as the next turn; drop a queued message. |
-| `/theme` | The colors and shapes; the choice is worn while the highlight moves. |
-| `/config`, `/help`, `/quit` | The configuration with keys redacted; every command and key; out. |
+| `/theme`, `/markdown` | The colors and shapes, worn while the highlight moves; markdown rendering on or off. |
+| `/help`, `/quit` | The runtime's commands, then these, with their keys; out. |
 
 
 The components are `@textui/chat`; what this package adds is the projection from the store to their props and the wiring from a key to the harness.
@@ -155,19 +165,20 @@ papo --backend claude                            # the screen, over Claude Code
 papo --backend claude say -p auto "Run the tests and fix what fails"
 ```
 
-What is the same: the transcript, the confirmation block (the CLI's `canUseTool` becomes it, under the CLI's own sentence when it sends one; `Always, this session` sends the CLI's suggested rules back with every destination rewritten to `session`, so the rule holds for the rest of the session and nothing is written into a settings file; the option is withheld when the CLI says the rule would grant more than the ask), the question form (`AskUserQuestion`), `/compact`, `/usage`, `/status`, the session list, `session show` and `session export`.
+What is the same: the transcript, the confirmation block (the CLI's `canUseTool` becomes it, under the CLI's own sentence when it sends one; `Always, this session` sends the CLI's suggested rules back with every destination rewritten to `session`, so the rule holds for the rest of the session and nothing is written into a settings file; the option is withheld when the CLI says the rule would grant more than the ask), the question form (`AskUserQuestion`), `papo usage`, the session list, `session show` and `session export`.
 Settings (`model`, `permissions`, `reasoning`) are kept per session in the file store under `--home`, at the same key the cofold backend uses, so they survive a restart and `session set` reads the same thing on both backends.
 What differs, because it is the CLI's:
 
 - Models are `claude/<name>` as `supportedModels()` lists them; a `model` of another provider in the configuration is ignored with a warning, and the CLI's default is used.
 - `permissions`: the four names are the CLI's own and are passed through as its `permissionMode` (`bypassPermissions` with the flag the SDK asks for); changing the mode on a session with a live process restarts that process on the same session, as a thinking change does. papo's `rules` are kept and listed for the session but not applied: the CLI reads its own settings files (`settingSources`), and `Always, this session` sends the CLI's suggested rules back to it rather than adding a papo rule.
 - `reasoning` is the CLI's `effort` (`off` sends none); changing it on a session with a live process restarts that process on the same session.
-- `autoCompact` stays on: the CLI compacts on its own; `/autocompact` off is refused with that sentence. `/compact` sends the CLI its own command; afterwards the transcript is what the CLI keeps, the summary first (shown as a `(context compacted)` turn) and the turns after it.
+- The `/` menu and `papo commands` list the CLI's own commands, its skills among them, and a line that starts with `/` goes to the CLI unchanged; `papo skills` lists none. A slash line said while a turn runs is queued, as on the cofold backend.
+- `autoCompact` is kept for the session but the CLI compacts on its own; `/autocompact` is the CLI's. `/compact` sends the CLI its own command; afterwards the transcript is what the CLI keeps, the summary first (shown as a `(context compacted)` turn) and the turns after it.
 - A decision waits in the process that asked, not on disk: `papo say` that stops at a tool denies it (and every further one the turn stops at) and says so; approvals and answers happen on the screen (`papo chat`), where the process lives.
 - A message said while a turn runs is pushed to the CLI, which takes it into the running turn as its own client does; the CLI records it as a user message, so the transcript shows it as a turn boundary after the tool result. The queue is papo's, the same as on the cofold backend.
 - `session delete` removes the CLI's session file; `session list` is the workspace's sessions in `~/.claude/projects/`.
 - Failed turns are the CLI's result (`error_*`, or a `success` carrying `is_error` when the API refused) and are kept only in the process that saw them; the CLI's transcript has no record of them.
-- `/usage` counts a reply once however many entries the CLI stored it as (it writes one per content block, so thinking, text and a tool call of one reply share an id).
+- `papo usage` counts a reply once however many entries the CLI stored it as (it writes one per content block, so thinking, text and a tool call of one reply share an id).
 
 The harness's own tools, skills and memory are not involved; the CLI brings its own.
 

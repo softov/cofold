@@ -30,9 +30,9 @@ export const PROVIDERS = '$/papo/providers' as BindingPath;
 export const PLACE = '$/papo/place' as BindingPath;
 /** The models listed so far, per provider: `chat.models({ provider })` is asked when a provider is chosen, once. */
 export const MODELS = '$/papo/models' as BindingPath;
-/** The skills a slash may name, as `chat.skills()` last answered. */
-export const SKILLS = '$/papo/skills' as BindingPath;
-/** What the information overlay shows (`/status`, `/usage`, `/config`, `/help`, `/memory`). */
+/** The runtime's commands, then the prompt commands, as `chat.commands()` answered at start. */
+export const COMMANDS = '$/papo/commands' as BindingPath;
+/** What the information overlay shows (`/help`, `/memory`, `/export`). */
 export const INFO = '$/papo/info' as BindingPath;
 
 /** textui's own: which screen is current, and which node holds the keyboard. */

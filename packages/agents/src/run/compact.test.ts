@@ -55,23 +55,27 @@ describe('compact()', () => {
     const handle = compact({ agent: compacting.agent, session: 's' });
     const events = await collect(handle);
     const outcome = await handle.outcome;
-    expect(types(events)).toEqual(['run.started', 'model.started', 'model.completed', 'context.compacted', 'run.finished']);
+    expect(types(events)).toEqual(['run.started', 'command.started', 'model.started', 'model.completed', 'context.compacted', 'command.finished', 'run.finished']);
+    expect(events[1]).toMatchObject({ type: 'command.started', name: 'compact', args: '' });
+    expect(events[5]).toMatchObject({ type: 'command.finished', name: 'compact', output: 'Compacted' });
     expect(outcome).toMatchObject({ status: 'completed', steps: 1 });
     if (outcome.status !== 'completed') throw new Error(outcome.status);
     expect(outcome.message).toMatchObject({ role: 'user', source: 'summary', summarizes: expect.any(Array) });
     expect(textOf(outcome.message)).toBe('Summary of the conversation so far:\n\nThe person said hi; I greeted them.');
-    expect(events[3]).toMatchObject({ type: 'context.compacted', messageId: outcome.message.id, summarized: 3, kept: 0, estimatedTokens: expect.any(Number), afterTokens: expect.any(Number) });
-    const compacted = events[3] as Extract<RunEvent, { type: 'context.compacted' }>;
+    expect(events[4]).toMatchObject({ type: 'context.compacted', messageId: outcome.message.id, summarized: 3, kept: 0, estimatedTokens: expect.any(Number), afterTokens: expect.any(Number) });
+    const compacted = events[4] as Extract<RunEvent, { type: 'context.compacted' }>;
     expect(compacted.afterTokens).toBeLessThan(compacted.estimatedTokens + 40);
 
-    // The summarizing request carried the conversation and no tools; the ask is the run's own input, source system.
+    // The summarizing request carried the conversation and no tools; the ask is a new system message, never the command.
     const asked = compacting.model.requests[0]!;
     expect(asked.tools).toEqual([]);
     expect(asked.instructions).toContain('## summary');
     expect(asked.messages.map((m) => [m.source, textOf(m)])).toEqual([['input', 'Hi'], ['model', 'Hello.'], ['system', 'Summarize the conversation so far.']]);
 
     const transcript = await store.sessions.listMessages({ sessionId: 's' });
-    expect(transcript.map((m) => m.source)).toEqual(['input', 'model', 'system', 'summary']);
+    expect(transcript.map((m) => m.source)).toEqual(['input', 'model', 'command', 'summary', 'notice']);
+    expect(textOf(transcript[2]!)).toBe('/compact');
+    expect(textOf(transcript[4]!)).toBe('Compacted');
     expect(outcome.message.summarizes).toEqual(transcript.slice(0, 3).map((m) => m.id));
     const steps = await store.runs.listSteps({ sessionId: 's', runId: handle.runId });
     expect(steps).toHaveLength(1);
@@ -143,25 +147,26 @@ describe('compactKeepTokens (cli/03 F1, F7)', () => {
   it('keeps the newest unit verbatim, leaves it out of summarizes, and the next request carries summary, tail, input in that order', async () => {
     const store = createMemoryStore();
     const first = build({ store, script: [{ text: 'Hello.' }] });
-    await collect(run({ agent: first.agent, session: 's', input: 'Hi' }));
+    await collect(run({ agent: first.agent, session: 's', input: 'Hi, how is the weather where you are today, and what should I wear?' }));
     const second = build({ store, script: [{ text: 'Sure, again.' }] });
     await collect(run({ agent: second.agent, session: 's', input: 'Again' }));
     const transcript = await store.sessions.listMessages({ sessionId: 's' });
     // About 4 tokens of framing plus the text per message: the last exchange (6 + 7 tokens) fits in 14, the first does not.
+    // The first input is long enough that the summary and the tail estimate below the history they replace.
     const compacting = build({ store, script: [{ text: 'They greeted twice.' }], compactKeepTokens: 14 });
     const handle = compact({ agent: compacting.agent, session: 's' });
     const events = await collect(handle);
     const outcome = await handle.outcome;
     if (outcome.status !== 'completed') throw new Error(outcome.status);
 
-    // Summarized: the first exchange and the ask; kept: the second exchange.
+    // Summarized: the first exchange and the /compact line; kept: the second exchange.
     expect(outcome.message.summarizes).toEqual([transcript[0]!.id, transcript[1]!.id, expect.any(String)]);
-    expect(events[3]).toMatchObject({ type: 'context.compacted', summarized: 3, kept: 2 });
-    const compacted = events[3] as Extract<RunEvent, { type: 'context.compacted' }>;
+    expect(events[4]).toMatchObject({ type: 'context.compacted', summarized: 3, kept: 2 });
+    const compacted = events[4] as Extract<RunEvent, { type: 'context.compacted' }>;
     expect(compacted.afterTokens).toBeLessThan(compacted.estimatedTokens);
     expect(await store.runs.listSteps({ sessionId: 's', runId: handle.runId })).toMatchObject([{ detail: { compacted: 3, kept: 2 } }]);
     // The summarizing request saw what it summarizes plus the ask, never the tail.
-    expect(compacting.model.requests[0]!.messages.map((m) => textOf(m))).toEqual(['Hi', 'Hello.', 'Summarize the conversation so far.']);
+    expect(compacting.model.requests[0]!.messages.map((m) => textOf(m))).toEqual(['Hi, how is the weather where you are today, and what should I wear?', 'Hello.', 'Summarize the conversation so far.']);
 
     const after = await store.sessions.listMessages({ sessionId: 's' });
     expect(contextOf(after).map((m) => [m.source, textOf(m)])).toEqual([
@@ -191,7 +196,7 @@ describe('compactKeepTokens (cli/03 F1, F7)', () => {
       const compacting = build({ store, script: [{ text: 'S' }], compactKeepTokens });
       const handle = compact({ agent: compacting.agent, session: 's' });
       const events = await collect(handle);
-      return { transcript, compacting, compacted: events[3] as Extract<RunEvent, { type: 'context.compacted' }> };
+      return { transcript, compacting, compacted: events[4] as Extract<RunEvent, { type: 'context.compacted' }> };
     }
     // 'done' (about 5 tokens) is kept; the call + result unit (about 120) is not, with a budget of 60.
     const small = await session(60);
@@ -212,7 +217,7 @@ describe('compactKeepTokens (cli/03 F1, F7)', () => {
     await collect(run({ agent: build({ store, script: [{ text: 'Hello.' }] }).agent, session: 's', input: 'Hi' }));
     const handle = compact({ agent: build({ store, script: [{ text: 'Greeted.' }], compactKeepTokens: 0 }).agent, session: 's' });
     const events = await collect(handle);
-    expect(events[3]).toMatchObject({ type: 'context.compacted', summarized: 3, kept: 0 });
+    expect(events[4]).toMatchObject({ type: 'context.compacted', summarized: 3, kept: 0 });
     const after = await store.sessions.listMessages({ sessionId: 's' });
     expect(contextOf(after).map((m) => m.source)).toEqual(['summary']);
   });

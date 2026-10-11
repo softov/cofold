@@ -1,6 +1,6 @@
 ---
 title: The Claude backend lists its own commands
-status: todo
+status: implemented
 depends: [task-05-papo-service.md, task-07-papo-shell.md]
 layer: papo
 refs:
@@ -34,3 +34,9 @@ On the Claude backend, `commands()` is the CLI's list, `skills()` is empty, and 
 - `pnpm --filter @cofold/papo test` passes.
 
 ## Resume
+
+- Implemented on `build/agents/a03`, awaiting review.
+- `commands()` and the removal of `compact()` landed with task 05, to keep that commit green.
+- The `autoCompact` default is now the configuration's `context.autoCompact`, as on the cofold backend. The setting is kept per session and does not reach the CLI.
+- A slash line said while a turn runs is queued before the steer path, so it never goes into the running turn.
+- README: the Claude section says the `/` menu is the CLI's list, and `papo usage` replaces `/usage` and `/status` in what is the same.

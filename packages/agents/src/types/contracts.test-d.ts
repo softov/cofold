@@ -1,6 +1,10 @@
 import type { AskAnswers } from './ask.js';
 import type { RunCommand } from './command.js';
 import type { RunEvent } from './event.js';
+import type { Agent, AgentOptions } from './agent.js';
+import type { Capability } from './capability.js';
+import type { MessageSource } from './message.js';
+import type { PromptCommand, SlashCommand, SlashCommandContext, SlashCommandInfo } from './slash-command.js';
 import type {
   AfterToolArgs,
   AfterToolResult,
@@ -130,5 +134,35 @@ describe('contracts', () => {
     // A level is narrower than what a provider accepts; `effortOf` hands back a provider value.
     expectTypeOf<Parameters<typeof effortOf>[0]>().toEqualTypeOf<unknown>();
     expectTypeOf<ReturnType<typeof effortOf>>().toEqualTypeOf<ReasoningEffort | undefined>();
+  });
+
+  it('a SlashCommand runs with the run\'s reach and returns the notice text or nothing (AGENT-03)', () => {
+    const status: SlashCommand = { name: 'status', description: 'Show the session', run: async (ctx) => `${ctx.sessionId} ${ctx.args}` };
+    expectTypeOf(status).toMatchTypeOf<SlashCommand>();
+    expectTypeOf<SlashCommand['run']>().returns.toEqualTypeOf<Promise<string | undefined>>();
+    expectTypeOf<SlashCommandContext['args']>().toEqualTypeOf<string>();
+    expectTypeOf<SlashCommandContext['kv']>().toEqualTypeOf<{ agent: KvScope; shared: KvScope; workspace?: KvScope }>();
+    expectTypeOf<SlashCommandContext['store']>().toEqualTypeOf<Store>();
+    expectTypeOf<{ name: 'x'; description: 'y' }>().not.toMatchTypeOf<SlashCommand>();
+  });
+
+  it('a PromptCommand expands its arguments into text, and a list entry says which kind it is (AGENT-03)', () => {
+    const review: PromptCommand = { name: 'review', description: 'Review a PR', argumentHint: '<pr>', expand: async (args) => `review ${args}` };
+    expectTypeOf(review).toMatchTypeOf<PromptCommand>();
+    expectTypeOf<PromptCommand['expand']>().returns.toEqualTypeOf<Promise<string>>();
+    expectTypeOf<SlashCommandInfo['kind']>().toEqualTypeOf<'runtime' | 'prompt'>();
+  });
+
+  it('commands come from the options and the capabilities, and the agent holds the list (AGENT-03)', () => {
+    expectTypeOf<AgentOptions['slashCommands']>().toEqualTypeOf<SlashCommand[] | undefined>();
+    expectTypeOf<Agent['slashCommands']>().toEqualTypeOf<readonly SlashCommand[]>();
+    expectTypeOf<Capability['slashCommands']>().toEqualTypeOf<readonly SlashCommand[] | undefined>();
+    expectTypeOf<NonNullable<Capability['prompts']>>().returns.toEqualTypeOf<Promise<PromptCommand[]>>();
+  });
+
+  it('command, notice and skill are message sources, and a command run has its two events (AGENT-03)', () => {
+    expectTypeOf<'command' | 'notice' | 'skill'>().toMatchTypeOf<MessageSource>();
+    expectTypeOf<Extract<RunEvent, { type: 'command.started' }>>().toMatchTypeOf<{ name: string; args: string }>();
+    expectTypeOf<Extract<RunEvent, { type: 'command.finished' }>['output']>().toEqualTypeOf<string | undefined>();
   });
 });

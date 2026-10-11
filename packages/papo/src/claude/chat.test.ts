@@ -205,14 +205,13 @@ describe('createClaudeChat', () => {
     await chat.say({ sessionId: started.sessionId, text: 'Second' });
     await chat.wait(started.sessionId);
 
-    const compacting = await chat.compact(started.sessionId);
+    const compacting = await chat.say({ sessionId: started.sessionId, text: '/compact' });
     expect(compacting.sessionId).toBe(started.sessionId);
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
     const after = await chat.snapshot(started.sessionId);
     expect(after.turns.map((turn) => turn.input)).toEqual([COMPACTED_INPUT, 'Second', '/compact']);
     expect(after.turns[0]?.parts[0]).toMatchObject({ kind: 'summary', text: 'We counted to two.' });
     expect(after.turns[2]?.parts[0]).toMatchObject({ kind: 'notice', text: 'Compacted' });
-    expect(after.settings.autoCompact).toBe(true);
   });
 
   it('takes a message said while a tool runs into the running turn, as the CLI does, and shows it after the tool result', async () => {
@@ -226,7 +225,6 @@ describe('createClaudeChat', () => {
     expect(steered).toEqual({ sessionId: started.sessionId, runId: started.runId, steered: true });
     // Shown at once, from what this process pushed; the store has it once the turn ends.
     expect((await chat.snapshot(started.sessionId)).turns.map((turn) => turn.input)).toEqual(['Run it', 'Also, be brief']);
-    await expect(chat.compact(started.sessionId)).rejects.toMatchObject({ code: 'writer_busy' });
 
     gate.release('slept');
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
@@ -236,6 +234,23 @@ describe('createClaudeChat', () => {
     expect(done.turns[0]?.parts[0]).toMatchObject({ kind: 'tool', call: { status: 'completed', output: 'slept' } });
     expect(done.turns[1]?.parts[0]).toMatchObject({ kind: 'text', text: 'Done, briefly.' });
     expect(done.running).toBe(false);
+  });
+
+  it('queues a slash line said while a turn runs, and sends it to the CLI as its own turn after', async () => {
+    const gate = held();
+    const { chat } = claudeChat([{ tool: 'Bash', input: { command: 'a' }, waitFor: gate.waitFor, then: 'One.' }, { text: 'Compacted.' }], { model: undefined, permissions: 'bypassPermissions' });
+    const started = await chat.say({ text: 'First' });
+    await tick();
+    const queued = await chat.say({ sessionId: started.sessionId, text: '/compact' });
+    expect(queued).toEqual({ sessionId: started.sessionId, runId: started.runId, queued: true });
+    expect((await chat.snapshot(started.sessionId)).queued.map((waiting) => waiting.text)).toEqual(['/compact']);
+
+    gate.release('ok');
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    await chat.wait(started.sessionId);
+    const after = await chat.snapshot(started.sessionId);
+    expect(after.queued).toEqual([]);
+    expect(after.turns.map((turn) => turn.input)).toContain('/compact');
   });
 
   it('queues the next turn: the head starts when the turn settles and not after a cancel; unqueue drops one', async () => {
@@ -321,7 +336,7 @@ describe('createClaudeChat', () => {
     await first.chat.close();
 
     const second = claudeChat([{ text: 'b' }], { model: undefined }, { sdk, home: first.home });
-    expect(await second.chat.settings(started.sessionId)).toEqual({ model: 'claude/opus', permissions: 'bypassPermissions', reasoning: 'high', autoCompact: true });
+    expect(await second.chat.settings(started.sessionId)).toEqual({ model: 'claude/opus', permissions: 'bypassPermissions', reasoning: 'high', autoCompact: false });
     expect((await second.chat.snapshot(started.sessionId)).settings.permissions).toBe('bypassPermissions');
     await second.chat.say({ sessionId: started.sessionId, text: 'Two' });
     await second.chat.wait(started.sessionId);
@@ -367,8 +382,12 @@ describe('createClaudeChat', () => {
     const models = await chat.models();
     expect(models.map((model) => model.ref)).toEqual(['claude/sonnet', 'claude/opus']);
     expect(models[0]).toMatchObject({ id: 'sonnet', name: 'Sonnet', provider: CLAUDE_PROVIDER, features: { tools: true } });
-    const skills = await chat.skills();
-    expect(skills.map((skill) => skill.name)).toEqual(['compact', 'review']);
+    expect(await chat.commands()).toEqual([
+      { name: 'compact', description: 'Clear conversation history but keep a summary in context', argumentHint: '<optional custom summarization instructions>', kind: 'runtime' },
+      { name: 'review', description: 'Review a pull request', kind: 'runtime' },
+    ]);
+    // The CLI's skills are among its commands; there is no second list.
+    expect(await chat.skills()).toEqual([]);
     // Each listing is a throwaway process, closed after.
     expect(sdk.queries.map((query) => query.closed)).toEqual([true, true]);
   });
@@ -377,7 +396,8 @@ describe('createClaudeChat', () => {
     const { chat, sdk } = claudeChat([{ text: 'a' }, { text: 'b' }, { text: 'c' }]);
     expect(await chat.settings()).toMatchObject({ model: '', permissions: 'default', reasoning: 'off' });
     await expect(chat.configure('s', { model: 'fake/x' })).rejects.toMatchObject({ code: 'invalid_options' });
-    await expect(chat.configure('s', { autoCompact: false })).rejects.toMatchObject({ code: 'invalid_options', message: /compacts on its own/ });
+    // Compaction is the CLI's, so the setting is only kept: `/autocompact` goes to the CLI.
+    expect(await chat.configure('s', { autoCompact: false })).toMatchObject({ autoCompact: false });
 
     const started = await chat.say({ text: 'One', settings: { model: 'claude/opus' } });
     await chat.wait(started.sessionId);

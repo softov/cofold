@@ -5,7 +5,7 @@ import { toChatQuestion } from './questions.js';
 import type { Compaction, Draft, Turn, TurnPart, TurnState } from './types/turn.js';
 
 export interface ProjectionInput {
-  /** The messages to show, in order: the model's view (`contextOf`) for the screen, the whole transcript for `session show --all`. */
+  /** The messages to show, in order: the screen's view (`viewOf`), or the whole transcript for `session show --all`. */
   messages: Message[];
   /** Every run of the session, oldest first. */
   runs: RunRecord[];
@@ -24,19 +24,44 @@ export interface ProjectionInput {
 /** The option a confirmation offers beyond yes and no; the harness remembers it for the session. */
 export const ALWAYS = 'always';
 
+/** The sources a runtime command writes: its typed line and its output, which no request carries (AGENT-03). */
+const COMMAND_SOURCES: ReadonlySet<Message['source']> = new Set(['command', 'notice']);
+
+/**
+ * The model's view (`contextOf`, cli/03 F1) with the commands typed since the newest summary: what the screen
+ * shows. The newest summary comes first; a `/compact` that wrote it comes with it, its command line before it and
+ * its notice after, so the compaction reads as that command's turn. A command typed before the summary is gone
+ * with what the summary covers; one typed after it stays where it is.
+ */
+export function viewOf(history: Message[]): Message[] {
+  const at = history.findLastIndex((message) => message.source === 'summary');
+  if (at === -1) return history;
+  const summary = history[at]!;
+  const covered = new Set(history.flatMap((message) => message.summarizes ?? []));
+  const before = history[at - 1];
+  const after = history[at + 1];
+  const command = before?.source === 'command' && summary.summarizes?.includes(before.id) === true ? before : undefined;
+  const notice = command !== undefined && after?.source === 'notice' ? after : undefined;
+  const front = [...(command !== undefined ? [command] : []), summary, ...(notice !== undefined ? [notice] : [])];
+  const rest = history.filter((message, index) =>
+    message.source !== 'summary' && !covered.has(message.id) && !front.includes(message) && !(COMMAND_SOURCES.has(message.source) && index < at));
+  return [...front, ...rest];
+}
+
 /** What a compaction turn says it was asked: the ask itself is covered by the summary; the Claude backend shows the same words. */
 export const COMPACTED_INPUT = '(context compacted)';
 
 /**
  * The transcript as turns: one per run, each holding what was asked and what came back.
  *
- * A run is placed where its input message is; its messages are the slice from there up to the next
- * placed run's input. The loop is the only appender, so the order on disk is the order of the
- * conversation, and the model's view (`contextOf`, cli/03 F1) keeps it but for the newest summary,
- * which it moves to the front: what comes before the first placed run is that summary, shown as a
- * turn of its own, the way the Claude backend shows the CLI's. A run whose input the summary covers
- * is not shown; `session show --all` passes the whole transcript and shows everything. A tool call's
- * status is read from whether its result arrived, and if not, from what the run is doing now.
+ * A run is placed where its input message is, a runtime command's line included; its messages are the
+ * slice from there up to the next placed run's input, and the turns follow the places. The loop is the
+ * only appender, so the order on disk is the order of the conversation, and the screen's view (`viewOf`)
+ * keeps it but for the newest summary, which it moves to the front: a summary that comes before the
+ * first placed run is shown as a turn of its own, the way the Claude backend shows the CLI's. A run
+ * whose input the summary covers is not shown; `session show --all` passes the whole transcript and
+ * shows everything. A tool call's status is read from whether its result arrived, and if not, from
+ * what the run is doing now.
  */
 export function projectTurns(input: ProjectionInput): { turns: Turn[]; pending: ChatPendingInput | null } {
   const { messages, runs } = input;
@@ -72,11 +97,17 @@ export function projectTurns(input: ProjectionInput): { turns: Turn[]; pending: 
     });
   }
 
-  runs.forEach((run, index) => {
+  // The runs in the order of their places; one with no place stays after the placed run before it.
+  let last = -1;
+  const keys = anchors.map((anchor) => (anchor === undefined ? last + 0.5 : (last = anchor)));
+  const order = runs.map((_run, index) => index).sort((a, b) => keys[a]! - keys[b]!);
+
+  order.forEach((index) => {
+    const run = runs[index]!;
     const start = anchors[index];
     // Covered by a summary: the model no longer sees it, so neither does the screen.
     if (start === undefined && run.inputMessageId !== undefined && covered.has(run.inputMessageId)) return;
-    const end = start === undefined ? 0 : anchors.slice(index + 1).find((anchor) => anchor !== undefined) ?? messages.length;
+    const end = start === undefined ? 0 : Math.min(messages.length, ...placed.filter((anchor) => anchor > start));
     const slice = start === undefined ? [] : messages.slice(start, end);
     const stopped = input.stopped?.[run.runId];
     const state = stateOf(run, stopped);
@@ -86,15 +117,19 @@ export function projectTurns(input: ProjectionInput): { turns: Turn[]; pending: 
     const calls = new Map<string, ChatToolCall>();
     let text: string | undefined;
     for (const message of slice) {
-      if (message.role === 'user' && (message.source === 'input' || message.source === 'system')) {
-        // The first is the turn's input; a later input is a steer (decision 95), shown where it landed; a later
-        // system line is the runtime's, the interrupt marker (cli/03 F4) shown as the Claude backend shows the CLI's.
+      if (message.role === 'user' && (message.source === 'input' || message.source === 'system' || message.source === 'command')) {
+        // The first is the turn's input, a runtime command's line included; a later input is a steer (decision 95),
+        // shown where it landed; a later system line is the runtime's, the interrupt marker (cli/03 F4) shown as the
+        // Claude backend shows the CLI's.
         if (text === undefined) text = textOf(message);
         else if (message.source === 'input') parts.push({ kind: 'steer', id: message.id, text: textOf(message) });
         else parts.push({ kind: 'notice', id: message.id, text: noticeOf(textOf(message)) });
         continue;
       }
       if (message.source === 'summary') { parts.push(summaryPart(message)); continue; }
+      // What a runtime command printed, and a skill the line put in the turn, as one line: the model reads the skill, the person its name.
+      if (message.source === 'notice') { parts.push({ kind: 'notice', id: message.id, text: textOf(message) }); continue; }
+      if (message.source === 'skill') { parts.push({ kind: 'notice', id: message.id, text: skillLine(textOf(message)) }); continue; }
       for (const part of message.parts) {
         if (part.type === 'reasoning') parts.push({ kind: 'reasoning', id: `${message.id}:${parts.length}`, text: part.text });
         else if (part.type === 'text' && message.role === 'assistant') parts.push({ kind: 'text', id: `${message.id}:${parts.length}`, text: part.text });
@@ -155,6 +190,12 @@ function stateOf(run: RunRecord, stopped: StopReason | undefined): TurnState {
 /** The runtime's line as the screen says it: the interrupt marker without its brackets, as the Claude backend strips the CLI's. */
 function noticeOf(text: string): string {
   return text === INTERRUPTED ? text.slice(1, -1) : text;
+}
+
+/** A skill message as one line: its name, from the `<skill name="...">` the harness wraps it in. */
+function skillLine(text: string): string {
+  const name = /^<skill name="([^"]+)">/.exec(text)?.[1];
+  return name === undefined ? 'Skill' : `Skill: ${name}`;
 }
 
 /** A tool call with no result yet: what the run is doing says what the row shows. */

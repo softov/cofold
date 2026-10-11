@@ -2,6 +2,7 @@ import type { Capability } from './capability.js';
 import type { Hooks, RunInfo } from './hooks.js';
 import type { Limits } from './limits.js';
 import type { ModelAdapter, ModelParams } from './model.js';
+import type { SlashCommand } from './slash-command.js';
 import type { Store } from './store.js';
 import type { Tool } from './tool.js';
 
@@ -49,6 +50,8 @@ export interface AgentOptions<Resources = Record<string, unknown>> {
   tools?: Tool<any, Resources>[];
   /** Resolved per run; see types/capability.ts. Duplicate ids → invalid_options at createAgent. */
   capabilities?: Capability[];
+  /** Runtime commands of the program, before the capabilities' and the built-ins'. A duplicate name → invalid_options at createAgent. */
+  slashCommands?: SlashCommand[];
   store?: Store;
   hooks?: Hooks;
   /** Default: ask when tool.effects.destructive is true, allow otherwise (cli/03 F3). */
@@ -86,6 +89,8 @@ export interface Agent<Resources = Record<string, unknown>> {
   readonly model: ModelAdapter;
   readonly tools: ReadonlyMap<string, Tool<any, Resources>>;
   readonly capabilities: readonly Capability[];
+  /** Every runtime command: the options', then each capability's, then the built-ins (`compact`). */
+  readonly slashCommands: readonly SlashCommand[];
   readonly store: Store;
   readonly hooks: Hooks;
   readonly policy: Policy;
