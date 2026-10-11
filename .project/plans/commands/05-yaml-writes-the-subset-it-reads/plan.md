@@ -58,7 +58,7 @@ ahpd store -> stringifyYaml(record) -> frontmatter text -> file -> parseYaml -> 
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - stringifyYaml writes what parseYaml reads](task-01-stringify-yaml.md) | todo | - |
+| [01 - stringifyYaml writes what parseYaml reads](task-01-stringify-yaml.md) | implemented | - |
 | [02 - The docs describe the writer](task-02-the-docs-describe-the-writer.md) | todo | 01 |
 
 ## Risks and tradeoffs

@@ -1,6 +1,6 @@
 ---
 title: stringifyYaml writes what parseYaml reads
-status: todo
+status: implemented
 depends: []
 layer: "yaml"
 refs:
@@ -39,3 +39,5 @@ refs:
 - `pnpm --filter @cofold/yaml test` passes.
 
 ## Resume
+
+Built 2026-10-11, awaiting review. `stringifyYaml` is in `stringify.ts` and exported from `index.ts`. `stringify.test.ts` has 21 round-trip tests, and a throwaway fuzz run of 20,000 random values round-tripped too. Where `parseYaml` cannot read a literal block scalar, the writer quotes the string instead: a top-level multi-line string, a line of only spaces, a string with no line of text, and a string with `\r` or another control character but tab. A first line that starts with a space gets the indentation indicator `2`. A sequence item mapping whose first value is a block scalar opens on a line of its own, because `blockScalars` measures the block from the dash and would take the sibling keys into the block. The key `<<` is refused with `YamlError`, because `parseYaml` refuses it quoted or plain. A `YamlError` from the writer names the output line where the value would go.

@@ -1,4 +1,5 @@
 export { parseYaml, YamlError } from "./yaml.js";
+export { stringifyYaml } from "./stringify.js";
 export { loadYaml } from "./load.js";
 
 export type { LoadedYaml, YamlLoadOptions } from "./types/load.js";
