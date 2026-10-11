@@ -14,7 +14,7 @@ import { detachRun } from './answer.js';
 import { createEmitter } from './events.js';
 import { createRunHandle } from './handle.js';
 import { enqueueSteer, rejectSteering } from './steering.js';
-import { COMPACT_COMMAND, parseSlash } from './slash.js';
+import { COMPACT_COMMAND, parseSlash, promptCommandsOf } from './slash.js';
 import {
   abortOutcome,
   createTurnContext,
@@ -72,8 +72,8 @@ export function startHeartbeat(store: Agent['store'], sessionId: string, runId: 
 /**
  * Steps 1-5 of a turn: session and run record (decision 53), writer claim (decision 47), capabilities,
  * input message, `run.started`. An input that names a runtime command is written as a `command` message and
- * followed by `command.started`, and the command comes back with the context (AGENT-03). Returns undefined after
- * finishing the handle on any failure.
+ * followed by `command.started`, and the command comes back with the context; one that names a prompt command
+ * gets a `skill` message after it (AGENT-03). Returns undefined after finishing the handle on any failure.
  */
 async function setupRun<Resources>(args: RunArgs<Resources>, runId: string, abort: RunAbort, handle: InternalRunHandle, steering: SteerQueue): Promise<{ ctx: TurnContext; input: Message; command?: { command: SlashCommand; args: string } } | undefined> {
   const { agent } = args;
@@ -109,7 +109,9 @@ async function setupRun<Resources>(args: RunArgs<Resources>, runId: string, abor
     if (!ctx.claimed) { await finishRun(ctx, fail(ctx, 'writer_busy', `session ${sessionId} is being written by another run`)); return undefined; }
     if (!(await resolveCapabilities(ctx))) return undefined;
 
-    await store.sessions.appendMessages({ sessionId, runId, messages: [input] });
+    const skill = slash && !command ? await expandPrompt(ctx, slash) : undefined;
+    if (skill) ctx.skillMessageId = skill.id;
+    await store.sessions.appendMessages({ sessionId, runId, messages: skill ? [input, skill] : [input] });
     await ctx.emit({ type: 'run.started', input });
     if (!command) return { ctx, input };
     await ctx.emit({ type: 'command.started', name: command.command.name, args: command.args });
@@ -157,4 +159,21 @@ async function runCommand(ctx: TurnContext, input: Message, command: SlashComman
     try { await finishRun(ctx, outcome); }
     catch { settle(ctx, outcome); }
   }
+}
+
+/**
+ * The `skill` message for a slash line that names a prompt command, or undefined when none does (AGENT-03). A list
+ * or an expansion that throws is told to `agent.warn`, and the turn goes on without the skill.
+ */
+async function expandPrompt(ctx: TurnContext, slash: { name: string; args: string }): Promise<Message | undefined> {
+  let text: string;
+  try {
+    const prompt = (await promptCommandsOf(ctx.agent, { ...(ctx.workspace !== undefined ? { workspace: ctx.workspace } : {}) })).find((command) => command.name === slash.name);
+    if (!prompt) return undefined;
+    text = await prompt.expand(slash.args);
+  } catch (e) {
+    ctx.agent.warn(`/${slash.name}: the prompt command did not expand: ${(e as Error).message}`);
+    return undefined;
+  }
+  return { id: newId(), role: 'user', source: 'skill', parts: [{ type: 'text', text }], createdAt: new Date().toISOString() };
 }

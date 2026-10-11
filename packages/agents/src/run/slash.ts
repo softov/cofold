@@ -1,6 +1,6 @@
 import type { Agent } from '../types/agent.js';
 import type { ContentPart } from '../types/message.js';
-import type { SlashCommand, SlashCommandInfo } from '../types/slash-command.js';
+import type { PromptCommand, SlashCommand, SlashCommandInfo } from '../types/slash-command.js';
 
 /** What a runtime or prompt command name must match. */
 export const SLASH_NAME_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
@@ -37,5 +37,26 @@ export function listSlashCommands(agent: Pick<Agent<any>, 'slashCommands'>): Sla
     description: command.description,
     ...(command.argumentHint !== undefined ? { argumentHint: command.argumentHint } : {}),
     kind: 'runtime',
+  }));
+}
+
+/** The prompt commands of every capability for a workspace, by name; on a duplicate the first capability wins. */
+export async function promptCommandsOf(agent: Pick<Agent<any>, 'capabilities'>, args: { workspace?: string }): Promise<PromptCommand[]> {
+  const seen = new Map<string, PromptCommand>();
+  for (const cap of agent.capabilities) {
+    for (const command of (await cap.prompts?.({ ...(args.workspace !== undefined ? { workspace: args.workspace } : {}) })) ?? []) {
+      if (!seen.has(command.name)) seen.set(command.name, command);
+    }
+  }
+  return [...seen.values()];
+}
+
+/** The agent's prompt commands for a session's workspace, as a client lists them. */
+export async function listPromptCommands(agent: Pick<Agent<any>, 'capabilities'>, args: { workspace?: string } = {}): Promise<SlashCommandInfo[]> {
+  return (await promptCommandsOf(agent, args)).map((command) => ({
+    name: command.name,
+    description: command.description,
+    ...(command.argumentHint !== undefined ? { argumentHint: command.argumentHint } : {}),
+    kind: 'prompt',
   }));
 }

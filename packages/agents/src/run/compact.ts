@@ -54,8 +54,9 @@ export async function writeSummary(ctx: TurnContext, history: Message[]): Promis
   const already = summarizedIds(history);
   // The turn's own input is never summarized nor kept as tail: an auto-compact is about to answer it, and a
   // `/compact` run's input is the `command` message, covered by the summary so it does not linger.
+  // A prompt command's `skill` message goes with the input it expands.
   const own = history.find((message) => message.id === ctx.inputMessageId);
-  const candidates = history.filter((message) => !already.has(message.id) && message.id !== ctx.inputMessageId);
+  const candidates = history.filter((message) => !already.has(message.id) && message.id !== ctx.inputMessageId && message.id !== ctx.skillMessageId);
   // The newest units stay verbatim while they fit in `compactKeepTokens` (cli/03 F1); a unit is never split, so a
   // tool call stays next to its results. What is kept is neither summarized nor listed in `summarizes`.
   const { covered, kept } = splitTail(candidates, agent.context.compactKeepTokens, agent.context.estimateTokens);

@@ -1,11 +1,13 @@
-import type { Capability, CapabilityArgs } from '../types/capability.js';
+import type { Capability } from '../types/capability.js';
 import type { SkillIndexEntry, SkillSource } from '../types/skills.js';
 import { AgentError } from '../errors.js';
+import { SLASH_NAME_PATTERN } from '../run/slash.js';
 import { createTool } from '../tool/create-tool.js';
 
 const RULES = [
   'A skill is a set of instructions stored in a SKILL.md file. The list below has the skills available in this session (name and description).',
-  'When the user names a skill (a message starting with /<name> invokes it; what follows is its argument) or the task clearly matches a skill description, read it with read_skill({ name }) before doing the work and follow it for that turn.',
+  'When the task clearly matches a skill description, read it with read_skill({ name }) before doing the work and follow it for that turn.',
+  'A skill the user invoked is already in the conversation inside <skill name="..."> tags: follow it for that turn without reading it again.',
   'Read only what the SKILL.md points to (read_skill({ name, path }) for files beside it). Do not load everything.',
   'If a skill cannot be applied (missing files, unclear steps), say so and continue with the next-best approach.',
 ].join('\n');
@@ -22,14 +24,21 @@ export async function listSkills(args: { sources: SkillSource[]; workspace?: str
   return seen;
 }
 
+/** What `/<skill> args` expands to: the SKILL.md inside a `<skill>` tag, then the arguments when there are any. */
+export function expandSkill(name: string, text: string, args: string): string {
+  const block = `<skill name="${name}">\n${text.trim()}\n</skill>`;
+  return args.trim() ? `${block}\n\n${args}` : block;
+}
+
 /**
- * The first core capability (decision 85): an index of the available skills in the instructions and one
- * `read_skill` tool. Sources are content providers; `@cofold/store-file` ships `fileSkillSource`.
+ * The first core capability (decision 85): an index of the available skills in the instructions, one
+ * `read_skill` tool, and one prompt command per skill whose name is a slash command name (AGENT-03).
+ * Sources are content providers; `@cofold/store-file` ships `fileSkillSource`.
  */
 export function skills(options: { sources: SkillSource[]; warn?: (message: string) => void }): Capability {
   if (options.sources.length === 0) throw new AgentError({ code: 'invalid_options', message: 'skills(): at least one source' });
   let warned = false;
-  const index = (args: CapabilityArgs) => listSkills({
+  const index = (args: { workspace?: string }) => listSkills({
     sources: options.sources,
     ...(args.workspace !== undefined ? { workspace: args.workspace } : {}),
     warn: (message) => { if (!warned) { warned = true; options.warn?.(message); } },
@@ -53,6 +62,14 @@ export function skills(options: { sources: SkillSource[]; warn?: (message: strin
           return hit.source.read({ ref: hit.entry.ref, ...(input.path !== undefined ? { path: input.path } : {}) });
         },
       })];
+    },
+    async prompts(args) {
+      const map = await index(args);
+      return [...map.values()].filter(({ entry }) => SLASH_NAME_PATTERN.test(entry.name)).map(({ entry, source }) => ({
+        name: entry.name,
+        description: entry.description,
+        expand: async (text: string) => expandSkill(entry.name, await source.read({ ref: entry.ref }), text),
+      }));
     },
   };
 }

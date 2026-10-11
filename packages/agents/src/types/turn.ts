@@ -75,6 +75,8 @@ export interface TurnContext {
   compact: boolean;
   /** The run's input message; an auto-compaction leaves it out of the summary. */
   inputMessageId?: string;
+  /** The `skill` message a prompt command wrote after the input (AGENT-03); an auto-compaction leaves it out too. */
+  skillMessageId?: string;
   /** Writer lease timer (decision 68); stopped at a pause, restarted by the command, cleared when the run settles. */
   heartbeat?: ReturnType<typeof setInterval> | undefined;
 }

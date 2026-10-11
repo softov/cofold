@@ -141,7 +141,7 @@ say('/compact')
 | --- | --- | --- |
 | [01 - The slash command contracts](task-01-contracts.md) | implemented | - |
 | [02 - The harness runs a runtime command, and /compact is one](task-02-the-harness-runs-a-command.md) | implemented | 01 |
-| [03 - The harness expands a skill](task-03-the-harness-expands-a-skill.md) | todo | 01 |
+| [03 - The harness expands a skill](task-03-the-harness-expands-a-skill.md) | implemented | 01 |
 | [04 - The README describes slash commands, and agents 0.2.2 passes ahpd's suite](task-04-docs-and-release-check.md) | todo | 02, 03 |
 | [05 - papo's Chat lists the runtime's commands and declares its own](task-05-papo-service.md) | todo | 02, 03 |
 | [06 - The screen shows the runtime's list and keeps only client commands](task-06-papo-screen.md) | todo | 05 |
@@ -156,10 +156,11 @@ say('/compact')
 
 ## Resume state
 
-- **Done so far:** revalidated 2026-10-11 against `4174eeb`; nothing built.
-- **Next action:** [task-01-contracts.md](task-01-contracts.md), then 02 and 03.
+- **Done so far:** revalidated 2026-10-11 against `4174eeb`; tasks 01, 02 and 03 implemented on `build/agents/a03`, awaiting review.
+- **Next action:** [task-04-docs-and-release-check.md](task-04-docs-and-release-check.md) and [task-05-papo-service.md](task-05-papo-service.md).
 - **Open questions:** none.
 - **Watch out for:** `/compact` makes a model call; a test that expects no model request is wrong.
+- **Watch out for:** two papo tests fail until task 05 and 06: `chat.test.ts` "compacts a session into a summary turn..." and `commands.test.ts` "compacts, shows the model's view..." expect the old `system` ask as the `/compact` run's input, and papo's `turns.ts` does not show a `command` message yet.
 
 ## Final verification checklist
 

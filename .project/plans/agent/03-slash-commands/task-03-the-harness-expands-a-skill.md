@@ -1,6 +1,6 @@
 ---
 title: The harness expands a skill
-status: todo
+status: implemented
 depends: [task-01-contracts.md]
 layer: agents
 refs:
