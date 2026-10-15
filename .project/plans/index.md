@@ -17,7 +17,7 @@ Reference: [00-commands.md](commands/00-commands.md)
 | [02 - A program chooses its configuration layers and names its project file](commands/02-a-program-chooses-its-config-layers/plan.md) | high | built 2026-09-28 ([implemented.md](commands/02-a-program-chooses-its-config-layers/implemented.md)) | - | ahpd daemon/08 |
 | [03 - A command typed without its required argument says which argument it needs](commands/03-a-missing-argument-is-named/plan.md) | medium | built 2026-10-06 ([implemented.md](commands/03-a-missing-argument-is-named/implemented.md)) | - | ahpd daemon/09 task 03 |
 | [04 - An action declares what it does to what](commands/04-an-action-declares-what-it-does-to-what/plan.md) | high | built 2026-10-06 ([implemented.md](commands/04-an-action-declares-what-it-does-to-what/implemented.md)) | - | ahpd `/api/cli-manifest` resource explorer |
-| [05 - @cofold/yaml writes the subset it reads](commands/05-yaml-writes-the-subset-it-reads/plan.md) | high | active; tasks 01-02 implemented 2026-10-11, awaiting review | - | ahpd plugin 45, ahpd host 80 |
+| [05 - @cofold/yaml writes the subset it reads](commands/05-yaml-writes-the-subset-it-reads/plan.md) | high | built 2026-10-11 ([implemented.md](commands/05-yaml-writes-the-subset-it-reads/implemented.md)) | - | ahpd plugin 45, ahpd host 80 |
 
 Next free number in `commands`: `06`. The framework's open items live in [`/ROADMAP.md`](../../ROADMAP.md) until one is planned.
 
@@ -27,10 +27,10 @@ Reference: [00-agent.md](agent/00-agent.md)
 
 | Plan | Priority | Status | Requires | Blocks |
 | --- | --- | --- | --- | --- |
-| [01 - Harness core](agent/01-harness-core/plan.md) (parent) | high | active (p1-p3 built) | - | everything |
+| [01 - Harness core](agent/01-harness-core/plan.md) (parent) | high | built 2026-10-15 ([implemented.md](agent/01-harness-core/implemented.md), [deferred.md](agent/01-harness-core/deferred.md)) | - | everything |
 | [01-p5 - Steering, hook stop, thinking levels, streaming, context, usage](agent/01-harness-core-p5-streaming-context-usage/plan.md) | medium | built (2026-09-16; every task done) | 01 (p3) | - |
 | [02 - Deferred tools: an index in the prompt, a definition on demand](agent/02-deferred-tools/plan.md) | high | built | 01 (p3) | the MCP client |
-| [03 - Slash commands: runtime, prompt and client commands](agent/03-slash-commands/plan.md) | high | active; tasks implemented, next: the agents 0.3.0 release | 01-p5 task 06, cli/02, cli/03 | cli/02's internal commands move here |
+| [03 - Slash commands: runtime, prompt and client commands](agent/03-slash-commands/plan.md) | high | built 2026-10-11 ([implemented.md](agent/03-slash-commands/implemented.md), [deferred.md](agent/03-slash-commands/deferred.md)) | 01-p5 task 06, cli/02, cli/03 | cli/02's internal commands move here |
 | [04 - Policy rules: allow, ask or deny per tool call, recorded on the run](agent/04-policy-rules/plan.md) | high | built (2026-09-16; every task done) | 01 (p3) | papo rule lists (cli) |
 | [05 - A run answers its own pause](agent/05-a-run-answers-its-own-pause/plan.md) | high | built 2026-10-06 ([implemented.md](agent/05-a-run-answers-its-own-pause/implemented.md), [deferred.md](agent/05-a-run-answers-its-own-pause/deferred.md)) | - | ahpd drops its pause workarounds, after a cofold release |
 | [06 - Permission modes and reasoning effort are library data](agent/06-modes-and-effort-are-library-data/plan.md) | medium | built 2026-10-06 ([implemented.md](agent/06-modes-and-effort-are-library-data/implemented.md), [deferred.md](agent/06-modes-and-effort-are-library-data/deferred.md)) | - | ahpd drops its mode and effort copies, after a cofold release |

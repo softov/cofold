@@ -1,6 +1,6 @@
 ---
 title: The screen shows the runtime's list and keeps only client commands
-status: implemented
+status: done
 depends: [task-05-papo-service.md]
 layer: papo screen
 refs:

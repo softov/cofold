@@ -1,6 +1,6 @@
 ---
 title: The shell lists commands and loses the compact action
-status: implemented
+status: done
 depends: [task-05-papo-service.md]
 layer: papo
 refs:

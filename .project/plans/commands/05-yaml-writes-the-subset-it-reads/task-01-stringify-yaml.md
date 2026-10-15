@@ -1,6 +1,6 @@
 ---
 title: stringifyYaml writes what parseYaml reads
-status: implemented
+status: done
 depends: []
 layer: "yaml"
 refs:

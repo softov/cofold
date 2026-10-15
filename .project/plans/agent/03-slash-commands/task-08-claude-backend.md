@@ -1,6 +1,6 @@
 ---
 title: The Claude backend lists its own commands
-status: implemented
+status: done
 depends: [task-05-papo-service.md, task-07-papo-shell.md]
 layer: papo
 refs:

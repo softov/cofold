@@ -1,6 +1,6 @@
 ---
 title: The docs describe the writer
-status: implemented
+status: done
 depends: [task-01-stringify-yaml.md]
 layer: "docs"
 refs:

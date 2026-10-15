@@ -1,6 +1,6 @@
 ---
 title: The README describes slash commands, and agents 0.3.0 passes ahpd's suite
-status: implemented
+status: done
 depends: [task-02-the-harness-runs-a-command.md, task-03-the-harness-expands-a-skill.md]
 layer: docs
 refs:

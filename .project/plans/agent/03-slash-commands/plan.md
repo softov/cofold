@@ -1,7 +1,7 @@
 ---
 title: AGENT-03 - Slash commands: runtime commands the harness runs, prompt commands it expands, client commands the client keeps
 domain: agent
-status: active
+status: built
 priority: high
 created: 2026-09-16
 revalidated: 2026-10-11
@@ -139,14 +139,14 @@ say('/compact')
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The slash command contracts](task-01-contracts.md) | implemented | - |
-| [02 - The harness runs a runtime command, and /compact is one](task-02-the-harness-runs-a-command.md) | implemented | 01 |
-| [03 - The harness expands a skill](task-03-the-harness-expands-a-skill.md) | implemented | 01 |
-| [04 - The README describes slash commands, and agents 0.3.0 passes ahpd's suite](task-04-docs-and-release-check.md) | implemented | 02, 03 |
-| [05 - papo's Chat lists the runtime's commands and declares its own](task-05-papo-service.md) | implemented | 02, 03 |
-| [06 - The screen shows the runtime's list and keeps only client commands](task-06-papo-screen.md) | implemented | 05 |
-| [07 - The shell lists commands and loses the compact action](task-07-papo-shell.md) | implemented | 05 |
-| [08 - The Claude backend lists its own commands](task-08-claude-backend.md) | implemented | 05, 07 |
+| [01 - The slash command contracts](task-01-contracts.md) | done | - |
+| [02 - The harness runs a runtime command, and /compact is one](task-02-the-harness-runs-a-command.md) | done | 01 |
+| [03 - The harness expands a skill](task-03-the-harness-expands-a-skill.md) | done | 01 |
+| [04 - The README describes slash commands, and agents 0.3.0 passes ahpd's suite](task-04-docs-and-release-check.md) | done | 02, 03 |
+| [05 - papo's Chat lists the runtime's commands and declares its own](task-05-papo-service.md) | done | 02, 03 |
+| [06 - The screen shows the runtime's list and keeps only client commands](task-06-papo-screen.md) | done | 05 |
+| [07 - The shell lists commands and loses the compact action](task-07-papo-shell.md) | done | 05 |
+| [08 - The Claude backend lists its own commands](task-08-claude-backend.md) | done | 05, 07 |
 
 ## Risks and tradeoffs
 
@@ -156,18 +156,17 @@ say('/compact')
 
 ## Resume state
 
-- **Done so far:** revalidated 2026-10-11 against `4174eeb`; tasks 01 to 08 implemented on `build/agents/a03`, awaiting review.
-- **Next action:** review of 01 to 08, then the `@cofold/agents` 0.3.0 release.
+- **Done so far:** built and released as `@cofold/agents` 0.3.0. See [implemented.md](implemented.md) and [deferred.md](deferred.md).
+- **Next action:** none.
 - **Open questions:** none.
 - **Watch out for:** `/compact` makes a model call; a test that expects no model request is wrong.
-- **ahpd:** its typecheck fails against 0.3.0 until it maps the two command events; its tests pass.
 
 ## Final verification checklist
 
-- [ ] `say('/compact')` writes a `command`, a `summary` and a `notice` message on the cofold backend, and no request carries the `command` or the `notice`.
-- [ ] `say('/review x')` on a session with a `review` skill sends the skill's text and `x` in the first model request.
-- [ ] A slash line typed during a turn starts after the turn, as its own run.
-- [ ] `compact()` still works and writes `/compact` as its input.
-- [ ] The `/` menu shows each name once on both backends.
-- [ ] `pnpm check` passes; ahpd's agent-cofold suite passes against the packed `@cofold/agents`.
-- [ ] `plans/index.md` updated.
+- [x] `say('/compact')` writes a `command`, a `summary` and a `notice` message on the cofold backend, and no request carries the `command` or the `notice`.
+- [x] `say('/review x')` on a session with a `review` skill sends the skill's text and `x` in the first model request.
+- [x] A slash line typed during a turn starts after the turn, as its own run.
+- [x] `compact()` still works and writes `/compact` as its input.
+- [x] The `/` menu shows each name once on both backends.
+- [x] `pnpm check` passes; ahpd's agent-cofold suite passes against the packed `@cofold/agents`.
+- [x] `plans/index.md` updated.

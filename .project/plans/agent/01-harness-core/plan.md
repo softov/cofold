@@ -1,7 +1,7 @@
 ---
 title: AGENT-01 - Harness core (parent)
 domain: agent
-status: active
+status: built
 priority: high
 created: 2026-09-13
 revalidated: 2026-09-15
@@ -148,15 +148,15 @@ Adapters, stores, transports, and examples import `@cofold/agents` types and nev
 
 ## Resume state
 
-- **Done so far:** p1-p3 shipped (contracts, validator now in `@cofold/sdk`, loop, run handle, file store, durable approvals, resume, writer fence); p5 built in full 2026-09-16 (steering, hook stop, effort levels, dynamic key, cache key, compaction, streaming, usage accounting and cost, the papo contra-validation findings F1, F2, F4, F6, F7); every package's types in `src/types/`.
-- **Next action:** papo (`cli` domain, [cli/04](../../cli/04-papo-harness-adoption/plan.md)) adopts steering (`say` during a turn → `submit(steer)`), `model.delta`, `contextOf`, the interrupt marker, `cost` and the stop reasons; [agent/04](../04-policy-rules/plan.md) task 02 extends `tally()` with `denials`.
+- **Done so far:** p1 to p3 shipped 2026-09-15 and 2026-09-16, p4 dropped, and p5 built 2026-09-16. See [implemented.md](implemented.md) and [deferred.md](deferred.md).
+- **Next action:** none. New harness work gets its own plan in the `agent` domain.
 - **Open questions:** none.
-- **Watch out for:** the `@cofold` npm scope must be claimed by the user before the first publish; the package names in this plan assume it.
+- **Watch out for:** nothing.
 
 ## Final verification checklist
 
-- [ ] p1 through p4 shipped and validated per their own checklists.
-- [ ] One agent definition runs standalone against LM Studio and OpenRouter (`examples/standalone`).
-- [ ] The same agent is hosted by `ahpd` and driven from `ahpc`: turn, tool approval, cancellation, reconnect, history.
-- [ ] No contract drift: every package imports shapes from `@cofold/agents`.
-- [ ] `index.md` statuses updated.
+- [x] p1 to p3 shipped and validated per their own checklists; p4 dropped.
+- [x] One agent definition runs standalone in `examples/agents/standalone.ts`, against an OpenAI-compatible server such as LM Studio or OpenRouter.
+- [x] ahpd hosts the harness through its `agent-cofold` package, and ahpc drives it.
+- [x] No contract drift: every package imports shapes from `@cofold/agents`.
+- [x] `index.md` statuses updated.

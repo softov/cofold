@@ -1,6 +1,6 @@
 ---
 title: papo's Chat lists the runtime's commands and declares its own
-status: implemented
+status: done
 depends: [task-02-the-harness-runs-a-command.md, task-03-the-harness-expands-a-skill.md]
 layer: papo
 refs:
