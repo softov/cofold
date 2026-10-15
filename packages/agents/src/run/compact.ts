@@ -26,6 +26,7 @@ export function compact<Resources = Record<string, unknown>>(args: CompactArgs<R
     agent: args.agent, session: args.session, input: '/compact',
     ...(args.messageId !== undefined ? { messageId: args.messageId } : {}),
     ...(args.signal ? { signal: args.signal } : {}),
+    ...(args.interrupted !== undefined ? { interrupted: args.interrupted } : {}),
   });
 }
 

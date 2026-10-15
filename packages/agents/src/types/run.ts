@@ -1,3 +1,4 @@
+import type { Interrupted } from './abort.js';
 import type { Agent } from './agent.js';
 import type { RunCommand } from './command.js';
 import type { RunEvent } from './event.js';
@@ -15,6 +16,8 @@ export interface RunArgs<Resources = Record<string, unknown>> {
   /** The input message's id; default newId(). A client that supplies it can match run.started to its send. Must be new in the session (cli/03 F2). */
   messageId?: string;
   signal?: AbortSignal;
+  /** The texts a cut turn writes, from the abort reason; default `interruptedText`. */
+  interrupted?: Interrupted;
 }
 
 /** `compact()`: a run whose only step writes the summary of the session so far. */
@@ -24,6 +27,8 @@ export interface CompactArgs<Resources = Record<string, unknown>> {
   /** The ask message's id; default newId(). Must be new in the session (cli/03 F2). */
   messageId?: string;
   signal?: AbortSignal;
+  /** The texts a cut turn writes, from the abort reason; default `interruptedText`. */
+  interrupted?: Interrupted;
 }
 
 export interface ResumeArgs<Resources = Record<string, unknown>> {
@@ -33,6 +38,8 @@ export interface ResumeArgs<Resources = Record<string, unknown>> {
   runId: string;
   /** Replay persisted events after this seq before joining the live stream. Default 0. */
   afterSeq?: number;
+  /** The texts a cut turn writes, from the abort reason; default `interruptedText`. */
+  interrupted?: Interrupted;
 }
 
 export interface RunHandle {

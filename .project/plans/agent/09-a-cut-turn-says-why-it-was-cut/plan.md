@@ -76,7 +76,7 @@ handle.cancel({ reason }) / signal / timeoutMs -> RunAbort.reason() -> interrupt
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The caller chooses what a cut turn says](task-01-the-caller-chooses-what-a-cut-turn-says.md) | todo | - |
+| [01 - The caller chooses what a cut turn says](task-01-the-caller-chooses-what-a-cut-turn-says.md) | implemented | - |
 
 ## Risks and tradeoffs
 
@@ -85,15 +85,15 @@ handle.cancel({ reason }) / signal / timeoutMs -> RunAbort.reason() -> interrupt
 
 ## Resume state
 
-- **Done so far:** the plan, 2026-10-14.
-- **Next action:** [task-01-the-caller-chooses-what-a-cut-turn-says.md](task-01-the-caller-chooses-what-a-cut-turn-says.md).
+- **Done so far:** the plan, 2026-10-14; task 01 implemented 2026-10-14, awaiting review.
+- **Next action:** Softov reviews task 01; then `implemented.md`, and an agents release that ahpd can take.
 - **Open questions:** none.
 - **Watch out for:** the plan number 08 is taken by the event order plan, so this plan is 09.
 
 ## Final verification checklist
 
-- [ ] A cancel with no reason writes `INTERRUPTED` and `INTERRUPTED_TOOL`.
-- [ ] A cancel with a reason and a timeout write the reason.
-- [ ] `interrupted` replaces both texts on `run`, `compact` and `resume`.
-- [ ] `pnpm typecheck` and `pnpm test` pass.
+- [x] A cancel with no reason writes `INTERRUPTED` and `INTERRUPTED_TOOL`.
+- [x] A cancel with a reason and a timeout write the reason.
+- [x] `interrupted` replaces both texts on `run`, `compact` and `resume`.
+- [x] `pnpm typecheck` and `pnpm test` pass.
 - [ ] `plans/index.md` updated.

@@ -1,4 +1,4 @@
-import type { RunAbort } from './abort.js';
+import type { Interrupted, RunAbort } from './abort.js';
 import type { Agent } from './agent.js';
 import type { AskQuestion } from './ask.js';
 import type { RunCommand } from './command.js';
@@ -53,6 +53,8 @@ export interface TurnContext {
   /** The agent's instructions with the capability sections; the `## tools` index is added per step (`instructionsOf`). */
   instructions: string;
   abort: RunAbort;
+  /** The texts a cut turn writes (agent/09): the run's `interrupted` option, or `interruptedText`. */
+  interrupted: Interrupted;
   emit: Emitter['emit'];
   handle: InternalRunHandle;
   /**

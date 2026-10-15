@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Agent, ApprovalPayload, Message, ModelAdapter, ModelInfo, ModelProvider, PendingRequest, RunHandle, RunOutcome, RunRecord, SlashCommand, StopReason } from '@cofold/agents';
-import { AgentError, listPromptCommands, listSkills, listSlashCommands, newId, resume, run, sessionUsage } from '@cofold/agents';
+import { AgentError, INTERRUPTED, INTERRUPTED_TOOL, listPromptCommands, listSkills, listSlashCommands, newId, resume, run, sessionUsage } from '@cofold/agents';
 import { providerFor, splitModel } from '@cofold/model-openai-compat';
 import { fileSkillSource } from '@cofold/store-file';
 import { AGENT_ID, buildAgent } from './agent.js';
@@ -14,6 +14,9 @@ import type { Chat, ChatListener, ChatOptions, ModelRow, ProviderRow, Started } 
 import type { Settings } from './types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 import type { Compaction, Draft, SessionActivity, SessionRow, Snapshot } from './types/turn.js';
+
+/** What a turn papo cut writes, whatever the reason: the runtime's own words, which the screen shows as a notice (agent/09). */
+const keepMarker = () => ({ turn: INTERRUPTED, tool: INTERRUPTED_TOOL });
 
 /** Where a turn stops: what a `wait` is handed, replaced when the turn goes on (decision 122). */
 interface Stop {
@@ -286,7 +289,7 @@ export function createChat(options: ChatOptions): Chat {
     }
     const agent = await agentFor(await settingsOf(sessionId));
     const events = await store.runs.listEvents({ sessionId, runId: run.runId });
-    const handle = resume({ agent, sessionId, runId: run.runId, afterSeq: events.at(-1)?.seq ?? 0 });
+    const handle = resume({ agent, sessionId, runId: run.runId, afterSeq: events.at(-1)?.seq ?? 0, interrupted: keepMarker });
     attach(sessionId, { handle, agent, stop: stopOf() });
     steerHeld(sessionId, handle);
     return { handle, run };
@@ -501,7 +504,7 @@ export function createChat(options: ChatOptions): Chat {
         }
       }
       const agent = await agentFor(await settingsOf(id));
-      const handle = run({ agent, session: id, workspace, input: text });
+      const handle = run({ agent, session: id, workspace, input: text, interrupted: keepMarker });
       attach(id, { handle, agent, stop: stopOf() });
       notify(id);
       return { sessionId: id, runId: handle.runId } satisfies Started;

@@ -11,7 +11,7 @@ export { compact } from './run/compact.js';
 export { resume } from './run/resume.js';
 export { pauseForInput, PauseSignal } from './run/pause.js';
 export { textOf, toolCallsOf } from './message/helpers.js';
-export { INTERRUPTED, INTERRUPTED_TOOL } from './message/markers.js';
+export { INTERRUPTED, INTERRUPTED_TOOL, interruptedText } from './message/markers.js';
 export { contextOf } from './run/context.js';
 export { listPromptCommands, listSlashCommands } from './run/slash.js';
 export { ZERO_USAGE, addUsage } from './model/usage.js';

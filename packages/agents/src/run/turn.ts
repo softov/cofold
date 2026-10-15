@@ -1,4 +1,4 @@
-import type { RunAbort } from '../types/abort.js';
+import type { Interrupted, RunAbort } from '../types/abort.js';
 import type { Agent } from '../types/agent.js';
 import type { AskAnswers } from '../types/ask.js';
 import type { CapabilityArgs } from '../types/capability.js';
@@ -22,7 +22,7 @@ import type {
 import { AgentError, ModelError } from '../errors.js';
 import { newId } from '../ids.js';
 import { toolCallsOf } from '../message/helpers.js';
-import { INTERRUPTED, INTERRUPTED_TOOL } from '../message/markers.js';
+import { interruptedText } from '../message/markers.js';
 import { costOf } from '../model/cost.js';
 import { ZERO_USAGE, addUsage } from '../model/usage.js';
 import { validateSchema } from '@cofold/sdk';
@@ -44,6 +44,8 @@ export function createTurnContext(args: {
   session: SessionRecord;
   runId: string;
   abort: RunAbort;
+  /** The run's `interrupted` option; default `interruptedText`. */
+  interrupted?: Interrupted;
   emit: Emitter['emit'];
   handle: InternalRunHandle;
   steering: SteerQueue;
@@ -70,6 +72,7 @@ export function createTurnContext(args: {
     loaded: new Set(),
     instructions: agent.definition.instructions,
     abort: args.abort,
+    interrupted: args.interrupted ?? interruptedText,
     emit: args.emit,
     handle: args.handle,
     steering: args.steering,
@@ -136,14 +139,16 @@ export function abortOutcome(ctx: TurnContext): RunOutcome {
 }
 
 /**
- * Answers the calls a cancel cut and writes the marker, so the transcript stays model-valid and says what happened
- * (cli/03 F4); a timeout is an abort too and writes the same texts. Returns the abort outcome for the caller to finish with.
+ * Answers the calls an abort cut and writes the marker, so the transcript stays model-valid and says what happened
+ * (cli/03 F4); the texts are the run's `interrupted` for the abort reason (agent/09). Returns the abort outcome for
+ * the caller to finish with.
  */
 async function interrupt(ctx: TurnContext, calls: ToolCallPart[], from: number): Promise<RunOutcome> {
+  const text = ctx.interrupted(ctx.abort.reason() ?? { kind: 'cancel' });
   for (const call of calls.slice(from)) {
-    await appendResult(ctx, { type: 'toolResult', callId: call.callId, name: call.name, content: INTERRUPTED_TOOL, isError: true });
+    await appendResult(ctx, { type: 'toolResult', callId: call.callId, name: call.name, content: text.tool, isError: true });
   }
-  const marker: Message = { id: newId(), role: 'user', source: 'system', parts: [{ type: 'text', text: INTERRUPTED }], createdAt: now() };
+  const marker: Message = { id: newId(), role: 'user', source: 'system', parts: [{ type: 'text', text: text.turn }], createdAt: now() };
   await ctx.store.sessions.appendMessages({ sessionId: ctx.sessionId, runId: ctx.runId, messages: [marker] });
   return abortOutcome(ctx);
 }

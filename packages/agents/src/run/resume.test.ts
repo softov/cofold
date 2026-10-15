@@ -350,7 +350,7 @@ describe('resume: detaching and exclusivity', () => {
     const transcript = await store.sessions.listMessages({ sessionId: 's' });
     expect(transcript.map((m) => [m.role, m.source])).toEqual([['user', 'input'], ['assistant', 'model'], ['tool', 'tool'], ['user', 'system']]);
     expect(transcript[2]!.parts[0]).toMatchObject({ type: 'toolResult', isError: true, content: 'The turn was stopped' });
-    expect(textOf(transcript[3]!)).toBe('[Request interrupted by user]');
+    expect(textOf(transcript[3]!)).toBe('[Request interrupted: later]');
     expect(await codeOf(handle.submit({ type: 'approve', requestId }))).toBe('not_running');
 
     // A later resume() replays a terminal run and delivers the stored outcome.
@@ -376,6 +376,19 @@ describe('resume: detaching and exclusivity', () => {
     const transcript = await store.sessions.listMessages({ sessionId: 's' });
     expect(transcript.at(-2)!.parts[0]).toMatchObject({ type: 'toolResult', content: 'The turn was stopped', isError: true });
     expect(textOf(transcript.at(-1)!)).toBe('[Request interrupted by user]');
+  });
+
+  it('11c. interrupted on resume replaces the marker when a cancel ends the paused run (agent/09)', async () => {
+    const { agent, store } = build({ tools: [rmTool(vi.fn(() => 'removed'))] });
+    const { first } = await pauseRun(agent);
+    const handle = resume({ agent, ...ref(first), interrupted: (abort) => ({ turn: `daemon: ${abort.kind === 'cancel' ? abort.reason : 'timeout'}`, tool: 'unused' }) });
+    const eventsP = collect(handle);
+    await collectUntilReplayed(handle, 7);
+    handle.cancel({ reason: 'restart' });
+    expect(await handle.outcome).toMatchObject({ status: 'cancelled', reason: 'restart' });
+    await eventsP;
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect(textOf(transcript.at(-1)!)).toBe('daemon: restart');
   });
 
   it('12. a second resume on a live awaiting run fails with writer_busy', async () => {

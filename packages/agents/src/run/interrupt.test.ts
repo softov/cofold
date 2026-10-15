@@ -1,3 +1,4 @@
+import type { AbortReason } from '../types/abort.js';
 import type { RunEvent } from '../types/event.js';
 import type { Message } from '../types/message.js';
 import type { ModelAdapter } from '../types/model.js';
@@ -7,10 +8,11 @@ import { describe, expect, it } from 'vitest';
 import { createAgent } from '../agent/create-agent.js';
 import { ModelError } from '../errors.js';
 import { textOf } from '../message/helpers.js';
-import { INTERRUPTED, INTERRUPTED_TOOL } from '../message/markers.js';
+import { INTERRUPTED, INTERRUPTED_TOOL, interruptedText } from '../message/markers.js';
 import { createMemoryStore } from '../store/memory.js';
 import { createFakeModel } from '../testing/fake-model.js';
 import { createTool } from '../tool/create-tool.js';
+import { compact } from './compact.js';
 import { run } from './run.js';
 
 const textInput = { type: 'object' as const, properties: { text: { type: 'string' as const } }, required: ['text'], additionalProperties: false };
@@ -40,9 +42,9 @@ describe('a cancel leaves the transcript model-valid and marked (cli/03 F4)', ()
 
     const transcript = await store.sessions.listMessages({ sessionId: 's' });
     expect(shape(transcript)).toEqual(['user:input', 'assistant:model', 'tool:tool', 'tool:tool', 'user:system']);
-    expect(transcript[2]!.parts[0]).toEqual({ type: 'toolResult', callId: 'c1', name: 'slow', content: INTERRUPTED_TOOL, isError: true });
-    expect(transcript[3]!.parts[0]).toEqual({ type: 'toolResult', callId: 'c2', name: 'echo', content: INTERRUPTED_TOOL, isError: true });
-    expect(textOf(transcript[4]!)).toBe(INTERRUPTED);
+    expect(transcript[2]!.parts[0]).toEqual({ type: 'toolResult', callId: 'c1', name: 'slow', content: '[Request interrupted for tool use: user]', isError: true });
+    expect(transcript[3]!.parts[0]).toEqual({ type: 'toolResult', callId: 'c2', name: 'echo', content: '[Request interrupted for tool use: user]', isError: true });
+    expect(textOf(transcript[4]!)).toBe('[Request interrupted: user]');
     const steps = await store.runs.listSteps({ sessionId: 's', runId: handle.runId });
     expect(steps.map((s) => [s.kind, s.status])).toEqual([['model', 'completed'], ['tool', 'uncertain']]);
     expect(model.remaining()).toBe(1);
@@ -53,7 +55,7 @@ describe('a cancel leaves the transcript model-valid and marked (cli/03 F4)', ()
     await collect(again);
     expect(await again.outcome).toMatchObject({ status: 'completed' });
     expect(next.requests[0]!.messages.map((m) => `${m.role}:${textOf(m)}`)).toEqual([
-      'user:go', 'assistant:', 'tool:', 'tool:', `user:${INTERRUPTED}`, 'user:and now',
+      'user:go', 'assistant:', 'tool:', 'tool:', 'user:[Request interrupted: user]', 'user:and now',
     ]);
   });
 
@@ -74,7 +76,7 @@ describe('a cancel leaves the transcript model-valid and marked (cli/03 F4)', ()
     expect(model.remaining()).toBe(1);
   });
 
-  it('a timeout writes the same texts and finishes stopped { reason: timeout }', async () => {
+  it('a timeout says so and finishes stopped { reason: timeout }', async () => {
     const store = createMemoryStore();
     const model = createFakeModel({ script: [twoCalls, { text: 'never' }] });
     const agent = createAgent({ id: 'a', instructions: 'be brief', model, store, tools: [tool('slow', never), tool('echo', () => 'echo')], limits: { timeoutMs: 30 } });
@@ -83,8 +85,8 @@ describe('a cancel leaves the transcript model-valid and marked (cli/03 F4)', ()
     expect(await handle.outcome).toMatchObject({ status: 'stopped', reason: 'timeout', steps: 1 });
     const transcript = await store.sessions.listMessages({ sessionId: 's' });
     expect(shape(transcript)).toEqual(['user:input', 'assistant:model', 'tool:tool', 'tool:tool', 'user:system']);
-    expect(transcript.slice(2, 4).map((m) => (m.parts[0] as { content: string }).content)).toEqual([INTERRUPTED_TOOL, INTERRUPTED_TOOL]);
-    expect(textOf(transcript[4]!)).toBe(INTERRUPTED);
+    expect(transcript.slice(2, 4).map((m) => (m.parts[0] as { content: string }).content)).toEqual(['[Request interrupted for tool use: timeout]', '[Request interrupted for tool use: timeout]']);
+    expect(textOf(transcript[4]!)).toBe('[Request interrupted: timeout]');
   });
 
   it('an abort already set when the turn starts: run.started, then the marker alone', async () => {
@@ -121,6 +123,78 @@ describe('a cancel leaves the transcript model-valid and marked (cli/03 F4)', ()
     expect(steps.map((s) => [s.kind, s.status])).toEqual([['model', 'failed']]);
     const transcript = await store.sessions.listMessages({ sessionId: 's' });
     expect(shape(transcript)).toEqual(['user:input', 'user:system']);
-    expect(textOf(transcript[1]!)).toBe(INTERRUPTED);
+    expect(textOf(transcript[1]!)).toBe('[Request interrupted: user]');
+  });
+});
+
+describe('the caller chooses what a cut turn says (agent/09)', () => {
+  it('a cancel with no reason writes INTERRUPTED and INTERRUPTED_TOOL', async () => {
+    const store = createMemoryStore();
+    const model = createFakeModel({ script: [twoCalls, { text: 'never' }] });
+    const agent = createAgent({ id: 'a', instructions: 'be brief', model, store, tools: [tool('slow', never), tool('echo', () => 'echo')] });
+    const handle = run({ agent, session: 's', input: 'go' });
+    for await (const e of handle.events) if (e.type === 'tool.started') { handle.cancel(); break; }
+    expect(await handle.outcome).toMatchObject({ status: 'cancelled' });
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect(transcript.slice(2, 4).map((m) => (m.parts[0] as { content: string }).content)).toEqual([INTERRUPTED_TOOL, INTERRUPTED_TOOL]);
+    expect(textOf(transcript[4]!)).toBe(INTERRUPTED);
+  });
+
+  it('a cancel with a reason names it, in the turn text and the tool text', async () => {
+    const store = createMemoryStore();
+    const model = createFakeModel({ script: [twoCalls, { text: 'never' }] });
+    const agent = createAgent({ id: 'a', instructions: 'be brief', model, store, tools: [tool('slow', never), tool('echo', () => 'echo')] });
+    const handle = run({ agent, session: 's', input: 'go' });
+    for await (const e of handle.events) if (e.type === 'tool.started') { await handle.submit({ type: 'cancel', reason: 'restart' }); break; }
+    expect(await handle.outcome).toMatchObject({ status: 'cancelled', reason: 'restart' });
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect((transcript[2]!.parts[0] as { content: string }).content).toBe('[Request interrupted for tool use: restart]');
+    expect(textOf(transcript[4]!)).toBe('[Request interrupted: restart]');
+  });
+
+  it('a cancel from the caller\'s AbortSignal reads as a plain cancel', async () => {
+    const store = createMemoryStore();
+    const model = createFakeModel({ script: [twoCalls, { text: 'never' }] });
+    const agent = createAgent({ id: 'a', instructions: 'be brief', model, store, tools: [tool('slow', never), tool('echo', () => 'echo')] });
+    const controller = new AbortController();
+    const handle = run({ agent, session: 's', input: 'go', signal: controller.signal });
+    for await (const e of handle.events) if (e.type === 'tool.started') { controller.abort(); break; }
+    expect(await handle.outcome).toMatchObject({ status: 'cancelled', reason: 'signal' });
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect((transcript[2]!.parts[0] as { content: string }).content).toBe(INTERRUPTED_TOOL);
+    expect(textOf(transcript[4]!)).toBe(INTERRUPTED);
+  });
+
+  it('interruptedText gives the defaults for every abort', () => {
+    expect(interruptedText({ kind: 'cancel' })).toEqual({ turn: INTERRUPTED, tool: INTERRUPTED_TOOL });
+    expect(interruptedText({ kind: 'cancel', reason: 'signal' })).toEqual({ turn: INTERRUPTED, tool: INTERRUPTED_TOOL });
+    expect(interruptedText({ kind: 'cancel', reason: 'restart' })).toEqual({ turn: '[Request interrupted: restart]', tool: '[Request interrupted for tool use: restart]' });
+    expect(interruptedText({ kind: 'timeout' })).toEqual({ turn: '[Request interrupted: timeout]', tool: '[Request interrupted for tool use: timeout]' });
+  });
+
+  it('interrupted on run replaces both texts and gets the abort reason', async () => {
+    const store = createMemoryStore();
+    const model = createFakeModel({ script: [twoCalls, { text: 'never' }] });
+    const agent = createAgent({ id: 'a', instructions: 'be brief', model, store, tools: [tool('slow', never), tool('echo', () => 'echo')] });
+    const seen: AbortReason[] = [];
+    const interrupted = (abort: AbortReason) => { seen.push(abort); return { turn: 'stopped by the daemon', tool: 'call stopped by the daemon' }; };
+    const handle = run({ agent, session: 's', input: 'go', interrupted });
+    for await (const e of handle.events) if (e.type === 'tool.started') { handle.cancel({ reason: 'restart' }); break; }
+    expect(await handle.outcome).toMatchObject({ status: 'cancelled', reason: 'restart' });
+    expect(seen).toEqual([{ kind: 'cancel', reason: 'restart' }]);
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect(transcript.slice(2, 4).map((m) => (m.parts[0] as { content: string }).content)).toEqual(['call stopped by the daemon', 'call stopped by the daemon']);
+    expect(textOf(transcript[4]!)).toBe('stopped by the daemon');
+  });
+
+  it('interrupted on compact replaces the marker', async () => {
+    const store = createMemoryStore();
+    const model = createFakeModel({ script: [{ text: 'never' }] });
+    const agent = createAgent({ id: 'a', instructions: 'be brief', model, store });
+    const handle = compact({ agent, session: 's', signal: AbortSignal.abort(), interrupted: () => ({ turn: 'no summary', tool: 'unused' }) });
+    await collect(handle);
+    expect(await handle.outcome).toMatchObject({ status: 'cancelled' });
+    const transcript = await store.sessions.listMessages({ sessionId: 's' });
+    expect(textOf(transcript.at(-1)!)).toBe('no summary');
   });
 });

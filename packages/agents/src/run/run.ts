@@ -103,7 +103,7 @@ async function setupRun<Resources>(args: RunArgs<Resources>, runId: string, abor
     const input: Message = { id: args.messageId ?? newId(), role: 'user', source: command ? 'command' : 'input', parts, createdAt: now() };
     await store.runs.create({ runId, sessionId, agentId, status: 'running', createdAt: now(), updatedAt: now(), usage: ZERO_USAGE, steps: 0, denials: [], inputMessageId: input.id, ...(args.model === undefined ? {} : { model: args.model }) });
     const emitter = createEmitter({ store, runId, sessionId, agentId, publish: handle.publish, onEvent: agent.hooks.onEvent?.bind(agent.hooks), warn: agent.warn });
-    ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, steering, counters: { usage: ZERO_USAGE, steps: 0, cost: agent.model.pricing ? 0 : undefined, denials: [], stepIndex: 0, toolCalls: 0 }, claimed: false, compact: command?.command === COMPACT_COMMAND, inputMessageId: input.id });
+    ctx = createTurnContext({ agent, store, session, runId, abort, emit: emitter.emit, handle, steering, counters: { usage: ZERO_USAGE, steps: 0, cost: agent.model.pricing ? 0 : undefined, denials: [], stepIndex: 0, toolCalls: 0 }, claimed: false, compact: command?.command === COMPACT_COMMAND, inputMessageId: input.id, ...(args.interrupted !== undefined ? { interrupted: args.interrupted } : {}) });
 
     ctx.claimed = await store.sessions.claimWriter({ sessionId, runId });
     if (!ctx.claimed) { await finishRun(ctx, fail(ctx, 'writer_busy', `session ${sessionId} is being written by another run`)); return undefined; }

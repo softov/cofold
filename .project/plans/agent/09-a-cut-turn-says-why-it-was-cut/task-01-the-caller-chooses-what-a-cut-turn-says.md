@@ -1,6 +1,6 @@
 ---
 title: The caller chooses what a cut turn says
-status: todo
+status: implemented
 depends: []
 layer: "agents"
 refs:
@@ -25,7 +25,8 @@ With no option, `interruptedText(abort)` writes the plan's defaults.
 - `UPDATE: packages/agents/src/run/turn.ts:138-149` - `interrupt` writes `ctx.interrupted(reason)`.
 - `UPDATE: packages/agents/src/run/run.ts` - pass `args.interrupted` to the context.
 - `UPDATE: packages/agents/src/run/resume.ts` - pass `args.interrupted` to the context.
-- `UPDATE: packages/agents/src/index.ts` - export `interruptedText` and the two types.
+- `UPDATE: packages/agents/src/index.ts` - export `interruptedText`.
+- `UPDATE: packages/agents/src/types/index.ts` - export `AbortReason`, `InterruptText` and `Interrupted`.
 - `UPDATE: packages/agents/src/run/interrupt.test.ts` - the cases in Validation.
 - `UPDATE: packages/agents/README.md:72` - name the option and the defaults beside `cancel`.
 - `UPDATE: packages/agents/src/run/compact.ts` - pass `args.interrupted` on to `run`.
@@ -56,3 +57,11 @@ With no option, `interruptedText(abort)` writes the plan's defaults.
 - `pnpm typecheck` and `pnpm test` pass.
 
 ## Resume
+
+Built 2026-10-14, awaiting review.
+`interruptedText` in `markers.ts` gives the defaults, and `interrupt` in `turn.ts` writes `ctx.interrupted(ctx.abort.reason())`.
+`run`, `compact` and `resume` take `interrupted`, and the turn context defaults it to `interruptedText`.
+The types barrel now exports `AbortReason`, which the option's callers need.
+Four existing tests passed a reason and expected the old text; they now expect the reason, as the answers say.
+papo passes `keepMarker` to `run` and `resume`, and its two cancel tests pass unchanged.
+`pnpm typecheck` passes, and `pnpm test` passes with 1027 tests in 77 files.

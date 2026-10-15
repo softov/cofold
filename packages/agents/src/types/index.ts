@@ -1,3 +1,4 @@
+export type { AbortReason, InterruptText, Interrupted } from './abort.js';
 export type * from './agent.js';
 export type * from './ask.js';
 export type * from './capability.js';
