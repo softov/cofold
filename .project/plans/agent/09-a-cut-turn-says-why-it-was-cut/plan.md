@@ -1,7 +1,7 @@
 ---
 title: A cut turn says why it was cut
 domain: agent
-status: draft
+status: active
 priority: high
 created: 2026-10-14
 revalidated: 2026-10-14
@@ -59,6 +59,9 @@ handle.cancel({ reason }) / signal / timeoutMs -> RunAbort.reason() -> interrupt
 | A cancel with a reason writes `[Request interrupted: <reason>]` | Softov, 2026-10-14, same answer, "for example `[Request interrupted: restart]`" | 01 |
 | A reasoned cancel's tool text is `[Request interrupted for tool use: <reason>]` | (defaulted: the turn text's shape, with the words of `INTERRUPTED_TOOL`) | 01 |
 | A timeout writes `[Request interrupted: timeout]` and `[Request interrupted for tool use: timeout]` | (defaulted: the outcome's own word, `stopped { reason: 'timeout' }`) | 01 |
+| papo keeps its text: papo passes `interrupted` and writes `INTERRUPTED` and `INTERRUPTED_TOOL`, so its screen and tests stay as they are | Softov, 2026-10-14, asked "papo stops a turn with the reason 'cancelled by the user'. With the new defaults, its transcript would read `[Request interrupted: cancelled by the user]`... What should papo do?": "papo keeps its text" | 01 |
+| A cancel from the caller's `AbortSignal`, which carries the reason `'signal'`, reads as a plain cancel | Softov, 2026-10-14, asked "When the caller's AbortSignal fires, cofold cancels with the reason 'signal'. Under the new defaults, should that read as a plain cancel or name the reason?": "Plain cancel" | 01 |
+| papo's change is a step in task 01, so each commit keeps papo's tests green | (defaulted: the change is one option on two calls) | 01 |
 | The defaults are exported as `interruptedText(abort)`, so a caller can wrap them | (defaulted: a caller that changes one case keeps the others) | 01 |
 | Crash recovery keeps its own text and is not part of the option | (defaulted: it runs with no abort and no caller; see Risks) | - |
 | No changelog entry; a release is a version bump in `package.json` | the commits `agents goes to 0.3.0` and `yaml 0.3.0` | - |
@@ -77,17 +80,14 @@ handle.cancel({ reason }) / signal / timeoutMs -> RunAbort.reason() -> interrupt
 
 ## Risks and tradeoffs
 
-- A caller that passes a reason today gets new words. It needs no change for that. papo's stop passes `'cancelled by the user'`, so it would read `[Request interrupted: cancelled by the user]`, and papo's notice check would stop matching. See open question 1.
-- An external `AbortSignal` cancels with the harness's own `reason: 'signal'`, so it would read `[Request interrupted: signal]`. See open question 2.
+- A caller that passes a reason today gets new words. It needs no change for that. ahpd's stop on close will read `[Request interrupted: the session closed]` until ahpd passes `interrupted`.
 - Crash recovery in `resume.ts` writes `not executed: the run was interrupted` and `execution outcome unknown: the process died during the call`. No abort and no caller exist at that point, so the option does not reach it. If those texts must be settable too, that is a second option on `ResumeArgs`, in its own plan.
 
 ## Resume state
 
 - **Done so far:** the plan, 2026-10-14.
-- **Next action:** answer the open questions, then [task-01-the-caller-chooses-what-a-cut-turn-says.md](task-01-the-caller-chooses-what-a-cut-turn-says.md).
-- **Open questions:**
-  1. papo's stop passes `'cancelled by the user'`. Does papo keep `[Request interrupted by user]`, or show the new text? - proposed: papo passes `interrupted` and keeps its text.
-  2. An external `AbortSignal` cancels with the harness's own `'signal'`. Is that a reason, or a plain cancel? - proposed: a plain cancel, because `'signal'` says how the cancel came, not why.
+- **Next action:** [task-01-the-caller-chooses-what-a-cut-turn-says.md](task-01-the-caller-chooses-what-a-cut-turn-says.md).
+- **Open questions:** none.
 - **Watch out for:** the plan number 08 is taken by the event order plan, so this plan is 09.
 
 ## Final verification checklist

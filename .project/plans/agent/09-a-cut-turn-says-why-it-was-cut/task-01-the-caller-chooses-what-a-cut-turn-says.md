@@ -28,7 +28,9 @@ With no option, `interruptedText(abort)` writes the plan's defaults.
 - `UPDATE: packages/agents/src/index.ts` - export `interruptedText` and the two types.
 - `UPDATE: packages/agents/src/run/interrupt.test.ts` - the cases in Validation.
 - `UPDATE: packages/agents/README.md:72` - name the option and the defaults beside `cancel`.
-- `UPDATE: docs/agents/README.md` - name the option where it lists the run options, if it lists them.
+- `UPDATE: packages/agents/src/run/compact.ts` - pass `args.interrupted` on to `run`.
+- `UPDATE: packages/agents/src/run/resume.test.ts` - a cancel at a pause writes the reason, and `interrupted` on `resume` replaces it.
+- `UPDATE: packages/papo/src/chat.ts` - `run` and `resume` pass `interrupted`, which returns `INTERRUPTED` and `INTERRUPTED_TOOL`.
 
 ## Steps
 
@@ -38,16 +40,19 @@ With no option, `interruptedText(abort)` writes the plan's defaults.
 4. Put `interrupted` on the turn context in `run.ts`, `resume.ts` and `createTurnContext`.
 5. Make `interrupt` write the texts that `ctx.interrupted` returns.
 6. Export `interruptedText`, `InterruptText` and `Interrupted` from the package index.
-7. Update the README line on `cancel` and the timeout.
-8. Run `pnpm typecheck` and `pnpm test`.
+7. Pass `interrupted` from papo's `run` and `resume` calls, so papo keeps its text.
+8. Update the README line on `cancel` and the timeout.
+9. Run `pnpm typecheck` and `pnpm test`.
 
 ## Validation
 
 - `interrupt.test.ts`: a cancel with no reason writes `INTERRUPTED` and `INTERRUPTED_TOOL`.
 - `interrupt.test.ts`: `cancel({ reason: 'restart' })` writes `[Request interrupted: restart]` and `[Request interrupted for tool use: restart]`.
+- `interrupt.test.ts`: a cancel from the caller's `AbortSignal` writes `INTERRUPTED`.
 - `interrupt.test.ts`: a timeout writes `[Request interrupted: timeout]` and the tool text with `timeout`.
 - `interrupt.test.ts`: `interrupted` on `run` replaces both texts and gets the abort reason.
 - `interrupt.test.ts`: a cancel at a pause, on a `resume` handle with `interrupted`, writes the caller's texts.
+- papo's cancel tests pass unchanged.
 - `pnpm typecheck` and `pnpm test` pass.
 
 ## Resume
