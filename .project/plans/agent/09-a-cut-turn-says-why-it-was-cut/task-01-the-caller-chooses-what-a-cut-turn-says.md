@@ -1,6 +1,6 @@
 ---
 title: The caller chooses what a cut turn says
-status: implemented
+status: done
 depends: []
 layer: "agents"
 refs:

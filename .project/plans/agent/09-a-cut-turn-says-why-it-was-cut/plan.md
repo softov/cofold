@@ -1,7 +1,7 @@
 ---
 title: A cut turn says why it was cut
 domain: agent
-status: active
+status: built
 priority: high
 created: 2026-10-14
 revalidated: 2026-10-14
@@ -76,7 +76,7 @@ handle.cancel({ reason }) / signal / timeoutMs -> RunAbort.reason() -> interrupt
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - The caller chooses what a cut turn says](task-01-the-caller-chooses-what-a-cut-turn-says.md) | implemented | - |
+| [01 - The caller chooses what a cut turn says](task-01-the-caller-chooses-what-a-cut-turn-says.md) | done | - |
 
 ## Risks and tradeoffs
 
@@ -85,8 +85,8 @@ handle.cancel({ reason }) / signal / timeoutMs -> RunAbort.reason() -> interrupt
 
 ## Resume state
 
-- **Done so far:** the plan, 2026-10-14; task 01 implemented 2026-10-14, awaiting review.
-- **Next action:** Softov reviews task 01; then `implemented.md`, and an agents release that ahpd can take.
+- **Done so far:** the plan, 2026-10-14; task 01 done 2026-10-15; the plan is built, 2026-10-15.
+- **Next action:** release `@cofold/agents` 0.4.0. The cases that wait are in [deferred.md](deferred.md).
 - **Open questions:** none.
 - **Watch out for:** the plan number 08 is taken by the event order plan, so this plan is 09.
 
@@ -96,4 +96,4 @@ handle.cancel({ reason }) / signal / timeoutMs -> RunAbort.reason() -> interrupt
 - [x] A cancel with a reason and a timeout write the reason.
 - [x] `interrupted` replaces both texts on `run`, `compact` and `resume`.
 - [x] `pnpm typecheck` and `pnpm test` pass.
-- [ ] `plans/index.md` updated.
+- [x] `plans/index.md` updated.
