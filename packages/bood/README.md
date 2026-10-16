@@ -24,7 +24,7 @@ view.play(action("robot", "radar", { color: "#2f9e5b" }), { key: "act" });
 | `action(body, name, { color })` | One of a body's moves, such as `jump`, `roll` or `rubik`. Any body can play any move. |
 | `transit(kind, "hide" \| "show", { color })` | A way out or back in, such as `portal`, `dust` or `glitch`. The hide half holds the body hidden. |
 | `ambient(body, mood)` | The loops of a mood: breath, brows, the antenna's pulse, radar, waves and particles, an error's shake, a sad tear. |
-| `pose(body, mood, { facing, lift }, from)` | A head turn: the face slides and narrows toward the side it looks at, so a flat body reads as turning. Held. |
+| `pose(body, mood, { facing, lift, tilt }, from)` | A head turn: the face slides and narrows toward where it looks, and the head rolls as a face on a ball does (up and left turns it clockwise). `tilt` leans the head left or right without looking anywhere. Held. |
 | `walk(direction)` | Steps in place, and the distance the host moves the body over the same time. |
 | `blink`, `glance`, `swing`, `pop` | The small moments a host fires now and then. |
 

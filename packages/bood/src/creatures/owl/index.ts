@@ -53,5 +53,6 @@ export default defineCreature({
   mouth: false,
   brows: false,
   actions: [],
-  turn: 0.05,
+  // Its eyes fill the face under a brow drawn on the body, so they slide only a little or they leave it.
+  turn: 0.02,
 });

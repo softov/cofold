@@ -41,6 +41,7 @@ const state = {
   eyes: "dots",
   facing: 0,
   lift: 0,
+  tilt: 0,
   rate: 1,
   life: true,
   paused: false,
@@ -91,13 +92,16 @@ function redraw({ popped = false } = {}) {
   if (!$("view-grid").hidden) refreshGrid();
 }
 
+/** Turns the head; the tilt is the slider's, whatever the look. */
 function setPose(facing, lift, ms = 260) {
+  const tilt = state.tilt;
   const from = {
     facing: state.posed?.facing ?? 0,
     lift: state.posed?.lift ?? 0,
+    tilt: state.posed?.tilt ?? 0,
   };
-  state.posed = { facing, lift };
-  run(pose(state.body, state.mood, { facing, lift }, from, ms), "pose");
+  state.posed = { facing, lift, tilt };
+  run(pose(state.body, state.mood, { facing, lift, tilt }, from, ms), "pose");
 }
 
 function caption() {
@@ -242,14 +246,17 @@ segment("rate", "rate", (value) => {
 
 const facing = $("facing");
 const lift = $("lift");
+const tilt = $("tilt");
 const showPose = () => {
   $("facingOut").textContent = Number(facing.value).toFixed(2);
   $("liftOut").textContent = Number(lift.value).toFixed(2);
+  $("tiltOut").textContent = Number(tilt.value).toFixed(2);
 };
-for (const input of [facing, lift]) {
+for (const input of [facing, lift, tilt]) {
   input.addEventListener("input", () => {
     state.facing = Number(facing.value);
     state.lift = Number(lift.value);
+    state.tilt = Number(tilt.value);
     showPose();
     setPose(state.facing, state.lift, 120);
   });
@@ -408,7 +415,7 @@ for (const tab of document.querySelectorAll(".tab"))
 new EventSource("/events").addEventListener("message", () => location.reload());
 
 /**
- * State from the address, so a look is a link: `?body=ghost&mood=happy&facing=1&tab=grid`.
+ * State from the address, so a look is a link: `?body=ghost&mood=happy&facing=1&tilt=-0.5&tab=grid`.
  * Read once at start; the controls take over after.
  */
 function fromQuery() {
@@ -430,6 +437,7 @@ function fromQuery() {
   state.color = pick("color", BOOD_COLORS) ?? state.color;
   state.facing = number("facing") ?? state.facing;
   state.lift = number("lift") ?? state.lift;
+  state.tilt = number("tilt") ?? state.tilt;
   if (query.get("filled") === "0") state.filled = false;
   if (query.get("life") === "0") state.life = false;
   $("body").value = state.body;
@@ -438,6 +446,7 @@ function fromQuery() {
   $("life").checked = state.life;
   facing.value = String(state.facing);
   lift.value = String(state.lift);
+  tilt.value = String(state.tilt);
   document.body.dataset.scheme = state.scheme;
   for (const button of $("eyes").querySelectorAll("button"))
     button.setAttribute(

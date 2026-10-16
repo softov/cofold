@@ -19,7 +19,6 @@ import type {
 } from "../types.js";
 import { all, move, repeat, seq, timeline, to } from "./build.js";
 import { antennaBase } from "./actions.js";
-import { eyeTilt } from "./ambient.js";
 
 /** How a body holds its head. */
 export interface BoodPose {
@@ -27,11 +26,27 @@ export interface BoodPose {
   facing: number;
   /** How far it lifts its head, from -1 (down) to 1 (up). */
   lift?: number;
+  /** How far it tilts its head without looking anywhere, from -1 (to the viewer's left) to 1 (to the right). */
+  tilt?: number;
 }
 
-/** The most the head turns and lifts: 6 degrees and 8 px at 280 px wide, as ahpapp's head does. */
-const LEAN_DEG = 6;
+/**
+ * The most the head turns for a look. It turns away from the side it looks to
+ * when it looks up, as a face on a ball rolls up and over, and the other way
+ * when it looks down: up and left turns it clockwise.
+ */
+const LEAN_DEG = 18;
+/** The most a tilt leans the head, in degrees. */
+const TILT_DEG = 16;
+/** The most the head lifts, 8 px at 280 px wide, as ahpapp's head does. */
 const LIFT = (8 / 280) * W;
+/**
+ * How far the face slides up or down at full lift, as a share of the drawing's
+ * height, for a body of the default turn; a body that turns less slides less
+ * up and down too. The head's own lift adds to it.
+ */
+const SLIDE_Y = 0.1;
+const DEFAULT_TURN = 0.07;
 /** How much a face narrows when the head is fully turned, as the side of a ball does. */
 const SQUEEZE = 0.3;
 
@@ -42,28 +57,27 @@ function values(
   pose: BoodPose,
 ): Partial<Record<BoodTarget, Partial<Record<BoodChannel, number>>>> {
   const creature = creatures[body];
-  const share = creature.turn ?? 0.07;
+  const share = creature.turn ?? DEFAULT_TURN;
   const f = Math.max(-1, Math.min(1, pose.facing));
   const lift = Math.max(-1, Math.min(1, pose.lift ?? 0));
+  const tilt = Math.max(-1, Math.min(1, pose.tilt ?? 0));
   const [left] = eyeGeometry(creature, mood, "dark");
   const room = pupilRoom(left, creature.iris);
-  // The dot eyes lean with a sideways look, as a glance leans them.
-  const tilt = eyeTilt(f, -lift);
-  // The face slides toward the side it turns to and narrows about its middle,
-  // so the eyes come closer together instead of sliding off a narrow body.
+  const down = Math.max(0, -lift);
+  // The face slides toward where it looks and narrows about its middle, so the
+  // eyes come closer together instead of sliding off a narrow body. The dot
+  // eyes lean with the head's turn and no further.
   return {
     face: {
-      x: f * share * W * 0.4,
-      y: -lift * LIFT * 0.6,
+      x: f * share * W,
+      y: -lift * SLIDE_Y * (share / DEFAULT_TURN) * H,
       sx: 1 - Math.abs(f) * SQUEEZE,
     },
     pupils: { x: f * room.x * 0.3, y: -lift * room.y * 0.4 },
-    pupilL: { turn: tilt },
-    pupilR: { turn: tilt },
     glints: { x: f * room.x * 0.3 },
-    antenna: { x: f * share * W * 0.45 },
+    antenna: { x: f * share * W * 1.1 },
     body: { sx: 1 - Math.abs(f) * 0.04 },
-    look: { turn: f * LEAN_DEG, y: -lift * LIFT },
+    look: { turn: -f * LEAN_DEG * (1 - 2 * down) + tilt * TILT_DEG, y: -lift * LIFT },
   };
 }
 

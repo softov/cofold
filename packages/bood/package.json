@@ -1,6 +1,6 @@
 {
   "name": "@cofold/bood",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "The bood creatures: bodies, faces and moods as data, motion as keyframes, drawn by any renderer. No dependencies.",
   "license": "MIT",

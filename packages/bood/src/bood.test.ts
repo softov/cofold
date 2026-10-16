@@ -206,6 +206,27 @@ describe("motion", () => {
     expectPlayable(glance("robot", "idle", 1, -1));
   });
 
+  it("turns the head as a face on a ball: up and left clockwise, up and right counter-clockwise, flipped looking down", () => {
+    const turn = (next: Parameters<typeof pose>[2]) => {
+      const keys = pose("robot", "idle", next).timeline.tracks.look?.channels.turn ?? [];
+      return keys[keys.length - 1]?.value ?? 0;
+    };
+    expect(turn({ facing: -1, lift: 1 })).toBeGreaterThan(0);
+    expect(turn({ facing: 1, lift: 1 })).toBeLessThan(0);
+    expect(turn({ facing: -1, lift: -1 })).toBeLessThan(0);
+    expect(turn({ facing: 1, lift: -1 })).toBeGreaterThan(0);
+  });
+
+  it("tilts the head without looking anywhere", () => {
+    const tilted = pose("robot", "idle", { facing: 0, tilt: 1 });
+    const turn = tilted.timeline.tracks.look?.channels.turn ?? [];
+    const face = tilted.timeline.tracks.face?.channels.x ?? [];
+    expect(turn[turn.length - 1]?.value).toBeGreaterThan(0);
+    expect(face[face.length - 1]?.value ?? 0).toBe(0);
+    expect(pose("robot", "idle", { facing: 0, tilt: -1 }).timeline.tracks.look?.channels.turn?.at(-1)?.value).toBeLessThan(0);
+    expectPlayable(tilted);
+  });
+
   it("walks the way it is told", () => {
     expect(walk(-1).travel).toBeLessThan(0);
     expect(walk(1, { steps: 2 }).travel).toBeGreaterThan(0);

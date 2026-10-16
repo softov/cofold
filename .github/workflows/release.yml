@@ -18,7 +18,7 @@ on:
 # The packages this workflow publishes, in dependency order: a dependant comes
 # after every sibling it names. `papo` is not published.
 env:
-  PUBLISHED: sdk yaml commands agents config terminal mcp remote store-file model-openai-compat tools
+  PUBLISHED: sdk yaml commands agents config terminal mcp remote store-file model-openai-compat tools bood
 
 jobs:
   release:
