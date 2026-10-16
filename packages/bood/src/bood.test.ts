@@ -14,6 +14,9 @@ import {
   cssFrames,
   ease,
   glance,
+  faceRoom,
+  insideOutline,
+  outline,
   pose,
   referenceScene,
   scene,
@@ -225,6 +228,32 @@ describe("motion", () => {
     expect(face[face.length - 1]?.value ?? 0).toBe(0);
     expect(pose("robot", "idle", { facing: 0, tilt: -1 }).timeline.tracks.look?.channels.turn?.at(-1)?.value).toBeLessThan(0);
     expectPlayable(tilted);
+  });
+
+  it("keeps every body's eyes on its face: a look never slides the face past the room its outline leaves", () => {
+    for (const body of BOOD_BODIES) {
+      const room = faceRoom(body, "idle");
+      for (const lift of [1, -1]) {
+        const keys = pose(body, "idle", { facing: 1, lift }).timeline.tracks.face?.channels.y ?? [];
+        const y = keys[keys.length - 1]?.value ?? 0;
+        expect(y).toBeGreaterThanOrEqual(-room.up - 1e-6);
+        expect(y).toBeLessThanOrEqual(room.down + 1e-6);
+      }
+    }
+    // A body whose eyes sit near its top has less room to look up than one whose eyes sit in its middle.
+    expect(faceRoom("gumbo", "idle").up).toBeLessThan(faceRoom("square", "idle").up);
+  });
+
+  it("reads an outline's lines, curves and arcs, and says what is inside it", () => {
+    const square = outline("M 0 0 H 100 V 100 H 0 Z");
+    expect(insideOutline(square, 50, 50)).toBe(true);
+    expect(insideOutline(square, 150, 50)).toBe(false);
+    const circle = outline("M 0 50 A 50 50 0 1 1 100 50 A 50 50 0 1 1 0 50 Z");
+    expect(insideOutline(circle, 50, 50)).toBe(true);
+    expect(insideOutline(circle, 5, 5)).toBe(false);
+    const relative = outline("m10 10c0,-10 80,-10 80,0l0 80 -80 0z");
+    expect(insideOutline(relative, 50, 50)).toBe(true);
+    expect(insideOutline(relative, 50, 95)).toBe(false);
   });
 
   it("walks the way it is told", () => {

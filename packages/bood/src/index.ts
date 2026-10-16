@@ -53,6 +53,7 @@ export {
 } from "./creatures/index.js";
 export { defineCreature } from "./creatures/define.js";
 export { disc, polar, rounded, smooth, perimeter } from "./creatures/draw.js";
+export { insideOutline, outline } from "./creatures/outline.js";
 export type { Point } from "./creatures/draw.js";
 export { referenceScene, scene } from "./scene.js";
 export type { SceneOptions } from "./scene.js";
@@ -91,5 +92,6 @@ export {
   pop,
   swing,
 } from "./motion/ambient.js";
-export { pose, walk } from "./motion/pose.js";
+export { faceRoom, pose, walk } from "./motion/pose.js";
+export type { FaceRoom } from "./motion/pose.js";
 export type { BoodPose } from "./motion/pose.js";

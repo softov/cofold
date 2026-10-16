@@ -9,6 +9,7 @@
 
 import { BOOD_H as H, BOOD_W as W, FEET, MIDDLE } from "../box.js";
 import { creatures } from "../creatures/index.js";
+import { insideOutline, outline } from "../creatures/outline.js";
 import { eyeGeometry, pupilRoom } from "../face.js";
 import type {
   BoodBody,
@@ -49,6 +50,83 @@ const SLIDE_Y = 0.1;
 const DEFAULT_TURN = 0.07;
 /** How much a face narrows when the head is fully turned, as the side of a ball does. */
 const SQUEEZE = 0.3;
+/** How much the body narrows when the head is fully turned. */
+const BODY_SQUEEZE = 0.04;
+/** How far a pupil moves inside its eye for a look, as a share of its room. */
+const PUPIL_X = 0.3;
+const PUPIL_Y = 0.4;
+/** The body kept round each eye, in drawing units: about 4 px on a body drawn 130 px wide. */
+const EYE_MARGIN = 260;
+/** How much of a body's room up and down a face may use. */
+const ROOM_USED = 0.7;
+
+/** How far a face may slide, in drawing units: sideways at a full turn, and up and down at a full lift. */
+export interface FaceRoom {
+  side: number;
+  up: number;
+  down: number;
+}
+
+/** Each body's room in each mood, worked out once. */
+const rooms = new Map<string, FaceRoom>();
+
+/**
+ * How far a face may slide before an eye, with a margin of body round it,
+ * leaves the outline: sideways up to the body's turn share, then up and down
+ * at every facing a look can take. Each body keeps its eyes in another place,
+ * so one share cannot fit them all: a body whose eyes sit near its top has
+ * little room to look up, and a narrow one little room to turn.
+ */
+export function faceRoom(body: BoodBody, mood: BoodMood): FaceRoom {
+  const key = `${body}:${mood}`;
+  const held = rooms.get(key);
+  if (held !== undefined) return held;
+  const creature = creatures[body];
+  const shape = creature.parts(mood).filter((part) => part.shape).flatMap((part) => outline(part.d));
+  const share = creature.turn ?? DEFAULT_TURN;
+  const [left, right] = eyeGeometry(creature, mood, "dark");
+  const room = pupilRoom(left, creature.iris);
+  const { centerX, centerY } = creature.eyes;
+  const iris = creature.iris;
+  // Whether both eyes sit inside the body for a face slid `side` at a full turn and `y`, at facing `f` and lift `lift`.
+  const fits = (f: number, side: number, lift: number, y: number): boolean => {
+    const face = 1 - Math.abs(f) * SQUEEZE;
+    const bodyScale = 1 - Math.abs(f) * BODY_SQUEEZE;
+    return [left, right].every((eye) => {
+      const rx = (iris === undefined ? eye.rx * 0.3 : iris.r) + EYE_MARGIN;
+      const ry = (iris === undefined ? eye.ry * 0.45 : iris.r) + EYE_MARGIN;
+      const pupil = iris === undefined ? 1 : 0;
+      const x = centerX + (eye.cx - centerX) * face + f * side + pupil * f * room.x * PUPIL_X;
+      const cy = (iris === undefined ? eye.cy : centerY) + y - pupil * lift * room.y * PUPIL_Y;
+      for (let a = 0; a < 16; a += 1) {
+        const t = (a / 16) * Math.PI * 2;
+        const px = x + Math.cos(t) * rx * face;
+        const py = cy + Math.sin(t) * ry;
+        if (!insideOutline(shape, W / 2 + (px - W / 2) / bodyScale, py)) return false;
+      }
+      return true;
+    });
+  };
+  // The largest value in [0, top] that `ok` takes, by ten halvings: a few units, far finer than anyone sees.
+  const largest = (top: number, ok: (value: number) => boolean): number => {
+    if (ok(top)) return top;
+    if (!ok(0)) return 0;
+    let lo = 0;
+    let hi = top;
+    for (let i = 0; i < 10; i += 1) {
+      const mid = (lo + hi) / 2;
+      if (ok(mid)) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  };
+  const side = largest(share * W, (s) => fits(-1, s, 0, 0) && fits(1, s, 0, 0));
+  const most = (up: boolean): number =>
+    largest(H / 2, (y) => [-1, 0, 1].every((f) => fits(f, side, up ? 1 : -1, up ? -y : y))) * ROOM_USED;
+  const answer = { side, up: most(true), down: most(false) };
+  rooms.set(key, answer);
+  return answer;
+}
 
 /** The values each target holds for a pose. */
 function values(
@@ -63,20 +141,22 @@ function values(
   const tilt = Math.max(-1, Math.min(1, pose.tilt ?? 0));
   const [left] = eyeGeometry(creature, mood, "dark");
   const room = pupilRoom(left, creature.iris);
+  const reach = faceRoom(body, mood);
   const down = Math.max(0, -lift);
   // The face slides toward where it looks and narrows about its middle, so the
   // eyes come closer together instead of sliding off a narrow body. The dot
   // eyes lean with the head's turn and no further.
   return {
     face: {
-      x: f * share * W,
-      y: -lift * SLIDE_Y * (share / DEFAULT_TURN) * H,
+      x: f * reach.side,
+      // As far as the share says, but never so far that an eye leaves this body.
+      y: Math.max(-reach.up, Math.min(reach.down, -lift * SLIDE_Y * (share / DEFAULT_TURN) * H)),
       sx: 1 - Math.abs(f) * SQUEEZE,
     },
-    pupils: { x: f * room.x * 0.3, y: -lift * room.y * 0.4 },
-    glints: { x: f * room.x * 0.3 },
-    antenna: { x: f * share * W * 1.1 },
-    body: { sx: 1 - Math.abs(f) * 0.04 },
+    pupils: { x: f * room.x * PUPIL_X, y: -lift * room.y * PUPIL_Y },
+    glints: { x: f * room.x * PUPIL_X },
+    antenna: { x: f * reach.side * 1.1 },
+    body: { sx: 1 - Math.abs(f) * BODY_SQUEEZE },
     look: { turn: -f * LEAN_DEG * (1 - 2 * down) + tilt * TILT_DEG, y: -lift * LIFT },
   };
 }
