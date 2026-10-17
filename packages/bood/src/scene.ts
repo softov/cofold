@@ -55,20 +55,23 @@ const path = (attrs: Record<string, string | number>): SvgNode => ({
 
 /**
  * The silhouette's flow as SVG: from its own outline through each frame and
- * back, eased in and out at every frame so the edge never jerks. The clock is
- * the `<svg>`'s own, so a mood change that redraws the body keeps its place.
+ * back, eased in and out at every frame so the edge never jerks, or at an even
+ * pace for a flow that glides. The clock is the `<svg>`'s own, so a mood
+ * change that redraws the body keeps its place.
  */
 function flowNode(d: string, flow: BodyFlow): SvgNode {
-  const values = [d, ...flow.frames, d];
+  const values = [d, ...flow.frames(), d];
   const gaps = values.length - 1;
+  const pace = flow.glide === true
+    ? { calcMode: "linear" }
+    : { keySplines: Array.from({ length: gaps }, () => "0.45 0 0.55 1").join(";"), calcMode: "spline" };
   return {
     tag: "animate",
     attrs: {
       attributeName: "d",
       values: values.join(";"),
       keyTimes: values.map((_, i) => (i / gaps).toFixed(4)).join(";"),
-      keySplines: Array.from({ length: gaps }, () => "0.45 0 0.55 1").join(";"),
-      calcMode: "spline",
+      ...pace,
       dur: `${flow.ms}ms`,
       begin: "0s",
       repeatCount: "indefinite",

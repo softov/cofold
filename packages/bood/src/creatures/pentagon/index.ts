@@ -10,6 +10,7 @@ export const SHARP_PENTAGON =
 export default defineCreature({
   id: "pentagon",
   released: true,
+  name: "Penta",
   parts: () => [{ d: BODY, width: 45, shape: true }],
   eyes: { centerX: 4250, centerY: 2600, gap: 810, scale: 0.7 },
   mouth: { x: 4250, y: 3650 },

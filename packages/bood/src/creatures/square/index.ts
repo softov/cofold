@@ -7,6 +7,7 @@ export const SQUARE =
 export default defineCreature({
   id: "square",
   released: true,
+  name: "Cubbi",
   parts: () => [{ d: SQUARE, width: 45, shape: true }],
   eyes: { centerX: 4250, centerY: 2600, gap: 810, scale: 0.7 },
   mouth: { x: 4250, y: 3650 },

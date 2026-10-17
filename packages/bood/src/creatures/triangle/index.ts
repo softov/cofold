@@ -7,6 +7,7 @@ export const TRIANGLE =
 export default defineCreature({
   id: "triangle",
   released: true,
+  name: "Trilo",
   parts: () => [{ d: TRIANGLE, width: 45, shape: true }],
   eyes: { centerX: 4250, centerY: 3400, gap: 790, scale: 0.68 },
   mouth: { x: 4250, y: 4450 },

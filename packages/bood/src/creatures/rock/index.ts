@@ -27,6 +27,7 @@ const TOP = smooth([
 export default defineCreature({
   id: "rock",
   released: true,
+  name: "Rocky",
   parts: () => [
     { d: BODY, width: 45, shape: true },
     { d: TOP, width: 30, light: true, detail: true, opacity: 0.35 },

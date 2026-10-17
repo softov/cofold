@@ -22,6 +22,7 @@ const PEPPERONI = [
 export default defineCreature({
   id: "pizza",
   released: true,
+  name: "Peppo",
   parts: () => [
     { d: BODY, width: 45, shape: true },
     { d: CRUST, width: 45, shape: true, dark: true },

@@ -10,6 +10,7 @@ const RIGHT_CHEEK = "M 5600 2400 C 5800 2700, 5800 3000, 5600 3200";
 export default defineCreature({
   id: "gumbo",
   released: true,
+  name: "Gumbo",
   parts: () => [
     { d: BODY, width: 45, shape: true },
     { d: LEFT_CHEEK, width: 20, opacity: 0.35, detail: true },

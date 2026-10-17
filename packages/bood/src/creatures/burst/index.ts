@@ -10,6 +10,7 @@ const BODY = rounded(
 export default defineCreature({
   id: "burst",
   released: true,
+  name: "Solar",
   parts: () => [{ d: BODY, width: 45, shape: true }],
   eyes: { centerX: 4250, centerY: 2600, gap: 650, scale: 0.64 },
   mouth: { x: 4250, y: 3350 },

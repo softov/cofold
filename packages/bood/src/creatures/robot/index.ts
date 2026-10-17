@@ -7,6 +7,7 @@ const BODY =
 export default defineCreature({
   id: "robot",
   released: true,
+  name: "Boppo",
   parts: () => [{ d: BODY, width: 50, shape: true }],
   eyes: { centerX: 4240, centerY: 2540, gap: 1000, scale: 0.75 },
   mouth: DEFAULT_MOUTH,

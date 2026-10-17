@@ -40,6 +40,7 @@ const browByMood: Partial<Record<BoodMood, string>> = {
 export default defineCreature({
   id: "owl",
   released: false,
+  name: "Olly",
   parts: (mood) => [
     { d: BODY, width: 20, shape: true },
     { d: NOSE, width: 20, detail: true, dark: true },

@@ -27,6 +27,7 @@ const BODY = (() => {
 export default defineCreature({
   id: "cross",
   released: true,
+  name: "Exo",
   parts: () => [{ d: BODY, width: 45, shape: true }],
   eyes: { centerX: 4250, centerY: 2550, gap: 600, scale: 0.6 },
   mouth: { x: 4250, y: 3200 },

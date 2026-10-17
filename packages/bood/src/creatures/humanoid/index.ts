@@ -17,6 +17,7 @@ const CREST_FILL =
 export default defineCreature({
   id: "humanoid",
   released: true,
+  name: "Frost",
   parts: () => [
     { d: HEAD, width: 34, shape: true },
     { d: LEFT_CHEEK, width: 4, fill: true, detail: true },

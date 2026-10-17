@@ -67,17 +67,34 @@ describe("creatures", () => {
       if (flow === undefined) continue;
       const silhouette = creatures[body].parts("idle").find((p) => p.shape);
       expect(silhouette).toBeDefined();
-      for (const frame of flow.frames)
+      for (const frame of flow.frames())
         expect(commands(frame)).toBe(commands(silhouette?.d ?? ""));
       const drawn = scene(body, { filled: true }).layers[0]?.nodes[0];
       expect(drawn?.children?.[0]?.tag).toBe("animate");
     }
   });
 
+  it("gives the flame new frames for every loop", () => {
+    const flow = creatures.flame.flow!;
+    const first = flow.frames();
+    const next = flow.frames();
+    expect(next).toHaveLength(first.length);
+    expect(next).not.toEqual(first);
+  });
+
   it("releases every body but the logo and the owl", () => {
     expect(BOOD_RELEASED).not.toContain("logo");
     expect(BOOD_RELEASED).not.toContain("owl");
     expect(BOOD_RELEASED).toHaveLength(32);
+  });
+
+  it("offers a name for every body, each name once", () => {
+    expect(creatures.robot.name).toBe("Boppo");
+    expect(creatures.jelly.name).toBe("Jello");
+    expect(creatures.slime.name).toBe("Goo");
+    const names = BOOD_BODIES.map((body) => creatures[body].name);
+    expect(names.every((name) => name !== "")).toBe(true);
+    expect(new Set(names).size).toBe(names.length);
   });
 });
 

@@ -9,6 +9,7 @@ const P =
 export default defineCreature({
   id: "logo",
   released: false,
+  name: "Doop",
   parts: () => [
     { d: D, width: 100 },
     { d: P, width: 100 },

@@ -15,6 +15,7 @@ const BODY = rounded(
 export default defineCreature({
   id: "leaf",
   released: true,
+  name: "Levi",
   parts: () => [{ d: BODY, width: 45, shape: true }],
   eyes: { centerX: 4250, centerY: 2450, gap: 700, scale: 0.66 },
   mouth: { x: 4250, y: 3450 },

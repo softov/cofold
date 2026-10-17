@@ -9,6 +9,7 @@ const RIGHT_RIDGE = "M 5200 1150 Q 5600 2800 5300 4450";
 export default defineCreature({
   id: "jelly",
   released: true,
+  name: "Jello",
   parts: () => [
     { d: JELLY, width: 45, shape: true },
     { d: LEFT_RIDGE, width: 40, opacity: 0.35, detail: true },

@@ -15,6 +15,7 @@ const BODY = rounded(
 export default defineCreature({
   id: "slant",
   released: true,
+  name: "Skew",
   parts: () => [{ d: BODY, width: 45, shape: true }],
   eyes: { centerX: 4300, centerY: 2600, gap: 800, scale: 0.7 },
   mouth: { x: 4250, y: 3550 },

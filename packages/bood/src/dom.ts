@@ -10,6 +10,7 @@
  */
 
 import { BOOD_H, BOOD_W, VIEW_BOX } from "./box.js";
+import { creatures } from "./creatures/index.js";
 import { cssFrames } from "./motion/sample.js";
 import { toSvg } from "./svg.js";
 import type { BoodLayer, BoodPlay, BoodScene, BoodTarget } from "./types.js";
@@ -134,6 +135,16 @@ export function mountBood(container: HTMLElement, scene: BoodScene): BoodView {
         .flatMap((layer) => layer.nodes.map(toSvg))
         .join("");
     }
+    // At the end of each loop of a flowing outline, the next loop gets its frames anew, so a body
+    // whose frames are random never shows the same loop twice. Each loop starts and ends on the
+    // silhouette, so the swap happens where both loops meet.
+    const flow = creatures[next.body].flow;
+    const flowing = art.body?.querySelector('animate[attributeName="d"]');
+    if (flow === undefined || flowing === null || flowing === undefined) return;
+    flowing.addEventListener("repeatEvent", () => {
+      const silhouette = flowing.getAttribute("values")?.split(";")[0] ?? "";
+      flowing.setAttribute("values", [silhouette, ...flow.frames(), silhouette].join(";"));
+    });
   };
   draw(scene);
 

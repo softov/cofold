@@ -7,6 +7,7 @@ export const CIRCLE =
 export default defineCreature({
   id: "circle",
   released: true,
+  name: "Unno",
   parts: () => [{ d: CIRCLE, width: 45, shape: true }],
   eyes: { centerX: 4250, centerY: 2350, gap: 900, scale: 0.7 },
   mouth: { x: 4250, y: 3550 },

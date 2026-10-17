@@ -17,6 +17,7 @@ const BODY = (() => {
 export default defineCreature({
   id: "moon",
   released: true,
+  name: "Luna",
   parts: () => [{ d: BODY, width: 45, shape: true }],
   eyes: { centerX: 3500, centerY: 3350, gap: 600, scale: 0.6 },
   mouth: { x: 3500, y: 4100 },

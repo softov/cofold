@@ -10,6 +10,7 @@ const BODY =
 export default defineCreature({
   id: "bubble",
   released: true,
+  name: "Poppi",
   parts: () => [{ d: BODY, width: 45, shape: true }],
   eyes: { centerX: 4250, centerY: 2500, gap: 750, scale: 0.68 },
   mouth: { x: 4250, y: 3500 },

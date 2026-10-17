@@ -10,6 +10,7 @@ const TOP =
 export default defineCreature({
   id: "alien",
   released: true,
+  name: "Etto",
   parts: () => [
     { d: BODY, width: 45, shape: true },
     { d: TOP, width: 20, opacity: 0.35, detail: true },

@@ -15,6 +15,7 @@ const BODY = rounded(
 export default defineCreature({
   id: "rectangle",
   released: true,
+  name: "Brik",
   parts: () => [{ d: BODY, width: 45, shape: true }],
   eyes: { centerX: 4250, centerY: 2600, gap: 850, scale: 0.7 },
   mouth: { x: 4250, y: 3600 },

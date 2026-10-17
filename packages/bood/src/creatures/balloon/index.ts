@@ -21,6 +21,7 @@ const STRING = "M 4250 4250 C 4050 4500 4500 4650 4300 4950";
 export default defineCreature({
   id: "balloon",
   released: true,
+  name: "Floo",
   parts: () => [
     { d: BODY, width: 45, shape: true },
     { d: KNOT, width: 45, shape: true },

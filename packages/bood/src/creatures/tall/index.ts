@@ -15,6 +15,7 @@ const BODY = rounded(
 export default defineCreature({
   id: "tall",
   released: true,
+  name: "Tau",
   parts: () => [{ d: BODY, width: 45, shape: true }],
   eyes: { centerX: 4250, centerY: 1900, gap: 700, scale: 0.66 },
   mouth: { x: 4250, y: 2800 },

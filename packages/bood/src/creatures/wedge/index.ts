@@ -14,6 +14,7 @@ const BODY = rounded(
 export default defineCreature({
   id: "wedge",
   released: true,
+  name: "Ango",
   parts: () => [{ d: BODY, width: 45, shape: true }],
   eyes: { centerX: 3800, centerY: 3300, gap: 550, scale: 0.6 },
   mouth: { x: 3800, y: 4100 },

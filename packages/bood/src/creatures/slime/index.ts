@@ -72,11 +72,12 @@ const STEP_MS = 2600;
 export default defineCreature({
   id: "slime",
   released: true,
+  name: "Goo",
   parts: () => [{ d: BODY, width: 45, shape: true }],
   eyes: { centerX: 4250, centerY: 2700, gap: 800, scale: 0.72 },
   mouth: { x: 4250, y: 3700 },
   actions: ["wobble", "squash"],
-  flow: { frames: FLOW, ms: (FLOW.length + 1) * STEP_MS },
+  flow: { frames: () => FLOW, ms: (FLOW.length + 1) * STEP_MS },
   turn: 0.08,
 });
 

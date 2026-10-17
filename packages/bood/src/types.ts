@@ -144,9 +144,20 @@ export interface BodyPart {
  * instead of moving a layer, so it runs on the main thread.
  */
 export interface BodyFlow {
-  frames: string[];
+  /**
+   * The frames of one loop. A renderer that can asks again at every loop, so a
+   * body may give new frames each time, as the flame's random flicker does.
+   * Every call gives the same number of frames.
+   */
+  frames: () => string[];
   /** One loop through every frame and back to the silhouette. */
   ms: number;
+  /**
+   * True for frames that sample one smooth motion, which the outline passes
+   * through without slowing. Otherwise it eases into and out of every frame,
+   * as the slime does as it settles into each shape.
+   */
+  glide?: boolean;
 }
 
 export interface EyePlacement {
@@ -184,6 +195,8 @@ export interface BoodCreature {
   id: BoodBody;
   /** Offered when a new bot is made. A body still being fixed is not. */
   released: boolean;
+  /** The name a new bot of this body is offered, as ahpapp offered it. */
+  name: string;
   /** The body's paths for a mood. Most bodies are the same in every mood. */
   parts: (mood: BoodMood) => BodyPart[];
   eyes: EyePlacement;
