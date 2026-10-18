@@ -59,12 +59,21 @@ describe("a program", () => {
   it("refuses --json with --quiet", async () => {
     const harness = build();
     expect(await harness.program.run(["note", "list", "--json", "--quiet"])).toBe(2);
+    expect(harness.errors()).toBe("notes: --json and --quiet cannot be combined\n");
   });
 
   it("answers an unknown command with a suggestion and exit 2", async () => {
     const harness = build();
     expect(await harness.program.run(["note", "lst"])).toBe(2);
     expect(harness.errors()).toContain('Did you mean "note list"');
+  });
+
+  it("writes an unknown command as JSON under --json", async () => {
+    const harness = build();
+    expect(await harness.program.run(["note", "lst", "--json"])).toBe(2);
+    const failure = JSON.parse(harness.errors()) as { message: string; kind: string; exitCode: number };
+    expect(failure).toMatchObject({ kind: "argument", exitCode: 2 });
+    expect(failure.message).toContain('unknown command "note lst"');
   });
 
   it("shows help for a prefix that is not itself a command", async () => {
@@ -143,6 +152,21 @@ describe("a command that removes something", () => {
     expect(await removing(false).program.run(["pet", "remove", "7", "--yes"])).toBe(0);
   });
 
+  it("writes a removal without a terminal as JSON", async () => {
+    const harness = removing(false);
+    expect(await harness.program.run(["pet", "remove", "7", "--json"])).toBe(2);
+    const failure = JSON.parse(harness.errors()) as { message: string; kind: string; exitCode: number };
+    expect(failure).toMatchObject({ kind: "argument", exitCode: 2 });
+    expect(failure.message).toContain("pass --yes to run it without a terminal");
+  });
+
+  it("writes a refused removal as a JSON conflict", async () => {
+    const harness = removing(async () => false);
+    expect(await harness.program.run(["pet", "remove", "7", "--json"])).toBe(1);
+    expect(harness.errors()).toBe('{"message":"not run","kind":"conflict","exitCode":1}\n');
+    expect(harness.ran).toEqual([]);
+  });
+
   it("refuses a program that declares --yes itself", () => {
     expect(() => new Program({
       name: "x", version: "0", registry: createRegistry(),
@@ -167,6 +191,14 @@ describe("a command typed without its argument", () => {
     const harness = typed();
     expect(await harness.program.run(["note", "add"])).toBe(2);
     expect(harness.errors()).toBe("notes: \"note add\" needs text.\nUsage: notes note add <text>\n");
+  });
+
+  it("writes a missing argument as JSON with the usage in the message", async () => {
+    const harness = typed();
+    expect(await harness.program.run(["note", "add", "--json"])).toBe(2);
+    const failure = JSON.parse(harness.errors()) as { message: string; kind: string; exitCode: number };
+    expect(failure).toMatchObject({ kind: "argument", exitCode: 2 });
+    expect(failure.message).toContain("Usage: notes note add <text>");
   });
 
   it("names a variadic argument the same way", async () => {

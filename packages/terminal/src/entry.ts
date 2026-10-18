@@ -1,6 +1,8 @@
 import type { EntryOptions } from "./types/entry.js";
+import type { Io } from "@cofold/commands";
 import { stderr } from "node:process";
-import { exitCodeFor, CofoldError } from "@cofold/commands";
+import { CofoldError } from "@cofold/commands";
+import { failureOf, jsonRequested, redact, writeFailure } from "./failure.js";
 import type { Program } from "./program.js";
 
 /**
@@ -12,14 +14,10 @@ import type { Program } from "./program.js";
  * here.
  */
 
-export function redact(text: string, secrets: readonly (string | undefined)[]): string {
-  let redacted = text;
-  for (const secret of secrets) {
-    if (secret === undefined || secret.length < 8) continue;
-    redacted = redacted.split(secret).join("[redacted]");
-  }
-  return redacted;
-}
+/** Failures always go to stderr, so nothing here writes to stdout. */
+const stderrIo: Pick<Io, "err"> = {
+  err: (text) => { stderr.write(text); },
+};
 
 /** Run a program as a process: the exit code is the answer. */
 export async function runEntry(
@@ -32,19 +30,22 @@ export async function runEntry(
   } catch (error: unknown) {
     options.onError?.(error);
     const expected = error instanceof CofoldError;
-    const raw = expected
-      ? (error as CofoldError).message
-      : `${error instanceof Error ? error.message : "Unexpected failure"}`;
     let secrets: readonly (string | undefined)[] = [];
     try {
       secrets = options.secrets?.() ?? [];
     } catch {
       secrets = [];
     }
-    stderr.write(`${program.name}: ${redact(raw, secrets)}\n`);
+    // The run keeps the mode it chose; a parse failure did not choose one, so
+    // the words are read for a literal `--json` before `--`.
+    const mode = program.mode ?? (jsonRequested(argv) ? "json" : "plain");
+    const failure = failureOf(error, secrets);
+    writeFailure(stderrIo, program.name, failure, mode);
     if (!expected && process.env["COFOLD_TRACE"] !== undefined && error instanceof Error) {
       stderr.write(`${redact(error.stack ?? "", secrets)}\n`);
     }
-    process.exitCode = exitCodeFor(error);
+    process.exitCode = failure.exitCode;
   }
 }
+
+export { redact };

@@ -4,6 +4,7 @@ import { stdin as processStdin, stdout, stderr } from "node:process";
 import { createInterface } from "node:readline/promises";
 import {
   ArgumentError,
+  CofoldError,
   canonicalFromCli,
   commandPattern,
   compact,
@@ -20,6 +21,7 @@ import {
   type Output,
   type Runner,
 } from "@cofold/commands";
+import { failureOf, jsonRequested, writeFailure } from "./failure.js";
 import { completeWords, completionScript, COMPLETION_SHELLS } from "./completion.js";
 import { GLOBAL_NAMES, globalOptions } from "./globals.js";
 import { help } from "./help.js";
@@ -79,6 +81,7 @@ export class Program {
   readonly #io: Io;
   readonly #globals: readonly OptionSpec[];
   readonly #builtins: Command[] = [];
+  #mode: OutputMode | undefined;
 
   public constructor(options: ProgramOptions) {
     this.#options = options;
@@ -109,18 +112,34 @@ export class Program {
     return this.#globals;
   }
 
+  /**
+   * The mode of the latest run, or nothing when the run did not reach the choice.
+   *
+   * `runEntry` reads it in its `catch`, so a failure thrown after the mode was
+   * chosen is written in that mode rather than guessed from the words.
+   */
+  public get mode(): OutputMode | undefined {
+    return this.#mode;
+  }
+
   public async run(argv: readonly string[]): Promise<number> {
     this.#options.registry.verify();
+    this.#mode = undefined;
 
     const invocation = parse(this.commands, this.#globals, argv);
     const flag = (name: string): boolean => invocation.options[name] === true;
+    // Before the mode is chosen, the words are the only answer for the failures
+    // that come out of `run` rather than out of `runEntry`.
+    const before = jsonRequested(argv) ? "json" : "plain";
 
     if (flag("--version")) {
       this.#io.out(`${this.#options.version}\n`);
       return 0;
     }
     if (flag("--json") && flag("--quiet")) {
-      this.#io.err(`${this.name}: --json and --quiet cannot be combined\n`);
+      // There is no single mode to use, so the line stays the line.
+      writeFailure(this.#io, this.name,
+        failureOf(new ArgumentError("--json and --quiet cannot be combined")), "plain");
       return 2;
     }
 
@@ -163,17 +182,20 @@ export class Program {
       const missing = wanting === undefined ? undefined
         : parsePattern(wanting.pattern).find((token) => token.kind === "slot" && !token.optional);
       if (wanting !== undefined && missing?.kind === "slot") {
-        this.#io.err(`${this.name}: "${typed}" needs ${missing.name}.\nUsage: ${this.name} ${commandPattern(wanting)}\n`);
+        const message = `"${typed}" needs ${missing.name}.\nUsage: ${this.name} ${commandPattern(wanting)}`;
+        writeFailure(this.#io, this.name, failureOf(new ArgumentError(message)), before);
         return 2;
       }
       const known = [...new Set(visible(this.commands)
         .map((command) => literalPrefix(command).join(" ")))];
-      this.#io.err(`${this.name}: unknown command "${typed}".${didYouMean(typed, known)} Try ${this.name} --help\n`);
+      const message = `unknown command "${typed}".${didYouMean(typed, known)} Try ${this.name} --help`;
+      writeFailure(this.#io, this.name, failureOf(new ArgumentError(message)), before);
       return 2;
     }
 
     const command = invocation.command;
     const mode: OutputMode = flag("--json") ? "json" : flag("--quiet") ? "quiet" : "plain";
+    this.#mode = mode;
     const readStdin = this.#options.readStdin ?? readAllStdin;
 
     const globals = await canonicalFromCli(
@@ -193,11 +215,12 @@ export class Program {
       const what = removal(command, input);
       const confirm = this.#confirm();
       if (confirm === undefined) {
-        this.#io.err(`${this.name}: ${what}; pass --yes to run it without a terminal\n`);
+        const message = `${what}; pass --yes to run it without a terminal`;
+        writeFailure(this.#io, this.name, failureOf(new ArgumentError(message)), mode);
         return 2;
       }
       if (!await confirm(`${what}. Continue? [y/N] `)) {
-        this.#io.err(`${this.name}: not run\n`);
+        writeFailure(this.#io, this.name, failureOf(new CofoldError("conflict", "not run")), mode);
         return 1;
       }
     }

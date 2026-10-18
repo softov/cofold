@@ -14,9 +14,11 @@ export { emit, renderPlain } from "./output.js";
 export { parse } from "./parse.js";
 export { renderDefinitions, renderDocument, renderJson, renderTable, styleFor } from "./render.js";
 export { Program, processIo } from "./program.js";
-export { redact, runEntry } from "./entry.js";
+export { failureOf, redact, writeFailure } from "./failure.js";
+export { runEntry } from "./entry.js";
 
 export type { EntryOptions } from "./types/entry.js";
+export type { Failure } from "./types/failure.js";
 export type { HelpOptions } from "./types/help.js";
 export type { Invocation } from "./types/invocation.js";
 export type { OutputMode, Style } from "./types/output.js";
