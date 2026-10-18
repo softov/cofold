@@ -83,7 +83,7 @@ bin -> runEntry -> Program.run -> parse -> mode -> registry.execute -> throw -> 
 | [01 - runEntry writes a failure as JSON](task-01-run-entry-writes-a-failure-as-json.md) | implemented | - |
 | [02 - Program.run writes its failures as JSON](task-02-program-run-writes-its-failures-as-json.md) | implemented | 01 |
 | [03 - The manual shows a failure under --json](task-03-the-manual-shows-a-failure-under-json.md) | implemented | 01, 02 |
-| [04 - Release @cofold/terminal](task-04-release-cofold-terminal.md) | todo | 03 |
+| [04 - Release @cofold/terminal](task-04-release-cofold-terminal.md) | implemented | 03 |
 
 ## Risks and tradeoffs
 
@@ -92,8 +92,8 @@ bin -> runEntry -> Program.run -> parse -> mode -> registry.execute -> throw -> 
 
 ## Resume state
 
-- **Done so far:** the plan, 2026-10-16. Softov answered the open questions on 2026-10-16. Tasks 01, 02 and 03 implemented on 2026-10-18.
-- **Next action:** [task-04-release-cofold-terminal.md](task-04-release-cofold-terminal.md), which waits for Softov to publish.
+- **Done so far:** the plan, 2026-10-16. Softov answered the open questions on 2026-10-16. Tasks 01, 02 and 03 implemented on 2026-10-18. Task 04 implemented on 2026-10-18: `@cofold/terminal` 0.4.0 is on npm, from the tag `release-2026-10-18-2`.
+- **Next action:** Softov reviews tasks 01 to 04 and sets them to done. ahpd takes 0.4.0 in its plan daemon/32.
 - **Open questions:** none.
 - **Watch out for:** `Program.run` returns a code for three failures and throws for the others. Both paths now write through `writeFailure`.
 

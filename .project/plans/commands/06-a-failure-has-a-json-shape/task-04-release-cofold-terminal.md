@@ -1,6 +1,6 @@
 ---
 title: Release @cofold/terminal
-status: todo
+status: implemented
 depends:
   - task-03-the-manual-shows-a-failure-under-json.md
 layer: release
