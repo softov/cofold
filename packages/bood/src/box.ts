@@ -5,5 +5,10 @@ export const VIEW_BOX = `0 0 ${BOOD_W} ${BOOD_H}`;
 
 /** The middle of the box, which most moves turn about. */
 export const MIDDLE: [number, number] = [BOOD_W / 2, BOOD_H / 2];
+/**
+ * How far the eye sits from a layer that turns in depth (`yaw`, `pitch`), in
+ * drawing units. Close, so a small turn shows a clear near side and far side.
+ */
+export const BOOD_PERSPECTIVE = BOOD_W / 2;
 /** Near the feet, which a squash or a jump turns about. */
 export const FEET: [number, number] = [BOOD_W / 2, BOOD_H * 0.88];

@@ -287,8 +287,14 @@ export type BoodEasing =
   | "soft-spring"
   | { steps: number };
 
-/** The values a timeline moves. Distances are in drawing units, angles in degrees. */
-export type BoodChannel = "x" | "y" | "turn" | "skew" | "sx" | "sy" | "opacity";
+/**
+ * The values a timeline moves. Distances are in drawing units, angles in degrees.
+ * `yaw` and `pitch` turn a layer in depth, about an upright and a level axis
+ * through its origin, seen from `BOOD_PERSPECTIVE` away: the side that comes
+ * near grows and the side that goes far shrinks. Positive `yaw` brings the
+ * right side near, positive `pitch` the bottom.
+ */
+export type BoodChannel = "x" | "y" | "turn" | "skew" | "sx" | "sy" | "yaw" | "pitch" | "opacity";
 
 /** One value at one time, in ms from the timeline's start. The easing paces the change to the next key. */
 export interface BoodKey {

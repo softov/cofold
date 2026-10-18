@@ -7,7 +7,7 @@
  * every layer only moves and scales.
  */
 
-import { BOOD_H as H, BOOD_W as W, FEET, MIDDLE } from "../box.js";
+import { BOOD_H as H, BOOD_PERSPECTIVE, BOOD_W as W, FEET, MIDDLE } from "../box.js";
 import { creatures } from "../creatures/index.js";
 import { insideOutline, outline } from "../creatures/outline.js";
 import { eyeGeometry, pupilRoom } from "../face.js";
@@ -18,8 +18,7 @@ import type {
   BoodPlay,
   BoodTarget,
 } from "../types.js";
-import { all, move, repeat, seq, timeline, to } from "./build.js";
-import { antennaBase } from "./actions.js";
+import { REST, all, move, repeat, seq, timeline, to } from "./build.js";
 
 /** How a body holds its head. */
 export interface BoodPose {
@@ -29,6 +28,14 @@ export interface BoodPose {
   lift?: number;
   /** How far it tilts its head without looking anywhere, from -1 (to the viewer's left) to 1 (to the right). */
   tilt?: number;
+  /**
+   * How much bigger the side the head turns toward the viewer is drawn, and
+   * smaller the side it turns away, at a full turn or lift, as a ball's near
+   * side looms and its far side shrinks: facing left grows the right eye and
+   * shrinks the left, looking up grows the mouth and shrinks the eyes, and the
+   * other way round. 0.1 is a tenth each way. Default 0, a flat face.
+   */
+  depth?: number;
 }
 
 /**
@@ -65,6 +72,51 @@ export interface FaceRoom {
   side: number;
   up: number;
   down: number;
+}
+
+/** The point the body and its antenna turn about, in a turn of the head or in depth. */
+const BODY_ORIGIN: [number, number] = [W / 2, H / 2];
+
+/** How far a body's silhouette reaches from `BODY_ORIGIN` on each side, in drawing units. */
+interface Reach {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+/** Each body's reach in each mood, worked out once. */
+const reaches = new Map<string, Reach>();
+
+function bodyReach(body: BoodBody, mood: BoodMood): Reach {
+  const key = `${body}:${mood}`;
+  const held = reaches.get(key);
+  if (held !== undefined) return held;
+  const points = creatures[body]
+    .parts(mood)
+    .filter((part) => part.shape)
+    .flatMap((part) => outline(part.d).flat());
+  const [ox, oy] = BODY_ORIGIN;
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  // A body with no silhouette, such as the logo's strokes, turns as the whole box would.
+  const answer =
+    points.length === 0
+      ? { left: ox, right: W - ox, top: oy, bottom: H - oy }
+      : { left: ox - Math.min(...xs), right: Math.max(...xs) - ox, top: oy - Math.min(...ys), bottom: Math.max(...ys) - oy };
+  reaches.set(key, answer);
+  return answer;
+}
+
+/**
+ * The angle, in degrees, that turns in depth an edge `reach` from the axis by
+ * just enough to draw it `grow` times its size: seen from `BOOD_PERSPECTIVE`
+ * away, an edge brought `z` nearer is drawn `P / (P - z)` times bigger.
+ */
+function depthAngle(reach: number, grow: number): number {
+  if (grow <= 1 || reach <= 0) return 0;
+  const sine = Math.min(1, ((1 - 1 / grow) * BOOD_PERSPECTIVE) / reach);
+  return (Math.asin(sine) * 180) / Math.PI;
 }
 
 /** Each body's room in each mood, worked out once. */
@@ -143,6 +195,17 @@ function values(
   const room = pupilRoom(left, creature.iris);
   const reach = faceRoom(body, mood);
   const down = Math.max(0, -lift);
+  const depth = Math.max(0, pose.depth ?? 0);
+  // Each eye grows as it comes near and shrinks as it goes far, by the turn and by the lift.
+  const eye = (near: number) => (1 + depth * near) * (1 - depth * lift);
+  const mouth = 1 + depth * lift;
+  // With depth the body turns in depth instead of narrowing flat: its near
+  // edge, the right one facing left and the bottom one looking up, grows as
+  // much as the near eye does, and the far edge shrinks with it.
+  const far = bodyReach(body, mood);
+  const yaw = Math.sign(-f) * depthAngle(f < 0 ? far.right : far.left, 1 + depth * Math.abs(f));
+  const pitch = Math.sign(lift) * depthAngle(lift > 0 ? far.bottom : far.top, 1 + depth * Math.abs(lift));
+  const deep = depth > 0 ? { yaw, pitch } : {};
   // The face slides toward where it looks and narrows about its middle, so the
   // eyes come closer together instead of sliding off a narrow body. The dot
   // eyes lean with the head's turn and no further.
@@ -155,8 +218,11 @@ function values(
     },
     pupils: { x: f * room.x * PUPIL_X, y: -lift * room.y * PUPIL_Y },
     glints: { x: f * room.x * PUPIL_X },
-    antenna: { x: f * reach.side * 1.1 },
-    body: { sx: 1 - Math.abs(f) * BODY_SQUEEZE },
+    pupilL: { sx: eye(f), sy: eye(f) },
+    pupilR: { sx: eye(-f), sy: eye(-f) },
+    ...(creature.mouth === false ? {} : { mouth: { sx: mouth, sy: mouth } }),
+    antenna: { x: f * reach.side * 1.1, ...deep },
+    body: { sx: 1 - Math.abs(f) * (depth > 0 ? 0 : BODY_SQUEEZE), ...deep },
     look: { turn: -f * LEAN_DEG * (1 - 2 * down) + tilt * TILT_DEG, y: -lift * LIFT },
   };
 }
@@ -170,6 +236,12 @@ function eyeOrigins(
   return { pupilL: [left.cx, left.cy], pupilR: [right.cx, right.cy] };
 }
 
+/** The mouth grows about its own middle. */
+function mouthOrigin(body: BoodBody): Partial<Record<BoodTarget, [number, number]>> {
+  const mouth = creatures[body].mouth;
+  return mouth === false ? {} : { mouth: [mouth.x, mouth.y] };
+}
+
 /** Moves from one pose to another over `ms`, and holds it. */
 export function pose(
   body: BoodBody,
@@ -180,6 +252,14 @@ export function pose(
 ): BoodPlay {
   const start = values(body, mood, from);
   const end = values(body, mood, next);
+  // A channel the start moves and the end does not, as a turn in depth when
+  // depth is switched off, goes back to rest instead of jumping there.
+  for (const [target, channels] of Object.entries(start) as [BoodTarget, Partial<Record<BoodChannel, number>>][]) {
+    for (const channel of Object.keys(channels) as BoodChannel[]) {
+      const held = (end[target] ??= {});
+      held[channel] ??= REST[channel];
+    }
+  }
   const steps = (
     Object.entries(end) as [BoodTarget, Partial<Record<BoodChannel, number>>][]
   ).map(([target, channels]) => move(target, channels, ms, "ease-out"));
@@ -187,11 +267,13 @@ export function pose(
     timeline: timeline(all(...steps), {
       from: start,
       origins: {
-        body: [W / 2, H / 2],
+        body: BODY_ORIGIN,
         look: MIDDLE,
-        antenna: antennaBase(body),
+        // The antenna slides with the face and turns in depth with the body, so it turns about the body's middle.
+        antenna: BODY_ORIGIN,
         face: [creatures[body].eyes.centerX, creatures[body].eyes.centerY],
         ...eyeOrigins(body, mood),
+        ...mouthOrigin(body),
       },
     }),
     layers: [],

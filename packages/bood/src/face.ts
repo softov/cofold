@@ -4,6 +4,7 @@
  */
 
 import { faceColors } from "./color.js";
+import { outline } from "./creatures/outline.js";
 import type {
   AntennaPlacement,
   BoodCreature,
@@ -40,9 +41,10 @@ export function nextMood(mood: BoodMood): BoodMood {
 // Mouths.
 
 export const DEFAULT_MOUTH_SHAPES: Record<BoodMood, MouthShape> = {
-  idle: (x, y) => `M ${x - 410} ${y} Q ${x} ${y + 213} ${x + 410} ${y}`,
+  // At rest and watching, the mouth is the small, nearly level one of waiting.
+  idle: (x, y) => `M ${x - 328} ${y + 82} Q ${x} ${y + 115} ${x + 328} ${y + 82}`,
   observing: (x, y) =>
-    `M ${x - 410} ${y - 16} Q ${x} ${y + 246} ${x + 410} ${y - 16}`,
+    `M ${x - 328} ${y + 82} Q ${x} ${y + 115} ${x + 328} ${y + 82}`,
   thinking: (x, y) =>
     `M ${x - 360} ${y + 20} Q ${x} ${y + 100} ${x + 360} ${y - 40}`,
   planning: (x, y) =>
@@ -83,6 +85,77 @@ export function mouthPath(creature: BoodCreature, mood: BoodMood): string {
   if (creature.mouth === false) return "";
   const { x, y, shapes } = creature.mouth;
   return (shapes?.[mood] ?? DEFAULT_MOUTH_SHAPES[mood])(x, y);
+}
+
+/** How much narrower a fully open mouth is than the mood's mouth. */
+const TALK_NARROW = 0.3;
+/** How tall a fully open mouth is in its middle, as a share of the mood's mouth's width. */
+const TALK_HEIGHT = 0.5;
+/**
+ * How round the opening is across its width: below 1 the lips part almost as
+ * far near the corners as in the middle, as a mouth saying "ah", where a plain
+ * sine would come to a point at the bottom.
+ */
+const TALK_ROUND = 0.6;
+/** How much of the opening the upper lip takes as it lifts; the lower lip drops the rest. */
+const TALK_UPPER = 0.3;
+/** Points along each lip, so every opening has the same commands and one blends into the next. */
+const TALK_POINTS = 17;
+
+/** The line a talking mouth opens from: the mood's mouth when it is one open curve, else a level line as wide. */
+function lipLine(d: string): [number, number][] {
+  const polygons = outline(d);
+  const all = polygons.flat();
+  const first = polygons[0];
+  const curve =
+    polygons.length === 1 && first !== undefined && first.length > 1 &&
+    Math.hypot(first[0]![0] - first.at(-1)![0], first[0]![1] - first.at(-1)![1]) > 1;
+  const left = Math.min(...all.map(([x]) => x));
+  const right = Math.max(...all.map(([x]) => x));
+  const sorted = curve ? [...first!].sort((a, b) => a[0] - b[0]) : [];
+  // The curve's height at `x`, or the middle of the mouth for a level line.
+  const middle = (Math.min(...all.map(([, y]) => y)) + Math.max(...all.map(([, y]) => y))) / 2;
+  const at = (x: number): number => {
+    if (!curve) return middle;
+    const k = sorted.findIndex(([px]) => px >= x);
+    if (k <= 0) return sorted[0]![1];
+    const [x0, y0] = sorted[k - 1]!;
+    const [x1, y1] = sorted[k]!;
+    return x1 === x0 ? y1 : y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
+  };
+  return Array.from({ length: TALK_POINTS }, (_, i) => {
+    const x = left + ((right - left) * i) / (TALK_POINTS - 1);
+    return [x, at(x)];
+  });
+}
+
+/**
+ * The mouth opened `open` of the way, from 0 (the mood's mouth as a line) to 1,
+ * as it talks: it narrows toward its middle and opens most there, the lower
+ * lip dropping and the upper lifting a little, as a mouth shaping a vowel.
+ * A closed shape with the same commands at every opening, filled as well as
+ * stroked, so a renderer can set it every frame or blend between two. "" for
+ * a body with no mouth.
+ */
+export function mouthOpen(creature: BoodCreature, mood: BoodMood, open: number): string {
+  const d = mouthPath(creature, mood);
+  if (d === "") return "";
+  const o = Math.max(0, Math.min(1, open));
+  const line = lipLine(d);
+  const left = line[0]![0];
+  const right = line.at(-1)![0];
+  const centre = (left + right) / 2;
+  const height = TALK_HEIGHT * (right - left) * o;
+  const squeeze = 1 - TALK_NARROW * o;
+  const lip = (side: -1 | 1) =>
+    line.map(([x, y], i) => {
+      const swell = Math.sin((Math.PI * i) / (TALK_POINTS - 1)) ** TALK_ROUND;
+      const share = side < 0 ? TALK_UPPER : 1 - TALK_UPPER;
+      return `${Math.round(centre + (x - centre) * squeeze)} ${Math.round(y + side * share * height * swell)}`;
+    });
+  const upper = lip(-1);
+  const lower = lip(1).reverse();
+  return `M ${upper.join(" L ")} L ${lower.slice(1).join(" L ")} Z`;
 }
 
 // Eyes.

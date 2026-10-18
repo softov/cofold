@@ -10,15 +10,19 @@
  */
 
 export * from "./types.js";
-export { BOOD_H, BOOD_W, FEET, MIDDLE, VIEW_BOX } from "./box.js";
+export { BOOD_H, BOOD_PERSPECTIVE, BOOD_W, FEET, MIDDLE, VIEW_BOX } from "./box.js";
 export {
   BOOD_COLORS,
   FACE_INK,
   bodyBaseColor,
   bodyColor,
+  bodyTone,
+  contrast,
   darken,
   faceColors,
+  faceInk,
   lighten,
+  luminance,
 } from "./color.js";
 export {
   ANTENNA_DOT_R,
@@ -32,6 +36,7 @@ export {
   eyeGeometry,
   eyeShapeByMood,
   mouthColor,
+  mouthOpen,
   mouthPath,
   nextMood,
   pupilRoom,

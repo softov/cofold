@@ -11,6 +11,7 @@
 
 import { BOOD_H, BOOD_W, VIEW_BOX } from "./box.js";
 import { creatures } from "./creatures/index.js";
+import { mouthOpen } from "./face.js";
 import { cssFrames } from "./motion/sample.js";
 import { toSvg } from "./svg.js";
 import type { BoodLayer, BoodPlay, BoodScene, BoodTarget } from "./types.js";
@@ -30,6 +31,12 @@ export interface BoodView {
   play(play: BoodPlay, options?: { key?: string; rate?: number }): BoodPlaying;
   /** Stops the move under `key`. */
   stop(key: string): void;
+  /**
+   * Opens the mouth `open` of the way, from 0 to 1, as it talks. Call it every
+   * frame with a level read from the voice; 0 gives back the mood's own mouth.
+   * It redraws the mouth's path, so it runs on the main thread.
+   */
+  talk(open: number): void;
   /** Stops everything and removes the figure. */
   destroy(): void;
 }
@@ -81,6 +88,8 @@ export function mountBood(container: HTMLElement, scene: BoodScene): BoodView {
     position: "relative",
     width: "100%",
     aspectRatio: `${BOOD_W} / ${BOOD_H}`,
+    // A layer that turns in depth measures its perspective in this box's width (see cssTransform).
+    containerType: "inline-size",
   });
 
   const el: Partial<Record<BoodTarget, HTMLDivElement>> = {};
@@ -147,6 +156,24 @@ export function mountBood(container: HTMLElement, scene: BoodScene): BoodView {
     });
   };
   draw(scene);
+  let current = scene;
+
+  /** The mouth's path as the scene drew it, and its fill, to give back when it stops talking. */
+  const talk = (open: number) => {
+    const mouth = art.mouth?.querySelector("path");
+    if (mouth === null || mouth === undefined) return;
+    if (!mouth.hasAttribute("data-rest-d")) {
+      mouth.setAttribute("data-rest-d", mouth.getAttribute("d") ?? "");
+      mouth.setAttribute("data-rest-fill", mouth.getAttribute("fill") ?? "none");
+    }
+    if (open <= 0) {
+      mouth.setAttribute("d", mouth.getAttribute("data-rest-d") ?? "");
+      mouth.setAttribute("fill", mouth.getAttribute("data-rest-fill") ?? "none");
+      return;
+    }
+    mouth.setAttribute("d", mouthOpen(creatures[current.body], current.mood, open));
+    mouth.setAttribute("fill", mouth.getAttribute("stroke") ?? "none");
+  };
 
   const keyed = new Map<string, BoodPlaying>();
   const all = new Set<BoodPlaying>();
@@ -252,8 +279,12 @@ export function mountBood(container: HTMLElement, scene: BoodScene): BoodView {
 
   return {
     root,
-    setScene: draw,
+    setScene(next) {
+      current = next;
+      draw(next);
+    },
     play,
+    talk,
     stop(key) {
       keyed.get(key)?.cancel();
     },

@@ -21,6 +21,8 @@ export const REST: Record<BoodChannel, number> = {
   skew: 0,
   sx: 1,
   sy: 1,
+  yaw: 0,
+  pitch: 0,
   opacity: 1,
 };
 

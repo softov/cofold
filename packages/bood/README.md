@@ -17,6 +17,9 @@ view.play(pose("robot", "thinking", { facing: -1 }), { key: "pose" });
 view.play(action("robot", "radar", { color: "#2f9e5b" }), { key: "act" });
 ```
 
+A scene keeps the base colour in every mood unless it is asked for the mood's: `color: "mood"`. A picked colour, as `color: "#2f9e5b"`, holds whatever the mood.
+On a filled body, `mouthTone: "body"` draws the mouth in the body's own tone instead of ink: the body colour darker, or lighter on a body too dark for darker to show, as black or navy (`bodyTone`).
+
 ## What moves
 
 | Function | What it plays |
@@ -24,12 +27,14 @@ view.play(action("robot", "radar", { color: "#2f9e5b" }), { key: "act" });
 | `action(body, name, { color })` | One of a body's moves, such as `jump`, `roll` or `rubik`. Any body can play any move. |
 | `transit(kind, "hide" \| "show", { color })` | A way out or back in, such as `portal`, `dust` or `glitch`. The hide half holds the body hidden. |
 | `ambient(body, mood)` | The loops of a mood: breath, brows, the antenna's pulse, radar, waves and particles, an error's shake, a sad tear. |
-| `pose(body, mood, { facing, lift, tilt }, from)` | A head turn: the face slides and narrows toward where it looks, and the head rolls as a face on a ball does (up and left turns it clockwise). `tilt` leans the head left or right without looking anywhere. Held. |
+| `pose(body, mood, { facing, lift, tilt, depth }, from)` | A head turn: the face slides and narrows toward where it looks, and the head rolls as a face on a ball does (up and left turns it clockwise). `tilt` leans the head left or right without looking anywhere. `depth` draws the side turned toward the viewer bigger and the side turned away smaller, 0.1 for a tenth each way: facing left grows the right eye and shrinks the left, looking up grows the mouth and shrinks the eyes, and the other way round. Held. |
 | `walk(direction)` | Steps in place, and the distance the host moves the body over the same time. |
 | `blink`, `glance`, `swing`, `pop` | The small moments a host fires now and then. |
+| `view.talk(open)` | The mouth opened `open` of the way, 0 to 1, as it speaks: narrower, open most in the middle. Call it every frame with a level read from a voice; 0 gives the mood's mouth back. It redraws the mouth's path, so it runs on the main thread. `mouthOpen(creature, mood, open)` is the same shape as path data, for another renderer. |
 
 Each returns a `BoodPlay`: a timeline of keys per target and channel, and the effect layers the move draws while it plays.
 `cssFrames(timeline, target)` turns a timeline into Web Animations keyframes; `sampleKeys` reads any channel at any time for another renderer.
+Two channels turn a layer in depth, `yaw` and `pitch`, seen from `BOOD_PERSPECTIVE` drawing units away; only `pose` with a `depth` uses them. `cssFrames` writes that perspective in `cqw`, so the box spanning the drawing must be a size container, as `mountBood` makes it; another renderer converts `BOOD_PERSPECTIVE` to its own units, as React Native takes `perspective` in points.
 
 ## Renderers
 

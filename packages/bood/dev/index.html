@@ -7,7 +7,7 @@
     <link rel="icon" href="/src/creatures/robot/reference.svg" />
     <link rel="stylesheet" href="/dev/playground.css" />
   </head>
-  <body data-scheme="dark">
+  <body data-stage="dark">
     <header class="top">
       <h1>bood</h1>
       <span class="sub">@cofold/bood playground</span>
@@ -35,20 +35,46 @@
             <select id="mood"></select
           ></label>
           <div class="row swatches" id="colors"></div>
+          <details class="more">
+            <summary>More colours, to test</summary>
+            <div class="row swatches" id="moreColors"></div>
+            <label class="row"
+              >Any colour <input type="color" id="anyColor" value="#2f9e5b"
+            /></label>
+          </details>
           <div class="row toggles">
             <label><input type="checkbox" id="filled" checked /> Filled</label>
-            <label><input type="checkbox" id="brows" checked /> Brows</label>
+            <label><input type="checkbox" id="brows" /> Brows</label>
             <label><input type="checkbox" id="mouth" checked /> Mouth</label>
             <label><input type="checkbox" id="detail" checked /> Detail</label>
+            <label
+              ><input type="checkbox" id="mouthTone" checked /> Mouth in body
+              tone</label
+            >
           </div>
           <div class="row seg" id="eyes">
             <button data-eyes="dots" aria-pressed="true">Dot eyes</button>
             <button data-eyes="bood" aria-pressed="false">Ring eyes</button>
           </div>
           <div class="row seg" id="scheme">
-            <button data-scheme="dark" aria-pressed="true">Dark</button>
-            <button data-scheme="light" aria-pressed="false">Light</button>
+            <button data-scheme="dark" aria-pressed="true">Dark scheme</button>
+            <button data-scheme="light" aria-pressed="false">
+              Light scheme
+            </button>
           </div>
+        </section>
+
+        <section>
+          <h2>Background</h2>
+          <div class="row seg" id="background">
+            <button data-background="dark" aria-pressed="true">Dark</button>
+            <button data-background="light" aria-pressed="false">Light</button>
+            <button data-background="image" aria-pressed="false">Image…</button>
+          </div>
+          <input type="file" id="backgroundFile" accept="image/*" hidden />
+          <p class="hint small" id="backgroundName">
+            An image is shown from your computer, never sent anywhere.
+          </p>
         </section>
 
         <section>
@@ -93,6 +119,43 @@
           <label class="row"
             ><input type="checkbox" id="follow" /> Look at the pointer</label
           >
+          <label class="row slider"
+            ><span>Depth</span>
+            <input
+              type="range"
+              id="depth"
+              min="0"
+              max="0.2"
+              step="0.01"
+              value="0"
+            /><output id="depthOut">0%</output></label
+          >
+        </section>
+
+        <section>
+          <h2>Talk</h2>
+          <div class="row seg" id="talk">
+            <button data-talk="babble" aria-pressed="false">Babble</button>
+            <button data-talk="mic" aria-pressed="false">Microphone</button>
+            <button data-talk="file" aria-pressed="false">Audio…</button>
+            <button data-talk="off" aria-pressed="true">Off</button>
+          </div>
+          <input type="file" id="talkFile" accept="audio/*" hidden />
+          <label class="row slider"
+            ><span>Open</span>
+            <input
+              type="range"
+              id="open"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0"
+            /><output id="openOut">0.00</output></label
+          >
+          <p class="hint small" id="talkInfo">
+            Louder opens it more, and a high tone more than a low one. Audio
+            stays on this computer.
+          </p>
         </section>
 
         <section>

@@ -8,7 +8,7 @@
  */
 
 import { VIEW_BOX } from "./box.js";
-import { FACE_INK, bodyColor, darken, lighten } from "./color.js";
+import { FACE_INK, bodyBaseColor, bodyColor, bodyTone, darken, faceInk, lighten } from "./color.js";
 import { creatures } from "./creatures/index.js";
 import {
   ANTENNA_DOT_R,
@@ -36,7 +36,11 @@ import type {
 export interface SceneOptions {
   mood?: BoodMood;
   scheme?: BoodScheme;
-  /** The body colour a person picked; the mood's colour when unset. */
+  /**
+   * The body colour a person picked, or `"mood"` to take the mood's colour.
+   * Unset, the body keeps the base colour whatever the mood, so setting a mood
+   * on a bot never recolours it unasked.
+   */
   color?: string;
   /** Fill the silhouette with the body colour, and draw the face in ink over it. */
   filled?: boolean;
@@ -46,6 +50,12 @@ export interface SceneOptions {
   eyes?: "bood" | "dots";
   brows?: boolean;
   mouth?: boolean;
+  /**
+   * On a filled body, the mouth in the face's ink, or in the body's own tone:
+   * the body colour darker, or lighter on a body too dark for darker to show.
+   * Default `"ink"`. An outline body keeps the mood's mouth colour either way.
+   */
+  mouthTone?: "ink" | "body";
 }
 
 const path = (attrs: Record<string, string | number>): SvgNode => ({
@@ -85,7 +95,10 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
   const scheme = options.scheme ?? "dark";
   const filled = options.filled ?? false;
   const detail = options.detail ?? "full";
-  const color = options.color ?? bodyColor(mood, scheme);
+  const color =
+    options.color === "mood" ? bodyColor(mood, scheme) : (options.color ?? bodyBaseColor[scheme]);
+  // What the face is drawn in on a filled body: the ink, or a light tone on a body too dark for it.
+  const onBody = faceInk(color);
   const [left, right] = eyeGeometry(creature, mood, scheme);
   /**
    * A detail drawn on the silhouette, such as a cheek or a crest, is drawn in
@@ -93,7 +106,7 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
    * such as the logo's two strokes, keeps its colour.
    */
   const partColor = (part: { detail?: boolean }) =>
-    filled && part.detail === true ? FACE_INK : color;
+    filled && part.detail === true ? onBody : color;
   /** A shaded part, darker or lighter than the body, when the body is filled. */
   const shade = (part: { dark?: boolean; light?: boolean }) =>
     !filled
@@ -180,7 +193,7 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
     creature.brows !== false
   ) {
     const brows = browsByMood[mood];
-    const ink = filled ? FACE_INK : BROW_COLOR;
+    const ink = filled ? onBody : BROW_COLOR;
     const move = browTransform(creature);
     layers.push({
       target: "brows",
@@ -269,7 +282,7 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
               cy: eye.cy,
               rx: eye.rx * 0.3,
               ry: eye.ry * 0.45,
-              fill: filled ? FACE_INK : eye.ring,
+              fill: filled ? onBody : eye.ring,
               ...tilt(eye),
             },
           },
@@ -287,7 +300,7 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
           rx: eye.rx,
           ry: eye.ry,
           fill: filled ? "#ffffff" : "none",
-          stroke: filled ? FACE_INK : eye.ring,
+          stroke: filled ? onBody : eye.ring,
           "stroke-width": 50,
           ...tilt(eye),
         },
@@ -301,7 +314,7 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
           cx: eye.px,
           cy: eye.py,
           r: eye.pr,
-          fill: filled ? FACE_INK : eye.pupil,
+          fill: filled ? onBody : eye.pupil,
         },
       })),
     });
@@ -328,7 +341,7 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
         path({
           d: mouthPath(creature, mood),
           fill: "none",
-          stroke: filled ? FACE_INK : mouthColor(mood),
+          stroke: !filled ? mouthColor(mood) : options.mouthTone === "body" ? bodyTone(color) : onBody,
           "stroke-width": 100,
           "stroke-linecap": "round",
           "stroke-linejoin": "round",

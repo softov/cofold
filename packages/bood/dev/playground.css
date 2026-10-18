@@ -17,7 +17,7 @@
   color-scheme: dark;
 }
 
-body[data-scheme="light"] {
+body[data-stage="light"] {
   --stage: #f4f5f7;
   --floor: #e2e5ea;
 }
@@ -186,6 +186,38 @@ button:active {
   border-color: var(--line);
 }
 
+.more summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.more .swatches {
+  gap: 4px;
+}
+
+.more .swatches button {
+  width: 18px;
+  height: 18px;
+  border-width: 1px;
+}
+
+.more input[type="color"] {
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: none;
+}
+
+.hint.small {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .slider span {
   width: 44px;
 }
@@ -324,4 +356,19 @@ code {
   border: 1px solid #3b82f6;
   vertical-align: -1px;
   margin-right: 3px;
+}
+
+/*
+ * A picture from the person's computer behind the stage and every grid cell.
+ * Last, so the `background` shorthand of .stage and .cell does not reset it.
+ */
+.stage,
+#view-grid .cell {
+  background-image: var(--stage-image, none);
+  background-size: cover;
+  background-position: center;
+}
+
+body[data-stage="image"] .floor {
+  display: none;
 }

@@ -3,7 +3,7 @@
  * Web Animations API runs on its compositor.
  */
 
-import { BOOD_H, BOOD_W, MIDDLE } from "../box.js";
+import { BOOD_H, BOOD_PERSPECTIVE, BOOD_W, MIDDLE } from "../box.js";
 import type {
   BoodChannel,
   BoodKey,
@@ -63,14 +63,30 @@ const pct = (value: number, of: number) =>
  * A CSS transform for the values, turning and scaling about `origin`. It
  * carries its own origin, so moves with different origins add up on one
  * element. Percentages are of the element, which spans the drawing's box.
+ *
+ * With `deep`, it also turns in depth by `yaw` and `pitch`. The perspective
+ * is a length, which a percentage cannot be, so it is given in `cqw`: a
+ * renderer makes the box that spans the drawing a size container, and then a
+ * hundred `cqw` is the drawing's width at any size it is shown. Only a track
+ * that turns in depth is deep, so every other move stays a flat transform.
  */
 export function cssTransform(
   values: Record<BoodChannel, number>,
   origin: [number, number] = MIDDLE,
+  deep = false,
 ): string {
   const [ox, oy] = origin;
+  // CSS's rotateY brings the left side near and rotateX the top, so both turn the other way.
+  const depth = deep
+    ? [
+        `perspective(${Math.round((BOOD_PERSPECTIVE / BOOD_W) * 100000) / 1000}cqw)`,
+        `rotateY(${-values.yaw}deg)`,
+        `rotateX(${values.pitch}deg)`,
+      ]
+    : [];
   return [
     `translate(${pct(ox + values.x, BOOD_W)}, ${pct(oy + values.y, BOOD_H)})`,
+    ...depth,
     `rotate(${values.turn}deg)`,
     `skewX(${values.skew}deg)`,
     `scale(${values.sx}, ${values.sy})`,
@@ -108,13 +124,14 @@ export function cssFrames(
     (channel) => channel !== "opacity",
   );
   const fades = track.channels.opacity !== undefined;
+  const deep = track.channels.yaw !== undefined || track.channels.pitch !== undefined;
   const transform: CssFrame[] = [];
   const opacity: CssFrame[] = [];
   for (const t of sorted) {
     const values = sampleTrack(track, t);
     const offset = t / timeline.duration;
     if (moves)
-      transform.push({ offset, transform: cssTransform(values, track.origin) });
+      transform.push({ offset, transform: cssTransform(values, track.origin, deep) });
     if (fades) opacity.push({ offset, opacity: values.opacity });
   }
   return {

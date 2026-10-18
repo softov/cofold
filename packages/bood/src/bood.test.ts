@@ -10,12 +10,19 @@ import {
   ambient,
   blink,
   bodyOf,
+  BOOD_PERSPECTIVE,
+  BOOD_W,
+  FACE_INK,
+  bodyTone,
+  contrast,
   creatures,
   cssFrames,
   ease,
   glance,
   faceRoom,
   insideOutline,
+  mouthOpen,
+  mouthPath,
   outline,
   pose,
   referenceScene,
@@ -117,6 +124,63 @@ describe("scene", () => {
         ).toEqual(expect.arrayContaining(["pupilL", "pupilR"]));
       }
     }
+  });
+
+  it("keeps the base colour in every mood unless asked for the mood's", () => {
+    expect(scene("robot", { mood: "thinking" }).color).toBe("#2f9e5b");
+    expect(scene("robot", { mood: "thinking", scheme: "light" }).color).toBe("#247a46");
+    expect(scene("robot", { mood: "thinking", color: "mood" }).color).toBe("#7c3aed");
+    expect(scene("robot", { mood: "thinking", color: "#d7263d" }).color).toBe("#d7263d");
+  });
+
+  it("draws the mouth in the body's own tone when asked: darker, or lighter on a body too dark for darker", () => {
+    const mouthOf = (options: Parameters<typeof scene>[1]) =>
+      scene("robot", { mouth: true, filled: true, ...options }).layers.find((layer) => layer.target === "mouth")?.nodes[0]?.attrs.stroke;
+    expect(mouthOf({ color: "#2f9e5b" })).toBe(FACE_INK);
+    expect(mouthOf({ color: "#2f9e5b", mouthTone: "body" })).toBe("#184f2e");
+    expect(mouthOf({ color: "#000000", mouthTone: "body" })).toBe("#808080");
+    expect(mouthOf({ color: "#000000", mouthTone: "body", filled: false })).not.toBe("#808080");
+    for (const color of ["#000000", "#0f172a", "#1e40af", "#475569", "#7a5230", "#2f9e5b", "#f59e0b", "#f4f4f5", "#d7263d"])
+      expect(contrast(color, bodyTone(color))).toBeGreaterThanOrEqual(2);
+    expect(bodyTone("rebeccapurple")).toBe(FACE_INK);
+  });
+
+  it("draws the face light on a filled body too dark for the ink, and in ink on every other", () => {
+    const eyesOf = (color: string) =>
+      scene("robot", { color, filled: true }).layers.find((layer) => layer.target === "pupilL")?.nodes[0]?.attrs.fill;
+    expect(eyesOf("#2f9e5b")).toBe(FACE_INK);
+    expect(eyesOf("#7a5230")).toBe(FACE_INK);
+    for (const color of ["#000000", "#0f172a", "#1e293b"]) {
+      expect(eyesOf(color)).not.toBe(FACE_INK);
+      expect(contrast(color, String(eyesOf(color)))).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it("opens the mouth as it talks: narrower, open most in the middle, the same commands at every opening", () => {
+    const points = (d: string) => [...d.matchAll(/(-?\d+) (-?\d+)/g)].map((m) => [Number(m[1]), Number(m[2])] as const);
+    const span = (d: string) => {
+      const xs = points(d).map(([x]) => x);
+      return Math.max(...xs) - Math.min(...xs);
+    };
+    const robot = creatures.robot;
+    const closed = mouthOpen(robot, "idle", 0);
+    const open = mouthOpen(robot, "idle", 1);
+    // Closed, it lies on the mood's own curve: the lowest point is the curve's, halfway to its control point.
+    const { y } = robot.mouth as { y: number };
+    expect(Math.max(...points(closed).map(([, py]) => py))).toBeCloseTo(y + (82 + 115) / 2, -1);
+    expect(span(open)).toBeCloseTo(span(closed) * 0.7, -1);
+    // Open, the lips are far apart in the middle and meet at the corners.
+    const lips = points(open);
+    const middle = lips.filter(([x]) => Math.abs(x - (Math.min(...lips.map(([px]) => px)) + span(open) / 2)) < 30);
+    const gap = Math.max(...middle.map(([, py]) => py)) - Math.min(...middle.map(([, py]) => py));
+    expect(gap).toBeGreaterThan(0.5 * span(closed) * 0.9);
+    expect(points(open)[0]).toEqual(points(open).at(-1) ?? points(open)[0]);
+    const shape = (d: string) => d.replace(/-?\d+/g, "#");
+    expect(shape(mouthOpen(robot, "idle", 0.3))).toBe(shape(open));
+    expect(shape(mouthOpen(robot, "surprised", 0.3))).toBe(shape(open));
+    expect(mouthOpen(creatures.owl, "idle", 1)).toBe("");
+    expect(mouthOpen(robot, "idle", 2)).toBe(open);
+    expect(mouthPath(robot, "idle")).not.toBe(closed);
   });
 
   it("gives the robot an antenna and the circle none", () => {
@@ -235,6 +299,51 @@ describe("motion", () => {
     expect(turn({ facing: 1, lift: 1 })).toBeLessThan(0);
     expect(turn({ facing: -1, lift: -1 })).toBeLessThan(0);
     expect(turn({ facing: 1, lift: -1 })).toBeGreaterThan(0);
+  });
+
+  it("draws the near side bigger and the far side smaller with depth, and neither without it", () => {
+    const end = (play: BoodPlay, target: BoodTarget) => play.timeline.tracks[target]?.channels.sx?.at(-1)?.value;
+    const left = pose("robot", "idle", { facing: -1, depth: 0.1 });
+    expect(end(left, "pupilR")).toBeCloseTo(1.1);
+    expect(end(left, "pupilL")).toBeCloseTo(0.9);
+    const right = pose("robot", "idle", { facing: 1, depth: 0.1 });
+    expect(end(right, "pupilL")).toBeCloseTo(1.1);
+    expect(end(right, "pupilR")).toBeCloseTo(0.9);
+    const up = pose("robot", "idle", { facing: 0, lift: 1, depth: 0.1 });
+    expect(end(up, "mouth")).toBeCloseTo(1.1);
+    expect(end(up, "pupilL")).toBeCloseTo(0.9);
+    const down = pose("robot", "idle", { facing: 0, lift: -1, depth: 0.1 });
+    expect(end(down, "pupilL")).toBeCloseTo(1.1);
+    expect(end(down, "mouth")).toBeCloseTo(0.9);
+    const flat = pose("robot", "idle", { facing: -1, lift: 1 });
+    for (const target of ["pupilL", "pupilR", "mouth"] as const) expect(end(flat, target)).toBe(1);
+    expect(pose("owl", "idle", { facing: 0, lift: 1, depth: 0.1 }).timeline.tracks.mouth).toBeUndefined();
+    expectPlayable(left);
+  });
+
+  it("turns the body in depth with depth, its near edge growing by exactly that much, and stays flat without", () => {
+    const end = (play: BoodPlay, target: BoodTarget, channel: "yaw" | "pitch") =>
+      play.timeline.tracks[target]?.channels[channel]?.at(-1)?.value ?? 0;
+    const left = pose("square", "idle", { facing: -1, depth: 0.05 });
+    expect(end(left, "body", "yaw")).toBeGreaterThan(0);
+    expect(end(left, "antenna", "yaw")).toBe(end(left, "body", "yaw"));
+    expect(end(pose("square", "idle", { facing: 1, depth: 0.05 }), "body", "yaw")).toBeLessThan(0);
+    expect(end(pose("square", "idle", { facing: 0, lift: 1, depth: 0.05 }), "body", "pitch")).toBeGreaterThan(0);
+    expect(end(pose("square", "idle", { facing: 0, lift: -1, depth: 0.05 }), "body", "pitch")).toBeLessThan(0);
+    // An edge `reach` from the axis, brought near by the angle, is drawn P / (P - reach sin a) times bigger.
+    const right = Math.max(...outline(creatures.square.parts("idle")[0]!.d).flat().map(([x]) => x)) - BOOD_W / 2;
+    const near = BOOD_PERSPECTIVE / (BOOD_PERSPECTIVE - right * Math.sin((end(left, "body", "yaw") * Math.PI) / 180));
+    expect(near).toBeCloseTo(1.05, 6);
+    const flat = pose("square", "idle", { facing: -1, lift: 1 });
+    expect(flat.timeline.tracks.body?.channels.yaw).toBeUndefined();
+    expect(cssFrames(flat.timeline, "body").transform?.[0]?.transform).not.toContain("perspective");
+    expect(cssFrames(left.timeline, "body").transform?.at(-1)?.transform).toMatch(/perspective\(50cqw\) rotateY\(-[\d.]+deg\) rotateX\(0deg\)/);
+    // Switched off, the turn in depth eases back to flat instead of jumping.
+    const off = pose("square", "idle", { facing: -1 }, { facing: -1, depth: 0.05 });
+    const keys = off.timeline.tracks.body?.channels.yaw ?? [];
+    expect(keys[0]?.value).toBeGreaterThan(0);
+    expect(keys.at(-1)?.value).toBe(0);
+    expectPlayable(left);
   });
 
   it("tilts the head without looking anywhere", () => {

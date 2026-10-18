@@ -96,12 +96,13 @@ function outline(anchors: Anchor[]): string {
 
 /**
  * The flame at a lean, from -1 (right) through 0 (rest) to 1 (left), with the
- * side tips moved by their own offsets.
+ * side tips moved by their own offsets and the left dip moved `dip` down.
  */
-export function flame(lean: number, left: Point = [0, 0], right: Point = [0, 0]): string {
+export function flame(lean: number, left: Point = [0, 0], right: Point = [0, 0], dip = 0): string {
   const leaned = lean >= 0 ? mix(REST, LEAN_LEFT, lean) : mix(REST, LEAN_RIGHT, -lean);
   leaned[TIP_L] = moved(leaned[TIP_L]!, left);
   leaned[TIP_R] = moved(leaned[TIP_R]!, right);
+  leaned[DIP_L] = moved(leaned[DIP_L]!, [0, dip]);
   return outline(leaned);
 }
 
@@ -109,6 +110,12 @@ const BODY = flame(0);
 
 /** How far the side tips bob from rest, as [dx, dy]. */
 const SIDE_REACH: Point = [150, 180];
+
+/**
+ * How far the left dip bobs up or down. A lean lifts it to 1848 and the left tip
+ * can sink to 1780, so it never rises past the tip and the notch stays open.
+ */
+const DIP_REACH = 60;
 
 /** How many shapes one loop samples, enough that gliding between them reads as one smooth motion. */
 const STEPS = 15;
@@ -124,14 +131,15 @@ function wander(reach: number): (t: number) => number {
   return (t) => (reach * waves.reduce((sum, wave, k) => sum + wave * Math.sin((k + 1) * Math.PI * t), 0)) / most;
 }
 
-/** The shapes of one loop: the middle tongue leaning one way and the other at random, the side tips bobbing, from rest to rest. */
+/** The shapes of one loop: the middle tongue leaning one way and the other at random, the side tips and the left dip bobbing, from rest to rest. */
 function flicker(): string[] {
   const lean = wander(1);
   const left = [wander(SIDE_REACH[0]), wander(SIDE_REACH[1])] as const;
   const right = [wander(SIDE_REACH[0]), wander(SIDE_REACH[1])] as const;
+  const dip = wander(DIP_REACH);
   return Array.from({ length: STEPS }, (_, i) => {
     const t = (i + 1) / (STEPS + 1);
-    return flame(lean(t), [left[0](t), left[1](t)], [right[0](t), right[1](t)]);
+    return flame(lean(t), [left[0](t), left[1](t)], [right[0](t), right[1](t)], dip(t));
   });
 }
 
