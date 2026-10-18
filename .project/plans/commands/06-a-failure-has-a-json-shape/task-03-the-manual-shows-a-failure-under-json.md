@@ -1,6 +1,6 @@
 ---
 title: The manual shows a failure under --json
-status: todo
+status: implemented
 depends:
   - task-01-run-entry-writes-a-failure-as-json.md
   - task-02-program-run-writes-its-failures-as-json.md
@@ -33,3 +33,8 @@ The `Failure` section of the manual shows the JSON shape, the stream, and `write
 - `rg -n FACIO_TRACE docs packages` finds nothing.
 
 ## Resume
+
+Implemented 2026-10-18.
+`docs/commands/05-output.md` shows the JSON line on stderr, names the fields, shows `failureOf` and `writeFailure` for a program that fails before `runEntry`, and says `COFOLD_TRACE`.
+`packages/terminal/README.md` has the one-line note.
+`rg -n FACIO_TRACE docs packages` finds nothing.

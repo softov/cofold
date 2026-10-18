@@ -1,6 +1,6 @@
 ---
 title: Program.run writes its failures as JSON
-status: todo
+status: implemented
 depends:
   - task-01-run-entry-writes-a-failure-as-json.md
 layer: terminal
@@ -42,3 +42,13 @@ The exit codes stay as they are.
 - `pnpm -r typecheck` and the `@cofold/terminal` tests pass.
 
 ## Resume
+
+Implemented 2026-10-18.
+The five failures in `Program.run` go through `writeFailure`.
+`--json` with `--quiet` keeps the plain line.
+The missing slot and the unknown command look for a literal `--json`.
+The two removal failures use the chosen mode.
+Each keeps its exit code: 2, 2, 2, 2 and 1.
+`Program.mode` resets at the start of each run and is set when the mode is chosen.
+`program.test.ts` covers the JSON lines and keeps the plain-line tests.
+Checks: `pnpm build`, `pnpm typecheck` and `pnpm test` (79 files, 1067 tests) passed.

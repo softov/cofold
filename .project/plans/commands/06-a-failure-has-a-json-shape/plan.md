@@ -1,7 +1,7 @@
 ---
 title: A failure has a JSON shape under --json
 domain: commands
-status: planned
+status: active
 priority: medium
 created: 2026-10-16
 revalidated: 2026-10-16
@@ -80,9 +80,9 @@ bin -> runEntry -> Program.run -> parse -> mode -> registry.execute -> throw -> 
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - runEntry writes a failure as JSON](task-01-run-entry-writes-a-failure-as-json.md) | todo | - |
-| [02 - Program.run writes its failures as JSON](task-02-program-run-writes-its-failures-as-json.md) | todo | 01 |
-| [03 - The manual shows a failure under --json](task-03-the-manual-shows-a-failure-under-json.md) | todo | 01, 02 |
+| [01 - runEntry writes a failure as JSON](task-01-run-entry-writes-a-failure-as-json.md) | implemented | - |
+| [02 - Program.run writes its failures as JSON](task-02-program-run-writes-its-failures-as-json.md) | implemented | 01 |
+| [03 - The manual shows a failure under --json](task-03-the-manual-shows-a-failure-under-json.md) | implemented | 01, 02 |
 | [04 - Release @cofold/terminal](task-04-release-cofold-terminal.md) | todo | 03 |
 
 ## Risks and tradeoffs
@@ -92,10 +92,10 @@ bin -> runEntry -> Program.run -> parse -> mode -> registry.execute -> throw -> 
 
 ## Resume state
 
-- **Done so far:** the plan, 2026-10-16. Softov answered the open questions on 2026-10-16.
-- **Next action:** [task-01-run-entry-writes-a-failure-as-json.md](task-01-run-entry-writes-a-failure-as-json.md).
+- **Done so far:** the plan, 2026-10-16. Softov answered the open questions on 2026-10-16. Tasks 01, 02 and 03 implemented on 2026-10-18.
+- **Next action:** [task-04-release-cofold-terminal.md](task-04-release-cofold-terminal.md), which waits for Softov to publish.
 - **Open questions:** none.
-- **Watch out for:** `Program.run` returns a code for three failures and throws for the others. Both paths must write the same shape.
+- **Watch out for:** `Program.run` returns a code for three failures and throws for the others. Both paths now write through `writeFailure`.
 
 ## Final verification checklist
 

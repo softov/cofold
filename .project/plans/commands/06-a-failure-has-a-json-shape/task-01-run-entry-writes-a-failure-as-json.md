@@ -1,6 +1,6 @@
 ---
 title: runEntry writes a failure as JSON
-status: todo
+status: implemented
 depends: []
 layer: terminal
 refs:
@@ -44,3 +44,10 @@ Under `--json`, the failure is one flat JSON line on stderr.
 - `pnpm -r typecheck` and the `@cofold/terminal` tests pass.
 
 ## Resume
+
+Implemented 2026-10-18.
+`failureOf`, `writeFailure`, `jsonRequested` and `redact` live in `packages/terminal/src/failure.ts`; `Failure` lives in `packages/terminal/src/types/failure.ts`.
+`redact` moved from `entry.ts` to `failure.ts` so the plain line and the JSON share one definition; `entry.ts` re-exports it.
+`runEntry` takes `program.mode`, else a literal `--json` before `--`, and keeps the `COFOLD_TRACE` stack as plain text after the JSON line.
+`entry.test.ts` covers the five cases in Validation, the literal fallback, the `--` boundary and the stack.
+Checks: `pnpm build`, `pnpm typecheck` and `pnpm test` (79 files, 1067 tests) passed.

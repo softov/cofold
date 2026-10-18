@@ -18,7 +18,7 @@ Reference: [00-commands.md](commands/00-commands.md)
 | [03 - A command typed without its required argument says which argument it needs](commands/03-a-missing-argument-is-named/plan.md) | medium | built 2026-10-06 ([implemented.md](commands/03-a-missing-argument-is-named/implemented.md)) | - | ahpd daemon/09 task 03 |
 | [04 - An action declares what it does to what](commands/04-an-action-declares-what-it-does-to-what/plan.md) | high | built 2026-10-06 ([implemented.md](commands/04-an-action-declares-what-it-does-to-what/implemented.md)) | - | ahpd `/api/cli-manifest` resource explorer |
 | [05 - @cofold/yaml writes the subset it reads](commands/05-yaml-writes-the-subset-it-reads/plan.md) | high | built 2026-10-11 ([implemented.md](commands/05-yaml-writes-the-subset-it-reads/implemented.md)) | - | ahpd plugin 45, ahpd host 80 |
-| [06 - A failure has a JSON shape under --json](commands/06-a-failure-has-a-json-shape/plan.md) | medium | planned 2026-10-16 | - | ahpd daemon 32 |
+| [06 - A failure has a JSON shape under --json](commands/06-a-failure-has-a-json-shape/plan.md) | medium | active 2026-10-18 (tasks 01-03 implemented; task 04 release waits for Softov) | - | ahpd daemon 32 |
 
 Next free number in `commands`: `06`. The framework's open items live in [`/ROADMAP.md`](../../ROADMAP.md) until one is planned.
 
