@@ -235,12 +235,18 @@ export function mountBood(container: HTMLElement, scene: BoodScene): BoodView {
     if (what.clip === true) wipe.style.overflow = "hidden";
     let ended = false;
     let forgotten = false;
-    /** The effects go when the move ends. */
-    const end = () => {
-      if (ended) return;
-      ended = true;
-      for (const node of fx.values()) node.remove();
-      if (what.clip === true) wipe.style.overflow = "";
+    /**
+     * The effects go when the move ends. The clip goes too, except on a held
+     * move that finished: its end state is cut by the clip, so the clip stays
+     * until the move is cancelled.
+     */
+    const end = (cancelled: boolean) => {
+      if (!ended) {
+        ended = true;
+        for (const node of fx.values()) node.remove();
+      }
+      if (what.clip === true && (cancelled || what.hold !== true))
+        wipe.style.overflow = "";
     };
     /**
      * The handle goes when nothing of the move is left. A held move keeps its
@@ -258,17 +264,17 @@ export function mountBood(container: HTMLElement, scene: BoodScene): BoodView {
     const handle: BoodPlaying = {
       finished: Promise.all(animations.map((one) => one.finished)).then(
         () => {
-          end();
+          end(false);
           if (what.hold !== true) forget();
         },
         () => {
-          end();
+          end(true);
           forget();
         },
       ),
       cancel() {
         for (const one of animations) one.cancel();
-        end();
+        end(true);
         forget();
       },
     };

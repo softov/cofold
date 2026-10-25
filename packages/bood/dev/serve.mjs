@@ -15,6 +15,7 @@ import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = fileURLToPath(new URL("..", import.meta.url));
+const host = process.env.HOST ?? "127.0.0.1";
 const port = Number(process.env.PORT ?? 5199);
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -82,8 +83,8 @@ server.on("error", (error) => {
 });
 
 // The watchers and the compiler start once the port is ours, so a second run leaves nothing behind.
-server.listen(port, "127.0.0.1", () => {
-  console.log(`bood playground: http://127.0.0.1:${port}/`);
+server.listen(port, host, () => {
+  console.log(`bood playground: http://${host}:${port}/`);
   for (const folder of ["dist", "dev", "src"]) {
     watch(join(here, folder), { recursive: true }, (_, name) => {
       if (folder === "src" && !String(name).endsWith(".svg")) return;
