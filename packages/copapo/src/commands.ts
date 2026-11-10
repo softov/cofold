@@ -5,9 +5,10 @@ import type { RunOutcome, SessionUsage } from '@cofold/agents';
 import { AgentError } from '@cofold/agents';
 import type { CommandContext, OptionSpec } from '@cofold/commands';
 import { ArgumentError, createRegistry, output } from '@cofold/commands';
-import { providersOf } from '@cofold/model-openai-compat';
 import { createFileStore, resolveHome } from '@cofold/store-file';
 import { renderTable } from '@cofold/terminal';
+import { serveAcp } from './acp/server.js';
+import { VERSION, providersFor } from './app.js';
 import { compactedNotice } from './blocks.js';
 import { redactedConfig, renderUsage } from './commands/runtime.js';
 import { createChat } from './chat.js';
@@ -17,14 +18,14 @@ import { exportPath, toMarkdown } from './export.js';
 import { parseAnswers } from './questions.js';
 import { formatRule, parseRule } from './rules.js';
 import type { Chat } from './types/chat.js';
-import type { PapoConfig, RememberedSettings, RuleLists } from './types/config.js';
+import type { CopapoConfig, RememberedSettings, RuleLists } from './types/config.js';
 import type { Settings } from './types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 import type { Snapshot, Turn } from './types/turn.js';
 
 /** The three choices a session carries, as `say` and `session set` spell them. */
 const SETTING_FIELDS = {
-  model: { type: 'string', description: 'The model, as provider/model (see `papo models`)', cli: { short: '-m', value: 'PROVIDER/MODEL' } },
+  model: { type: 'string', description: 'The model, as provider/model (see `copapo models`)', cli: { short: '-m', value: 'PROVIDER/MODEL' } },
   permissions: { type: 'string', description: 'When a tool call stops to ask: default, acceptEdits, bypassPermissions or dontAsk', enum: [...PERMISSION_MODES], cli: { short: '-p', value: 'MODE' } },
   reasoning: { type: 'string', description: 'How much the model thinks first', enum: [...REASONING_LEVELS], cli: { short: '-t', value: 'LEVEL' } },
   autocompact: { type: 'string', description: 'Fold the conversation into a summary before it outgrows the context', enum: ['on', 'off'], cli: { short: '-a', value: 'on|off' } },
@@ -85,16 +86,16 @@ function appendRules(held: RuleLists | undefined, added: RuleLists): RuleLists {
 
 /** What every command shares: where the agent works, where sessions live, which file, which model. */
 export const GLOBALS: readonly OptionSpec[] = [
-  { name: '--workspace', short: '-w', value: 'DIR', description: 'Where the agent works; sessions are kept per workspace', env: 'PAPO_WORKSPACE' },
+  { name: '--workspace', short: '-w', value: 'DIR', description: 'Where the agent works; sessions are kept per workspace', env: 'COPAPO_WORKSPACE' },
   { name: '--home', value: 'DIR', description: 'Where sessions and skills are stored (default ~/.cofold)', env: 'COFOLD_HOME' },
   { name: '--config', short: '-c', value: 'FILE', description: 'Read this configuration file on top of the others' },
   { name: '--backend', short: '-b', value: 'NAME', description: 'What runs the conversation: cofold (the harness here) or claude (Claude Code, through its SDK)' },
 ];
 
 /** Everything a front needs, built once from the program-wide options. */
-export interface Papo {
+export interface Copapo {
   chat: Chat;
-  config: PapoConfig;
+  config: CopapoConfig;
   workspace: string;
   home: string;
   /**
@@ -105,11 +106,11 @@ export interface Papo {
 }
 
 /**
- * `Papo.remember` over `rememberConfig` with the arguments `loadConfig` had, so the file found is the one that was read.
+ * `Copapo.remember` over `rememberConfig` with the arguments `loadConfig` had, so the file found is the one that was read.
  * The mutation of `config` is the point: both backends hold this one object and read `model`, `permissions` and
  * `reasoning` from it when a new conversation starts.
  */
-export function rememberInto(args: { config: PapoConfig; cwd: string; env?: NodeJS.ProcessEnv; path?: string }): Papo['remember'] {
+export function rememberInto(args: { config: CopapoConfig; cwd: string; env?: NodeJS.ProcessEnv; path?: string }): Copapo['remember'] {
   return async (patch) => {
     const files = await rememberConfig({ cwd: args.cwd, ...(args.env !== undefined ? { env: args.env } : {}), ...(args.path !== undefined ? { path: args.path } : {}), patch });
     const { model, ...rest } = patch;
@@ -118,7 +119,7 @@ export function rememberInto(args: { config: PapoConfig; cwd: string; env?: Node
   };
 }
 
-export function openPapo(globals: Readonly<Record<string, unknown>>): Papo {
+export function openCopapo(globals: Readonly<Record<string, unknown>>): Copapo {
   const workspace = resolve(typeof globals['workspace'] === 'string' ? globals['workspace'] : process.cwd());
   // Checked here because the runtimes fail obscurely without it (the CLI reports a binary that "failed to launch").
   if (!isDirectory(workspace)) throw new ArgumentError(`workspace ${workspace} is not a directory`);
@@ -131,7 +132,7 @@ export function openPapo(globals: Readonly<Record<string, unknown>>): Papo {
   }
   const chat = config.backend === 'claude'
     ? createClaudeChat({ config, workspace, home })
-    : createChat({ store: createFileStore({ root: home }), config, providers: providersOf(config.providers), workspace, home });
+    : createChat({ store: createFileStore({ root: home }), config, providers: providersFor(config), workspace, home });
   return { chat, config, workspace, home, remember: rememberInto({ config, cwd: workspace, ...(path !== undefined ? { path } : {}) }) };
 }
 
@@ -145,27 +146,27 @@ function isDirectory(path: string): boolean {
  */
 export interface RegistryOptions {
   /** The screen; absent where there is no terminal to draw on. */
-  openScreen?: (papo: Papo, sessionId: string | undefined) => Promise<void>;
+  openScreen?: (copapo: Copapo, sessionId: string | undefined) => Promise<void>;
   /** How the service is built from the program-wide options; a test hands in a fake model here. */
-  open?: (globals: Readonly<Record<string, unknown>>) => Papo;
+  open?: (globals: Readonly<Record<string, unknown>>) => Copapo;
 }
 
-export function createPapoRegistry(options: RegistryOptions = {}) {
-  const open = options.open ?? openPapo;
-  let opened: Papo | undefined;
+export function createCopapoRegistry(options: RegistryOptions = {}) {
+  const open = options.open ?? openCopapo;
+  let opened: Copapo | undefined;
   const registry = createRegistry({
     groups: [
       { name: 'talk', title: 'Talking', agent: true },
       { name: 'sessions', title: 'Sessions', agent: true },
       { name: 'setup', title: 'Setup', agent: false },
     ],
-  }).provide('papo', {
+  }).provide('copapo', {
     description: 'The conversation service over the file store',
     resolve: (_deps, context: CommandContext) => {
       opened ??= open(context.globals);
       return opened;
     },
-    dispose: async (papo) => { await papo.chat.close(); },
+    dispose: async (copapo) => { await copapo.chat.close(); },
   });
 
   registry.action({
@@ -173,7 +174,7 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     group: 'talk',
     summary: 'Send one message and print the reply',
     description: 'Starts a session unless --session names one. Stops where the agent stops: a reply, or a decision to make.',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: {
       text: { type: 'string', description: 'What to say', minLength: 1 },
       session: { type: 'string', description: 'Continue this session', cli: { short: '-s', value: 'ID' } },
@@ -182,31 +183,31 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     required: ['text'],
     surfaces: { cli: { pattern: ['say', ':text'] }, mcp: true },
     examples: [
-      { command: 'papo say "What does this repository build?"', description: 'A new session' },
-      { command: 'papo say -s 01J... "And how is it tested?"', description: 'The next turn of it' },
-      { command: 'papo say -m or/qwen3 -t high "Plan the migration"', description: 'A new session on that model, thinking hard; the choices stay on the session' },
+      { command: 'copapo say "What does this repository build?"', description: 'A new session' },
+      { command: 'copapo say -s 01J... "And how is it tested?"', description: 'The next turn of it' },
+      { command: 'copapo say -m or/qwen3 -t high "Plan the migration"', description: 'A new session on that model, thinking hard; the choices stay on the session' },
     ],
-    run: async ({ input, papo }) => {
+    run: async ({ input, copapo }) => {
       const patch = settingsPatch(input);
-      const started = await withAgentErrors(() => papo.chat.say({
+      const started = await withAgentErrors(() => copapo.chat.say({
         text: input.text,
         ...(input.session !== undefined ? { sessionId: input.session } : {}),
         ...(Object.keys(patch).length > 0 ? { settings: patch } : {}),
       }));
-      let outcome = await papo.chat.wait(started.sessionId);
+      let outcome = await copapo.chat.wait(started.sessionId);
       let note: string | undefined;
       // The CLI's decision lives in the process that asked: this command cannot leave it for the next
       // one, so every decision the turn stops at is denied until the turn ends.
-      while (outcome?.status === 'awaiting' && papo.config.backend === 'claude') {
-        note = 'papo say cannot hold a decision on the claude backend: the tool was denied; use papo chat to approve tools';
-        await papo.chat.deny(started.sessionId, { reason: 'papo say exited before the decision was made; open papo chat to approve tools' });
-        outcome = await papo.chat.wait(started.sessionId);
+      while (outcome?.status === 'awaiting' && copapo.config.backend === 'claude') {
+        note = 'copapo say cannot hold a decision on the claude backend: the tool was denied; use copapo chat to approve tools';
+        await copapo.chat.deny(started.sessionId, { reason: 'copapo say exited before the decision was made; open copapo chat to approve tools' });
+        outcome = await copapo.chat.wait(started.sessionId);
       }
       // A choice made on a new session is the next one's default too (decision CLI-05.1); on a session that exists it stays
       // the session's. Written once the turn has settled, so a file that cannot be written does not leave a turn running unwatched.
       const remembered = input.session === undefined ? rememberedOf(patch) : {};
-      const files = Object.keys(remembered).length > 0 ? await papo.remember(remembered) : [];
-      const snapshot = await papo.chat.snapshot(started.sessionId);
+      const files = Object.keys(remembered).length > 0 ? await copapo.remember(remembered) : [];
+      const snapshot = await copapo.chat.snapshot(started.sessionId);
       return output(
         { sessionId: started.sessionId, runId: started.runId, outcome, pending: snapshot.pending, ...(note !== undefined ? { note } : {}), ...(files.length > 0 ? { remembered: files } : {}) },
         () => renderOutcome(snapshot, outcome, { runId: started.runId, ...(note !== undefined ? { note } : {}), remembered: files }),
@@ -219,7 +220,7 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     group: 'talk',
     summary: 'Hold a message to be the next turn of a session',
     description: 'Kept in this process only: it starts when the running turn ends (not after a cancel), or at once while nothing runs, and is gone with the process.',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: {
       session: { type: 'string', description: 'The session', minLength: 1 },
       text: { type: 'string', description: 'What to say next', minLength: 1 },
@@ -228,9 +229,9 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     },
     required: ['session', 'text'],
     surfaces: { cli: { pattern: ['queue', ':session', ':text'] }, mcp: true },
-    run: async ({ input, papo }) => {
+    run: async ({ input, copapo }) => {
       const patch = settingsPatch(input);
-      const queued = await withAgentErrors(() => papo.chat.queue({
+      const queued = await withAgentErrors(() => copapo.chat.queue({
         sessionId: input.session,
         text: input.text,
         ...(input.id !== undefined ? { id: input.id } : {}),
@@ -244,15 +245,15 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'unqueue',
     group: 'talk',
     summary: 'Drop a queued message',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: {
       session: { type: 'string', description: 'The session', minLength: 1 },
       id: { type: 'string', description: 'The queued message, as `session show` lists it', minLength: 1 },
     },
     required: ['session', 'id'],
     surfaces: { cli: { pattern: ['unqueue', ':session', ':id'] }, mcp: true },
-    run: async ({ input, papo }) => {
-      await withAgentErrors(() => papo.chat.unqueue(input.session, input.id));
+    run: async ({ input, copapo }) => {
+      await withAgentErrors(() => copapo.chat.unqueue(input.session, input.id));
       return output({ sessionId: input.session, id: input.id }, `Dropped ${input.id}\n`);
     },
   });
@@ -261,16 +262,16 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'approve',
     group: 'talk',
     summary: 'Let the waiting tool call run',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: {
       session: { type: 'string', description: 'The session waiting on it', minLength: 1 },
       always: { type: 'boolean', description: 'And every later call of the same tool in this session', default: false },
     },
     required: ['session'],
     surfaces: { cli: { pattern: ['approve', ':session'] }, mcp: true },
-    run: async ({ input, papo }) => {
-      await withAgentErrors(() => papo.chat.approve(input.session, { always: input.always }));
-      return settle(papo, input.session);
+    run: async ({ input, copapo }) => {
+      await withAgentErrors(() => copapo.chat.approve(input.session, { always: input.always }));
+      return settle(copapo, input.session);
     },
   });
 
@@ -278,16 +279,16 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'deny',
     group: 'talk',
     summary: 'Refuse the waiting tool call, or decline the waiting questions',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: {
       session: { type: 'string', description: 'The session waiting on it', minLength: 1 },
       reason: { type: 'string', description: 'Told to the model', cli: { short: '-r', value: 'TEXT' } },
     },
     required: ['session'],
     surfaces: { cli: { pattern: ['deny', ':session'] }, mcp: true },
-    run: async ({ input, papo }) => {
-      await withAgentErrors(() => papo.chat.deny(input.session, input.reason !== undefined ? { reason: input.reason } : {}));
-      return settle(papo, input.session);
+    run: async ({ input, copapo }) => {
+      await withAgentErrors(() => copapo.chat.deny(input.session, input.reason !== undefined ? { reason: input.reason } : {}));
+      return settle(copapo, input.session);
     },
   });
 
@@ -295,19 +296,19 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'answer',
     group: 'talk',
     summary: 'Answer the questions the agent asked',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: {
       session: { type: 'string', description: 'The session waiting on them', minLength: 1 },
       answers: { type: 'array', description: 'id=value, one per question; repeat an id for a multi-select', items: { type: 'string' }, minItems: 1 },
     },
     required: ['session', 'answers'],
     surfaces: { cli: { pattern: ['answer', ':session', ':answers...'] }, mcp: true },
-    examples: [{ command: 'papo answer 01J... scope=tests style=terse', description: 'Two answers' }],
-    run: async ({ input, papo }) => {
+    examples: [{ command: 'copapo answer 01J... scope=tests style=terse', description: 'Two answers' }],
+    run: async ({ input, copapo }) => {
       let answers;
       try { answers = parseAnswers(input.answers); } catch (error: unknown) { throw new ArgumentError((error as Error).message); }
-      await withAgentErrors(() => papo.chat.answer(input.session, answers));
-      return settle(papo, input.session);
+      await withAgentErrors(() => copapo.chat.answer(input.session, answers));
+      return settle(copapo, input.session);
     },
   });
 
@@ -315,12 +316,12 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'cancel',
     group: 'talk',
     summary: 'Stop the turn a session is on, or deny what it waits on',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: { session: { type: 'string', description: 'The session', minLength: 1 } },
     required: ['session'],
     surfaces: { cli: { pattern: ['cancel', ':session'] }, mcp: true },
-    run: async ({ input, papo }) => {
-      await withAgentErrors(() => papo.chat.cancel(input.session));
+    run: async ({ input, copapo }) => {
+      await withAgentErrors(() => copapo.chat.cancel(input.session));
       return output({ sessionId: input.session }, `Cancelled ${input.session}\n`);
     },
   });
@@ -330,12 +331,12 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     group: 'sessions',
     summary: 'What a session used: tokens by kind, steps, tool calls and refusals, per turn and in total',
     description: 'From the runtime\'s own records; counts are what the provider reported, and there is no price here.',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: { session: { type: 'string', description: 'The session', minLength: 1 } },
     required: ['session'],
     surfaces: { cli: { pattern: ['usage', ':session'] }, mcp: true },
-    run: async ({ input, papo }) => {
-      const used = await withAgentErrors(() => papo.chat.usage(input.session));
+    run: async ({ input, copapo }) => {
+      const used = await withAgentErrors(() => copapo.chat.usage(input.session));
       return output(used, () => renderUsage(used));
     },
   });
@@ -344,12 +345,12 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'session.list',
     group: 'sessions',
     summary: 'The sessions of this workspace, newest first',
-    needs: ['papo'],
+    needs: ['copapo'],
     surfaces: { cli: { pattern: ['session', 'list'] }, mcp: true },
-    run: async ({ papo }) => {
-      const rows = await papo.chat.sessions();
+    run: async ({ copapo }) => {
+      const rows = await copapo.chat.sessions();
       return output(rows, () => rows.length === 0
-        ? `No sessions in ${papo.workspace}\n`
+        ? `No sessions in ${copapo.workspace}\n`
         : renderTable(['id', 'state', 'updated', 'title'], rows.map((row) => [row.id, row.activity, row.updatedAt, row.title])));
     },
   });
@@ -359,15 +360,15 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     group: 'sessions',
     summary: 'The conversation of one session',
     description: 'What the model sees: after a compaction, the summary and what it did not cover. --all prints every turn, the compacted ones included.',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: {
       session: { type: 'string', description: 'The session', minLength: 1 },
       all: { type: 'boolean', description: 'Every message, the ones a compaction folded away included', default: false },
     },
     required: ['session'],
     surfaces: { cli: { pattern: ['session', 'show', ':session'] }, mcp: true },
-    run: async ({ input, papo }) => {
-      const snapshot = await withAgentErrors(() => papo.chat.snapshot(input.session, { all: input.all }));
+    run: async ({ input, copapo }) => {
+      const snapshot = await withAgentErrors(() => copapo.chat.snapshot(input.session, { all: input.all }));
       return output(snapshot, () => renderTranscript(snapshot));
     },
   });
@@ -376,16 +377,16 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'session.export',
     group: 'sessions',
     summary: 'Write the conversation as Markdown',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: {
       session: { type: 'string', description: 'The session', minLength: 1 },
-      out: { type: 'string', description: 'The file; default <workspace>/papo-<session>.md', cli: { short: '-o', value: 'FILE' } },
+      out: { type: 'string', description: 'The file; default <workspace>/copapo-<session>.md', cli: { short: '-o', value: 'FILE' } },
     },
     required: ['session'],
     surfaces: { cli: { pattern: ['session', 'export', ':session'] } },
-    run: async ({ input, papo }) => {
-      const snapshot = await withAgentErrors(() => papo.chat.snapshot(input.session));
-      const path = resolve(papo.workspace, input.out ?? exportPath(papo.workspace, input.session));
+    run: async ({ input, copapo }) => {
+      const snapshot = await withAgentErrors(() => copapo.chat.snapshot(input.session));
+      const path = resolve(copapo.workspace, input.out ?? exportPath(copapo.workspace, input.session));
       await writeFile(path, toMarkdown(snapshot), 'utf8');
       return output({ path }, `${path}\n`);
     },
@@ -396,23 +397,23 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     group: 'sessions',
     summary: 'Change what a session runs with',
     description: "The model, the permission mode, the thinking level and auto-compaction; each stays until changed again. --deny, --ask and --allow add rules to the session (the configuration's apply to every session); a rule is Tool or Tool(match), the match a glob over what the tool touches.",
-    needs: ['papo'],
+    needs: ['copapo'],
     input: { session: { type: 'string', description: 'The session', minLength: 1 }, ...SETTING_FIELDS, ...RULE_FIELDS },
     required: ['session'],
     surfaces: { cli: { pattern: ['session', 'set', ':session'] }, mcp: true },
     examples: [
-      { command: 'papo session set 01J... -p bypassPermissions', description: 'Stop asking on this session' },
-      { command: 'papo session set 01J... --deny "shell_exec(rm *)" --allow web_fetch', description: 'Two rules for this session' },
+      { command: 'copapo session set 01J... -p bypassPermissions', description: 'Stop asking on this session' },
+      { command: 'copapo session set 01J... --deny "shell_exec(rm *)" --allow web_fetch', description: 'Two rules for this session' },
     ],
-    run: async ({ input, papo }) => {
+    run: async ({ input, copapo }) => {
       const patch = settingsPatch(input);
       const added = rulesPatch(input);
       if (Object.keys(patch).length === 0 && added === undefined) throw new ArgumentError('nothing to set: give --model, --permissions, --reasoning, --autocompact, --deny, --ask or --allow');
-      if (added !== undefined) patch.rules = appendRules((await withAgentErrors(() => papo.chat.settings(input.session))).rules, added);
-      const settings = await withAgentErrors(() => papo.chat.configure(input.session, patch));
+      if (added !== undefined) patch.rules = appendRules((await withAgentErrors(() => copapo.chat.settings(input.session))).rules, added);
+      const settings = await withAgentErrors(() => copapo.chat.configure(input.session, patch));
       // The session's write came first: a pick that failed to reach the file still holds on the session (decision CLI-05.1).
       const remembered = rememberedOf(patch);
-      const files = Object.keys(remembered).length > 0 ? await papo.remember(remembered) : [];
+      const files = Object.keys(remembered).length > 0 ? await copapo.remember(remembered) : [];
       return output({ ...settings, ...(files.length > 0 ? { remembered: files } : {}) }, `${[renderSettings(settings), ...files.map((file) => `remembered in ${file}`)].join('\n')}
 `);
     },
@@ -422,13 +423,13 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'session.rules',
     group: 'sessions',
     summary: 'The permission mode and every rule a session runs under, with where each comes from',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: { session: { type: 'string', description: 'The session', minLength: 1 } },
     required: ['session'],
     surfaces: { cli: { pattern: ['session', 'rules', ':session'] }, mcp: true },
-    run: async ({ input, papo }) => {
-      const settings = await withAgentErrors(() => papo.chat.settings(input.session));
-      const rows = ruleRows(settings, papo.config.rules);
+    run: async ({ input, copapo }) => {
+      const settings = await withAgentErrors(() => copapo.chat.settings(input.session));
+      const rows = ruleRows(settings, copapo.config.rules);
       return output({ sessionId: input.session, mode: settings.permissions, rules: rows }, () => [
         `mode ${settings.permissions}`,
         ...(rows.length === 0 ? ['no rules'] : rows.map((row) => `${row.list.padEnd(5)} ${row.origin.padEnd(7)} ${formatRule(row)}`)),
@@ -441,12 +442,12 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'session.delete',
     group: 'sessions',
     summary: 'Remove a session and everything it holds',
-    needs: ['papo'],
+    needs: ['copapo'],
     input: { session: { type: 'string', description: 'The session', minLength: 1 } },
     required: ['session'],
     surfaces: { cli: { pattern: ['session', 'delete', ':session'] }, mcp: true },
-    run: async ({ input, papo }) => {
-      await withAgentErrors(() => papo.chat.remove(input.session));
+    run: async ({ input, copapo }) => {
+      await withAgentErrors(() => copapo.chat.remove(input.session));
       return output({ sessionId: input.session }, `Removed ${input.session}\n`);
     },
   });
@@ -455,12 +456,12 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'providers',
     group: 'setup',
     summary: 'The configured providers; the first answers when no model is chosen',
-    description: 'From the configuration (`providers`, or PAPO_BASE_URL as `default`). A model is written provider/model; `papo models <provider>` lists what one offers. The key itself is never printed.',
-    needs: ['papo'],
+    description: 'From the configuration (`providers`, or COPAPO_BASE_URL as `default`). A model is written provider/model; `copapo models <provider>` lists what one offers. The key itself is never printed.',
+    needs: ['copapo'],
     surfaces: { cli: { pattern: ['providers'] }, mcp: true },
-    run: async ({ papo }) => {
-      const rows = await papo.chat.providers();
-      const chosen = papo.config.model !== undefined;
+    run: async ({ copapo }) => {
+      const rows = await copapo.chat.providers();
+      const chosen = copapo.config.model !== undefined;
       return output(rows, () => renderTable(['provider', 'base url', 'key', ''],
         rows.map((row) => [row.id, row.baseUrl ?? '', row.key ? 'yes' : 'no', row.default ? (chosen ? 'default' : 'first listed') : ''])));
     },
@@ -471,15 +472,15 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     group: 'setup',
     summary: "The models the configured providers offer, or one provider's",
     description: "Every provider in turn; one that cannot be reached is reported on stderr and skipped, so a provider that is down never hides the others. Named, a provider's own error is the answer.",
-    needs: ['papo'],
-    input: { provider: { type: 'string', description: 'One provider (see `papo providers`)', minLength: 1 } },
+    needs: ['copapo'],
+    input: { provider: { type: 'string', description: 'One provider (see `copapo providers`)', minLength: 1 } },
     surfaces: { cli: { pattern: ['models', ':provider?'] }, mcp: true },
     examples: [
-      { command: 'papo models', description: 'Everything on offer' },
-      { command: 'papo models open_router', description: 'One provider' },
+      { command: 'copapo models', description: 'Everything on offer' },
+      { command: 'copapo models open_router', description: 'One provider' },
     ],
-    run: async ({ input, papo }) => {
-      const rows = await withAgentErrors(() => papo.chat.models(input.provider !== undefined ? { provider: input.provider } : {}));
+    run: async ({ input, copapo }) => {
+      const rows = await withAgentErrors(() => copapo.chat.models(input.provider !== undefined ? { provider: input.provider } : {}));
       return output(rows, () => renderTable(['model', 'name', 'context', 'tools', 'reasoning'],
         rows.map((row) => [row.ref, row.name, row.contextTokens ?? '', row.features.tools ? 'yes' : 'no', row.features.reasoning ? 'yes' : 'no'])));
     },
@@ -489,10 +490,10 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'skills',
     group: 'setup',
     summary: 'The skills the agent may read; send /<name> to invoke one',
-    needs: ['papo'],
+    needs: ['copapo'],
     surfaces: { cli: { pattern: ['skills'] }, mcp: true },
-    run: async ({ papo }) => {
-      const rows = await papo.chat.skills();
+    run: async ({ copapo }) => {
+      const rows = await copapo.chat.skills();
       return output(rows, () => renderTable(['skill', 'description'], rows.map((row) => [`/${row.name}`, row.description])));
     },
   });
@@ -501,11 +502,11 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'commands',
     group: 'setup',
     summary: "The runtime's commands and the skills; send /<name> in a message to run one",
-    needs: ['papo'],
+    needs: ['copapo'],
     effect: 'read',
     surfaces: { cli: { pattern: ['commands'] }, mcp: true },
-    run: async ({ papo }) => {
-      const rows = await papo.chat.commands();
+    run: async ({ copapo }) => {
+      const rows = await copapo.chat.commands();
       return output(rows, () => renderTable(['command', 'kind', 'description'],
         rows.map((row) => [`/${row.name}${row.argumentHint !== undefined ? ` ${row.argumentHint}` : ''}`, row.kind, row.description])));
     },
@@ -515,10 +516,10 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'config.show',
     group: 'setup',
     summary: 'The configuration in force, keys redacted',
-    needs: ['papo'],
+    needs: ['copapo'],
     surfaces: { cli: { pattern: ['config'] } },
-    run: ({ papo }) => {
-      const shown = redactedConfig(papo);
+    run: ({ copapo }) => {
+      const shown = redactedConfig(copapo);
       return output(shown, `${JSON.stringify(shown, null, 2)}\n`);
     },
   });
@@ -527,13 +528,34 @@ export function createPapoRegistry(options: RegistryOptions = {}) {
     id: 'chat',
     group: 'talk',
     summary: 'Open the screen',
-    description: 'What `papo` with no command does. Needs a terminal.',
-    needs: ['papo'],
+    description: 'What `copapo` with no command does. Needs a terminal.',
+    needs: ['copapo'],
     input: { session: { type: 'string', description: 'Open on this session', cli: { short: '-s', value: 'ID' } } },
     surfaces: { cli: { pattern: ['chat'] } },
-    run: async ({ input, papo }) => {
+    run: async ({ input, copapo }) => {
       if (options.openScreen === undefined) throw new ArgumentError('the screen is not available here');
-      await options.openScreen(papo, input.session);
+      await options.openScreen(copapo, input.session);
+    },
+  });
+
+  registry.action({
+    id: 'acp',
+    group: 'setup',
+    summary: 'Serve the Agent Client Protocol on stdin and stdout',
+    description: 'Run as an ACP agent for ahpd, Zed or another ACP client. Each session runs in the folder its client names. Stdout carries the protocol only; warnings go to stderr.',
+    needs: ['copapo'],
+    examples: [
+      { command: 'copapo acp', description: 'The agent an ACP client spawns' },
+      { command: 'copapo --backend claude acp', description: 'Claude Code behind the same protocol' },
+    ],
+    surfaces: { cli: { pattern: ['acp'] } },
+    run: async ({ copapo, globals }) => {
+      const server = serveAcp({
+        chatFor: (cwd) => (cwd === copapo.workspace ? copapo.chat : open({ ...globals, workspace: cwd }).chat),
+        workspace: copapo.workspace,
+        agentInfo: { name: 'copapo', title: 'copapo', version: VERSION },
+      });
+      await server.closed;
     },
   });
 
@@ -553,9 +575,9 @@ async function withAgentErrors<T>(work: () => Promise<T>): Promise<T> {
 }
 
 /** After a decision: wait for the run to settle and print where it got to. */
-async function settle(papo: Papo, sessionId: string) {
-  const outcome = await papo.chat.wait(sessionId);
-  const snapshot = await papo.chat.snapshot(sessionId);
+async function settle(copapo: Copapo, sessionId: string) {
+  const outcome = await copapo.chat.wait(sessionId);
+  const snapshot = await copapo.chat.snapshot(sessionId);
   return output({ sessionId, outcome, pending: snapshot.pending }, () => renderOutcome(snapshot, outcome, {}));
 }
 
@@ -590,7 +612,7 @@ function renderPending(snapshot: Snapshot): string[] {
     return [
       `Waiting: ${pending.call.confirmationTitle ?? pending.call.name}`,
       `  ${pending.call.name} ${pending.call.input ?? ''}`,
-      `  papo approve ${snapshot.session.id}   |   papo deny ${snapshot.session.id}`,
+      `  copapo approve ${snapshot.session.id}   |   copapo deny ${snapshot.session.id}`,
     ];
   }
   const lines = [`Waiting: ${pending.message}`];
@@ -598,7 +620,7 @@ function renderPending(snapshot: Snapshot): string[] {
     lines.push(`  ${question.id}: ${question.message}`);
     if (question.options !== undefined) lines.push(`    ${question.options.map((option) => option.label).join(' | ')}`);
   }
-  lines.push(`  papo answer ${snapshot.session.id} ${pending.questions.map((question) => `${question.id}=...`).join(' ')}`);
+  lines.push(`  copapo answer ${snapshot.session.id} ${pending.questions.map((question) => `${question.id}=...`).join(' ')}`);
   return lines;
 }
 

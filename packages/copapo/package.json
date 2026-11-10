@@ -1,14 +1,14 @@
 {
-  "name": "@cofold/papo",
+  "name": "@cofold/copapo",
   "version": "0.0.1",
-  "description": "papo: talk to an agent that runs in this process, at a terminal or from a shell.",
+  "description": "copapo: talk to an agent that runs in this process, at a terminal or from a shell.",
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "funding": "https://github.com/sponsors/softov",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/softov/cofold.git",
-    "directory": "packages/papo"
+    "directory": "packages/copapo"
   },
   "homepage": "https://github.com/softov/cofold#readme",
   "bugs": {
@@ -19,7 +19,7 @@
     "node": ">=22"
   },
   "bin": {
-    "papo": "./dist/main.js"
+    "copapo": "./dist/main.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -68,6 +68,7 @@
     }
   },
   "devDependencies": {
+    "@agentclientprotocol/sdk": "^1.8.0",
     "@anthropic-ai/claude-agent-sdk": "^0.3.273",
     "@textui/testing": "^0.6.1"
   }

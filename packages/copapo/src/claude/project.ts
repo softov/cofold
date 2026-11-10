@@ -10,7 +10,7 @@ const COMMAND_OUTPUT = /<local-command-stdout>([\s\S]*?)<\/local-command-stdout>
 const INTERRUPTED = /^\[Request interrupted by user[^\]]*\]$/;
 
 /**
- * A Claude Code session as papo's turns (CLI-03 decision 4). A top-level user message with text
+ * A Claude Code session as copapo's turns (CLI-03 decision 4). A top-level user message with text
  * starts a turn; the assistant's blocks become the parts; a `tool_result` closes its call. What the
  * store cannot say (running, waiting, failed) comes from `live`, this process's knowledge.
  *
@@ -110,7 +110,7 @@ function resultText(content: string | { type: string; text?: string }[]): string
   return typeof content === 'string' ? content : content.map((block) => block.text ?? `[${block.type}]`).join('\n');
 }
 
-/** The CLI's counts as papo's: cached input is input the model read. */
+/** The CLI's counts as copapo's: cached input is input the model read. */
 function add(usage: Usage, reported: ClaudeUsage | undefined): Usage {
   if (reported === undefined) return usage;
   return {

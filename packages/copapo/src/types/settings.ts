@@ -22,9 +22,9 @@ export interface Settings {
   autoCompact: boolean;
 }
 
-/** The four of the harness's modes papo offers (cli/03 F8), taken in the harness's order; `plan` and `auto` wait for a later plan. */
+/** The four of the harness's modes copapo offers (cli/03 F8), taken in the harness's order; `plan` and `auto` wait for a later plan. */
 const OFFERED_MODES: ReadonlySet<string> = new Set<PermissionMode>(['default', 'acceptEdits', 'bypassPermissions', 'dontAsk']);
 export const PERMISSION_MODES: readonly PermissionMode[] = HARNESS_PERMISSION_MODES.filter((mode): mode is PermissionMode => OFFERED_MODES.has(mode));
 
-/** The levels papo offers, which are the harness's, `off` first. */
+/** The levels copapo offers, which are the harness's, `off` first. */
 export const REASONING_LEVELS: readonly Reasoning[] = EFFORT_LEVELS;

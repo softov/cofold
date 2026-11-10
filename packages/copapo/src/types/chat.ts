@@ -1,12 +1,12 @@
 import type { AskAnswers, ModelInfo, ModelProvider, RunOutcome, SessionUsage, SkillIndexEntry, SlashCommandInfo, Store, Tool } from '@cofold/agents';
 import type { ClaudeSdkSubset } from './claude.js';
-import type { PapoConfig } from './config.js';
+import type { CopapoConfig } from './config.js';
 import type { Settings } from './settings.js';
 import type { SessionRow, Snapshot } from './turn.js';
 
 export interface ChatOptions {
   store: Store;
-  config: PapoConfig;
+  config: CopapoConfig;
   /** The configured providers, by the id a model reference names them with (decision 123): `providersOf(config.providers)`. */
   providers: ReadonlyMap<string, ModelProvider>;
   /** Where the agent works; the sessions' partition key. */
@@ -21,7 +21,7 @@ export interface ChatOptions {
 
 /** What `createClaudeChat` is built from: the CLI's runtime needs no provider and no store of its own. */
 export interface ClaudeChatOptions {
-  config: PapoConfig;
+  config: CopapoConfig;
   /** Where the CLI works; its sessions are kept per `cwd`. */
   workspace: string;
   /** The file store's root: a session's settings are kept in its kv, as the harness backend keeps them. */
@@ -197,6 +197,18 @@ export interface Chat {
    */
   usage(sessionId: string): Promise<SessionUsage>;
   remove(sessionId: string): Promise<void>;
+  /** A new, empty session that `say` takes by its id: what a client that names a session before its first message needs. */
+  create(): Promise<string>;
+  /**
+   * A new session with the whole conversation of this one and its settings; this one is left as it was.
+   * AgentError('writer_busy') while a turn of it runs or waits on a decision, AgentError('not_found') when it is not there.
+   */
+  fork(sessionId: string): Promise<SessionRow>;
+  /**
+   * How much of the context the conversation fills, as `/context` counts it: `used` tokens of `size`. Undefined
+   * where the runtime keeps the count to itself (the claude backend).
+   */
+  context(sessionId: string): Promise<{ used: number; size: number } | undefined>;
   /** Called with the session whose state changed; returns the unsubscribe. */
   subscribe(listener: ChatListener): () => void;
   /** Cancels every attached run that is working; one waiting on a decision is left `awaiting` for `resume()` (decision 122). */

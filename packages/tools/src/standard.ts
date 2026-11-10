@@ -9,7 +9,7 @@ import { brave } from './search/brave.js';
 import { tavily } from './search/tavily.js';
 import { duckduckgo } from './search/duckduckgo.js';
 
-/** The `tools` section of a program's configuration file, as papo wrote it (decision 123). */
+/** The `tools` section of a program's configuration file, as copapo wrote it (decision 123). */
 export const TOOLS_SCHEMA: JsonSchema = {
   type: 'object',
   properties: {

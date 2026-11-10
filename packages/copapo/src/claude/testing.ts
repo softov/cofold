@@ -102,6 +102,14 @@ export function fakeClaudeSdk(): FakeClaudeSdk {
       return messages;
     },
     deleteSession: async (sessionId) => { store.delete(sessionId); },
+    forkSession: async (sessionId) => {
+      const messages = store.get(sessionId);
+      if (messages === undefined) throw new Error(`session ${sessionId} not found`);
+      const forked = randomUUID();
+      store.set(forked, messages.map((message) => ({ ...message, session_id: forked })));
+      created.set(forked, Date.now());
+      return { sessionId: forked };
+    },
   };
   function fakeQuery(owner: FakeClaudeSdk, prompt: AsyncIterable<SDKUserMessage>, options: Options | undefined): ClaudeQuery {
     const record: FakeQueryRecord = { options, closed: false, model: options?.model };

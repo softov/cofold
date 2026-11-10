@@ -1,5 +1,5 @@
 export interface MemoryOptions {
-  /** The folder the memory files live in; the program chooses it (papo: `<home>/memory/<workspace slug>`). */
+  /** The folder the memory files live in; the program chooses it (copapo: `<home>/memory/<workspace slug>`). */
   dir: string;
   /** Lines of `MEMORY.md` carried in the instructions every run; default 200. */
   indexLines?: number;

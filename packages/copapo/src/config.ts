@@ -6,7 +6,7 @@ import { resolveConfig } from '@cofold/config';
 import { PROVIDER_SCHEMA } from '@cofold/model-openai-compat';
 import type { JsonSchema } from '@cofold/sdk';
 import { TOOLS_SCHEMA } from '@cofold/tools';
-import type { PapoConfig, ProviderConfig, RememberedSettings } from './types/config.js';
+import type { CopapoConfig, ProviderConfig, RememberedSettings } from './types/config.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 
 /** One permission rule as the file writes it: the tool (or `*`) and the glob over its subject (decision 117). */
@@ -19,7 +19,7 @@ const RULE: JsonSchema = {
 
 /**
  * The file's shape; `check` turns the first problem into a sentence naming the key. The `providers` entries and
- * the `tools` section are the library's schemas, composed here (decision 123): papo keeps only its own keys.
+ * the `tools` section are the library's schemas, composed here (decision 123): copapo keeps only its own keys.
  */
 const SCHEMA: JsonSchema = {
   type: 'object',
@@ -83,15 +83,15 @@ const BASE = {
 /**
  * The configuration, from every place it may be written.
  *
- * `@cofold/config` walks the layers (`~/.config/papo/config.json`, the nearest `.papo.json`,
- * `$PAPO_CONFIG`, `--config`); on top of them `PAPO_BASE_URL`, `PAPO_API_KEY` and `PAPO_MODEL` (or the
+ * `@cofold/config` walks the layers (`~/.config/copapo/config.json`, the nearest `.copapo.json`,
+ * `$COPAPO_CONFIG`, `--config`); on top of them `COPAPO_BASE_URL`, `COPAPO_API_KEY` and `COPAPO_MODEL` (or the
  * family's `COFOLD_*`, which the examples read too) add or replace a provider called `default`, which
  * is how a first run needs no file at all. A `COFOLD_MODEL` with no slash names a model of `default`.
- * `PAPO_BACKEND` picks the runtime.
+ * `COPAPO_BACKEND` picks the runtime.
  */
-export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: string }): PapoConfig {
+export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: string }): CopapoConfig {
   const env = args.env ?? process.env;
-  const resolved = resolveConfig({ name: 'papo', project: '.papo.json', base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
+  const resolved = resolveConfig({ name: 'copapo', project: '.copapo.json', base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
   try {
     check(resolved.values, SCHEMA, 'config');
   } catch (error: unknown) {
@@ -99,11 +99,11 @@ export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: 
     const files = resolved.layers.filter((layer) => layer.kind !== 'base').map((layer) => layer.path);
     throw new ConfigurationError(`${error.message}${files.length > 0 ? ` (read: ${files.join(', ')})` : ''}`);
   }
-  const config = structuredClone(resolved.values) as unknown as PapoConfig;
+  const config = structuredClone(resolved.values) as unknown as CopapoConfig;
 
-  // `PAPO_*` over `COFOLD_*`: the family's variables (what the examples read) reach papo too.
+  // `COPAPO_*` over `COFOLD_*`: the family's variables (what the examples read) reach copapo too.
   const variable = (name: string): string | undefined => {
-    const own = env[`PAPO_${name}`];
+    const own = env[`COPAPO_${name}`];
     const family = env[`COFOLD_${name}`];
     return own !== undefined && own !== '' ? own : family !== undefined && family !== '' ? family : undefined;
   };
@@ -115,17 +115,17 @@ export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: 
   }
   const model = variable('MODEL');
   if (model !== undefined) config.model = model.includes('/') ? model : `default/${model}`;
-  const backend = env['PAPO_BACKEND'];
+  const backend = env['COPAPO_BACKEND'];
   if (backend !== undefined && backend !== '') {
-    if (backend !== 'cofold' && backend !== 'claude') throw new ConfigurationError(`PAPO_BACKEND must be cofold or claude, not "${backend}"`);
+    if (backend !== 'cofold' && backend !== 'claude') throw new ConfigurationError(`COPAPO_BACKEND must be cofold or claude, not "${backend}"`);
     config.backend = backend;
   }
   return config;
 }
 
-/** `~/.config/papo/config.json`, `$XDG_CONFIG_HOME` honoured: where a field no file sets is written. */
+/** `~/.config/copapo/config.json`, `$XDG_CONFIG_HOME` honoured: where a field no file sets is written. */
 export function userConfigPath(env: NodeJS.ProcessEnv, home = homedir()): string {
-  return join(env['XDG_CONFIG_HOME'] ?? join(home, '.config'), 'papo', 'config.json');
+  return join(env['XDG_CONFIG_HOME'] ?? join(home, '.config'), 'copapo', 'config.json');
 }
 
 /** The indentation a JSON file uses (its first indented line), two spaces when it has none. */
@@ -146,7 +146,7 @@ export async function rememberConfig(args: { cwd: string; env?: NodeJS.ProcessEn
   const fields = (Object.entries(args.patch) as [keyof RememberedSettings, string | undefined][])
     .filter((entry): entry is [keyof RememberedSettings, string] => entry[1] !== undefined && !(entry[0] === 'model' && entry[1] === ''));
   if (fields.length === 0) return [];
-  const resolved = resolveConfig({ name: 'papo', project: '.papo.json', base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
+  const resolved = resolveConfig({ name: 'copapo', project: '.copapo.json', base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
   const files = new Map<string, Record<string, string>>();
   for (const [field, value] of fields) {
     const source = resolved.sourceOf(field);

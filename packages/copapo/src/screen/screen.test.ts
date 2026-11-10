@@ -10,7 +10,7 @@ import { createMemoryStore } from '@cofold/agents';
 import { createChat } from '../chat.js';
 import { rememberInto } from '../commands.js';
 import { deleteFileTool, fakeProvider, gateTool, providerMap, testChat, testConfig } from '../testing.js';
-import { registerPapo } from './app.js';
+import { registerCopapo } from './app.js';
 import type { Info } from './info.js';
 import { DRAFT, INFO, OPEN } from './state.js';
 
@@ -30,9 +30,9 @@ async function screen(args: { script: FakeStep[]; tools?: Tool<any, any>[]; home
     height: args.size?.height ?? 30,
     shell: 'workbench',
     theme: 'paper',
-    onBoot: (app) => registerPapo(app, {
-      // A no-op `remember`: the machine's own configuration file is not these tests' to write; the one that writes builds its own papo.
-      papo: { chat, config: testConfig(), workspace, home: args.home ?? '/nowhere', remember: async () => [] },
+    onBoot: (app) => registerCopapo(app, {
+      // A no-op `remember`: the machine's own configuration file is not these tests' to write; the one that writes builds its own copapo.
+      copapo: { chat, config: testConfig(), workspace, home: args.home ?? '/nowhere', remember: async () => [] },
       onQuit: () => { quit = true; },
     }),
   });
@@ -134,7 +134,7 @@ describe('the screen', () => {
       height: 30,
       shell: 'workbench',
       theme: 'paper',
-      onBoot: (app) => registerPapo(app, { papo: { chat, config, workspace: '/work', home: '/nowhere', remember: async () => [] }, onQuit: () => undefined }),
+      onBoot: (app) => registerCopapo(app, { copapo: { chat, config, workspace: '/work', home: '/nowhere', remember: async () => [] }, onQuit: () => undefined }),
     });
     await settle(t);
     t.press('n');
@@ -171,7 +171,7 @@ describe('the screen', () => {
       height: 30,
       shell: 'workbench',
       theme: 'paper',
-      onBoot: (app) => registerPapo(app, { papo: { chat, config, workspace: '/work', home: '/nowhere', remember: async () => [] }, onQuit: () => undefined }),
+      onBoot: (app) => registerCopapo(app, { copapo: { chat, config, workspace: '/work', home: '/nowhere', remember: async () => [] }, onQuit: () => undefined }),
     });
     await settle(t);
     t.press('n');
@@ -198,7 +198,7 @@ describe('the screen', () => {
   });
 
   it.each(SIZES)('offers the runtime commands, the skills and the client commands after a slash, each name once ($width x $height)', async (size) => {
-    const home = await mkdtemp(join(tmpdir(), 'papo-skills-'));
+    const home = await mkdtemp(join(tmpdir(), 'copapo-skills-'));
     await mkdir(join(home, 'skills', 'review'), { recursive: true });
     await writeFile(join(home, 'skills', 'review', 'SKILL.md'), ['---', 'name: review', 'description: Review the change', '---', 'Look hard.', ''].join('\n'));
     try {
@@ -333,7 +333,7 @@ describe('the screen', () => {
   });
 
   it('exports the conversation, retries the last message, clears to a new one, and changes the theme', async () => {
-    const workspace = await mkdtemp(join(tmpdir(), 'papo-ws-'));
+    const workspace = await mkdtemp(join(tmpdir(), 'copapo-ws-'));
     try {
       const { t } = await screen({ script: [{ text: 'First.' }, { text: 'Second.' }], workspace });
       t.press('n');
@@ -348,8 +348,8 @@ describe('the screen', () => {
       await settle(t);
       expect(t.hasText('Written to')).toBe(true);
       const [file] = await readdir(workspace);
-      expect(file).toMatch(/^papo-.*\.md$/);
-      expect(await readFile(join(workspace, file!), 'utf8')).toContain('## You\n\nSay it\n\n## papo\n\nFirst.');
+      expect(file).toMatch(/^copapo-.*\.md$/);
+      expect(await readFile(join(workspace, file!), 'utf8')).toContain('## You\n\nSay it\n\n## copapo\n\nFirst.');
       t.press('escape');
       await settle(t);
 
@@ -426,11 +426,11 @@ describe('the screen', () => {
   });
 
   it('remembers a chip\'s pick in the configuration file, and the next new conversation starts from it', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'papo-screen-remember-'));
+    const root = await mkdtemp(join(tmpdir(), 'copapo-screen-remember-'));
     const env: NodeJS.ProcessEnv = { XDG_CONFIG_HOME: join(root, 'config') };
-    const file = join(root, 'config', 'papo', 'config.json');
+    const file = join(root, 'config', 'copapo', 'config.json');
     try {
-      // What `openPapo` builds: one `config` the chat reads and `remember` writes, over a temp home so the machine's own file is untouched.
+      // What `openCopapo` builds: one `config` the chat reads and `remember` writes, over a temp home so the machine's own file is untouched.
       const config = testConfig();
       const chat = createChat({ store: createMemoryStore(), config, providers: providerMap(config, [fakeProvider([])]), workspace: root, home: '/nowhere', warn: () => {} });
       const t = await renderApp({
@@ -438,7 +438,7 @@ describe('the screen', () => {
         height: 30,
         shell: 'workbench',
         theme: 'paper',
-        onBoot: (app) => registerPapo(app, { papo: { chat, config, workspace: root, home: '/nowhere', remember: rememberInto({ config, cwd: root, env }) }, onQuit: () => undefined }),
+        onBoot: (app) => registerCopapo(app, { copapo: { chat, config, workspace: root, home: '/nowhere', remember: rememberInto({ config, cwd: root, env }) }, onQuit: () => undefined }),
       });
       await settle(t);
       t.press('n');

@@ -6,7 +6,7 @@ import { AgentError, INTERRUPTED, INTERRUPTED_TOOL, listPromptCommands, listSkil
 import { providerFor, splitModel } from '@cofold/model-openai-compat';
 import { fileSkillSource } from '@cofold/store-file';
 import { AGENT_ID, buildAgent } from './agent.js';
-import { runtimeCommands } from './commands/runtime.js';
+import { contextFill, runtimeCommands } from './commands/runtime.js';
 import { createQueues } from './queue.js';
 import { checkRules } from './rules.js';
 import { projectTurns, titleOf, viewOf } from './turns.js';
@@ -15,7 +15,7 @@ import type { Settings } from './types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 import type { Compaction, Draft, SessionActivity, SessionRow, Snapshot } from './types/turn.js';
 
-/** What a turn papo cut writes, whatever the reason: the runtime's own words, which the screen shows as a notice (agent/09). */
+/** What a turn copapo cut writes, whatever the reason: the runtime's own words, which the screen shows as a notice (agent/09). */
 const keepMarker = () => ({ turn: INTERRUPTED, tool: INTERRUPTED_TOOL });
 
 /** Where a turn stops: what a `wait` is handed, replaced when the turn goes on (decision 122). */
@@ -42,7 +42,7 @@ interface Attached {
   stop: Stop;
 }
 
-/** The package folder: `<here>/skills/<name>/SKILL.md` are the prompts papo ships. */
+/** The package folder: `<here>/skills/<name>/SKILL.md` are the prompts copapo ships. */
 const SHIPPED_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 /**
@@ -50,10 +50,10 @@ const SHIPPED_ROOT = fileURLToPath(new URL('..', import.meta.url));
  * capabilities' prompts, never the model, so this model refuses every request.
  */
 const LISTING_PROVIDER: ModelProvider = {
-  id: 'papo:listing',
+  id: 'copapo:listing',
   listModels: async () => [],
   model: ({ id }): ModelAdapter => ({
-    id: 'papo:listing',
+    id: 'copapo:listing',
     modelId: id,
     features: { tools: true, streaming: false, images: false, structuredOutput: false, reasoning: false },
     complete: () => Promise.reject(new AgentError({ code: 'invalid_options', message: 'the listing agent has no model' })),
@@ -62,7 +62,7 @@ const LISTING_PROVIDER: ModelProvider = {
 
 /** Where a session's own choices live in the workspace kv; the same key on both backends, so `session set` reads one thing. */
 export function settingsKey(sessionId: string): string {
-  return `papo/session/${sessionId}/settings`;
+  return `copapo/session/${sessionId}/settings`;
 }
 
 /**
@@ -74,9 +74,9 @@ export function settingsKey(sessionId: string): string {
  */
 export function createChat(options: ChatOptions): Chat {
   const { store, config, providers, workspace, home } = options;
-  // The person's skills first, then the ones papo ships (`/init`, `/review`), so a home skill of the same name wins.
+  // The person's skills first, then the ones copapo ships (`/init`, `/review`), so a home skill of the same name wins.
   const skillSources = [fileSkillSource({ root: home }), fileSkillSource({ root: SHIPPED_ROOT })];
-  const warn = options.warn ?? ((message: string) => process.stderr.write(`papo: ${message}\n`));
+  const warn = options.warn ?? ((message: string) => process.stderr.write(`copapo: ${message}\n`));
   const attached = new Map<string, Attached>();
   /**
    * What each compaction did, by its summary message's id (cli/03 F1, F7): read from `context.compacted` as the run
@@ -108,12 +108,12 @@ export function createChat(options: ChatOptions): Chat {
   const LISTING_MS = 15_000;
 
   /**
-   * The provider a model reference names (decision 123), papo's own hint coming first: it names the variable and
-   * papo's file, which the library must not know.
+   * The provider a model reference names (decision 123), copapo's own hint coming first: it names the variable and
+   * copapo's file, which the library must not know.
    */
   function providerOf(ref: string): { provider: ModelProvider; modelId: string } {
     if (providers.size === 0) {
-      throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set PAPO_BASE_URL or add one to ~/.config/papo/config.json' });
+      throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set COPAPO_BASE_URL or add one to ~/.config/copapo/config.json' });
     }
     return providerFor(providers, ref);
   }
@@ -125,7 +125,7 @@ export function createChat(options: ChatOptions): Chat {
     const first = config.providers[0];
     const provider = first !== undefined ? providers.get(first.id) : undefined;
     if (first === undefined || provider === undefined) {
-      throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set PAPO_BASE_URL or add one to ~/.config/papo/config.json' });
+      throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set COPAPO_BASE_URL or add one to ~/.config/copapo/config.json' });
     }
     const listed = await provider.listModels({ signal: AbortSignal.timeout(LISTING_MS) });
     const chosen = listed[0];
@@ -170,7 +170,7 @@ export function createChat(options: ChatOptions): Chat {
     };
   }
 
-  /** papo's runtime commands (AGENT-03.6), over the service's own settings, skills and models. */
+  /** copapo's runtime commands (AGENT-03.6), over the service's own settings, skills and models. */
   const commands: SlashCommand[] = runtimeCommands({
     config, workspace, home,
     settings: (sessionId) => settingsOf(sessionId),
@@ -326,7 +326,7 @@ export function createChat(options: ChatOptions): Chat {
   /**
    * "Always, this session" (decision CLI-04.5): the approved tool joins the session's allow list, where `session rules`
    * shows it and every later call of it runs unasked, as Claude's `updatedPermissions` does; the harness's own
-   * remembered approval (`alwaysApprove`) is not written by papo.
+   * remembered approval (`alwaysApprove`) is not written by copapo.
    */
   async function allowAlways(sessionId: string, run: RunRecord, requestId: string): Promise<void> {
     const pending = await store.requests.get({ sessionId, runId: run.runId, requestId });
@@ -371,7 +371,7 @@ export function createChat(options: ChatOptions): Chat {
 
     async models({ provider: only } = {}) {
       if (providers.size === 0) {
-        throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set PAPO_BASE_URL or add one to ~/.config/papo/config.json' });
+        throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set COPAPO_BASE_URL or add one to ~/.config/copapo/config.json' });
       }
       if (only !== undefined && !providers.has(only)) {
         throw new AgentError({ code: 'invalid_options', message: `provider "${only}" is not configured; configured: ${[...providers.keys()].join(', ')}` });
@@ -583,6 +583,46 @@ export function createChat(options: ChatOptions): Chat {
       notify(sessionId);
     },
 
+    async create() {
+      const id = newId();
+      await store.sessions.create({ sessionId: id, agentId: AGENT_ID, workspace });
+      notify(id);
+      return id;
+    },
+
+    async fork(sessionId) {
+      await requireSession(sessionId);
+      const run = await newest(sessionId);
+      if (run?.status === 'running' || run?.status === 'awaiting') {
+        throw new AgentError({ code: 'writer_busy', message: `session ${sessionId} has a turn in progress; wait for it or cancel it before forking` });
+      }
+      const messages = await store.sessions.listMessages({ sessionId });
+      const id = newId();
+      const last = messages.at(-1);
+      const record = last === undefined
+        ? await store.sessions.create({ sessionId: id, agentId: AGENT_ID, workspace })
+        : await store.sessions.fork({ fromSessionId: sessionId, throughMessageId: last.id, sessionId: id });
+      const own = await kv.get<Partial<Settings>>(settingsKey(sessionId));
+      if (own !== undefined) await kv.set(settingsKey(id), own);
+      notify(id);
+      return {
+        id,
+        title: titleOf(messages, id),
+        activity: 'idle',
+        ...(record.workspace !== undefined ? { workspace: record.workspace } : {}),
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      } satisfies SessionRow;
+    },
+
+    async context(sessionId) {
+      await requireSession(sessionId);
+      // Built on a model that is never called, as `commands()` is: counting needs the agent's estimator, not the network.
+      const agent = await agentWith(await settingsOf(sessionId), LISTING_PROVIDER, 'listing');
+      const { used, size } = contextFill(agent, await store.sessions.listMessages({ sessionId }));
+      return { used, size };
+    },
+
     subscribe(listener) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
@@ -590,13 +630,13 @@ export function createChat(options: ChatOptions): Chat {
 
     async close() {
       // A run waiting on a decision is left in the store (decision 122): leaving is not answering, and the run is
-      // reached by `resume()` later, as `papo say` then `papo approve` does. This process lets go of it rather than
+      // reached by `resume()` later, as `copapo say` then `copapo approve` does. This process lets go of it rather than
       // holding it, so a `resume()` here is not refused `writer_busy` afterwards (review fix 4). A turn still
       // working is cancelled, and both are waited for.
       const entries = [...attached.values()];
       for (const entry of entries) {
         if (entry.handle.status() === 'awaiting') entry.handle.detach();
-        else entry.handle.cancel({ reason: 'papo closed' });
+        else entry.handle.cancel({ reason: 'copapo closed' });
       }
       await Promise.allSettled(entries.map((entry) => entry.handle.outcome));
     },

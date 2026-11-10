@@ -15,7 +15,7 @@ const args: CapabilityArgs = { agentId: 't', sessionId: 's', runId: 'r', workspa
 const ctx: ToolContext = { agentId: 't', sessionId: 's', runId: 'r', callId: 'c', invocationId: 'i', signal, kv, resources: {} };
 
 const WORKSPACE = '/work';
-const MEMORY = '/home/papo/memory/ws';
+const MEMORY = '/home/copapo/memory/ws';
 const ids = (config: Parameters<typeof standardCapabilities>[0], placed: { workspace: string; memoryDir?: string }): string[] =>
   standardCapabilities(config, placed).map((capability) => capability.id);
 

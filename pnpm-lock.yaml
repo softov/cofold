@@ -79,32 +79,7 @@ importers:
         specifier: workspace:^
         version: link:../commands
 
-  packages/mcp:
-    dependencies:
-      '@cofold/commands':
-        specifier: workspace:^
-        version: link:../commands
-      '@cofold/sdk':
-        specifier: workspace:^
-        version: link:../sdk
-    devDependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: 1.30.0
-        version: 1.30.0(zod@4.3.6)
-      zod:
-        specifier: 4.3.6
-        version: 4.3.6
-
-  packages/model-openai-compat:
-    devDependencies:
-      '@cofold/agents':
-        specifier: workspace:*
-        version: link:../agents
-      '@cofold/sdk':
-        specifier: workspace:^
-        version: link:../sdk
-
-  packages/papo:
+  packages/copapo:
     dependencies:
       '@cofold/agents':
         specifier: workspace:^
@@ -143,12 +118,40 @@ importers:
         specifier: ^0.6.1
         version: 0.6.1
     devDependencies:
+      '@agentclientprotocol/sdk':
+        specifier: ^1.8.0
+        version: 1.9.0(zod@4.3.6)
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.3.273
         version: 0.3.273(@anthropic-ai/sdk@0.126.0(zod@4.3.6))(@modelcontextprotocol/sdk@1.30.0(zod@4.3.6))(zod@4.3.6)
       '@textui/testing':
         specifier: ^0.6.1
         version: 0.6.1
+
+  packages/mcp:
+    dependencies:
+      '@cofold/commands':
+        specifier: workspace:^
+        version: link:../commands
+      '@cofold/sdk':
+        specifier: workspace:^
+        version: link:../sdk
+    devDependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: 1.30.0
+        version: 1.30.0(zod@4.3.6)
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+
+  packages/model-openai-compat:
+    devDependencies:
+      '@cofold/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@cofold/sdk':
+        specifier: workspace:^
+        version: link:../sdk
 
   packages/remote:
     dependencies:
@@ -186,6 +189,11 @@ importers:
   packages/yaml: {}
 
 packages:
+
+  '@agentclientprotocol/sdk@1.9.0':
+    resolution: {integrity: sha512-saCOTPYBK1iqWqJFAYHXbg3+zCoFXyZZFoqQAwdTWkbrZZPpAETr80QOnYr2l+dzPwL0jpNhn3eDY8MoEIDbUA==}
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
 
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
@@ -1347,6 +1355,10 @@ packages:
     resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
 
 snapshots:
+
+  '@agentclientprotocol/sdk@1.9.0(zod@4.3.6)':
+    dependencies:
+      zod: 4.3.6
 
   '@ampproject/remapping@2.3.0':
     dependencies:

@@ -61,7 +61,7 @@ const named = splitModel(read.model)?.provider;
 | --- | --- |
 | `ProviderConfig` | `{ id, baseUrl, apiKey?, headers? }`; `id` is how a model reference names the entry (no slash, no whitespace) |
 | `PROVIDER_SCHEMA` | The entry's JSON Schema, for the `providers` array of the program's file |
-| `providersOf(configs)` | One `openaiCompatProvider` per entry, keyed by its `id`, in the configuration's order |
+| `providersOf(configs, { app? })` | One `openaiCompatProvider` per entry, keyed by its `id`, in the configuration's order; `app` goes to each |
 | `splitModel(ref)` | `<providerId>/<modelId>` at the first slash, so a model id keeps its own slashes; `undefined` when the reference has no slash or nothing on one side of it |
 | `providerFor(providers, ref)` | The provider the reference names and the model id to ask it for; `AgentError` with code `invalid_options` when the reference is malformed, no provider is configured, or none answers to the id |
 
@@ -72,7 +72,8 @@ const named = splitModel(read.model)?.provider;
 | `baseUrl` | required | `<baseUrl>/chat/completions` is called |
 | `model` | required | Provider model id; also the adapter's `modelId` |
 | `apiKey` | none | Sent as `Authorization: Bearer <key>`; a string, or a function called once per request attempt (so a retry gets a fresh token) whose result is never cached |
-| `headers` | `{}` | Extra request headers (e.g. OpenRouter's `HTTP-Referer`) |
+| `headers` | `{}` | Extra request headers; one of the same name, in any case, replaces the app's |
+| `app` | `DEFAULT_APP`: `{ name: 'cofold', version, url: 'https://github.com/softov/cofold' }` | The program that calls. Every request sends `User-Agent: <name>/<version>`. A base URL on `openrouter.ai` also gets `HTTP-Referer: <url>` and `X-OpenRouter-Title: <name>`, the two headers OpenRouter's app attribution reads |
 | `reasoningBudgets` | `{}` | Token budget per effort level (`{ xhigh: 32000 }`) for providers that take `max_tokens` instead of a level |
 | `features` | `{ tools: true, streaming: true, images: false, structuredOutput: false, reasoning: false }` | What the model actually supports; the adapter refuses a request that needs more, and `streaming: false` makes the loop call `complete()` instead of `stream()` |
 | `params` | `{}` | Default `ModelParams`; the request's own params win. A model given `params.reasoning` has `features.reasoning` on, since the effort would otherwise be dropped; `features: { reasoning: false }` still turns it off |

@@ -22,7 +22,7 @@ export function sessionView(row: SessionRow): ChatSession {
   return {
     id: row.id,
     title: row.title,
-    provider: 'papo',
+    provider: 'copapo',
     status,
     createdAt: row.createdAt,
     modifiedAt: row.updatedAt,
@@ -57,7 +57,7 @@ export const SessionsScreen: (props: Record<string, never>) => RenderOutput =
         <SessionList
           sessions={sessions.map(sessionView)}
           selectedId={selected}
-          focusId="papo.sessions.list"
+          focusId="copapo.sessions.list"
           autoFocus
           flex={1}
           onSelect={(id: string) => app.store.set(SELECTED, id)}

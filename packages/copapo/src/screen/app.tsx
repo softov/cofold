@@ -11,7 +11,7 @@ import {
 import type { ArgChoices, ArgSpec, BoxProps, Disposable, ServiceKey, TextUIApp } from '@textui/core';
 import { createBag, defineComponent, serviceKey, useApp, useStoreValue, useTheme } from '@textui/core';
 import { KeyHints, Row, registerBuiltins } from '@textui/widgets';
-import type { Papo } from '../commands.js';
+import type { Copapo } from '../commands.js';
 import { rememberedOf } from '../commands.js';
 import { exportPath, toMarkdown } from '../export.js';
 import { toAskAnswers } from '../questions.js';
@@ -20,7 +20,7 @@ import type { Settings } from '../types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from '../types/settings.js';
 import type { Snapshot } from '../types/turn.js';
 import { ChatScreen } from './chat.js';
-import { PapoInfo, showInfo } from './info.js';
+import { CopapoInfo, showInfo } from './info.js';
 import { SessionsScreen } from './sessions.js';
 import { ANSWERS, CHAT_SCOPE, COMMANDS, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, PLACE, PROVIDERS, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SNAPSHOT } from './state.js';
 
@@ -63,10 +63,10 @@ export function slashName(commandId: string): string {
   return commandId.split('.').at(-1) ?? commandId;
 }
 
-export const CONTROLLER: ServiceKey<Controller> = serviceKey<Controller>('papo.controller');
+export const CONTROLLER: ServiceKey<Controller> = serviceKey<Controller>('copapo.controller');
 
-export function createController(app: TextUIApp, papo: Papo): Controller {
-  const { chat } = papo;
+export function createController(app: TextUIApp, copapo: Copapo): Controller {
+  const { chat } = copapo;
   const bag = createBag();
   const report = (error: unknown): void => {
     app.store.set(ERROR, error instanceof Error ? error.message : String(error));
@@ -193,7 +193,7 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
       const remembered = rememberedOf(patch);
       if (Object.keys(remembered).length === 0) return;
       try {
-        await papo.remember(remembered);
+        await copapo.remember(remembered);
       } catch (error: unknown) {
         report(error);
       }
@@ -229,31 +229,31 @@ export function createController(app: TextUIApp, papo: Papo): Controller {
   return controller;
 }
 
-const Header = defineComponent<Record<string, never>>('PapoHeader', () => {
+const Header = defineComponent<Record<string, never>>('CopapoHeader', () => {
   const app = useApp();
   const theme = useTheme();
   const snapshot = useStoreValue<Snapshot | null>(SNAPSHOT, null) ?? null;
   const open = useStoreValue<string | null>(OPEN, null) ?? null;
   const screen = useStoreValue<string | null>(SCREEN, null);
-  const papo = app.services.require(PAPO);
+  const copapo = app.services.require(COPAPO);
   const settings = useStoreValue<Settings | null>(SETTINGS, null) ?? null;
-  const model = settings?.model || papo.config.model || 'first listed model';
+  const model = settings?.model || copapo.config.model || 'first listed model';
   // The title belongs to the conversation on screen; the catalogue has no one thing to name.
   const title = screen !== 'chat' ? undefined : snapshot?.session.title ?? (open === null ? 'new conversation' : undefined);
   return (
     <Row gap={1}>
-      <text content="papo" bold fg="accent" shrink={0} />
+      <text content="copapo" bold fg="accent" shrink={0} />
       <text content={theme.glyphs.separator} fg="subtle" shrink={0} />
       {title !== undefined
         ? <text content={title} flex={1} truncate="end" />
         : <text content={''} fg="muted" flex={1} truncate="end" />}
       {/* <text content={model} fg="muted" shrink={2} truncate="end" /> */}
-      <text content={papo.workspace} fg="muted" shrink={2} truncate="start" />
+      <text content={copapo.workspace} fg="muted" shrink={2} truncate="start" />
     </Row>
   );
 });
 
-const Hints = defineComponent<BoxProps>('PapoHints', (props) => {
+const Hints = defineComponent<BoxProps>('CopapoHints', (props) => {
   const theme = useTheme();
   const screen = useStoreValue<string | null>(SCREEN, 'sessions') ?? 'sessions';
   const snapshot = useStoreValue<Snapshot | null>(SNAPSHOT, null) ?? null;
@@ -297,7 +297,7 @@ const Hints = defineComponent<BoxProps>('PapoHints', (props) => {
   );
 });
 
-const Status = defineComponent<Record<string, never>>('PapoStatus', () => {
+const Status = defineComponent<Record<string, never>>('CopapoStatus', () => {
   const error = useStoreValue<string | null>(ERROR, null) ?? null;
   const said = useStoreValue<ChatSendStatus | null>(INPUT_STATUS, null) ?? null;
   const shown = said?.state === 'failed' && said.text === error ? null : error;
@@ -306,10 +306,10 @@ const Status = defineComponent<Record<string, never>>('PapoStatus', () => {
     : <Hints flex={1} />;
 });
 
-export const PAPO: ServiceKey<Papo> = serviceKey<Papo>('papo');
+export const COPAPO: ServiceKey<Copapo> = serviceKey<Copapo>('copapo');
 
 export interface ScreenOptions {
-  papo: Papo;
+  copapo: Copapo;
   /** Open on this session. */
   sessionId?: string;
   /** Quit, when the application's own key asks for it. */
@@ -317,12 +317,12 @@ export interface ScreenOptions {
 }
 
 /** Mount the application: services, components, screens, surfaces, commands, keys. */
-export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable {
+export function registerCopapo(app: TextUIApp, options: ScreenOptions): Disposable {
   const bag = createBag();
   bag.add(registerBuiltins(app));
-  const controller = createController(app, options.papo);
+  const controller = createController(app, options.copapo);
   bag.add(controller);
-  bag.add(app.services.provide(PAPO, options.papo));
+  bag.add(app.services.provide(COPAPO, options.copapo));
   bag.add(app.services.provide(CONTROLLER, controller));
 
   for (const [component, render] of [
@@ -337,21 +337,21 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
     ['SessionList', SessionList],
     ['SessionsScreen', SessionsScreen],
     ['ChatScreen', ChatScreen],
-    ['PapoHeader', Header],
-    ['PapoStatus', Status],
-    ['PapoHints', Hints],
-    ['PapoInfo', PapoInfo],
+    ['CopapoHeader', Header],
+    ['CopapoStatus', Status],
+    ['CopapoHints', Hints],
+    ['CopapoInfo', CopapoInfo],
   ] as const) {
     bag.add(app.components.register({ component, category: 'template', renderer: { kind: 'function', render: render as never } }));
   }
 
-  bag.add(app.surfaces.open({ surface: 'header', key: 'title', target: { component: 'PapoHeader' } }));
-  bag.add(app.surfaces.open({ surface: 'status', key: 'status', target: { component: 'PapoStatus' } }));
+  bag.add(app.surfaces.open({ surface: 'header', key: 'title', target: { component: 'CopapoHeader' } }));
+  bag.add(app.surfaces.open({ surface: 'status', key: 'status', target: { component: 'CopapoStatus' } }));
   bag.add(app.screens.register({ id: 'sessions', component: 'SessionsScreen' }));
   // Kept alive: coming back to a conversation that scrolled itself to the top is losing your place.
   bag.add(app.screens.register({ id: 'chat', component: 'ChatScreen', keepAlive: true }));
 
-  const { papo } = options;
+  const { copapo } = options;
   const selected = (): string | null => app.store.get<string | null>(SELECTED) ?? null;
   const settings = (): Settings | null => app.store.get<Settings>(SETTINGS) ?? null;
   const providers = (): ProviderRow[] => app.store.get<ProviderRow[]>(PROVIDERS) ?? [];
@@ -366,7 +366,7 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
     const held = listed[provider];
     if (held !== undefined) return held;
     try {
-      const rows = await papo.chat.models({ provider });
+      const rows = await copapo.chat.models({ provider });
       app.store.set(MODELS, { ...listed, [provider]: rows });
       return rows;
     } catch (error: unknown) {
@@ -521,8 +521,8 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
         const current = open();
         if (current === null) { app.store.set(ERROR, 'export: nothing said yet'); return; }
         try {
-          const path = exportPath(papo.workspace, current);
-          await writeFile(path, toMarkdown(await papo.chat.snapshot(current)), 'utf8');
+          const path = exportPath(copapo.workspace, current);
+          await writeFile(path, toMarkdown(await copapo.chat.snapshot(current)), 'utf8');
           showInfo(app, { title: 'Exported', lines: ['Written to', path] });
         } catch (error: unknown) {
           app.store.set(ERROR, `export: ${error instanceof Error ? error.message : String(error)}`);
@@ -549,7 +549,7 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
         choices: () => app.themes.list().map((theme) => theme.id),
         get default(): string { return app.theme.id; },
         // Worn while the highlight moves: a theme's name says nothing until the screen is in it.
-        preview: (value: string | null) => { app.setTheme(value ?? papo.config.theme); },
+        preview: (value: string | null) => { app.setTheme(value ?? copapo.config.theme); },
       }],
       run: (args: Record<string, unknown>) => { app.setTheme(String(args['id'])); },
     },
@@ -561,7 +561,7 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
 
   const snapshot = (): Snapshot | null => app.store.get<Snapshot | null>(SNAPSHOT) ?? null;
   const open = (): string | null => app.store.get<string | null>(OPEN) ?? null;
-  const memoryIndexPath = () => join(papo.home, 'memory', workspaceSlug({ workspace: papo.workspace }), 'MEMORY.md');
+  const memoryIndexPath = () => join(copapo.home, 'memory', workspaceSlug({ workspace: copapo.workspace }), 'MEMORY.md');
 
   /** The runtime's commands, then the client commands it does not list, each once. */
   function helpLines(): string[] {
@@ -623,13 +623,13 @@ export function registerPapo(app: TextUIApp, options: ScreenOptions): Disposable
   ];
   for (const binding of keys) bag.add(app.keybindings.register(binding));
 
-  app.store.set(PLACE, { workspace: options.papo.workspace, home: options.papo.home });
+  app.store.set(PLACE, { workspace: options.copapo.workspace, home: options.copapo.home });
   // The runtime's commands and the prompt commands, once: what the slash menu offers before the client's own.
-  void options.papo.chat.commands()
+  void options.copapo.chat.commands()
     .then((rows) => app.store.set(COMMANDS, rows))
     .catch((error: unknown) => app.store.set(ERROR, `commands: ${error instanceof Error ? error.message : String(error)}`));
   // The providers, once; nothing is asked of them until a provider is chosen on the chip (`modelsOf`).
-  void options.papo.chat.providers()
+  void options.copapo.chat.providers()
     .then((rows) => app.store.set(PROVIDERS, rows))
     .catch((error: unknown) => app.store.set(ERROR, `providers: ${error instanceof Error ? error.message : String(error)}`));
   void controller.refresh().then(async () => {

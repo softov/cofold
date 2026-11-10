@@ -1,32 +1,34 @@
-# @cofold/papo
+# @cofold/copapo
 
 [![CI](https://github.com/softov/cofold/actions/workflows/ci.yml/badge.svg)](https://github.com/softov/cofold/actions/workflows/ci.yml)
 ![license MIT](https://img.shields.io/badge/license-MIT-blue)
 
 Talk to an agent that runs in this process.
-`papo` is a screen (the transcript, a composer, the block that asks before a destructive tool runs) and a shell (`papo say`, `papo approve`, `papo session list`) over the same conversations, kept on disk under `~/.cofold` per workspace.
+`copapo` is a screen (the transcript, a composer, the block that asks before a destructive tool runs) and a shell (`copapo say`, `copapo approve`, `copapo session list`) over the same conversations, kept on disk under `~/.cofold` per workspace.
 The agent reads and edits files, runs commands, fetches the web and keeps notes across sessions (`@cofold/tools`), and asks before anything destructive.
 It is the first program on `@cofold/agents`, and the way a person checks what the harness does.
+`copapo acp` serves the same conversations to an ACP client, such as ahpd or Zed.
 
 ## Try it
 
 ```sh
-export PAPO_BASE_URL=http://localhost:1234/v1     # LM Studio, Ollama, OpenRouter, any Chat Completions server
-export PAPO_API_KEY=...                          # when the server wants one
-papo models                                      # what it offers; the first is used unless you choose
-papo                                             # the screen
-papo say "What does this repository build?"      # one turn, printed; the session id is on the last line
-papo say -s <id> "And how is it tested?"         # the next turn of it
-papo say -m default/qwen3 -t high "Plan it"      # on that model, thinking hard; both stay on the session
+export COPAPO_BASE_URL=http://localhost:1234/v1     # LM Studio, Ollama, OpenRouter, any Chat Completions server
+export COPAPO_API_KEY=...                          # when the server wants one
+copapo models                                      # what it offers; the first is used unless you choose
+copapo                                             # the screen
+copapo say "What does this repository build?"      # one turn, printed; the session id is on the last line
+copapo say -s <id> "And how is it tested?"         # the next turn of it
+copapo say -m default/qwen3 -t high "Plan it"      # on that model, thinking hard; both stay on the session
 ```
 
-Without a terminal (`papo | cat`, a CI log) the screen prints one frame and exits.
+Without a terminal (`copapo | cat`, a CI log) the screen prints one frame and exits.
 
 ## Configuration
 
-`~/.config/papo/config.json`, then the nearest `.papo.json` up from the workspace, then `$PAPO_CONFIG`, then `--config FILE`; later files win key by key.
-`PAPO_BASE_URL` and `PAPO_API_KEY` add or replace a provider called `default`; `PAPO_MODEL` chooses the default model (a bare model id means one of `default`).
-The family's `COFOLD_BASE_URL`, `COFOLD_API_KEY` and `COFOLD_MODEL`, which the examples read, work too; `PAPO_*` wins where both are set.
+`~/.config/copapo/config.json`, then the nearest `.copapo.json` up from the workspace, then `$COPAPO_CONFIG`, then `--config FILE`; later files win key by key.
+`COPAPO_BASE_URL` and `COPAPO_API_KEY` add or replace a provider called `default`; `COPAPO_MODEL` chooses the default model (a bare model id means one of `default`).
+The family's `COFOLD_BASE_URL`, `COFOLD_API_KEY` and `COFOLD_MODEL`, which the examples read, work too; `COPAPO_*` wins where both are set.
+Every model request says `User-Agent: copapo/<version>`; to OpenRouter it also sends `HTTP-Referer: https://github.com/softov/cofold` and `X-OpenRouter-Title: copapo`, so the usage is attributed to copapo. A provider's own `headers` replace any of them.
 
 ```json
 {
@@ -50,8 +52,8 @@ The family's `COFOLD_BASE_URL`, `COFOLD_API_KEY` and `COFOLD_MODEL`, which the e
 
 | Key | Meaning |
 | --- | --- |
-| `backend` | `cofold` (the harness in this process, the default) or `claude` (Claude Code's runtime through its SDK; see below). `--backend` and `PAPO_BACKEND` override it. |
-| `providers[].id` | How a model is named: `<id>/<model>`; `papo providers` lists them, `papo models <id>` what one offers. |
+| `backend` | `cofold` (the harness in this process, the default) or `claude` (Claude Code's runtime through its SDK; see below). `--backend` and `COPAPO_BACKEND` override it. |
+| `providers[].id` | How a model is named: `<id>/<model>`; `copapo providers` lists them, `copapo models <id>` what one offers. |
 | `model` | `<provider>/<model>`; the first the first provider lists when absent. |
 | `permissions` | Claude Code's modes: `default` (reads run; a tool that writes, destroys or reaches the network asks), `acceptEdits` (as `default`, and `write_file` / `edit_file` inside the workspace run unasked), `bypassPermissions` (everything runs; a deny or ask rule still wins), `dontAsk` (what would ask is denied instead). See below. |
 | `rules` | `deny`, `ask` and `allow` lists of `{ "tool", "match"? }`, applied to every session before the mode decides; `match` is a glob (`*`, `?`) over what the tool touches: the command for `shell_exec`, the path for the file tools (relative to the workspace when inside it, absolute outside), the pattern for `list_files` / `search_files`. |
@@ -62,7 +64,7 @@ The family's `COFOLD_BASE_URL`, `COFOLD_API_KEY` and `COFOLD_MODEL`, which the e
 | `context` | `maxTokens`: what a request may carry, instructions and history, as the harness estimates it (32 000 by default; set it to what the model has). `autoCompact`: fold the conversation into a summary before a turn once it passes 80% of that (on by default; each session may switch it). |
 | `theme`, `shell` | What the screen opens with. |
 
-A wrong key is named: `config.permissions must be one of default, acceptEdits, bypassPermissions, dontAsk (read: ~/.config/papo/config.json)`.
+A wrong key is named: `config.permissions must be one of default, acceptEdits, bypassPermissions, dontAsk (read: ~/.config/copapo/config.json)`.
 
 ## Tools, the permission mode and the rules
 
@@ -74,15 +76,15 @@ The modes are Claude Code's, read off what each tool declares (`effects`):
 Claude's `plan` mode is not offered yet (it is a prompt-level mode there) and `auto` (a classifier) is not offered.
 
 Rules run before the mode decides, `deny`, then `ask`, then `allow` (`rules()` in `@cofold/agents`): a deny rule refuses the call under every mode, `bypassPermissions` included, with `Denied by rule: shell_exec(rm *)` as the tool's result; an ask rule asks under every mode; an allow rule runs the call under every mode but where a deny or ask rule matched first.
-They live in the configuration (`rules`, every session) and per session (`papo session set <id> --deny 'shell_exec(rm *)' --ask web_fetch --allow 'edit_file(src/*)'`, each flag repeatable; `Tool` or `Tool(match)`), the session's before the configuration's; `papo session rules <id>` lists the mode and every rule with its origin.
+They live in the configuration (`rules`, every session) and per session (`copapo session set <id> --deny 'shell_exec(rm *)' --ask web_fetch --allow 'edit_file(src/*)'`, each flag repeatable; `Tool` or `Tool(match)`), the session's before the configuration's; `copapo session rules <id>` lists the mode and every rule with its origin.
 `approve --always` (or the `Always, this session` option on the screen) adds `{ "tool": <name> }` to the session's allow list, where `session rules` shows it, and that tool runs without asking for the rest of the session.
 
 ## Settings
 
-`model`, `permissions`, `reasoning` and `autoCompact` are the configuration's defaults for a new session and each session's own afterwards: `papo say -m -p -t -a` on the first message, `papo session set <id> -m -p -t -a` later, or the three chips under the composer on the screen (`tab` reaches them, `enter` opens the picker) and `/autocompact`; the session's `rules` are set with `session set --deny --ask --allow` and by `always`.
+`model`, `permissions`, `reasoning` and `autoCompact` are the configuration's defaults for a new session and each session's own afterwards: `copapo say -m -p -t -a` on the first message, `copapo session set <id> -m -p -t -a` later, or the three chips under the composer on the screen (`tab` reaches them, `enter` opens the picker) and `/autocompact`; the session's `rules` are set with `session set --deny --ask --allow` and by `always`.
 They are kept beside the session in the store, and the agent is rebuilt from them for every turn, so a change between two messages takes effect on the next one.
-Every model, permission mode or thinking level a person chooses (a chip, `session set -m/-p/-t`, `say -m/-p/-t` on a new session) is also written back into the configuration as `model`, `permissions`, `reasoning`, so the next new conversation starts from it: into the file that currently sets the field, else `~/.config/papo/config.json` (`$XDG_CONFIG_HOME` honoured), created if absent; the file's indentation and other fields are kept.
-The shell says `remembered in <file>`; a `PAPO_MODEL` in the environment still wins over the file while it is set.
+Every model, permission mode or thinking level a person chooses (a chip, `session set -m/-p/-t`, `say -m/-p/-t` on a new session) is also written back into the configuration as `model`, `permissions`, `reasoning`, so the next new conversation starts from it: into the file that currently sets the field, else `~/.config/copapo/config.json` (`$XDG_CONFIG_HOME` honoured), created if absent; the file's indentation and other fields are kept.
+The shell says `remembered in <file>`; a `COPAPO_MODEL` in the environment still wins over the file while it is set.
 
 ## The shell
 
@@ -105,13 +107,14 @@ providers                       the configured providers; which one a new conver
 models [provider]               every model the providers offer, or one provider's; one that cannot be reached is reported on stderr and skipped
 skills                          the skills the agent may read; `say "/name ..."` invokes one
 config                          what is in force, keys redacted
-chat [-s ID]                    the screen (what a bare `papo` does)
+chat [-s ID]                    the screen (what a bare `copapo` does)
+acp                             an Agent Client Protocol agent on stdin and stdout (see below)
 ```
 
 `--json` on any of them gives the record; `session show --json` is the whole projection the screen draws.
 Every command is a `@cofold/commands` action, so the same declarations are an MCP tool set and an HTTP surface when a program wants them.
 
-Global options: `--workspace DIR` (`PAPO_WORKSPACE`, default the current directory), `--home DIR` (`COFOLD_HOME`, default `~/.cofold`), `--config FILE`.
+Global options: `--workspace DIR` (`COPAPO_WORKSPACE`, default the current directory), `--home DIR` (`COFOLD_HOME`, default `~/.cofold`), `--config FILE`.
 
 ## The screen
 
@@ -120,29 +123,29 @@ The catalogue: `enter` opens, `n` starts a conversation, `d` deletes, `r` refres
 The conversation: type and `enter`; `tab` walks the three chips under the field (model, permissions, thinking) and `enter` opens one; the model chip asks the provider first when more than one lists models, then that provider's models; `ctrl+c` stops a running turn (a turn waiting on a confirmation has it denied with `The turn was stopped` and ends cancelled, the transcript showing `Request interrupted by user`; when nothing runs it quits); `a` and `d` answer a confirmation; a question is answered in its form; `esc` goes back; `ctrl+p` is the palette; `alt+m` toggles markdown.
 While the agent answers, `enter` steers: the message lands in the running turn before its next model step, and the transcript shows it where it landed.
 A `Queue` chip leads the row then (`tab`, `enter`): the draft becomes the next turn instead, listed as a queued row at the end of the transcript, and starts when the turn ends, never after `ctrl+c`; `enter` on a queued row drops it.
-Queued while nothing runs (`/queue`, `papo queue`), a message is the next turn at once, as in Claude Code.
+Queued while nothing runs (`/queue`, `copapo queue`), a message is the next turn at once, as in Claude Code.
 
 `/` opens a menu: the runtime's commands first, then the skills, then the screen's own commands.
 A command that takes an argument becomes `/name ` in the field; the others are sent as they are picked.
 
-The runtime's commands are the same list `papo commands` prints. They run in the harness, not in the model, and their answer is a notice in the transcript. A line typed while a turn runs is queued and runs after it.
+The runtime's commands are the same list `copapo commands` prints. They run in the harness, not in the model, and their answer is a notice in the transcript. A line typed while a turn runs is queued and runs after it.
 
 | | |
 | --- | --- |
-| `/compact` | Fold the conversation so far into a summary the model continues from. Afterwards the transcript is the model's view: the `/compact` turn first, with the summary and `Context compacted: N tokens to M.`, then the turns the compaction kept verbatim, then what follows; the folded turns are in the store and `papo session show --all` prints them. |
+| `/compact` | Fold the conversation so far into a summary the model continues from. Afterwards the transcript is the model's view: the `/compact` turn first, with the summary and `Context compacted: N tokens to M.`, then the turns the compaction kept verbatim, then what follows; the folded turns are in the store and `copapo session show --all` prints them. |
 | `/autocompact on\|off` | Switch the automatic version for this session: the same fold, done before a turn once the conversation passes 80% of `context.maxTokens`. |
 | `/model`, `/permissions`, `/reasoning` | Without an argument, the setting and its choices; with one, the new value (`/model fake/other`). The chips under the field change the same settings. |
 | `/status`, `/usage`, `/context` | The session, model, mode, rules, folders and token totals; what each turn used (tokens by kind, steps, tool calls, refusals), never a price; how much of the context the conversation fills. |
 | `/config`, `/skills` | The configuration with keys redacted; the skills. |
 
-A skill is a `/name` too: sending the line tells the agent to read that skill, and the transcript shows `Skill: name`. `/init` writes or refreshes `AGENTS.md`; `/review` reviews the working tree; both ship with papo, and a skill of the same name under `~/.cofold/skills` or `<workspace>/.agents/skills` replaces it.
+A skill is a `/name` too: sending the line tells the agent to read that skill, and the transcript shows `Skill: name`. `/init` writes or refreshes `AGENTS.md`; `/review` reviews the working tree; both ship with copapo, and a skill of the same name under `~/.cofold/skills` or `<workspace>/.agents/skills` replaces it.
 
 The screen's own commands never reach the runtime; `ctrl+p` lists them too:
 
 | | |
 | --- | --- |
 | `/memory` | What the agent remembers about this workspace (`~/.cofold/memory/<workspace>/MEMORY.md`), with a button that opens it in `$VISUAL`, `$EDITOR`, or the platform's editor. |
-| `/export` | The conversation as Markdown, to `<workspace>/papo-<session>.md`. |
+| `/export` | The conversation as Markdown, to `<workspace>/copapo-<session>.md`. |
 | `/retry` | The last message again, as a new turn. |
 | `/clear`, `/new` | A new conversation; the current one stays in the catalogue. |
 | `/stop`, `/approve`, `/deny` | What `ctrl+c`, `a` and `d` do. |
@@ -155,43 +158,70 @@ The components are `@textui/chat`; what this package adds is the projection from
 
 ## The claude backend
 
-`papo --backend claude` (or `"backend": "claude"`, or `PAPO_BACKEND=claude`) runs the same screen and shell over Claude Code's own runtime: its tools, its permission rules, its sessions under `~/.claude/projects/`, its compaction.
-It needs `@anthropic-ai/claude-agent-sdk` installed next to papo (an optional peer, under Anthropic's licence, with the CLI binary inside) and a Claude login or `ANTHROPIC_API_KEY`; without the package, `papo --backend claude` says `install @anthropic-ai/claude-agent-sdk to use the claude backend`.
+`copapo --backend claude` (or `"backend": "claude"`, or `COPAPO_BACKEND=claude`) runs the same screen and shell over Claude Code's own runtime: its tools, its permission rules, its sessions under `~/.claude/projects/`, its compaction.
+It needs `@anthropic-ai/claude-agent-sdk` installed next to copapo (an optional peer, under Anthropic's licence, with the CLI binary inside) and a Claude login or `ANTHROPIC_API_KEY`; without the package, `copapo --backend claude` says `install @anthropic-ai/claude-agent-sdk to use the claude backend`.
 
 ```sh
 npm install @anthropic-ai/claude-agent-sdk
-papo --backend claude models                     # what the CLI offers: claude/default, claude/opus, claude/sonnet, ...
-papo --backend claude                            # the screen, over Claude Code
-papo --backend claude say -p auto "Run the tests and fix what fails"
+copapo --backend claude models                     # what the CLI offers: claude/default, claude/opus, claude/sonnet, ...
+copapo --backend claude                            # the screen, over Claude Code
+copapo --backend claude say -p auto "Run the tests and fix what fails"
 ```
 
-What is the same: the transcript, the confirmation block (the CLI's `canUseTool` becomes it, under the CLI's own sentence when it sends one; `Always, this session` sends the CLI's suggested rules back with every destination rewritten to `session`, so the rule holds for the rest of the session and nothing is written into a settings file; the option is withheld when the CLI says the rule would grant more than the ask), the question form (`AskUserQuestion`), `papo usage`, the session list, `session show` and `session export`.
+What is the same: the transcript, the confirmation block (the CLI's `canUseTool` becomes it, under the CLI's own sentence when it sends one; `Always, this session` sends the CLI's suggested rules back with every destination rewritten to `session`, so the rule holds for the rest of the session and nothing is written into a settings file; the option is withheld when the CLI says the rule would grant more than the ask), the question form (`AskUserQuestion`), `copapo usage`, the session list, `session show` and `session export`.
 Settings (`model`, `permissions`, `reasoning`) are kept per session in the file store under `--home`, at the same key the cofold backend uses, so they survive a restart and `session set` reads the same thing on both backends.
 What differs, because it is the CLI's:
 
 - Models are `claude/<name>` as `supportedModels()` lists them; a `model` of another provider in the configuration is ignored with a warning, and the CLI's default is used.
-- `permissions`: the four names are the CLI's own and are passed through as its `permissionMode` (`bypassPermissions` with the flag the SDK asks for); changing the mode on a session with a live process restarts that process on the same session, as a thinking change does. papo's `rules` are kept and listed for the session but not applied: the CLI reads its own settings files (`settingSources`), and `Always, this session` sends the CLI's suggested rules back to it rather than adding a papo rule.
+- `permissions`: the four names are the CLI's own and are passed through as its `permissionMode` (`bypassPermissions` with the flag the SDK asks for); changing the mode on a session with a live process restarts that process on the same session, as a thinking change does. copapo's `rules` are kept and listed for the session but not applied: the CLI reads its own settings files (`settingSources`), and `Always, this session` sends the CLI's suggested rules back to it rather than adding a copapo rule.
 - `reasoning` is the CLI's `effort` (`off` sends none); changing it on a session with a live process restarts that process on the same session.
-- The `/` menu and `papo commands` list the CLI's own commands, its skills among them, and a line that starts with `/` goes to the CLI unchanged; `papo skills` lists none. A slash line said while a turn runs is queued, as on the cofold backend.
+- The `/` menu and `copapo commands` list the CLI's own commands, its skills among them, and a line that starts with `/` goes to the CLI unchanged; `copapo skills` lists none. A slash line said while a turn runs is queued, as on the cofold backend.
 - `autoCompact` is kept for the session but the CLI compacts on its own; `/autocompact` is the CLI's. `/compact` sends the CLI its own command; afterwards the transcript is what the CLI keeps, the summary first (shown as a `(context compacted)` turn) and the turns after it.
-- A decision waits in the process that asked, not on disk: `papo say` that stops at a tool denies it (and every further one the turn stops at) and says so; approvals and answers happen on the screen (`papo chat`), where the process lives.
-- A message said while a turn runs is pushed to the CLI, which takes it into the running turn as its own client does; the CLI records it as a user message, so the transcript shows it as a turn boundary after the tool result. The queue is papo's, the same as on the cofold backend.
+- A decision waits in the process that asked, not on disk: `copapo say` that stops at a tool denies it (and every further one the turn stops at) and says so; approvals and answers happen on the screen (`copapo chat`), where the process lives.
+- A message said while a turn runs is pushed to the CLI, which takes it into the running turn as its own client does; the CLI records it as a user message, so the transcript shows it as a turn boundary after the tool result. The queue is copapo's, the same as on the cofold backend.
 - `session delete` removes the CLI's session file; `session list` is the workspace's sessions in `~/.claude/projects/`.
 - Failed turns are the CLI's result (`error_*`, or a `success` carrying `is_error` when the API refused) and are kept only in the process that saw them; the CLI's transcript has no record of them.
-- `papo usage` counts a reply once however many entries the CLI stored it as (it writes one per content block, so thinking, text and a tool call of one reply share an id).
+- `copapo usage` counts a reply once however many entries the CLI stored it as (it writes one per content block, so thinking, text and a tool call of one reply share an id).
 
 The harness's own tools, skills and memory are not involved; the CLI brings its own.
+
+## ACP
+
+`copapo acp` is an [Agent Client Protocol](https://agentclientprotocol.com) agent, protocol version 1, on stdin and stdout.
+An ACP client spawns it as it spawns Gemini or OpenCode, and both backends run behind it: `copapo acp` and `copapo --backend claude acp`.
+Stdout carries the protocol and nothing else; warnings go to stderr.
+It has no dependency: the JSON-RPC loop is copapo's own.
+
+```json
+{ "command": "copapo", "args": ["acp"] }
+```
+
+| ACP | copapo |
+| --- | --- |
+| `session/new`, `load`, `resume`, `fork`, `list`, `close`, `delete` | A session in the folder the client names as `cwd`, with its own configuration from there. `load` replays the transcript first; `resume` does not; `fork` copies the whole conversation and its settings. |
+| `session/prompt` | One turn. Its text blocks and the URI of a `resource_link` are the message. Sent while a turn runs, it steers that turn, and both prompts are answered when it ends. A line that starts with `/` runs the command, and waits for the running turn first. |
+| `session/update` | The reply and the reasoning as chunks, each tool call and its result, the title, the context fill (`usage_update`, cofold backend only), the commands and skills (`available_commands_update`), and a mode or option changed by another front. |
+| `session/request_permission` | The confirmation block: allow, `Always, this session` where the block offers it, reject. |
+| `elicitation/create` | The question form, to a client that declares `elicitation.form`; another client has the question declined. |
+| `session/cancel` | `ctrl+c`: the turn stops, and a waiting decision is denied. |
+| modes | The permission mode: `default`, `acceptEdits`, `bypassPermissions`, `dontAsk`. |
+| config options | `model` (category `model`) and `thought_level` (category `thought_level`): the model and the thinking level. |
+
+A turn ends `end_turn` when it completes or a hook stops it, `cancelled` when it is cancelled, and `max_turn_requests` at `limits.maxSteps`; a failed turn is a JSON-RPC error with its message.
+The tools are copapo's own: the client's `fs/*` and `terminal/*` are never called.
+There is no sign-in: the keys are in copapo's configuration.
+Not served: the client's `mcpServers` (cofold has no MCP client yet) and `additionalDirectories`, which are ignored; images, audio and embedded resources in a prompt.
 
 ## What is kept, and where
 
 Sessions, runs, events, steps and requests are the file store's (`@cofold/store-file`), under `<home>/workspaces/<slug>/sessions/<id>/`.
-Nothing is cached in the process but the handle of a run it started and the queue of next turns: every screen and every command reads the store and projects it, so `papo session show` in another terminal shows the same thing the screen does, and a session left waiting by a process that died is resumed by whichever process next answers it.
+Nothing is cached in the process but the handle of a run it started and the queue of next turns: every screen and every command reads the store and projects it, so `copapo session show` in another terminal shows the same thing the screen does, and a session left waiting by a process that died is resumed by whichever process next answers it.
 The queue is the one thing that is not in the store: it lives in the process that holds it (as Claude Code's does) and is gone with it; the screen lists what waits so nothing is lost unseen.
 
 How a turn ended is read from the run's last event: a `failed` run shows its error; a `stopped` run ended by a hook (`notify_done` and the like) reads as complete, and one stopped by a limit reads as failed with `stopped: max_tool_calls`, `stopped: max_cost`, `stopped: max_steps` or `stopped: timeout`; a cancelled run shows the calls it cut as failed and the marker `Request interrupted by user`.
 
 Streaming: the process that runs a turn folds the harness's `model.delta` events into a draft held next to the run's handle, and the screen draws it as the reply being written (the reasoning, then the text, with a caret); at `model.completed` the draft goes and the stored message takes its place.
-Another process reading the same session (`papo session show`, a second screen) sees the reply whole when the step completes: the draft is the one screen state that is not in the store.
+Another process reading the same session (`copapo session show`, a second screen) sees the reply whole when the step completes: the draft is the one screen state that is not in the store.
 
 ## Layout
 
@@ -205,6 +235,8 @@ src/
   questions.ts                  AskQuestion <-> ChatQuestion / ChatAnswer, id=value words
   chat.ts                       createChat: the service both fronts use
   queue.ts                      createQueues: the next turns, in memory, for both backends
+  acp/                          copapo acp: rpc.ts (JSON-RPC over lines), server.ts (the methods over Chat), project.ts (Snapshot -> session/update),
+                                pending.ts (the block as a permission or a form), settings.ts (modes and options), tools.ts (the tool kinds)
   claude/                       the claude backend: sdk.ts (the optional peer), project.ts (the CLI's transcript as Turn[]),
                                 permissions.ts (canUseTool as the block), chat.ts (createClaudeChat), testing.ts (the fake SDK)
   chat-contract.test.ts         the scenarios both backends must agree on

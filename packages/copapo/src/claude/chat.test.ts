@@ -10,7 +10,7 @@ import type { FakeClaudeSdk, FakeReply } from './testing.js';
 import { fakeClaudeSdk } from './testing.js';
 
 /** A fresh store root per rig: the file store makes the folders on the first write. */
-const freshHome = (): string => join(tmpdir(), `papo-claude-${randomUUID()}`);
+const freshHome = (): string => join(tmpdir(), `copapo-claude-${randomUUID()}`);
 
 function claudeChat(replies: FakeReply[] = [], config: Parameters<typeof testConfig>[0] = { model: undefined }, args: { home?: string; sdk?: FakeClaudeSdk } = {}): { chat: Chat; sdk: FakeClaudeSdk; home: string } {
   const sdk = args.sdk ?? fakeClaudeSdk();
@@ -327,7 +327,7 @@ describe('createClaudeChat', () => {
     expect((await chat.snapshot(started.sessionId)).turns.map((turn) => turn.input)).toEqual(['Hold on']);
   });
 
-  it("keeps a session's settings in the store under home, where a second papo over the same home reads them", async () => {
+  it("keeps a session's settings in the store under home, where a second copapo over the same home reads them", async () => {
     const sdk = fakeClaudeSdk();
     const first = claudeChat([{ text: 'a' }], { model: undefined }, { sdk });
     const started = await first.chat.say({ text: 'One', settings: { model: 'claude/opus', reasoning: 'high' } });
@@ -377,7 +377,7 @@ describe('createClaudeChat', () => {
     expect((await chat.wait(started.sessionId))?.status).toBe('completed');
   });
 
-  it('lists the CLI models and commands as papo rows', async () => {
+  it('lists the CLI models and commands as copapo rows', async () => {
     const { chat, sdk } = claudeChat();
     const models = await chat.models();
     expect(models.map((model) => model.ref)).toEqual(['claude/sonnet', 'claude/opus']);

@@ -10,7 +10,7 @@ import { PERMISSION_MODE_DESCRIPTIONS, PERMISSION_MODES, policyOf } from './mode
  * A permission mode as the decision a run takes when no rule matches.
  *
  * The host supplies the two facts a mode cannot know: what an edit is and where the workspace
- * ends. These cases inject both, the way papo does with `write_file`/`edit_file` and
+ * ends. These cases inject both, the way copapo does with `write_file`/`edit_file` and
  * `resolveWithin`, and the way a host over a tool registry does with `effects.writes`.
  */
 
@@ -23,7 +23,7 @@ const destroy = createTool<{ path: string }>({ name: 'rm', description: 'd', inp
 const store = createMemoryStore();
 const run: RunInfo = { runId: 'r', sessionId: 's', agentId: 'a', step: 1, kv: { agent: store.kv({ kind: 'agent', agentId: 'a' }), shared: store.kv({ kind: 'shared', namespace: 'default' }) } };
 
-/** What papo passes: its own two file tools, and the workspace as the CLI knows it. */
+/** What copapo passes: its own two file tools, and the workspace as the CLI knows it. */
 const rules: PermissionModeRules = {
   inside: (path) => path.startsWith('/work'),
   isEdit: (tool) => tool.name === 'write_file' || tool.name === 'edit_file',
@@ -75,7 +75,7 @@ describe('policyOf', () => {
   });
 
   it('still lets a host isEdit decide, as it did before (tools/02 task 02)', async () => {
-    // papo's own table, which the host may keep passing.
+    // copapo's own table, which the host may keep passing.
     const tool = createTool<{ path: string }>({ name: 'custom_edit', description: 'd', input, effects: { writes: true }, execute: () => '' });
     const isEdit = (t: { name: string }): boolean => t.name === 'custom_edit';
     const decideWith = async (path: string): Promise<string> => (await policyOf('acceptEdits', { ...rules, isEdit })({ tool, input: { path }, run })).behavior;

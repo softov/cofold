@@ -39,7 +39,7 @@ const read: { tools: ToolsConfig } = JSON.parse(text);
 
 const capabilities = standardCapabilities(read.tools, {
   workspace,                                        // the run's folder, as the session records it
-  memoryDir: join(home, 'memory', slug),            // the program's choice (papo: `<home>/memory/<workspace slug>`)
+  memoryDir: join(home, 'memory', slug),            // the program's choice (copapo: `<home>/memory/<workspace slug>`)
 });
 ```
 
@@ -90,7 +90,7 @@ Both tools declare `effects.network` only and no `writes`, and each names its su
 
 ## `memory({ dir })`
 
-Files under `dir`, which the program chooses (papo: `<home>/memory/<workspace slug>`), readable and editable by hand.
+Files under `dir`, which the program chooses (copapo: `<home>/memory/<workspace slug>`), readable and editable by hand.
 `memory_read({ path? })` returns one file, `MEMORY.md` without a path; `memory_write({ path, content })` writes one, folders made.
 Both refuse a path that leaves the folder.
 The instructions section carries the first 200 lines of `MEMORY.md` every run (`indexLines` changes that) under the rule: write what will matter next session, one file per topic, indexed from `MEMORY.md`.

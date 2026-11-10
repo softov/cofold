@@ -11,7 +11,7 @@ import { createClaudeChat } from './claude/chat.js';
 import type { FakeReply } from './claude/testing.js';
 import { fakeClaudeSdk } from './claude/testing.js';
 import { createChat } from './chat.js';
-import type { Papo } from './commands.js';
+import type { Copapo } from './commands.js';
 import { rememberInto } from './commands.js';
 import { loadConfig } from './config.js';
 import { argvFor, createProgram } from './program.js';
@@ -20,7 +20,7 @@ import { deleteFileTool, fakeProvider, providerMap, testChat, testConfig } from 
 interface Ran { code: number; out: string; err: string }
 
 /** A program over the memory store and a scripted model, with its output captured. */
-function shell(args: { script: FakeStep[]; store?: Store; tools?: ReturnType<typeof deleteFileTool>['tool'][]; open?: (globals: Readonly<Record<string, unknown>>) => Papo }) {
+function shell(args: { script: FakeStep[]; store?: Store; tools?: ReturnType<typeof deleteFileTool>['tool'][]; open?: (globals: Readonly<Record<string, unknown>>) => Copapo }) {
   const store = args.store ?? createMemoryStore();
   let out = '';
   let err = '';
@@ -40,7 +40,7 @@ function shell(args: { script: FakeStep[]; store?: Store; tools?: ReturnType<typ
     try {
       code = await program.run(argvFor(program, argv));
     } catch (error: unknown) {
-      err += `papo: ${error instanceof Error ? error.message : String(error)}
+      err += `copapo: ${error instanceof Error ? error.message : String(error)}
 `;
       code = exitCodeFor(error);
     }
@@ -83,10 +83,10 @@ describe('the shell', () => {
     expect(nobody.code).not.toBe(0);
     expect(nobody.err).toContain('is not there');
 
-    const exported = await run('session', 'export', sessionId, '-o', join(tmpdir(), `papo-export-${sessionId}.md`));
+    const exported = await run('session', 'export', sessionId, '-o', join(tmpdir(), `copapo-export-${sessionId}.md`));
     expect(exported.code).toBe(0);
     const file = exported.out.trim();
-    expect(await readFile(file, 'utf8')).toContain('## You\n\nHello there\n\n## papo\n\nHello back.');
+    expect(await readFile(file, 'utf8')).toContain('## You\n\nHello there\n\n## copapo\n\nHello back.');
     await rm(file);
 
     const removed = await run('session', 'delete', sessionId);
@@ -102,7 +102,7 @@ describe('the shell', () => {
     const said = await run('say', 'Delete notes.txt');
     expect(said.code).toBe(0);
     expect(said.out).toContain('Waiting: Run delete_file?');
-    expect(said.out).toContain('papo approve');
+    expect(said.out).toContain('copapo approve');
     const sessionId = /session (\S+)\n$/.exec(said.out)?.[1];
     expect(sessionId).toBeDefined();
 
@@ -121,7 +121,7 @@ describe('the shell', () => {
     const sdk = fakeClaudeSdk();
     const replies: FakeReply[] = [{ tool: 'Bash', input: { command: 'ls' }, then: { tool: 'Write', input: { file_path: 'a.txt', content: 'x' }, then: 'Written.' } }];
     sdk.replies.push(...replies);
-    const home = join(tmpdir(), `papo-shell-claude-${Date.now()}`);
+    const home = join(tmpdir(), `copapo-shell-claude-${Date.now()}`);
     const { run } = shell({
       script: [],
       open: () => {
@@ -135,8 +135,8 @@ describe('the shell', () => {
     expect(sdk.decisions.every((decision) => decision.behavior === 'deny')).toBe(true);
     expect(said.out).toContain('[failed] Bash');
     expect(said.out).toContain('[failed] Write');
-    expect(said.out).toContain('Understood: papo say exited before the decision was made');
-    expect(said.out).toContain('Note: papo say cannot hold a decision on the claude backend');
+    expect(said.out).toContain('Understood: copapo say exited before the decision was made');
+    expect(said.out).toContain('Note: copapo say cannot hold a decision on the claude backend');
     expect(said.out).not.toContain('Waiting:');
   });
 
@@ -272,12 +272,12 @@ describe('the shell', () => {
     expect(listed.out).toBe(['mode acceptEdits', 'deny  session delete_file', 'deny  config  shell_exec(rm *)', 'allow config  web_fetch', ''].join('\n'));
   });
 
-  it('remembers -m on a new session and session set in the configuration, and a fresh papo starts the next session from them', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'papo-remember-'));
+  it('remembers -m on a new session and session set in the configuration, and a fresh copapo starts the next session from them', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'copapo-remember-'));
     const env: NodeJS.ProcessEnv = { XDG_CONFIG_HOME: join(root, 'config') };
-    const file = join(root, 'config', 'papo', 'config.json');
+    const file = join(root, 'config', 'copapo', 'config.json');
     const store = createMemoryStore();
-    // What `openPapo` does, over the scripted provider: one `config` read from the temp home, held by the chat and written back by `remember`.
+    // What `openCopapo` does, over the scripted provider: one `config` read from the temp home, held by the chat and written back by `remember`.
     const fresh = (script: FakeStep[]) => shell({
       script,
       store,

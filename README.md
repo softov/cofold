@@ -23,7 +23,7 @@
 cofold is one family of TypeScript packages, zero runtime dependencies each, that share a rule: a thing is declared once and every surface is a rendering of that declaration.
 For a command, the surfaces are the terminal, MCP, HTTP and a generated reference.
 For an agent, the surface is a run: a model proposes, the harness authorizes and executes, a session remembers.
-`papo` is the first program on both: the harness in a terminal, as a screen and as a shell.
+`copapo` is the first program on both: the harness in a terminal, as a screen and as a shell.
 `cofold` itself, the daemon that composes everything, is not built yet; the name is reserved for it.
 
 ## Packages
@@ -53,7 +53,7 @@ For an agent, the surface is a run: a model proposes, the harness authorizes and
 
 | Package | Purpose |
 | --- | --- |
-| [`@cofold/papo`](packages/papo) | `papo`: talk to an agent that runs in this process. A screen drawn with [`@textui/chat`](https://github.com/softov/textui) and a shell of `@cofold/commands` actions over the same sessions on disk; `--backend claude` runs both over Claude Code's runtime through its SDK. |
+| [`@cofold/copapo`](packages/copapo) | `copapo`: talk to an agent that runs in this process. A screen drawn with [`@textui/chat`](https://github.com/softov/textui) and a shell of `@cofold/commands` actions over the same sessions on disk; `--backend claude` runs both over Claude Code's runtime through its SDK. |
 
 ## Try it
 
@@ -69,10 +69,10 @@ node examples/commands/dist/petshop/cli.js mcp tools
 pnpm --filter cofold-examples-agents run pause-resume
 
 # talk to a model server (LM Studio, Ollama, OpenRouter) from a terminal
-PAPO_BASE_URL=http://localhost:1234/v1 node packages/papo/dist/main.js
+COPAPO_BASE_URL=http://localhost:1234/v1 node packages/copapo/dist/main.js
 ```
 
-`packages/papo` links `@textui/*` from a sibling `../textui` checkout until textui 0.6.0 is published; `pnpm install` needs it there.
+`packages/copapo` links `@textui/*` from a sibling `../textui` checkout until textui 0.6.0 is published; `pnpm install` needs it there.
 
 `pnpm check` builds every package, typechecks, and runs the tests.
 

@@ -2,7 +2,7 @@ import type { WireModelList, WireResponse } from './types/wire.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ModelError, textOf, toolCallsOf } from '@cofold/agents';
 import type { Message, ModelRequest, ModelStreamEvent } from '@cofold/agents';
-import { openaiCompat, openaiCompatProvider } from './index.js';
+import { openaiCompat, openaiCompatProvider, VERSION } from './index.js';
 
 type Call = { url: string; init: RequestInit; body: Record<string, unknown> };
 
@@ -70,7 +70,7 @@ describe('openaiCompat request mapping', () => {
     const call = calls[0]!;
     expect(call.url).toBe('http://localhost:1234/v1/chat/completions');
     expect(call.init.method).toBe('POST');
-    expect(call.init.headers).toEqual({ 'content-type': 'application/json', 'x-extra': '1', authorization: 'Bearer k' });
+    expect(call.init.headers).toEqual({ 'content-type': 'application/json', 'user-agent': `cofold/${VERSION}`, 'x-extra': '1', authorization: 'Bearer k' });
     expect(call.body).toEqual({
       model: 'm',
       messages: [
@@ -101,7 +101,7 @@ describe('openaiCompat request mapping', () => {
     await model.complete(request({ tools: [] }));
     expect(calls[0]!.body).not.toHaveProperty('tools');
     expect(calls[0]!.body).not.toHaveProperty('tool_choice');
-    expect(calls[0]!.init.headers).toEqual({ 'content-type': 'application/json' });
+    expect(calls[0]!.init.headers).toEqual({ 'content-type': 'application/json', 'user-agent': `cofold/${VERSION}` });
   });
 
   it('sends an assistant message with tool calls and no text as content null', async () => {

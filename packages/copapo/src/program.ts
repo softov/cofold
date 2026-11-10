@@ -1,10 +1,11 @@
 import type { Io } from '@cofold/commands';
 import { matchCommand, optionTable, tokenize } from '@cofold/commands';
 import { Program } from '@cofold/terminal';
-import { GLOBALS, createPapoRegistry } from './commands.js';
+import { GLOBALS, createCopapoRegistry } from './commands.js';
 import type { RegistryOptions } from './commands.js';
+import { VERSION } from './app.js';
 
-export const VERSION = '0.0.1';
+export { VERSION } from './app.js';
 
 export interface ProgramArgs extends RegistryOptions {
   io?: Io;
@@ -12,10 +13,10 @@ export interface ProgramArgs extends RegistryOptions {
 
 export function createProgram(args: ProgramArgs = {}): Program {
   const { io, ...registryOptions } = args;
-  const registry = createPapoRegistry(registryOptions);
+  const registry = createCopapoRegistry(registryOptions);
   return new Program({
     ...(io !== undefined ? { io } : {}),
-    name: 'papo',
+    name: 'copapo',
     version: VERSION,
     description: 'Talk to an agent that runs in this process: a screen, or one command at a time.',
     registry,
@@ -24,7 +25,7 @@ export function createProgram(args: ProgramArgs = {}): Program {
 }
 
 /**
- * `papo` alone, or with only options, means the screen.
+ * `copapo` alone, or with only options, means the screen.
  *
  * Decided by the program's own grammar rather than a scan of the first word: an option that takes a
  * value must not have that value read as a command, which is what every hand-written scan gets

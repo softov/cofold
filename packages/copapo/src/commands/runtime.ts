@@ -1,16 +1,16 @@
-import type { Message, SessionUsage, SkillIndexEntry, SlashCommand, SlashCommandContext } from '@cofold/agents';
+import type { Agent, Message, SessionUsage, SkillIndexEntry, SlashCommand, SlashCommandContext } from '@cofold/agents';
 import { AgentError, contextOf, sessionUsage } from '@cofold/agents';
 import { renderTable } from '@cofold/terminal';
 import { AUTO_COMPACT_AT } from '../agent.js';
 import { formatRule } from '../rules.js';
 import type { ModelRow } from '../types/chat.js';
-import type { PapoConfig } from '../types/config.js';
+import type { CopapoConfig } from '../types/config.js';
 import type { Settings } from '../types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from '../types/settings.js';
 
-/** What papo's runtime commands read and write: the service's own settings record, so a command and a chip agree. */
+/** What copapo's runtime commands read and write: the service's own settings record, so a command and a chip agree. */
 export interface RuntimeDeps {
-  config: PapoConfig;
+  config: CopapoConfig;
   workspace: string;
   home: string;
   /** The session's settings, as the chips read them. */
@@ -22,12 +22,12 @@ export interface RuntimeDeps {
 }
 
 /** The configuration as it may be shown: keys replaced, the two folders added. */
-export function redactedConfig(papo: { config: PapoConfig; workspace: string; home: string }): Record<string, unknown> {
+export function redactedConfig(copapo: { config: CopapoConfig; workspace: string; home: string }): Record<string, unknown> {
   return {
-    ...papo.config,
-    providers: papo.config.providers.map((provider) => ({ ...provider, ...(provider.apiKey !== undefined ? { apiKey: '[redacted]' } : {}) })),
-    workspace: papo.workspace,
-    home: papo.home,
+    ...copapo.config,
+    providers: copapo.config.providers.map((provider) => ({ ...provider, ...(provider.apiKey !== undefined ? { apiKey: '[redacted]' } : {}) })),
+    workspace: copapo.workspace,
+    home: copapo.home,
   };
 }
 
@@ -55,7 +55,7 @@ export function renderUsage(used: SessionUsage): string {
 }
 
 /** Where auto-compaction stands for a session, in one line. */
-function autoCompactLine(config: PapoConfig, settings: Settings): string {
+function autoCompactLine(config: CopapoConfig, settings: Settings): string {
   const { maxTokens } = config.context;
   return settings.autoCompact ? `on, at ${Math.floor(maxTokens * AUTO_COMPACT_AT)} of ${maxTokens} tokens` : 'off';
 }
@@ -66,6 +66,14 @@ function choicesOf(name: string, current: string, choices: readonly string[]): s
 }
 
 /** The tokens a message costs in a request, by the agent's own estimate. */
+/** What the conversation fills of the agent's context: the instructions and the model's view of the messages. */
+export function contextFill(agent: Pick<Agent, 'context' | 'definition'>, all: Message[]): { used: number; size: number; inView: number } {
+  const view = contextOf(all);
+  const { maxTokens, estimateTokens } = agent.context;
+  const used = estimateTokens(agent.definition.instructions) + view.reduce((sum, message) => sum + messageTokens(message, estimateTokens), 0);
+  return { used, size: maxTokens, inView: view.length };
+}
+
 function messageTokens(message: Message, estimate: (text: string) => number): number {
   let tokens = 4;
   for (const part of message.parts) {
@@ -99,7 +107,7 @@ function setter(args: {
   };
 }
 
-/** papo's runtime commands (AGENT-03.6): each reads or writes the session's settings and the store, never the model. */
+/** copapo's runtime commands (AGENT-03.6): each reads or writes the session's settings and the store, never the model. */
 export function runtimeCommands(deps: RuntimeDeps): SlashCommand[] {
   const { config } = deps;
   return [
@@ -149,12 +157,10 @@ export function runtimeCommands(deps: RuntimeDeps): SlashCommand[] {
       run: async (ctx) => {
         const settings = await deps.settings(ctx.sessionId);
         const all = await ctx.store.sessions.listMessages({ sessionId: ctx.sessionId });
-        const view = contextOf(all);
-        const { maxTokens, estimateTokens } = ctx.agent.context;
-        const used = estimateTokens(ctx.agent.definition.instructions) + view.reduce((sum, message) => sum + messageTokens(message, estimateTokens), 0);
+        const { used, size: maxTokens, inView } = contextFill(ctx.agent, all);
         return [
           `context      about ${used} of ${maxTokens} tokens (${Math.round((used / maxTokens) * 100)}%)`,
-          `messages     ${view.length} in view, ${all.length} in the transcript`,
+          `messages     ${inView} in view, ${all.length} in the transcript`,
           `auto-compact ${autoCompactLine(config, settings)}`,
         ].join('\n');
       },

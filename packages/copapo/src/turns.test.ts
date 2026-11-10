@@ -12,7 +12,7 @@ const assistant = (id: string, parts: Message['parts']): Message => ({ id, role:
 const result = (id: string, callId: string, content: string, isError = false): Message =>
   ({ id, role: 'tool', source: 'tool', parts: [{ type: 'toolResult', callId, name: 'rm', content, isError }], createdAt: at });
 const run = (runId: string, status: RunRecord['status'], inputMessageId: string, extra: Partial<RunRecord> = {}): RunRecord =>
-  ({ runId, sessionId: 's', agentId: 'papo', status, createdAt: at, updatedAt: '2026-09-16T10:00:02.500Z', usage: { inputTokens: 0, outputTokens: 0 }, steps: 1, denials: [], inputMessageId, ...extra });
+  ({ runId, sessionId: 's', agentId: 'copapo', status, createdAt: at, updatedAt: '2026-09-16T10:00:02.500Z', usage: { inputTokens: 0, outputTokens: 0 }, steps: 1, denials: [], inputMessageId, ...extra });
 
 describe('projectTurns', () => {
   it('groups the transcript by run and reads each tool call from its result', () => {
@@ -158,8 +158,8 @@ describe('toMarkdown', () => {
     };
     expect(toMarkdown(snapshot)).toBe([
       '# Read it', '', 'Session `s1` · model `p/m` · permissions default · thinking off', '',
-      '## You', '', 'Read it', '', '## papo', '', '- `read_file({"path":"a"})` → completed', '', 'It says x.', '', '',
-      '## You', '', 'Again', '', '## papo', '', '> Failed: boom', '',
+      '## You', '', 'Read it', '', '## copapo', '', '- `read_file({"path":"a"})` → completed', '', 'It says x.', '', '',
+      '## You', '', 'Again', '', '## copapo', '', '> Failed: boom', '',
     ].join('\n'));
   });
 });

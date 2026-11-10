@@ -3,15 +3,15 @@ import type { Agent, ModelProvider, Rule, SkillSource, SlashCommand, Store, Tool
 import { createAgent, createAskUserTool, effortOf, policyOf, rules, skills } from '@cofold/agents';
 import { workspaceSlug } from '@cofold/store-file';
 import { resolveWithin, standardCapabilities } from '@cofold/tools';
-import type { PapoConfig, PermissionMode, RuleLists } from './types/config.js';
+import type { CopapoConfig, PermissionMode, RuleLists } from './types/config.js';
 import type { Settings } from './types/settings.js';
 
-export const AGENT_ID = 'papo';
+export const AGENT_ID = 'copapo';
 /** Where auto-compaction fires, as a share of `context.maxTokens`: room for the turn's own tool results. */
 export const AUTO_COMPACT_AT = 0.8;
 
 export interface AgentArgs {
-  config: PapoConfig;
+  config: CopapoConfig;
   settings: Settings;
   provider: ModelProvider;
   modelId: string;
@@ -25,7 +25,7 @@ export interface AgentArgs {
   instructions: string;
   /** Beyond `ask_user`; a `--demo-tools` flag or a later plugin adds them. */
   tools?: Tool<any, any>[];
-  /** papo's runtime commands (AGENT-03.6), before the harness's `compact`. */
+  /** copapo's runtime commands (AGENT-03.6), before the harness's `compact`. */
   commands?: SlashCommand[];
   warn(message: string): void;
 }
@@ -42,7 +42,7 @@ export function mergedRules(session: RuleLists | undefined, config: RuleLists | 
  */
 export function buildAgent(args: AgentArgs): Agent {
   const { config, settings } = args;
-  // The level is papo's setting; `effortOf` says which field, if any, the request carries (agent/06).
+  // The level is copapo's setting; `effortOf` says which field, if any, the request carries (agent/06).
   const effort = effortOf(settings.reasoning);
   const params = {
     ...config.params,
@@ -59,7 +59,7 @@ export function buildAgent(args: AgentArgs): Agent {
     capabilities: [
       ...standardCapabilities(config.tools, {
         workspace: args.workspace,
-        // The memory papo keeps today: under the store's root, one folder per workspace (decision 123).
+        // The memory copapo keeps today: under the store's root, one folder per workspace (decision 123).
         memoryDir: join(args.home, 'memory', workspaceSlug({ workspace: args.workspace })),
       }),
       skills({ sources: args.skills, warn: args.warn }),
@@ -67,7 +67,7 @@ export function buildAgent(args: AgentArgs): Agent {
     store: args.store,
     policy: rules({
       ...mergedRules(settings.rules, config.rules),
-      // `acceptEdits` tells an edit by the file the tool says it writes, so papo keeps no list of tool names (decision CLI-04.6).
+      // `acceptEdits` tells an edit by the file the tool says it writes, so copapo keeps no list of tool names (decision CLI-04.6).
       otherwise: policyOf(settings.permissions, { inside: (path) => resolveWithin(args.workspace, path).inside }),
     }),
     ...(config.limits !== undefined ? { limits: config.limits } : {}),

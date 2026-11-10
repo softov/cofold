@@ -62,6 +62,7 @@ export interface ClaudeSdkSubset {
   listSessions(options?: { dir?: string }): Promise<SDKSessionInfo[]>;
   getSessionMessages(sessionId: string, options?: { dir?: string }): Promise<unknown[]>;
   deleteSession(sessionId: string, options?: { dir?: string }): Promise<void>;
+  forkSession(sessionId: string, options?: { dir?: string }): Promise<{ sessionId: string }>;
 }
 
 /** What `canUseTool` handed over and is waiting on: the person's decision resolves it. */

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-cofold is a TypeScript (pnpm) workspace for one family of packages: the command framework (`@cofold/commands` and its surfaces), the agent harness (`@cofold/agents` and its adapters and stores), papo (`@cofold/papo`, the harness in a terminal), and later the program that composes them (`cofold`, the daemon and its CLI).
+cofold is a TypeScript (pnpm) workspace for one family of packages: the command framework (`@cofold/commands` and its surfaces), the agent harness (`@cofold/agents` and its adapters and stores), copapo (`@cofold/copapo`, the harness in a terminal), and later the program that composes them (`cofold`, the daemon and its CLI).
 
 `.project/` is the project's own documentation in the specai format (the `do-spec` skill in `.agents/skills/do-spec/` says how to write it): `plans/` is the source of truth for what to build (one folder per plan, one file per task; `plans/index.md` is the entry and the status index), `specs/` holds the runtime specification, `research/` what was studied.
 Read a domain's `plans/<domain>/00-<domain>.md` and the plan's *Decisions locked in* table before touching code.
@@ -33,8 +33,8 @@ packages/agents/            @cofold/agents  - contracts, loop, run handle, step 
   src/{agent,message,model,store,tool,run,capabilities,testing}/   runtime code by domain
 packages/model-openai-compat/   Chat Completions adapter (OpenRouter, LM Studio)
 packages/store-file/        durable Store on the filesystem
-packages/tools/            @cofold/tools: files, shell, web and memory as capabilities; what papo turns on
-packages/papo/              @cofold/papo, binary `papo`: the harness in this process as a screen (@textui/chat) and a shell (@cofold/commands actions on @cofold/terminal)
+packages/tools/            @cofold/tools: files, shell, web and memory as capabilities; what copapo turns on
+packages/copapo/            @cofold/copapo, binary `copapo`: the harness in this process as a screen (@textui/chat) and a shell (@cofold/commands actions on @cofold/terminal)
   src/{chat,turns,blocks,questions,config,agent,commands,program,main}.ts   the service, the projection, the shell
   src/screen/               the textui application (state paths, controller, two screens, terminal boot)
 packages/cofold/             later: the program (daemon + CLI), not yet created
@@ -49,8 +49,8 @@ Every package: `package.json` with `exports`, `tsconfig.json` extending `../../t
 
 ## Rules that are easy to get wrong
 
-- **One definition, declared once.** A shape two packages need lives in `@cofold/sdk`; never keep two copies and bridge them, never add a wrapper or adapter between cofold packages. The same holds against textui: papo maps the store onto `@textui/chat`'s prop types and declares no seam of its own.
-- **Zero third-party runtime dependencies per package.** Own JSON Schema validator, native `fetch`, `crypto.randomUUID`. The framework runs unmodified on Node, Bun and Deno. Optional peers are the exception, imported lazily and named when absent: `@cofold/mcp`'s SDK server, and `@anthropic-ai/claude-agent-sdk` for papo's `--backend claude`. papo depends on `@textui/*` (published; linked from the sibling checkout until 0.6.0), and cofold never depends the other way round.
+- **One definition, declared once.** A shape two packages need lives in `@cofold/sdk`; never keep two copies and bridge them, never add a wrapper or adapter between cofold packages. The same holds against textui: copapo maps the store onto `@textui/chat`'s prop types and declares no seam of its own.
+- **Zero third-party runtime dependencies per package.** Own JSON Schema validator, native `fetch`, `crypto.randomUUID`. The framework runs unmodified on Node, Bun and Deno. Optional peers are the exception, imported lazily and named when absent: `@cofold/mcp`'s SDK server, and `@anthropic-ai/claude-agent-sdk` for copapo's `--backend claude`. copapo depends on `@textui/*` (published; linked from the sibling checkout until 0.6.0), and cofold never depends the other way round.
 - **Every exported `interface` and `type` lives in its package's `src/types/`, grouped by concept** (the sdk, one thing per file at its root, is the exception). A file there never exports a `const` or `function`. Runtime files import from `../types/<concept>.js`, never from the `types/index.ts` barrel.
 - **Factories, one options object, one return value.** `createTool({...})`, `createAgent({...})`, `run({...})`, `createRegistry()`. No classes except `Error` subclasses. Hooks take one named args object and return one result.
 - **The one positional exception:** `Tool.execute(input, ctx)`. Input first.

@@ -5,7 +5,7 @@ import type { FakeStep } from '@cofold/agents/testing';
 import { createChat } from './chat.js';
 import { DEFAULT_INSTRUCTIONS } from './config.js';
 import type { Chat } from './types/chat.js';
-import type { PapoConfig } from './types/config.js';
+import type { CopapoConfig } from './types/config.js';
 
 /**
  * A provider whose one model follows a script: what the tests talk to.
@@ -89,8 +89,8 @@ export function gateTool(): { tool: Tool<Record<string, never>>; release: (outpu
 }
 
 /** `model: undefined` in the overrides means no model configured, which the type of the field cannot say. */
-export function testConfig(overrides: Partial<PapoConfig> | { model: undefined } = {}): PapoConfig {
-  const config: PapoConfig = {
+export function testConfig(overrides: Partial<CopapoConfig> | { model: undefined } = {}): CopapoConfig {
+  const config: CopapoConfig = {
     backend: 'cofold',
     providers: [{ id: 'fake', baseUrl: 'http://fake.invalid/v1' }],
     model: 'fake/scripted',
@@ -103,7 +103,7 @@ export function testConfig(overrides: Partial<PapoConfig> | { model: undefined }
     shell: 'workbench',
   };
   for (const [key, value] of Object.entries(overrides)) {
-    if (value === undefined) delete config[key as keyof PapoConfig];
+    if (value === undefined) delete config[key as keyof CopapoConfig];
     else Object.assign(config, { [key]: value });
   }
   return config;
@@ -113,7 +113,7 @@ export function testConfig(overrides: Partial<PapoConfig> | { model: undefined }
  * What `createChat` is handed: one model per configured provider, in the configuration's order, keyed by the id
  * its entry writes. A test's models are often not `providersOf`'s, so the key comes from the configuration.
  */
-export function providerMap(config: PapoConfig, models: ModelProvider[]): Map<string, ModelProvider> {
+export function providerMap(config: CopapoConfig, models: ModelProvider[]): Map<string, ModelProvider> {
   const providers = new Map<string, ModelProvider>();
   for (const [index, model] of models.entries()) {
     const id = config.providers[index]?.id;

@@ -3,10 +3,12 @@ import type { ModelAdapter, ModelFeatures, ModelInfo, ModelProvider, ModelReques
 import { fromWireModel, fromWireResponse, toWireMessages, toWireReasoning, toWireTools } from './wire.js';
 import { parseSse } from './sse.js';
 import { parseChunks, streamChunks } from './stream.js';
+import { appHeaders, DEFAULT_APP, mergeHeaders } from './app.js';
 import type { OpenAICompatOptions, OpenAICompatProviderOptions } from './types/options.js';
 import type { WireModelList, WireResponse } from './types/wire.js';
 
-export type { OpenAICompatOptions, OpenAICompatProviderOptions } from './types/options.js';
+export type { AppIdentity, OpenAICompatOptions, OpenAICompatProviderOptions } from './types/options.js';
+export { DEFAULT_APP, VERSION } from './app.js';
 export type { ProviderConfig } from './types/config.js';
 export { PROVIDER_SCHEMA, providerFor, providersOf, splitModel } from './config.js';
 
@@ -28,7 +30,7 @@ export function openaiCompatProvider(options: OpenAICompatProviderOptions): Mode
   const baseUrl = options.baseUrl.replace(/\/$/, '');
   const doFetch = options.fetch ?? fetch;
   const retries = options.retries ?? 2;
-  const baseHeaders: Record<string, string> = { 'content-type': 'application/json', ...options.headers };
+  const baseHeaders = mergeHeaders({ 'content-type': 'application/json', ...appHeaders(options.app ?? DEFAULT_APP, baseUrl) }, options.headers);
 
   /** Headers for one attempt: a key function is asked every time (decision 99). */
   async function headersFor(): Promise<Record<string, string>> {

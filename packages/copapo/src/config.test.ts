@@ -9,10 +9,10 @@ let root: string;
 let env: NodeJS.ProcessEnv;
 
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), 'papo-config-'));
-  await mkdir(join(root, 'config', 'papo'), { recursive: true });
+  root = await mkdtemp(join(tmpdir(), 'copapo-config-'));
+  await mkdir(join(root, 'config', 'copapo'), { recursive: true });
   await mkdir(join(root, 'work'), { recursive: true });
-  // Only the variables under test: the machine running this may have PAPO_* set.
+  // Only the variables under test: the machine running this may have COPAPO_* set.
   env = { XDG_CONFIG_HOME: join(root, 'config') };
 });
 afterEach(() => rm(root, { recursive: true, force: true }));
@@ -27,7 +27,7 @@ describe('loadConfig', () => {
   });
 
   it('merges the tools block key by key and names a wrong one', async () => {
-    const file = join(root, 'config', 'papo', 'config.json');
+    const file = join(root, 'config', 'copapo', 'config.json');
     await writeFile(file, JSON.stringify({ tools: { shell: false, web: { search: { duckduckgo: true } } } }));
     expect(loadConfig({ cwd: join(root, 'work'), env }).tools).toEqual({ files: true, shell: false, web: { search: { duckduckgo: true } }, memory: true });
     await writeFile(file, JSON.stringify({ tools: { web: { search: { bing: {} } } } }));
@@ -35,42 +35,51 @@ describe('loadConfig', () => {
   });
 
   it('reads the user file, then the project file over it', async () => {
-    await writeFile(join(root, 'config', 'papo', 'config.json'), JSON.stringify({
+    await writeFile(join(root, 'config', 'copapo', 'config.json'), JSON.stringify({
       providers: [{ id: 'lm', baseUrl: 'http://localhost:1234/v1' }], model: 'lm/qwen', permissions: 'acceptEdits',
     }));
-    await writeFile(join(root, 'work', '.papo.json'), JSON.stringify({ permissions: 'bypassPermissions', theme: 'workbench' }));
+    await writeFile(join(root, 'work', '.copapo.json'), JSON.stringify({ permissions: 'bypassPermissions', theme: 'workbench' }));
     const config = loadConfig({ cwd: join(root, 'work'), env });
     expect(config.providers).toEqual([{ id: 'lm', baseUrl: 'http://localhost:1234/v1' }]);
     expect(config).toMatchObject({ model: 'lm/qwen', permissions: 'bypassPermissions', theme: 'workbench' });
   });
 
-  it('adds the environment provider as default and lets PAPO_MODEL choose', async () => {
-    await writeFile(join(root, 'config', 'papo', 'config.json'), JSON.stringify({ providers: [{ id: 'default', baseUrl: 'http://old' }, { id: 'or', baseUrl: 'http://or' }] }));
-    const config = loadConfig({ cwd: join(root, 'work'), env: { ...env, PAPO_BASE_URL: 'http://new/v1', PAPO_API_KEY: 'k', PAPO_MODEL: 'default/m' } });
+  it('adds the environment provider as default and lets COPAPO_MODEL choose', async () => {
+    await writeFile(join(root, 'config', 'copapo', 'config.json'), JSON.stringify({ providers: [{ id: 'default', baseUrl: 'http://old' }, { id: 'or', baseUrl: 'http://or' }] }));
+    const config = loadConfig({ cwd: join(root, 'work'), env: { ...env, COPAPO_BASE_URL: 'http://new/v1', COPAPO_API_KEY: 'k', COPAPO_MODEL: 'default/m' } });
     expect(config.providers).toEqual([{ id: 'default', baseUrl: 'http://new/v1', apiKey: 'k' }, { id: 'or', baseUrl: 'http://or' }]);
     expect(config.model).toBe('default/m');
   });
 
-  it('reads the family variables when papo has none of its own', () => {
+  it('reads none of the names it had as papo', async () => {
+    await mkdir(join(root, 'config', 'papo'), { recursive: true });
+    await writeFile(join(root, 'config', 'papo', 'config.json'), JSON.stringify({ permissions: 'dontAsk' }));
+    await writeFile(join(root, 'work', '.papo.json'), JSON.stringify({ theme: 'workbench' }));
+    const config = loadConfig({ cwd: join(root, 'work'), env: { ...env, PAPO_BASE_URL: 'http://old/v1', PAPO_MODEL: 'default/old', PAPO_BACKEND: 'claude' } });
+    expect(config).toMatchObject({ providers: [], permissions: 'default', theme: 'paper', backend: 'cofold' });
+    expect(config.model).toBeUndefined();
+  });
+
+  it('reads the family variables when copapo has none of its own', () => {
     const config = loadConfig({ cwd: join(root, 'work'), env: { ...env, COFOLD_BASE_URL: 'http://lm/v1', COFOLD_API_KEY: 'k', COFOLD_MODEL: 'qwen3' } });
     expect(config.providers).toEqual([{ id: 'default', baseUrl: 'http://lm/v1', apiKey: 'k' }]);
     expect(config.model).toBe('default/qwen3');
-    const own = loadConfig({ cwd: join(root, 'work'), env: { ...env, COFOLD_BASE_URL: 'http://lm/v1', PAPO_BASE_URL: 'http://mine/v1', PAPO_MODEL: 'default/x' } });
+    const own = loadConfig({ cwd: join(root, 'work'), env: { ...env, COFOLD_BASE_URL: 'http://lm/v1', COPAPO_BASE_URL: 'http://mine/v1', COPAPO_MODEL: 'default/x' } });
     expect(own.providers[0]?.baseUrl).toBe('http://mine/v1');
     expect(own.model).toBe('default/x');
   });
 
-  it('picks the backend from the file or PAPO_BACKEND, and refuses one it does not know', async () => {
-    await writeFile(join(root, 'config', 'papo', 'config.json'), JSON.stringify({ backend: 'claude' }));
+  it('picks the backend from the file or COPAPO_BACKEND, and refuses one it does not know', async () => {
+    await writeFile(join(root, 'config', 'copapo', 'config.json'), JSON.stringify({ backend: 'claude' }));
     expect(loadConfig({ cwd: join(root, 'work'), env }).backend).toBe('claude');
-    expect(loadConfig({ cwd: join(root, 'work'), env: { ...env, PAPO_BACKEND: 'cofold' } }).backend).toBe('cofold');
-    expect(() => loadConfig({ cwd: join(root, 'work'), env: { ...env, PAPO_BACKEND: 'gemini' } })).toThrow('PAPO_BACKEND must be cofold or claude');
-    await writeFile(join(root, 'config', 'papo', 'config.json'), JSON.stringify({ backend: 'gemini' }));
+    expect(loadConfig({ cwd: join(root, 'work'), env: { ...env, COPAPO_BACKEND: 'cofold' } }).backend).toBe('cofold');
+    expect(() => loadConfig({ cwd: join(root, 'work'), env: { ...env, COPAPO_BACKEND: 'gemini' } })).toThrow('COPAPO_BACKEND must be cofold or claude');
+    await writeFile(join(root, 'config', 'copapo', 'config.json'), JSON.stringify({ backend: 'gemini' }));
     expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow('config.backend must be one of cofold, claude');
   });
 
   it('names the key that is wrong, and the file it read', async () => {
-    const file = join(root, 'config', 'papo', 'config.json');
+    const file = join(root, 'config', 'copapo', 'config.json');
     await writeFile(file, JSON.stringify({ permissions: 'sometimes' }));
     expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow(/config\.permissions must be one of default, acceptEdits, bypassPermissions, dontAsk \(read: .*config\.json\)/);
     // The old three names are gone (cli/03 F8): a file that still says one is told the four.
@@ -82,9 +91,9 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow('config.colour is not a field');
   });
 
-  it('refuses a mode and a level papo does not offer, though the harness knows them (agent/06)', async () => {
-    const file = join(root, 'config', 'papo', 'config.json');
-    // `plan` and `auto` are the harness's modes, not papo's; `max` is in the provider's range, not among the levels.
+  it('refuses a mode and a level copapo does not offer, though the harness knows them (agent/06)', async () => {
+    const file = join(root, 'config', 'copapo', 'config.json');
+    // `plan` and `auto` are the harness's modes, not copapo's; `max` is in the provider's range, not among the levels.
     await writeFile(file, JSON.stringify({ permissions: 'plan' }));
     expect(() => loadConfig({ cwd: join(root, 'work'), env })).toThrow('config.permissions must be one of default, acceptEdits, bypassPermissions, dontAsk');
     await writeFile(file, JSON.stringify({ permissions: 'auto' }));
@@ -94,7 +103,7 @@ describe('loadConfig', () => {
   });
 
   it('reads the rule lists and refuses a rule without a tool or with a key it does not know', async () => {
-    const file = join(root, 'config', 'papo', 'config.json');
+    const file = join(root, 'config', 'copapo', 'config.json');
     await writeFile(file, JSON.stringify({ rules: { deny: [{ tool: 'shell_exec', match: 'rm *' }], allow: [{ tool: 'web_fetch' }] } }));
     expect(loadConfig({ cwd: join(root, 'work'), env }).rules).toEqual({ deny: [{ tool: 'shell_exec', match: 'rm *' }], allow: [{ tool: 'web_fetch' }] });
     await writeFile(file, JSON.stringify({ rules: { deny: [{ match: 'rm *' }] } }));
@@ -113,8 +122,8 @@ describe('rememberConfig', () => {
   };
 
   it('names the user file under XDG_CONFIG_HOME, else ~/.config', () => {
-    expect(userConfigPath({ XDG_CONFIG_HOME: '/xdg' })).toBe(join('/xdg', 'papo', 'config.json'));
-    expect(userConfigPath({}, '/home/me')).toBe(join('/home/me', '.config', 'papo', 'config.json'));
+    expect(userConfigPath({ XDG_CONFIG_HOME: '/xdg' })).toBe(join('/xdg', 'copapo', 'config.json'));
+    expect(userConfigPath({}, '/home/me')).toBe(join('/home/me', '.config', 'copapo', 'config.json'));
   });
 
   it('reads a file\'s indentation from its first indented line', () => {
@@ -126,7 +135,7 @@ describe('rememberConfig', () => {
   it('creates the user file, folder and all, when no file sets the field', async () => {
     const fresh = { XDG_CONFIG_HOME: join(root, 'fresh') };
     const files = await rememberConfig({ cwd: join(root, 'work'), env: fresh, patch: { model: 'lm/qwen' } });
-    const file = join(root, 'fresh', 'papo', 'config.json');
+    const file = join(root, 'fresh', 'copapo', 'config.json');
     expect(files).toEqual([file]);
     const { text, json } = await read(file);
     expect(json).toEqual({ model: 'lm/qwen' });
@@ -135,7 +144,7 @@ describe('rememberConfig', () => {
   });
 
   it('keeps the user file\'s indentation and its other fields', async () => {
-    const file = join(root, 'config', 'papo', 'config.json');
+    const file = join(root, 'config', 'copapo', 'config.json');
     await writeFile(file, `${JSON.stringify({ providers: [{ id: 'lm', baseUrl: 'http://localhost:1234/v1' }], model: 'lm/old', theme: 'workbench' }, null, 4)}\n`);
     const files = await rememberConfig({ cwd: join(root, 'work'), env, patch: { model: 'lm/new', reasoning: 'high' } });
     expect(files).toEqual([file]);
@@ -145,8 +154,8 @@ describe('rememberConfig', () => {
   });
 
   it('writes each field into the file that sets it, and one no file sets into the user file', async () => {
-    const user = join(root, 'config', 'papo', 'config.json');
-    const project = join(root, 'work', '.papo.json');
+    const user = join(root, 'config', 'copapo', 'config.json');
+    const project = join(root, 'work', '.copapo.json');
     await writeFile(user, JSON.stringify({ providers: [{ id: 'lm', baseUrl: 'http://lm' }], model: 'lm/user' }));
     await writeFile(project, JSON.stringify({ model: 'lm/project' }));
     const files = await rememberConfig({ cwd: join(root, 'work', 'deeper'), env, patch: { model: 'lm/picked', permissions: 'acceptEdits' } });
@@ -168,11 +177,11 @@ describe('rememberConfig', () => {
   it('writes nothing for an empty model or an empty patch', async () => {
     expect(await rememberConfig({ cwd: join(root, 'work'), env, patch: { model: '' } })).toEqual([]);
     expect(await rememberConfig({ cwd: join(root, 'work'), env, patch: {} })).toEqual([]);
-    await expect(readFile(join(root, 'config', 'papo', 'config.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(readFile(join(root, 'config', 'copapo', 'config.json'), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   it('refuses to rewrite a file that is not JSON', async () => {
-    const file = join(root, 'config', 'papo', 'config.json');
+    const file = join(root, 'config', 'copapo', 'config.json');
     await writeFile(file, '{ "model": ');
     await expect(rememberConfig({ cwd: join(root, 'work'), env, patch: { model: 'lm/x' } })).rejects.toBeInstanceOf(ConfigurationError);
     expect(await readFile(file, 'utf8')).toBe('{ "model": ');

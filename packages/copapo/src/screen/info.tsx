@@ -15,16 +15,16 @@ export interface InfoAction {
   run(): void;
 }
 
-const LAYER = 'papo.info';
+const LAYER = 'copapo.info';
 /** Lines shown before the rest is folded into a count; a dialog is not a pager. */
 const MAX_LINES = 40;
 const WIDTH = 78;
 
 /**
- * The one overlay behind `/status`, `/usage`, `/config`, `/help`, `/memory`: a dialog over `$/papo/info`.
+ * The one overlay behind `/status`, `/usage`, `/config`, `/help`, `/memory`: a dialog over `$/copapo/info`.
  * `esc` closes it; an action, when the command gave one, is a button along the bottom.
  */
-export const PapoInfo = defineComponent<{ actions?: InfoAction[] }>('PapoInfo', (props): RenderOutput => {
+export const CopapoInfo = defineComponent<{ actions?: InfoAction[] }>('CopapoInfo', (props): RenderOutput => {
   const app = useApp();
   const info = useStoreValue<Info | null>(INFO, null) ?? { title: '', lines: [] };
   const shown = info.lines.length > MAX_LINES
@@ -58,6 +58,6 @@ export function showInfo(app: TextUIApp, info: Info, actions?: InfoAction[]): vo
     scrim: true,
     trapFocus: true,
     dismissOnEscape: true,
-    node: { component: 'PapoInfo', ...(actions !== undefined ? { actions } : {}) },
+    node: { component: 'CopapoInfo', ...(actions !== undefined ? { actions } : {}) },
   });
 }

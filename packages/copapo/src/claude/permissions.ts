@@ -16,7 +16,7 @@ interface ClaudeQuestion {
 }
 
 /**
- * A `canUseTool` call as the block papo shows (CLI-03 decision 5): `AskUserQuestion` as the question
+ * A `canUseTool` call as the block copapo shows (CLI-03 decision 5): `AskUserQuestion` as the question
  * form, any other tool as the confirmation under the CLI's own sentence when it sent one, with `always`
  * offered when the CLI suggested a rule and did not ask for the option to be withheld.
  */

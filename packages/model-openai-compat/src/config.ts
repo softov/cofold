@@ -2,6 +2,7 @@ import type { JsonSchema, ModelProvider } from '@cofold/agents';
 import { AgentError } from '@cofold/agents';
 import { openaiCompatProvider } from './index.js';
 import type { ProviderConfig } from './types/config.js';
+import type { AppIdentity } from './types/options.js';
 
 /** One provider entry as a configuration file writes it: the shape a program validates its `providers` array against (decision 123). */
 export const PROVIDER_SCHEMA: JsonSchema = {
@@ -16,8 +17,8 @@ export const PROVIDER_SCHEMA: JsonSchema = {
   additionalProperties: false,
 };
 
-/** One `openaiCompatProvider` per entry, keyed by its `id`, in the configuration's order. */
-export function providersOf(configs: readonly ProviderConfig[]): Map<string, ModelProvider> {
+/** One `openaiCompatProvider` per entry, keyed by its `id`, in the configuration's order; `app` names the program to each. */
+export function providersOf(configs: readonly ProviderConfig[], options: { app?: AppIdentity } = {}): Map<string, ModelProvider> {
   return new Map(configs.map((provider) => [
     provider.id,
     openaiCompatProvider({
@@ -25,6 +26,7 @@ export function providersOf(configs: readonly ProviderConfig[]): Map<string, Mod
       baseUrl: provider.baseUrl,
       ...(provider.apiKey !== undefined ? { apiKey: provider.apiKey } : {}),
       ...(provider.headers !== undefined ? { headers: provider.headers } : {}),
+      ...(options.app !== undefined ? { app: options.app } : {}),
     }),
   ]));
 }

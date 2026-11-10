@@ -7,7 +7,7 @@ import type { Reasoning, Settings } from './settings.js';
 export type { ProviderConfig, SearchConfig, ToolsConfig };
 
 /**
- * When a tool call stops to ask: Claude Code's modes (cli/03 F8), as papo's policy reads them.
+ * When a tool call stops to ask: Claude Code's modes (cli/03 F8), as copapo's policy reads them.
  *
  * `default`: a tool that only reads (or declares no effect) runs, one that writes, destroys or reaches the network asks.
  * `acceptEdits`: as `default`, and `write_file` / `edit_file` inside the workspace run unasked (decision CLI-04.6).
@@ -23,7 +23,7 @@ export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | '
  */
 export type RuleLists = Pick<RulesOptions, 'deny' | 'ask' | 'allow'>;
 
-/** How much conversation a request may carry, and whether papo folds it before that runs out. */
+/** How much conversation a request may carry, and whether copapo folds it before that runs out. */
 export interface ContextConfig {
   /** Tokens for the instructions and the history, as the harness estimates them; default 32 000. */
   maxTokens: number;
@@ -34,8 +34,8 @@ export interface ContextConfig {
 /** What runs the conversation: the harness in this process, or Claude Code's runtime through its SDK. */
 export type Backend = 'cofold' | 'claude';
 
-/** `~/.config/papo/config.json`, `.papo.json`, `PAPO_CONFIG`, `--config`, and the `PAPO_*` variables, merged. */
-export interface PapoConfig {
+/** `~/.config/copapo/config.json`, `.copapo.json`, `COPAPO_CONFIG`, `--config`, and the `COPAPO_*` variables, merged. */
+export interface CopapoConfig {
   backend: Backend;
   providers: ProviderConfig[];
   /** `<providerId>/<modelId>`; the first listed model of the first provider when absent. */

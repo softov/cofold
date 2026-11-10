@@ -73,6 +73,17 @@ describe('createChat', () => {
     expect(await chat.wait(started.sessionId)).toBeUndefined();
   });
 
+  it('reads how much of the context the conversation fills, as /context counts it', async () => {
+    const { chat } = testChat({ script: ECHO });
+    const started = await chat.say({ text: 'Hello there' });
+    await chat.wait(started.sessionId);
+    const fill = await chat.context(started.sessionId);
+    expect(fill?.size).toBe(32_000);
+    expect(fill?.used).toBeGreaterThan(0);
+    expect(fill!.used).toBeLessThan(fill!.size);
+    await expect(chat.context('nope')).rejects.toMatchObject({ code: 'not_found' });
+  });
+
   it('stops at a destructive tool, shows the confirmation, and runs the tool once when approved', async () => {
     const { tool, executions } = deleteFileTool();
     const { chat } = testChat({
@@ -200,7 +211,7 @@ describe('createChat', () => {
     const started = await chat.say({ text: 'Delete a' });
     await chat.wait(started.sessionId);
     await chat.cancel(started.sessionId);
-    // Decision 120: papo no longer denies on its own; the harness answers the request and ends the turn.
+    // Decision 120: copapo no longer denies on its own; the harness answers the request and ends the turn.
     expect((await chat.wait(started.sessionId))?.status).toBe('cancelled');
     expect(executions()).toBe(0);
     const cancelled = await chat.snapshot(started.sessionId);
@@ -246,7 +257,7 @@ describe('createChat', () => {
     await chat.wait(started.sessionId);
     // What a process running a turn leaves: a `running` record holding the session's writer claim.
     const at = new Date(Date.now() + 1000).toISOString();
-    await store.runs.create({ runId: 'live', sessionId: started.sessionId, agentId: 'papo', status: 'running', createdAt: at, updatedAt: at, usage: { inputTokens: 0, outputTokens: 0 }, steps: 0, denials: [] });
+    await store.runs.create({ runId: 'live', sessionId: started.sessionId, agentId: 'copapo', status: 'running', createdAt: at, updatedAt: at, usage: { inputTokens: 0, outputTokens: 0 }, steps: 0, denials: [] });
     await store.sessions.claimWriter({ sessionId: started.sessionId, runId: 'live' });
 
     // The claim names a process that is there: the run is theirs, and a cancel here would resume it, re-claim the
@@ -339,7 +350,7 @@ describe('createChat', () => {
     const steering = chat.say({ sessionId: started.sessionId, text: 'Also, be brief' });
     gate.release();
     // The pause does not take the steer away: the handle it runs on is open across it (decision 122), so the
-    // text lands at the model step the decision lets begin, and nothing is held in papo's queue.
+    // text lands at the model step the decision lets begin, and nothing is held in copapo's queue.
     expect(await chat.wait(started.sessionId)).toMatchObject({ status: 'awaiting', kind: 'approval' });
     const paused = await chat.snapshot(started.sessionId);
     expect(paused.pending).toMatchObject({ kind: 'toolConfirmation', call: { name: 'delete_file' } });
@@ -399,7 +410,7 @@ describe('createChat', () => {
     expect((await chat.wait(started.sessionId))?.status).toBe('awaiting');
     // What a collision leaves: a newer run, failed `writer_busy` against the paused one.
     const later = new Date(Date.now() + 1000).toISOString();
-    await store.runs.create({ runId: 'stray', sessionId: started.sessionId, agentId: 'papo', status: 'failed', createdAt: later, updatedAt: later, usage: { inputTokens: 0, outputTokens: 0 }, steps: 0, denials: [] });
+    await store.runs.create({ runId: 'stray', sessionId: started.sessionId, agentId: 'copapo', status: 'failed', createdAt: later, updatedAt: later, usage: { inputTokens: 0, outputTokens: 0 }, steps: 0, denials: [] });
 
     expect((await chat.sessions())[0]?.activity).toBe('awaiting');
     const snapshot = await chat.snapshot(started.sessionId);
@@ -490,7 +501,7 @@ describe('createChat', () => {
         { kind: 'text', id: expect.not.stringContaining(':draft:'), text: 'Hello back.' },
       ]);
     }
-    // The deltas were persisted (decision 102) and papo read nothing back from them.
+    // The deltas were persisted (decision 102) and copapo read nothing back from them.
     const events = await store.runs.listEvents({ sessionId: started.sessionId, runId: started.runId });
     expect(events.filter((event) => event.type === 'model.delta')).toHaveLength(3);
   });
@@ -604,9 +615,9 @@ describe('createChat', () => {
   });
 
   it('says its own hint when no provider is configured at all (decision 123)', async () => {
-    // The library's message names the shape; this one names papo's file and variable, so it is checked first.
+    // The library's message names the shape; this one names copapo's file and variable, so it is checked first.
     const { chat } = testChat({ script: ECHO, config: { providers: [] } });
-    const hint = 'no provider is configured: set PAPO_BASE_URL or add one to ~/.config/papo/config.json';
+    const hint = 'no provider is configured: set COPAPO_BASE_URL or add one to ~/.config/copapo/config.json';
     await expect(chat.say({ text: 'x', settings: { model: 'lm/m' } })).rejects.toMatchObject({ code: 'invalid_options', message: hint });
     await expect(chat.models()).rejects.toMatchObject({ code: 'invalid_options', message: hint });
   });
@@ -847,7 +858,7 @@ describe('createChat', () => {
   });
 
   it('lists the shipped skills after the home ones, a home skill of the same name winning', async () => {
-    const home = await mkdtemp(join(tmpdir(), 'papo-home-'));
+    const home = await mkdtemp(join(tmpdir(), 'copapo-home-'));
     await mkdir(join(home, 'skills', 'review'), { recursive: true });
     await writeFile(join(home, 'skills', 'review', 'SKILL.md'), ['---', 'name: review', 'description: Mine', '---', 'x', ''].join('\n'));
     try {
@@ -863,9 +874,9 @@ describe('createChat', () => {
   });
 
   it('default runs what reads and asks before a write or the network; acceptEdits lets an edit inside the workspace through and asks outside it', async () => {
-    const workspace = await mkdtemp(join(tmpdir(), 'papo-modes-'));
+    const workspace = await mkdtemp(join(tmpdir(), 'copapo-modes-'));
     await writeFile(join(workspace, 'notes.md'), 'hello\n');
-    const outside = join(tmpdir(), `papo-outside-${Date.now()}.txt`);
+    const outside = join(tmpdir(), `copapo-outside-${Date.now()}.txt`);
     const config = { tools: { files: true, shell: true, web: true, memory: false } };
     try {
       // default: read_file runs; write_file and web_fetch stop (writes, network); the person denies each.
@@ -919,7 +930,7 @@ describe('createChat', () => {
   });
 
   it('gives the agent the standard tools the configuration turns on: read_file answers, shell_exec asks under default and runs under bypassPermissions', async () => {
-    const workspace = await mkdtemp(join(tmpdir(), 'papo-tools-'));
+    const workspace = await mkdtemp(join(tmpdir(), 'copapo-tools-'));
     await writeFile(join(workspace, 'package.json'), '{ "name": "demo" }\n');
     try {
       const reading = testChat({
@@ -933,7 +944,7 @@ describe('createChat', () => {
       expect(answered.turns[0]?.parts[0]).toMatchObject({ kind: 'tool', call: { name: 'read_file', status: 'completed', output: '1│{ "name": "demo" }' } });
       expect(answered.turns[0]?.parts[1]).toMatchObject({ kind: 'text', text: 'It is demo.' });
 
-      const script = [{ toolCalls: [{ name: 'shell_exec', input: { command: 'echo papo' } }] }, { text: 'Said papo.' }];
+      const script = [{ toolCalls: [{ name: 'shell_exec', input: { command: 'echo copapo' } }] }, { text: 'Said copapo.' }];
       const asking = testChat({ script, config: { tools: { files: false, shell: true, web: false, memory: false } }, workspace });
       const asked = await asking.chat.say({ text: 'Run echo' });
       expect((await asking.chat.wait(asked.sessionId))?.status).toBe('awaiting');
@@ -944,7 +955,7 @@ describe('createChat', () => {
       const running = testChat({ script, config: { tools: { files: false, shell: true, web: false, memory: false } }, workspace });
       const ran = await running.chat.say({ text: 'Run echo', settings: { permissions: 'bypassPermissions' } });
       expect((await running.chat.wait(ran.sessionId))?.status).toBe('completed');
-      expect((await running.chat.snapshot(ran.sessionId)).turns[0]?.parts[0]).toMatchObject({ call: { name: 'shell_exec', status: 'completed', output: 'exit 0\npapo' } });
+      expect((await running.chat.snapshot(ran.sessionId)).turns[0]?.parts[0]).toMatchObject({ call: { name: 'shell_exec', status: 'completed', output: 'exit 0\ncopapo' } });
     } finally {
       await rm(workspace, { recursive: true, force: true });
     }

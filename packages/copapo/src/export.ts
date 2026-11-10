@@ -18,7 +18,7 @@ export function toMarkdown(snapshot: Snapshot): string {
 }
 
 function turnLines(turn: Turn): string[] {
-  const lines = ['## You', '', turn.input.trim(), '', '## papo', ''];
+  const lines = ['## You', '', turn.input.trim(), '', '## copapo', ''];
   let said = false;
   for (const part of turn.parts) {
     if (part.kind === 'text') { lines.push(part.text.trim(), ''); said = true; }
@@ -37,5 +37,5 @@ function turnLines(turn: Turn): string[] {
 
 /** Where `/export` and `session export` write when no path is given. */
 export function exportPath(workspace: string, sessionId: string): string {
-  return join(workspace, `papo-${sessionId}.md`);
+  return join(workspace, `copapo-${sessionId}.md`);
 }

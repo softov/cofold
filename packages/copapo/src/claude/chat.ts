@@ -17,7 +17,7 @@ import { ASK_TOOL, answered, approval, denial, pendingOf } from './permissions.j
 import { projectSession } from './project.js';
 import { loadClaudeSdk } from './sdk.js';
 
-/** The provider id papo shows Claude's models under: refs are `claude/<model>`. */
+/** The provider id copapo shows Claude's models under: refs are `claude/<model>`. */
 export const CLAUDE_PROVIDER = 'claude';
 /** The CLI's own compaction command: a turn that sends it is compacting. */
 export const COMPACT_COMMAND = '/compact';
@@ -76,21 +76,23 @@ function deferred(runId: string, inputId: string): NonNullable<Live['turn']> {
 }
 
 /**
- * papo's `Chat` over Claude Code's runtime (CLI-03). Sessions, transcripts and compaction are the
+ * copapo's `Chat` over Claude Code's runtime (CLI-03). Sessions, transcripts and compaction are the
  * CLI's own; this process holds one query per session in use and the block a `canUseTool` is
  * waiting on. Every read projects `getSessionMessages` plus what is live here. A session's settings
- * are the one thing kept on papo's side, in the file store's kv under `home`, where the harness
+ * are the one thing kept on copapo's side, in the file store's kv under `home`, where the harness
  * backend keeps its own (CLI-03 decision 6).
  */
 export function createClaudeChat(options: ClaudeChatOptions): Chat {
   const { config, workspace, home } = options;
-  const warn = options.warn ?? ((message: string) => process.stderr.write(`papo: ${message}\n`));
+  const warn = options.warn ?? ((message: string) => process.stderr.write(`copapo: ${message}\n`));
   const listeners = new Set<ChatListener>();
   const live = new Map<string, Live>();
   /** Per-session choices, under the same key the harness backend writes, so `session set` reads one thing on both. */
   const kv = createFileStore({ root: home }).kv({ kind: 'workspace', workspace });
   /** Failed turns by session, keyed by the turn's input uuid; the CLI's store keeps no trace of them. */
   const errors = new Map<string, Record<string, string>>();
+  /** Ids handed out by `create` whose first turn has not started: the CLI is told to make the session, not resume it. */
+  const fresh = new Set<string>();
   const errorsOf = (sessionId: string): Record<string, string> => { let held = errors.get(sessionId); if (held === undefined) { held = {}; errors.set(sessionId, held); } return held; };
   let sdkLoaded: Promise<ClaudeSdkSubset> | undefined;
   const sdk = (): Promise<ClaudeSdkSubset> => (sdkLoaded ??= options.sdk !== undefined ? Promise.resolve(options.sdk) : loadClaudeSdk());
@@ -104,7 +106,7 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
   });
 
   // A configured model of another provider is not for this backend: the CLI's default is used. Read each time it is
-  // needed, not once: a pick on the model chip changes `config.model` while papo runs (decision CLI-05.1).
+  // needed, not once: a pick on the model chip changes `config.model` while copapo runs (decision CLI-05.1).
   const configured = (): string => (config.model !== undefined && config.model.startsWith(`${CLAUDE_PROVIDER}/`) ? config.model : '');
   if (config.model !== undefined && configured() === '') warn(`model "${config.model}" is not written ${CLAUDE_PROVIDER}/<model>; the claude backend uses the CLI's default`);
   const defaults = (): Settings => ({ model: configured(), permissions: config.permissions, reasoning: config.reasoning, autoCompact: config.context.autoCompact });
@@ -145,7 +147,7 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       ...(resume ? { resume: sessionId } : { sessionId }),
       ...(model !== '' ? { model } : {}),
       ...(chosen.reasoning !== 'off' ? { effort: chosen.reasoning } : {}),
-      // The four names are the CLI's own (cli/03 F8), passed through; papo's rule lists are the harness backend's,
+      // The four names are the CLI's own (cli/03 F8), passed through; copapo's rule lists are the harness backend's,
       // the CLI reads its own settings files (`settingSources`). `bypassPermissions` needs the flag the SDK asks for.
       permissionMode: chosen.permissions,
       ...(chosen.permissions === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } : {}),
@@ -304,7 +306,7 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       notify(id);
       return { sessionId: id, runId: held.turn.runId, steered: true };
     }
-    const entry = await liveFor(id, chosen, sessionId !== undefined);
+    const entry = await liveFor(id, chosen, sessionId !== undefined && !fresh.delete(id));
     const runId = newId();
     // The prompt's uuid is the CLI's record of it: the store's user message, the turn's id here.
     const inputId = randomUUID();
@@ -503,6 +505,32 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       notify(sessionId);
     },
 
+    // The CLI makes a session on its first message; until then the id is only reserved here.
+    async create() {
+      const id = randomUUID();
+      fresh.add(id);
+      return id;
+    },
+
+    async fork(sessionId) {
+      const held = live.get(sessionId);
+      if (held !== undefined && (held.running || held.decision !== null)) {
+        throw new AgentError({ code: 'writer_busy', message: `session ${sessionId} has a turn in progress; wait for it or cancel it before forking` });
+      }
+      const messages = await messagesOf(sessionId);
+      if (messages.length === 0) throw new AgentError({ code: 'not_found', message: `session ${sessionId} is not there` });
+      const { sessionId: id } = await (await sdk()).forkSession(sessionId, { dir: workspace });
+      const own = await kv.get<Partial<Settings>>(settingsKey(sessionId));
+      if (own !== undefined) await kv.set(settingsKey(id), own);
+      notify(id);
+      const row = (await chat.sessions()).find((one) => one.id === id);
+      if (row === undefined) throw new AgentError({ code: 'not_found', message: `the fork of ${sessionId} is not listed` });
+      return row;
+    },
+
+    // The CLI counts its own context and does not say; `/context` is its command.
+    context: async () => undefined,
+
     subscribe(listener) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
@@ -510,7 +538,7 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
 
     async close() {
       for (const [sessionId, held] of live) {
-        held.decision?.resolve(denial('papo closed before the decision was made'));
+        held.decision?.resolve(denial('copapo closed before the decision was made'));
         held.feed.end();
         held.query.close();
         live.delete(sessionId);

@@ -66,7 +66,7 @@ const claude: Rig = {
       if (beat === 'wait') return { tool: 'Bash', input: { command: 'sleep 5' }, waitFor, onWait, then: 'Done.' };
       return { tool: 'AskUserQuestion', input: { questions: [{ question: QUESTION, header: 'Pick', options: [{ label: 'A' }, { label: 'B' }] }] }, then: 'Done.' };
     });
-    const chat = createClaudeChat({ config: testConfig({ model: undefined }), workspace: 'C:\\work', home: join(tmpdir(), `papo-contract-${randomUUID()}`), sdk, warn: () => {} });
+    const chat = createClaudeChat({ config: testConfig({ model: undefined }), workspace: 'C:\\work', home: join(tmpdir(), `copapo-contract-${randomUUID()}`), sdk, warn: () => {} });
     return {
       chat,
       release: () => release('waited'),
@@ -301,6 +301,47 @@ describe.each([cofold, claude])('the chat contract on $name', (rig) => {
     // The rule lists are settings too, kept per session on both backends (decision CLI-04.5).
     expect((await chat.configure(started.sessionId, { rules: { deny: [{ tool: 'shell_exec', match: 'rm *' }] } })).rules).toEqual({ deny: [{ tool: 'shell_exec', match: 'rm *' }] });
     await expect(chat.configure(started.sessionId, { rules: { allow: [{ tool: '' }] } })).rejects.toMatchObject({ code: 'invalid_options' });
+    await chat.close();
+  });
+
+  it('create: an empty session that say takes by its id, settings first', async () => {
+    const { chat } = rig.open(['text']);
+    const id = await chat.create();
+    expect((await chat.configure(id, { reasoning: 'high' })).reasoning).toBe('high');
+    const started = await chat.say({ sessionId: id, text: 'Hello there' });
+    expect(started.sessionId).toBe(id);
+    expect((await chat.wait(id))?.status).toBe('completed');
+    const snapshot = await chat.snapshot(id);
+    expect(snapshot.turns.map((turn) => turn.input)).toEqual(['Hello there']);
+    expect(snapshot.settings.reasoning).toBe('high');
+    await chat.close();
+  });
+
+  it('fork: a new session with the same turns and settings, and the old one as it was', async () => {
+    const { chat } = rig.open(['text', 'text']);
+    const started = await chat.say({ text: 'Hello there', settings: { reasoning: 'high' } });
+    await chat.wait(started.sessionId);
+    const fork = await chat.fork(started.sessionId);
+    expect(fork.id).not.toBe(started.sessionId);
+    expect(fork.activity).toBe('idle');
+    expect((await chat.sessions()).map((row) => row.id).sort()).toEqual([started.sessionId, fork.id].sort());
+    const copied = await chat.snapshot(fork.id);
+    expect(copied.turns.map((turn) => turn.input)).toEqual(['Hello there']);
+    expect(copied.settings.reasoning).toBe('high');
+
+    await chat.say({ sessionId: fork.id, text: 'Only here' });
+    await chat.wait(fork.id);
+    expect((await chat.snapshot(fork.id)).turns.map((turn) => turn.input)).toEqual(['Hello there', 'Only here']);
+    expect((await chat.snapshot(started.sessionId)).turns.map((turn) => turn.input)).toEqual(['Hello there']);
+    await expect(chat.fork('nope')).rejects.toMatchObject({ code: 'not_found' });
+    await chat.close();
+  });
+
+  it('fork: refused while a turn waits on a decision', async () => {
+    const { chat } = rig.open(['tool']);
+    const started = await chat.say({ text: 'Delete a' });
+    await chat.wait(started.sessionId);
+    await expect(chat.fork(started.sessionId)).rejects.toMatchObject({ code: 'writer_busy' });
     await chat.close();
   });
 });

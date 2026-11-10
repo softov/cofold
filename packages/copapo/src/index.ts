@@ -4,16 +4,19 @@ export { createClaudeChat, CLAUDE_PROVIDER } from './claude/chat.js';
 export type { ClaudeSdkSubset, ClaudeQuery, ClaudeSessionMessage } from './types/claude.js';
 export { loadConfig, rememberConfig, userConfigPath, DEFAULT_INSTRUCTIONS } from './config.js';
 export { buildAgent, AGENT_ID } from './agent.js';
-// The mode mapping moved to the harness, where a second host can share it; papo's surface keeps it.
+// The mode mapping moved to the harness, where a second host can share it; copapo's surface keeps it.
 export { policyOf } from '@cofold/agents';
 export { projectTurns, titleOf, shortTitle, inputLine, ALWAYS } from './turns.js';
 export { toBlocks, QUEUED_BLOCK } from './blocks.js';
 export { toChatQuestion, toAskAnswers, parseAnswers } from './questions.js';
-export { createPapoRegistry, openPapo, GLOBALS } from './commands.js';
-export type { Papo, RegistryOptions } from './commands.js';
+export { createCopapoRegistry, openCopapo, GLOBALS } from './commands.js';
+export { serveAcp, PROTOCOL_VERSION } from './acp/server.js';
+export type { AcpServer, AcpServerOptions } from './types/acp.js';
+export { COPAPO_APP, providersFor } from './app.js';
+export type { Copapo, RegistryOptions } from './commands.js';
 export { createProgram, argvFor, VERSION } from './program.js';
 export type { ProgramArgs } from './program.js';
-export type { Backend, PapoConfig, ProviderConfig, PermissionMode, RememberedSettings } from './types/config.js';
+export type { Backend, CopapoConfig, ProviderConfig, PermissionMode, RememberedSettings } from './types/config.js';
 export type { Settings, Reasoning } from './types/settings.js';
 export { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 export type { Chat, ChatListener, ChatOptions, ClaudeChatOptions, ModelRow, Queued, QueueDeps, Queues, Started } from './types/chat.js';
