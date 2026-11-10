@@ -11,6 +11,9 @@ import { CONTROLLER, PERMISSION_LABELS, REASONING_LABELS, slashName } from './ap
 import { ANSWERS, CHAT_SCOPE, COMMANDS, DRAFT, EXPANDED, INPUT_STATUS, MARKDOWN, PLACE, SETTINGS, SNAPSHOT } from './state.js';
 import { sessionView } from './sessions.js';
 
+/** The sections of the `/` menu, in that order: the runtime's commands, the skills, then the screen's own. */
+const SECTIONS = { commands: 'Commands', skills: 'Skills', screen: 'Screen' } as const;
+
 /**
  * What a slash offers (plan agent/03, "The `/` menu"): the runtime's commands, then the prompt
  * commands, both sent as `/<name> ...`; then the client commands the runtime does not list, named by
@@ -28,12 +31,13 @@ function useSlashCommands(): ChatCommand[] {
     return [
       ...listed.map((command): ChatCommand => ({
         id: command.name, kind: 'session', title: command.name, description: command.description,
+        section: command.kind === 'prompt' ? SECTIONS.skills : SECTIONS.commands,
         ...(command.argumentHint !== undefined ? { hint: command.argumentHint } : {}),
       })),
       ...app.commands.list({ slot: 'palette', enabledOnly: true })
         .filter((command) => !names.has(slashName(command.id)))
         .map((command): ChatCommand => ({
-          id: slashName(command.id), kind: 'client', title: command.title, ...(command.description !== undefined ? { description: command.description } : {}),
+          id: slashName(command.id), kind: 'client', title: command.title, section: SECTIONS.screen, ...(command.description !== undefined ? { description: command.description } : {}),
         })),
     ].sort((a, b) => rank(a.id) - rank(b.id));
   }, [listed, app, typed]);

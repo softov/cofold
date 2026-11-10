@@ -209,6 +209,8 @@ describe('the screen', () => {
       t.type('/mod');
       await settle(t);
       expect(t.text().split('\n').filter((line) => /^\s*(▸\s*)?\/model\s{2,}/.test(line))).toHaveLength(1);
+      // Each row is under the heading of its section: the runtime's commands, the skills, the screen's own.
+      expect(headingAbove(t.text(), '/model')).toBe('Commands');
       // A command with an argument becomes the draft to finish.
       t.press('enter');
       await settle(t);
@@ -219,6 +221,7 @@ describe('the screen', () => {
       t.type('/rev');
       await settle(t);
       expect(t.hasText('Review the change')).toBe(true);
+      expect(headingAbove(t.text(), '/review')).toBe('Skills');
       t.press('enter');
       await settle(t, 30);
       expect(t.hasText('Skill: review')).toBe(true);
@@ -226,6 +229,7 @@ describe('the screen', () => {
       t.type('/quit');
       await settle(t);
       expect(t.hasText('Quit')).toBe(true);
+      expect(headingAbove(t.text(), '/quit')).toBe('Screen');
       t.press('enter');
       await settle(t);
       expect(quit()).toBe(true);
@@ -467,3 +471,14 @@ describe('the screen', () => {
     }
   });
 });
+
+/** The section heading nearest above the row that holds `command` in the `/` menu. */
+function headingAbove(text: string, command: string): string | undefined {
+  const lines = text.split('\n');
+  const at = lines.findIndex((line) => new RegExp(`(^|\\s)${command.replace('/', '\\/')}\\s`).test(line));
+  for (let i = at - 1; i >= 0; i -= 1) {
+    const word = lines[i]!.replace(/[│┃|]/g, '').trim();
+    if (['Commands', 'Skills', 'Screen'].includes(word)) return word;
+  }
+  return undefined;
+}
