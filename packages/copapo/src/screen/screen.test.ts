@@ -10,6 +10,7 @@ import { createMemoryStore } from '@cofold/agents';
 import { createChat } from '../chat.js';
 import { rememberInto } from '../commands.js';
 import { deleteFileTool, fakeProvider, gateTool, providerMap, testChat, testConfig } from '../testing.js';
+import { createWarnings } from '../warnings.js';
 import { registerCopapo } from './app.js';
 import type { Info } from './info.js';
 import { DRAFT, INFO, OPEN } from './state.js';
@@ -41,6 +42,32 @@ async function screen(args: { script: FakeStep[]; tools?: Tool<any, any>[]; home
 }
 
 describe('the screen', () => {
+  for (const size of SIZES) {
+    it(`shows a chat warning on a line above the key hints, and hands warnings back on close, at ${size.width}x${size.height}`, async () => {
+      const written: string[] = [];
+      const warnings = createWarnings((message) => written.push(message));
+      const { chat } = testChat({ script: [] });
+      const t = await renderApp({
+        ...size,
+        shell: 'workbench',
+        theme: 'paper',
+        onBoot: (app) => registerCopapo(app, { copapo: { chat, config: testConfig(), workspace: '/work', home: '/nowhere', remember: async () => [], warnings }, onQuit: () => undefined }),
+      });
+      await settle(t);
+      warnings.warn('provider "local": connect ECONNREFUSED');
+      await settle(t);
+      const lines = t.lines();
+      const warning = lines.findIndex((line) => line.includes('provider "local"'));
+      const hints = lines.findIndex((line) => line.startsWith('↑↓'));
+      expect(warning).toBeGreaterThan(-1);
+      expect(hints).toBe(warning + 1);
+      expect(written).toEqual([]);
+      await t.unmount();
+      warnings.warn('after');
+      expect(written).toEqual(['after']);
+    });
+  }
+
   it('opens on the catalogue, starts a conversation on n, and shows the reply', async () => {
     const { t } = await screen({ script: [{ text: 'Hello back.' }] });
     expect(t.hasText('No sessions here yet')).toBe(true);

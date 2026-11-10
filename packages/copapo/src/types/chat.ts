@@ -134,7 +134,7 @@ export interface Chat {
   /** Change a session's settings; validated (a model must be configured, the words must be known). */
   configure(sessionId: string, patch: Partial<Settings>): Promise<Settings>;
   /**
-   * The models on offer. Without `provider`: every configured provider in order, a provider that cannot
+   * The models on offer, each provider's sorted by id. Without `provider`: every configured provider in order, a provider that cannot
    * be reached warned once and skipped, so one that is down never hides the others. With `provider`: that
    * one only; its listing error is the caller's to see, an unknown id is `invalid_options`.
    */

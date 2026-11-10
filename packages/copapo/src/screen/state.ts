@@ -17,6 +17,8 @@ export const DRAFT = '$/copapo/draft' as BindingPath;
 export const EXPANDED = '$/copapo/expanded' as BindingPath;
 /** What was last refused, in the service's words; cleared by the next success. */
 export const ERROR = '$/copapo/error' as BindingPath;
+/** The chat's latest warning, shown above the key hints until the screen closes. */
+export const WARNING = '$/copapo/warning' as BindingPath;
 /** What became of the answer given to the waiting block. */
 export const INPUT_STATUS = '$/copapo/inputStatus' as BindingPath;
 /** Draft answers to the waiting question, keyed under the request id. */

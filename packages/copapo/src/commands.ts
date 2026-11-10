@@ -22,6 +22,8 @@ import type { CopapoConfig, RememberedSettings, RuleLists } from './types/config
 import type { Settings } from './types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 import type { Snapshot, Turn } from './types/turn.js';
+import type { Warnings } from './warnings.js';
+import { createWarnings } from './warnings.js';
 
 /** The three choices a session carries, as `say` and `session set` spell them. */
 const SETTING_FIELDS = {
@@ -103,6 +105,8 @@ export interface Copapo {
    * so the next new conversation in this process starts from it (decision CLI-05.1). Resolves to the files written.
    */
   remember(patch: RememberedSettings): Promise<string[]>;
+  /** Where the chat's warnings go; the screen takes them while it draws, so stderr never lands on it. */
+  warnings?: Warnings;
 }
 
 /**
@@ -130,10 +134,11 @@ export function openCopapo(globals: Readonly<Record<string, unknown>>): Copapo {
     if (globals['backend'] !== 'cofold' && globals['backend'] !== 'claude') throw new ArgumentError(`--backend must be cofold or claude, not "${globals['backend']}"`);
     config.backend = globals['backend'];
   }
+  const warnings = createWarnings();
   const chat = config.backend === 'claude'
-    ? createClaudeChat({ config, workspace, home })
-    : createChat({ store: createFileStore({ root: home }), config, providers: providersFor(config), workspace, home });
-  return { chat, config, workspace, home, remember: rememberInto({ config, cwd: workspace, ...(path !== undefined ? { path } : {}) }) };
+    ? createClaudeChat({ config, workspace, home, warn: warnings.warn })
+    : createChat({ store: createFileStore({ root: home }), config, providers: providersFor(config), workspace, home, warn: warnings.warn });
+  return { chat, config, workspace, home, warnings, remember: rememberInto({ config, cwd: workspace, ...(path !== undefined ? { path } : {}) }) };
 }
 
 function isDirectory(path: string): boolean {

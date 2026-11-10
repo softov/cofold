@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Agent, ApprovalPayload, Message, ModelAdapter, ModelInfo, ModelProvider, PendingRequest, RunHandle, RunOutcome, RunRecord, SlashCommand, StopReason } from '@cofold/agents';
+import type { Agent, ApprovalPayload, Message, ModelAdapter, ModelInfo, ModelProvider, PendingRequest, RunHandle, RunOutcome, RunRecord, SkillSource, SlashCommand, StopReason } from '@cofold/agents';
 import { AgentError, INTERRUPTED, INTERRUPTED_TOOL, listPromptCommands, listSkills, listSlashCommands, newId, resume, run, sessionUsage } from '@cofold/agents';
 import { providerFor, splitModel } from '@cofold/model-openai-compat';
 import { fileSkillSource } from '@cofold/store-file';
@@ -45,6 +45,12 @@ interface Attached {
 /** The package folder: `<here>/skills/<name>/SKILL.md` are the prompts copapo ships. */
 const SHIPPED_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
+/** The skills copapo ships, and only those: the home source already lists the workspace's `.agents/skills`. */
+function shippedSkills(): SkillSource {
+  const source = fileSkillSource({ root: SHIPPED_ROOT });
+  return { ...source, list: () => source.list({}) };
+}
+
 /**
  * The provider an agent built only to list its commands is given: listing reads the agent's lists and the
  * capabilities' prompts, never the model, so this model refuses every request.
@@ -75,7 +81,7 @@ export function settingsKey(sessionId: string): string {
 export function createChat(options: ChatOptions): Chat {
   const { store, config, providers, workspace, home } = options;
   // The person's skills first, then the ones copapo ships (`/init`, `/review`), so a home skill of the same name wins.
-  const skillSources = [fileSkillSource({ root: home }), fileSkillSource({ root: SHIPPED_ROOT })];
+  const skillSources = [fileSkillSource({ root: home }), shippedSkills()];
   const warn = options.warn ?? ((message: string) => process.stderr.write(`copapo: ${message}\n`));
   const attached = new Map<string, Attached>();
   /**
@@ -388,7 +394,8 @@ export function createChat(options: ChatOptions): Chat {
           warn(`provider "${id}": ${error instanceof Error ? error.message : String(error)}`);
           continue;
         }
-        for (const model of listed) rows.push({ ...model, provider: id, ref: `${id}/${model.id}` });
+        // A server's own order is its catalogue's (OpenRouter's is by release); a person scans by name.
+        for (const model of [...listed].sort((a, b) => a.id.localeCompare(b.id, 'en'))) rows.push({ ...model, provider: id, ref: `${id}/${model.id}` });
       }
       return rows;
     },

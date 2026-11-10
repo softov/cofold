@@ -598,11 +598,11 @@ describe('createChat', () => {
       providers: [down],
       warn: (message) => warned.push(message),
     });
-    // The whole list: what answers is listed, what does not is said once.
-    expect((await chat.models()).map((row) => row.ref)).toEqual(['fake/scripted', 'fake/other']);
+    // The whole list, each provider's sorted by id: what answers is listed, what does not is said once.
+    expect((await chat.models()).map((row) => row.ref)).toEqual(['fake/other', 'fake/scripted']);
     expect(warned).toEqual(['provider "local": connect ECONNREFUSED 10.255.10.10:1235']);
     // One provider: its rows, or its own error.
-    expect((await chat.models({ provider: 'fake' })).map((row) => row.ref)).toEqual(['fake/scripted', 'fake/other']);
+    expect((await chat.models({ provider: 'fake' })).map((row) => row.ref)).toEqual(['fake/other', 'fake/scripted']);
     await expect(chat.models({ provider: 'local' })).rejects.toThrow('ECONNREFUSED');
     await expect(chat.models({ provider: 'nope' })).rejects.toMatchObject({ code: 'invalid_options', message: 'provider "nope" is not configured; configured: fake, local' });
   });
@@ -611,7 +611,7 @@ describe('createChat', () => {
     const { chat } = testChat({ script: ECHO });
     await expect(chat.say({ text: 'x', settings: { model: 'other/m' } })).rejects.toMatchObject({ code: 'invalid_options' });
     await expect(chat.say({ text: 'x', settings: { model: 'nomodel' } })).rejects.toMatchObject({ code: 'invalid_options' });
-    expect((await chat.models()).map((row) => row.ref)).toEqual(['fake/scripted', 'fake/other']);
+    expect((await chat.models()).map((row) => row.ref)).toEqual(['fake/other', 'fake/scripted']);
   });
 
   it('says its own hint when no provider is configured at all (decision 123)', async () => {
@@ -870,6 +870,22 @@ describe('createChat', () => {
       ]);
     } finally {
       await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  it('lists a workspace skill once, with no duplicate warned', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'copapo-skills-'));
+    await mkdir(join(workspace, '.agents', 'skills', 'mine'), { recursive: true });
+    await writeFile(join(workspace, '.agents', 'skills', 'mine', 'SKILL.md'), ['---', 'name: mine', 'description: Here', '---', 'x', ''].join('\n'));
+    const warned: string[] = [];
+    try {
+      const { chat } = testChat({ script: [{ text: 'Done.' }], workspace, warn: (message) => warned.push(message) });
+      expect((await chat.skills()).filter((skill) => skill.name === 'mine')).toHaveLength(1);
+      const started = await chat.say({ text: 'Hi' });
+      expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+      expect(warned).toEqual([]);
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
     }
   });
 

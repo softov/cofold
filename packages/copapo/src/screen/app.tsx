@@ -10,7 +10,8 @@ import {
 } from '@textui/chat';
 import type { ArgChoices, ArgSpec, BoxProps, Disposable, ServiceKey, TextUIApp } from '@textui/core';
 import { createBag, defineComponent, serviceKey, useApp, useStoreValue, useTheme } from '@textui/core';
-import { KeyHints, Row, registerBuiltins } from '@textui/widgets';
+import type { LayoutProps } from '@textui/widgets';
+import { Column, KeyHints, MountView, Row, registerBuiltins } from '@textui/widgets';
 import type { Copapo } from '../commands.js';
 import { rememberedOf } from '../commands.js';
 import { exportPath, toMarkdown } from '../export.js';
@@ -22,7 +23,7 @@ import type { Snapshot } from '../types/turn.js';
 import { ChatScreen } from './chat.js';
 import { CopapoInfo, showInfo } from './info.js';
 import { SessionsScreen } from './sessions.js';
-import { ANSWERS, CHAT_SCOPE, COMMANDS, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, PLACE, PROVIDERS, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SNAPSHOT } from './state.js';
+import { ANSWERS, CHAT_SCOPE, COMMANDS, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, PLACE, PROVIDERS, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SNAPSHOT, WARNING } from './state.js';
 
 /** The words on the chips and in the picker, for the values the configuration spells: Claude Code's four modes (cli/03 F8). */
 export const PERMISSION_LABELS: Record<Settings['permissions'], { label: string; description: string }> = {
@@ -299,11 +300,28 @@ const Hints = defineComponent<BoxProps>('CopapoHints', (props) => {
 
 const Status = defineComponent<Record<string, never>>('CopapoStatus', () => {
   const error = useStoreValue<string | null>(ERROR, null) ?? null;
+  const warning = useStoreValue<string | null>(WARNING, null) ?? null;
   const said = useStoreValue<ChatSendStatus | null>(INPUT_STATUS, null) ?? null;
   const shown = said?.state === 'failed' && said.text === error ? null : error;
-  return shown !== null
+  const line = shown !== null
     ? <text content={shown} fg="danger" flex={1} truncate="end" />
     : <Hints flex={1} />;
+  return warning === null ? line : (
+    <Column>
+      <text content={warning} fg="warning" truncate="end" />
+      {line}
+    </Column>
+  );
+});
+
+/** The status surface's rows, each its own height: textui's bar is one line, and a warning sits on a line above the key hints. */
+const StatusLayout = defineComponent<LayoutProps>('CopapoStatusLayout', (props) => {
+  const { mounts, surface: _surface, state: _state, ...rest } = props;
+  return (
+    <Column {...rest}>
+      {mounts.map((mount) => <MountView key={mount.key} mount={mount} flex={0} />)}
+    </Column>
+  );
 });
 
 export const COPAPO: ServiceKey<Copapo> = serviceKey<Copapo>('copapo');
@@ -324,6 +342,8 @@ export function registerCopapo(app: TextUIApp, options: ScreenOptions): Disposab
   bag.add(controller);
   bag.add(app.services.provide(COPAPO, options.copapo));
   bag.add(app.services.provide(CONTROLLER, controller));
+  const warnings = options.copapo.warnings;
+  if (warnings !== undefined) bag.add({ dispose: warnings.divert((message) => { app.store.set(WARNING, message); }) });
 
   for (const [component, render] of [
     ['ChatBubble', ChatBubble],
@@ -341,11 +361,14 @@ export function registerCopapo(app: TextUIApp, options: ScreenOptions): Disposab
     ['CopapoStatus', Status],
     ['CopapoHints', Hints],
     ['CopapoInfo', CopapoInfo],
+    ['CopapoStatusLayout', StatusLayout],
   ] as const) {
     bag.add(app.components.register({ component, category: 'template', renderer: { kind: 'function', render: render as never } }));
   }
 
   bag.add(app.surfaces.open({ surface: 'header', key: 'title', target: { component: 'CopapoHeader' } }));
+  bag.add(app.layouts.register({ name: 'copapo-status', component: 'CopapoStatusLayout', surfaces: ['status'] }));
+  app.surfaces.setState('status', { layout: 'copapo-status' });
   bag.add(app.surfaces.open({ surface: 'status', key: 'status', target: { component: 'CopapoStatus' } }));
   bag.add(app.screens.register({ id: 'sessions', component: 'SessionsScreen' }));
   // Kept alive: coming back to a conversation that scrolled itself to the top is losing your place.

@@ -96,7 +96,7 @@ describe('copapo acp', () => {
     expect(created.modes.currentModeId).toBe('default');
     expect(created.modes.availableModes.map((mode) => mode.id)).toEqual(['default', 'acceptEdits', 'bypassPermissions', 'dontAsk']);
     expect(created.configOptions.map((option) => [option.id, option.category, option.currentValue])).toEqual([['model', 'model', 'fake/scripted'], ['thought_level', 'thought_level', 'off']]);
-    expect(created.configOptions[0]!.options.map((option) => option.value)).toEqual(['fake/scripted', 'fake/other']);
+    expect(created.configOptions[0]!.options.map((option) => option.value)).toEqual(['fake/other', 'fake/scripted']);
     await eventually(() => client.updates(created.sessionId).some((one) => one['sessionUpdate'] === 'available_commands_update'));
 
     const listed = await client.call<{ sessions: { sessionId: string; cwd: string }[] }>('session/list', {});

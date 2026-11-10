@@ -374,7 +374,7 @@ describe('the shell', () => {
 
     const all = await run('models', '--json');
     expect(all.code).toBe(0);
-    expect((JSON.parse(all.out) as { ref: string }[]).map((row) => row.ref)).toEqual(['fake/scripted', 'fake/other']);
+    expect((JSON.parse(all.out) as { ref: string }[]).map((row) => row.ref)).toEqual(['fake/other', 'fake/scripted']);
 
     const one = await run('models', 'fake');
     expect(one.code).toBe(0);
