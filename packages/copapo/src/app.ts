@@ -3,7 +3,7 @@ import type { ModelProvider } from '@cofold/agents';
 import { providersOf } from '@cofold/model-openai-compat';
 import type { CopapoConfig } from './types/config.js';
 
-export const VERSION = '0.0.1';
+export const VERSION = '0.1.0';
 
 /** Who copapo's model calls say they come from: the User-Agent, and OpenRouter's referer and title. */
 export const COPAPO_APP: AppIdentity = { name: 'copapo', version: VERSION, url: 'https://github.com/softov/cofold' };

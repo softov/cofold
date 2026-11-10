@@ -1,7 +1,7 @@
 import type { AppIdentity } from './types/options.js';
 
 /** This package's version, as `package.json` has it; `app.test.ts` fails when the two differ. */
-export const VERSION = '0.2.1';
+export const VERSION = '0.3.0';
 
 /** Who calls when the program names nobody. */
 export const DEFAULT_APP: AppIdentity = { name: 'cofold', version: VERSION, url: 'https://github.com/softov/cofold' };

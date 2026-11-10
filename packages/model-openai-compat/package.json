@@ -1,6 +1,6 @@
 {
   "name": "@cofold/model-openai-compat",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Chat Completions model adapter for @cofold/agents (OpenRouter, LM Studio, any compatible server).",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
   "license": "MIT",
