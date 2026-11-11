@@ -1,6 +1,6 @@
 ---
 title: Streamable HTTP over fetch
-status: todo
+status: implemented
 depends: [task-01-a-client-speaks-mcp-over-stdio.md]
 layer: "mcp-client"
 refs:
@@ -40,3 +40,4 @@ Each message is a POST, and the reply is JSON or an SSE stream; the session id a
 
 ## Resume
 
+Implemented 2026-11-10. Departed from the plan: a 404 for a known session closes the connection instead of starting the session again in the same call. The capability connects again at the next turn, so the effect is one failed call. Found by a test: an SSE body whose last line has no newline lost that line; fixed.

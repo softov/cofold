@@ -1,6 +1,6 @@
 ---
 title: The claude backend follows trust, and the docs say what loads
-status: todo
+status: implemented
 depends: [task-03-trust-decides-what-loads.md]
 layer: "copapo, docs"
 refs:
@@ -34,3 +34,4 @@ The README says which files copapo loads, in which order, and what trust gates.
 
 ## Resume
 
+Implemented 2026-11-10. `settingSources` is `['user']` in a folder copapo does not trust. Both READMEs have the section.

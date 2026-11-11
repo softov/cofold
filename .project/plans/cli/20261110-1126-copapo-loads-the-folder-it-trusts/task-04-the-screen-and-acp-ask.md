@@ -1,6 +1,6 @@
 ---
 title: The screen and ACP ask before they load a folder
-status: todo
+status: implemented
 depends: [task-03-trust-decides-what-loads.md]
 layer: "copapo screen, copapo acp"
 refs:
@@ -45,3 +45,4 @@ Over ACP, the first session in such a folder sends the same question as a form, 
 
 ## Resume
 
+Implemented 2026-11-10. The question is `askTrust` in `screen/trust.ts`, on `ConfirmDialog` through `app.layers`, so Escape differs from "Don't trust". The paper theme draws no dialog title, so the question is in the message. Over ACP the form is tied to the request by `requestId`, since no session exists yet; `RequestHandler` now gets the request id. Found by a run in a pseudo-terminal: `main.ts` dropped `reopen`; fixed.

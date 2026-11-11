@@ -1,6 +1,6 @@
 ---
 title: Trust decides what a folder loads
-status: todo
+status: implemented
 depends: [task-02-skills-load-from-common-and-tree.md]
 layer: "copapo"
 refs:
@@ -49,3 +49,4 @@ In a folder that is not trusted, copapo reads no `.copapo.json` and no project `
 
 ## Resume
 
+Implemented 2026-11-10. `trust.ts` holds `gatedFiles`, `trustOf`, `loadsProject` and `saveTrust`. `openCopapo(globals, { trusted })` takes a front's answer. The backend is read before trust, from every file but the project's. The schema types `trusted` as an object, since cofold's `JsonSchema` takes no schema in `additionalProperties`; `trustOf` skips a value that is not a boolean.

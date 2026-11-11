@@ -1,10 +1,11 @@
-import { isAbsolute } from 'node:path';
+import { isAbsolute, relative } from 'node:path';
 import type { RunOutcome } from '@cofold/agents';
 import { AgentError } from '@cofold/agents';
 import type { ChatPendingInput } from '@textui/chat';
 import type {
-  AcpServer, AcpServerOptions, ClientCapabilities, ContentBlock, ElicitationResponse, RequestPermissionOutcome, SessionInfo, SessionSetup, SessionUpdate, StopReason,
+  AcpServer, AcpServerOptions, ClientCapabilities, ContentBlock, ElicitationResponse, RequestPermissionOutcome, RpcId, SessionInfo, SessionSetup, SessionUpdate, StopReason,
 } from '../types/acp.js';
+import type { McpServerConfig } from '@cofold/mcp-client';
 import type { Chat, ModelRow } from '../types/chat.js';
 import type { Settings } from '../types/settings.js';
 import type { Turn } from '../types/turn.js';
@@ -70,11 +71,26 @@ export function serveAcp(options: AcpServerOptions): AcpServer {
   const listed = new Map<Chat, Promise<ModelRow[]>>();
   let client: ClientCapabilities = {};
 
-  function chatOf(cwd: unknown): Chat {
+  /** The trust questions in flight, by folder, so two sessions opening at once ask once. */
+  const asking = new Map<string, Promise<boolean | undefined>>();
+
+  /**
+   * The service for `cwd`. In a folder not asked yet, a client that takes forms is asked first, with a form tied to
+   * the request that names the folder (`requestId`); the answer is kept and builds the service.
+   */
+  async function chatOf(cwd: unknown, requestId?: RpcId): Promise<Chat> {
     if (typeof cwd !== 'string' || !isAbsolute(cwd)) throw new RpcError(INVALID_PARAMS, 'cwd must be an absolute path');
     let chat = chats.get(cwd);
     if (chat !== undefined) return chat;
-    try { chat = options.chatFor(cwd); } catch (error: unknown) { throw new RpcError(INVALID_PARAMS, error instanceof Error ? error.message : String(error)); }
+    let question = asking.get(cwd);
+    if (question === undefined) {
+      question = askTrust(cwd, requestId);
+      asking.set(cwd, question);
+    }
+    const trusted = await question;
+    chat = chats.get(cwd);
+    if (chat !== undefined) return chat;
+    try { chat = options.chatFor(cwd, trusted); } catch (error: unknown) { throw new RpcError(INVALID_PARAMS, error instanceof Error ? error.message : String(error)); }
     const owner = chat;
     chats.set(cwd, owner);
     owner.subscribe((sessionId) => {
@@ -84,6 +100,51 @@ export function serveAcp(options: AcpServerOptions): AcpServer {
       for (const wake of open.wakers.splice(0)) wake();
     });
     return owner;
+  }
+
+  /** The person's answer for a folder not asked yet, kept by `saveTrust`; undefined when nothing was asked or answered. */
+  async function askTrust(cwd: string, requestId: RpcId | undefined): Promise<boolean | undefined> {
+    const trust = options.trustOf?.(cwd);
+    if (trust?.state !== 'unasked' || requestId === undefined) return undefined;
+    if (client.elicitation?.form === undefined || client.elicitation.form === null) return undefined;
+    const files = trust.gated.map((path) => relative(trust.folder, path) || path).join(', ');
+    let response: ElicitationResponse | null;
+    try {
+      response = (await peer.request('elicitation/create', {
+        mode: 'form',
+        requestId,
+        message: `Trust ${trust.folder}? It holds ${files}, which load only in a trusted folder. copapo keeps the answer.`,
+        requestedSchema: { type: 'object', properties: { trust: { type: 'boolean', title: 'Trust this folder', default: false } }, required: ['trust'] },
+      })) as ElicitationResponse | null;
+    } catch (error: unknown) {
+      warn(`${cwd}: the trust question could not be asked: ${messageOf(error)}`);
+      return undefined;
+    }
+    const answer = response?.action === 'accept' ? (response as { content?: Record<string, unknown> }).content?.['trust'] === true : response?.action === 'decline' ? false : undefined;
+    if (answer !== undefined) await options.saveTrust?.(cwd, answer);
+    return answer;
+  }
+
+  /** The servers a client sent with a session, in copapo's shape; an SSE or other server is said and left out. */
+  function serversOfParams(params: Record<string, unknown>): Record<string, McpServerConfig> {
+    const out: Record<string, McpServerConfig> = {};
+    const list = Array.isArray(params['mcpServers']) ? params['mcpServers'] as Record<string, unknown>[] : [];
+    const pairs = (value: unknown): Record<string, string> => Object.fromEntries((Array.isArray(value) ? value : [])
+      .filter((one): one is { name: string; value: string } => typeof one?.name === 'string' && typeof one?.value === 'string')
+      .map((one) => [one.name, one.value]));
+    for (const server of list) {
+      const name = server['name'];
+      if (typeof name !== 'string' || name === '') continue;
+      if (server['type'] === 'http' && typeof server['url'] === 'string') {
+        out[name] = { type: 'http', url: server['url'], headers: pairs(server['headers']) };
+      } else if (server['type'] === undefined && typeof server['command'] === 'string') {
+        const args = Array.isArray(server['args']) ? server['args'].filter((one): one is string => typeof one === 'string') : [];
+        out[name] = { command: server['command'], args, env: pairs(server['env']) };
+      } else {
+        warn(`mcp server "${name}": copapo takes stdio and http servers, not ${String(server['type'])}`);
+      }
+    }
+    return out;
   }
 
   const modelsOf = (chat: Chat): Promise<ModelRow[]> => {
@@ -280,6 +341,8 @@ export function serveAcp(options: AcpServerOptions): AcpServer {
         loadSession: true,
         promptCapabilities: { image: false, audio: false, embeddedContext: false },
         sessionCapabilities: { list: {}, delete: {}, fork: {}, resume: {}, close: {} },
+        // Every agent takes stdio servers; HTTP is declared, so ahpd sends its host tools. SSE is deprecated and not taken.
+        mcpCapabilities: { http: true, sse: false },
       },
       authMethods: [],
       agentInfo: options.agentInfo,
@@ -289,17 +352,19 @@ export function serveAcp(options: AcpServerOptions): AcpServer {
   // copapo's keys are in its configuration; there is nothing to sign in to.
   peer.handle('authenticate', () => ({}));
 
-  peer.handle('session/new', (params) => rpc(async () => {
-    const chat = chatOf(params['cwd']);
+  peer.handle('session/new', (params, id) => rpc(async () => {
+    const chat = await chatOf(params['cwd'], id);
     const sessionId = await chat.create();
+    await chat.useServers(sessionId, serversOfParams(params));
     const { setup } = await openSession(sessionId, params['cwd'] as string, chat, emptySent());
     return { sessionId, ...setup };
   }));
 
-  peer.handle('session/load', (params) => rpc(async () => {
-    const chat = chatOf(params['cwd']);
+  peer.handle('session/load', (params, id) => rpc(async () => {
+    const chat = await chatOf(params['cwd'], id);
     const sessionId = stringOf(params['sessionId'], 'sessionId');
     const snapshot = await chat.snapshot(sessionId);
+    await chat.useServers(sessionId, serversOfParams(params));
     // The transcript first, as the person's and the agent's messages, then the answer.
     const replayed = project(snapshot, emptySent(), { replay: true });
     const open = opened.get(sessionId);
@@ -309,10 +374,11 @@ export function serveAcp(options: AcpServerOptions): AcpServer {
     return setup;
   }));
 
-  peer.handle('session/resume', (params) => rpc(async () => {
-    const chat = chatOf(params['cwd']);
+  peer.handle('session/resume', (params, id) => rpc(async () => {
+    const chat = await chatOf(params['cwd'], id);
     const sessionId = stringOf(params['sessionId'], 'sessionId');
     const snapshot = await chat.snapshot(sessionId);
+    await chat.useServers(sessionId, serversOfParams(params));
     const held = opened.get(sessionId);
     if (held !== undefined && held.chat === chat) return setupOf(await chat.settings(sessionId), await modelsOf(chat));
     if (held !== undefined) closeSession(held, 'cancelled');
@@ -320,16 +386,17 @@ export function serveAcp(options: AcpServerOptions): AcpServer {
     return setup;
   }));
 
-  peer.handle('session/fork', (params) => rpc(async () => {
-    const chat = chatOf(params['cwd']);
+  peer.handle('session/fork', (params, id) => rpc(async () => {
+    const chat = await chatOf(params['cwd'], id);
     const row = await chat.fork(stringOf(params['sessionId'], 'sessionId'));
+    await chat.useServers(row.id, serversOfParams(params));
     const { setup } = await openSession(row.id, params['cwd'] as string, chat, baseline(await chat.snapshot(row.id)));
     return { sessionId: row.id, ...setup };
   }));
 
   peer.handle('session/list', (params) => rpc(async () => {
     const cwd = typeof params['cwd'] === 'string' ? params['cwd'] : options.workspace;
-    const rows = await chatOf(cwd).sessions();
+    const rows = await (await chatOf(cwd)).sessions();
     return {
       sessions: rows.map((row): SessionInfo => ({ sessionId: row.id, cwd: row.workspace ?? cwd, title: row.title, updatedAt: row.updatedAt })),
     };
@@ -346,7 +413,7 @@ export function serveAcp(options: AcpServerOptions): AcpServer {
   peer.handle('session/delete', (params) => rpc(async () => {
     const sessionId = stringOf(params['sessionId'], 'sessionId');
     const open = opened.get(sessionId);
-    const chat = open?.chat ?? chatOf(options.workspace);
+    const chat = open?.chat ?? await chatOf(options.workspace);
     if (open !== undefined) closeSession(open, 'cancelled');
     await chat.remove(sessionId);
     return {};

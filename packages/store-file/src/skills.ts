@@ -1,20 +1,27 @@
-import { readFile, readdir } from 'node:fs/promises';
-import { join, relative, resolve, sep } from 'node:path';
+import { readFile, readdir, stat } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { AgentError } from '@cofold/agents';
 import type { SkillIndexEntry, SkillSource } from '@cofold/agents';
 
 const NAME_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 
 /**
- * Skills on disk (decision 85): `<root>/skills/<name>/SKILL.md` for every session, plus
- * `<workspace>/.agents/skills/<name>/SKILL.md` when the session has a workspace. A workspace skill shadows a
- * global one of the same name. `ref` is the absolute skill folder.
+ * Skills on disk (decision 85): `<root>/skills/<name>/SKILL.md` for every session, plus the project's
+ * `.agents/skills/<name>/SKILL.md` when the session has a workspace. A project skill shadows a global one of the
+ * same name, and a nearer folder a farther one. `ref` is the absolute skill folder.
+ *
+ * `project` (default `true`) says whether the project's folders are read; a function is asked on every listing,
+ * so a host can gate them on trust. `walk` (default `false`) reads `.agents/skills` in the workspace and each folder
+ * above it, up to the first one that holds `.git`; with no `.git` above, the workspace folder alone.
  */
-export function fileSkillSource(args: { root: string }): SkillSource {
+export function fileSkillSource(args: { root: string; project?: boolean | (() => boolean); walk?: boolean }): SkillSource {
   const globalDir = join(resolve(args.root), 'skills');
+  const project = typeof args.project === 'function' ? args.project : () => args.project !== false;
   return {
     async list({ workspace }) {
-      const dirs = workspace !== undefined ? [join(resolve(workspace), '.agents', 'skills'), globalDir] : [globalDir];
+      const projectDirs = workspace !== undefined && project() ? await projectSkillDirs(resolve(workspace), args.walk === true) : [];
+      const dirs = [...projectDirs, globalDir];
       const seen = new Map<string, SkillIndexEntry>();
       for (const base of dirs) {
         for (const folder of await listDirs(base)) {
@@ -59,6 +66,28 @@ export function parseFrontmatter(text: string): { meta: Record<string, string>; 
     meta[key] = value;
   }
   return { meta: {}, body: text };
+}
+
+/**
+ * `.agents/skills` in the workspace, then in each folder above it up to the repository root, nearest first. The home
+ * folder's `.agents/skills` is the common folder every project shares, never a project's, even when home is a repository.
+ */
+async function projectSkillDirs(workspace: string, walk: boolean): Promise<string[]> {
+  const common = join(homedir(), '.agents', 'skills');
+  const own = join(workspace, '.agents', 'skills');
+  if (!walk) return own === common ? [] : [own];
+  const dirs: string[] = [];
+  for (let at = workspace; ; at = dirname(at)) {
+    const dir = join(at, '.agents', 'skills');
+    if (dir !== common) dirs.push(dir);
+    if (await exists(join(at, '.git'))) return dirs;
+    if (dirname(at) === at) return own === common ? [] : [own];
+  }
+}
+
+async function exists(path: string): Promise<boolean> {
+  try { await stat(path); return true; }
+  catch { return false; }
 }
 
 async function listDirs(base: string): Promise<string[]> {

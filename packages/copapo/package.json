@@ -49,6 +49,7 @@
     "@cofold/agents": "workspace:^",
     "@cofold/commands": "workspace:^",
     "@cofold/config": "workspace:^",
+    "@cofold/mcp-client": "workspace:^",
     "@cofold/model-openai-compat": "workspace:^",
     "@cofold/sdk": "workspace:^",
     "@cofold/store-file": "workspace:^",

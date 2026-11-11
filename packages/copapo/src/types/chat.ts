@@ -1,3 +1,4 @@
+import type { McpServerConfig } from '@cofold/mcp-client';
 import type { AskAnswers, ModelInfo, ModelProvider, RunOutcome, SessionUsage, SkillIndexEntry, SlashCommandInfo, Store, Tool } from '@cofold/agents';
 import type { ClaudeSdkSubset } from './claude.js';
 import type { CopapoConfig } from './config.js';
@@ -13,6 +14,10 @@ export interface ChatOptions {
   workspace: string;
   /** The store's root; global skills live under `<home>/skills`. */
   home: string;
+  /** The common folder other agents share, `~/.agents` by default: its `AGENTS.md` and `skills/` load in every workspace. */
+  agentsHome?: string;
+  /** Whether the project's own skills (`.agents/skills`) load; `true` when absent. */
+  trusted?: boolean;
   /** Beyond `ask_user`. */
   tools?: Tool<any, any>[];
   /** Where one-time warnings go; stderr by default. */
@@ -26,6 +31,8 @@ export interface ClaudeChatOptions {
   workspace: string;
   /** The file store's root: a session's settings are kept in its kv, as the harness backend keeps them. */
   home: string;
+  /** Whether the CLI loads the project's own settings (`settingSources` with `project`); `true` when absent. */
+  trusted?: boolean;
   warn?: (message: string) => void;
   /** The SDK, when a test hands in a fake; otherwise the optional peer, loaded on first use. */
   sdk?: ClaudeSdkSubset;
@@ -209,6 +216,11 @@ export interface Chat {
    * where the runtime keeps the count to itself (the claude backend).
    */
   context(sessionId: string): Promise<{ used: number; size: number } | undefined>;
+  /**
+   * MCP servers for one session beside the configured ones, as an ACP client sends them; a server of the same name
+   * replaces the configured one for that session. Kept for the process's life; `{}` drops them.
+   */
+  useServers(sessionId: string, servers: Record<string, McpServerConfig>): Promise<void>;
   /** Called with the session whose state changed; returns the unsubscribe. */
   subscribe(listener: ChatListener): () => void;
   /** Cancels every attached run that is working; one waiting on a decision is left `awaiting` for `resume()` (decision 122). */

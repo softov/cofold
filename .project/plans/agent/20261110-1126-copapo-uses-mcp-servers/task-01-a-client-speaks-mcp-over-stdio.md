@@ -1,6 +1,6 @@
 ---
 title: A client speaks MCP over stdio
-status: todo
+status: implemented
 depends: []
 layer: "mcp-client"
 refs:
@@ -49,3 +49,4 @@ refs:
 
 ## Resume
 
+Implemented 2026-11-10. Departed from the plan: a server's stderr is not sent to `warn` line by line, which would flood the screen's warning line. The last 20 lines are kept, and a failure quotes the last three. `@cofold/agents` is a peer dependency, as in `@cofold/tools`. The first publish waits on Softov: `.project/pending/mcp-client-first-publish.md`.

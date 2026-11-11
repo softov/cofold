@@ -1,6 +1,6 @@
 ---
 title: Servers become a capability
-status: todo
+status: implemented
 depends: [task-01-a-client-speaks-mcp-over-stdio.md]
 layer: "mcp-client"
 refs:
@@ -49,3 +49,4 @@ Its `capability()` gives every connected server's tools to an agent, deferred, n
 
 ## Resume
 
+Implemented 2026-11-10. Added beyond the plan: `inputSchemaOf` reduces a server's input schema to the keywords cofold validates, because `createTool` refuses `$ref`, `not` and others. A `$ref` into `$defs` or `definitions` is inlined. `capability({ id, without })` lets an agent hold the configured servers and a session's. A config entry is checked by `serversOf` in code, since cofold's `JsonSchema` cannot describe the values of a map.

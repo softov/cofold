@@ -1,11 +1,15 @@
-import { readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Agent, ApprovalPayload, Message, ModelAdapter, ModelInfo, ModelProvider, PendingRequest, RunHandle, RunOutcome, RunRecord, SkillSource, SlashCommand, StopReason } from '@cofold/agents';
+import type { Agent, ApprovalPayload, Capability, Message, ModelAdapter, ModelInfo, ModelProvider, PendingRequest, RunHandle, RunOutcome, RunRecord, SkillSource, SlashCommand, StopReason } from '@cofold/agents';
 import { AgentError, INTERRUPTED, INTERRUPTED_TOOL, listPromptCommands, listSkills, listSlashCommands, newId, resume, run, sessionUsage } from '@cofold/agents';
 import { providerFor, splitModel } from '@cofold/model-openai-compat';
-import { fileSkillSource } from '@cofold/store-file';
+import type { McpClients, McpServerConfig } from '@cofold/mcp-client';
+import { createMcpClients } from '@cofold/mcp-client';
+import { fileSkillSource, readContextFiles } from '@cofold/store-file';
 import { AGENT_ID, buildAgent } from './agent.js';
+import { VERSION } from './app.js';
+import { serversFor } from './servers.js';
 import { contextFill, runtimeCommands } from './commands/runtime.js';
 import { createQueues } from './queue.js';
 import { checkRules } from './rules.js';
@@ -45,11 +49,6 @@ interface Attached {
 /** The package folder: `<here>/skills/<name>/SKILL.md` are the prompts copapo ships. */
 const SHIPPED_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-/** The skills copapo ships, and only those: the home source already lists the workspace's `.agents/skills`. */
-function shippedSkills(): SkillSource {
-  const source = fileSkillSource({ root: SHIPPED_ROOT });
-  return { ...source, list: () => source.list({}) };
-}
 
 /**
  * The provider an agent built only to list its commands is given: listing reads the agent's lists and the
@@ -80,9 +79,23 @@ export function settingsKey(sessionId: string): string {
  */
 export function createChat(options: ChatOptions): Chat {
   const { store, config, providers, workspace, home } = options;
-  // The person's skills first, then the ones copapo ships (`/init`, `/review`), so a home skill of the same name wins.
-  const skillSources = [fileSkillSource({ root: home }), shippedSkills()];
+  const agentsHome = options.agentsHome ?? join(homedir(), '.agents');
+  // In clash order: the project's `.agents/skills` up to the repository root and copapo's home, then the common
+  // `~/.agents/skills`, then the skills copapo ships (`/init`, `/review`). Only the first source reads the project.
+  const skillSources: SkillSource[] = [
+    fileSkillSource({ root: home, walk: true, project: options.trusted !== false }),
+    fileSkillSource({ root: agentsHome, project: false }),
+    fileSkillSource({ root: SHIPPED_ROOT, project: false }),
+  ];
   const warn = options.warn ?? ((message: string) => process.stderr.write(`copapo: ${message}\n`));
+  // The MCP servers, held for the service's life: each starts at the first turn that needs it.
+  const mcp = createMcpClients({
+    servers: serversFor({ config, workspace, trusted: options.trusted !== false, warn }),
+    clientInfo: { name: 'copapo', version: VERSION },
+    warn,
+  });
+  /** Each session's own servers (`useServers`), with what they were made from so the same list is not restarted. */
+  const sessionServers = new Map<string, { key: string; names: string[]; clients: McpClients }>();
   const attached = new Map<string, Attached>();
   /**
    * What each compaction did, by its summary message's id (cli/03 F1, F7): read from `context.compacted` as the run
@@ -140,14 +153,12 @@ export function createChat(options: ChatOptions): Chat {
     return listedModel;
   }
 
+  /** The configured prompt, then the context files: the common ones, then one per folder from the root down. */
   async function instructions(): Promise<string> {
-    let text = config.instructions;
-    try {
-      const notes = (await readFile(join(workspace, 'AGENTS.md'), 'utf8')).trim();
-      if (notes !== '') text = `${text}\n\n${notes}`;
-    } catch { /* no AGENTS.md is the common case */ }
-    return text;
+    const files = await readContextFiles({ workspace, common: [join(agentsHome, 'AGENTS.md'), join(home, 'AGENTS.md')] });
+    return [config.instructions, ...files.map((file) => file.text)].join('\n\n');
   }
+
 
   /** A patch, checked word by word; the model must name a configured provider, or be `''`, the word `settingsOf` uses for "unset". */
   function checkSettings(patch: Partial<Settings>): void {
@@ -185,16 +196,33 @@ export function createChat(options: ChatOptions): Chat {
     models: () => chat.models(),
   });
 
-  async function agentFor(settings: Settings): Promise<Agent> {
+  async function agentFor(settings: Settings, sessionId?: string): Promise<Agent> {
     const model = settings.model === '' ? await modelRef() : settings.model;
     const { provider, modelId } = providerOf(model);
     settings = { ...settings, model };
-    return agentWith(settings, provider, modelId);
+    return agentWith(settings, provider, modelId, sessionId);
   }
 
-  async function agentWith(settings: Settings, provider: ModelProvider, modelId: string): Promise<Agent> {
+  async function useServers(sessionId: string, servers: Record<string, McpServerConfig>): Promise<void> {
+    const key = JSON.stringify(servers);
+    const held = sessionServers.get(sessionId);
+    if (held?.key === key) return;
+    sessionServers.delete(sessionId);
+    await held?.clients.close();
+    if (Object.keys(servers).length === 0) return;
+    sessionServers.set(sessionId, { key, names: Object.keys(servers), clients: createMcpClients({ servers, clientInfo: { name: 'copapo', version: VERSION }, warn }) });
+  }
+
+  /** The configured servers, less those the session replaces, then the session's own. */
+  function serverCapabilities(sessionId: string | undefined): Capability[] {
+    const own = sessionId !== undefined ? sessionServers.get(sessionId) : undefined;
+    if (own === undefined) return [mcp.capability()];
+    return [mcp.capability({ without: own.names }), own.clients.capability({ id: 'mcp-session' })];
+  }
+
+  async function agentWith(settings: Settings, provider: ModelProvider, modelId: string, sessionId?: string): Promise<Agent> {
     return buildAgent({
-      config, settings, provider, modelId, store, home, workspace, skills: skillSources, instructions: await instructions(), commands, warn,
+      config, settings, provider, modelId, store, home, workspace, skills: skillSources, instructions: await instructions(), commands, warn, capabilities: serverCapabilities(sessionId),
       ...(options.tools !== undefined ? { tools: options.tools } : {}),
     });
   }
@@ -293,7 +321,7 @@ export function createChat(options: ChatOptions): Chat {
     if (run.status !== 'awaiting' && run.status !== 'running') {
       throw new AgentError({ code: 'not_found', message: `session ${sessionId} is not waiting on anything` });
     }
-    const agent = await agentFor(await settingsOf(sessionId));
+    const agent = await agentFor(await settingsOf(sessionId), sessionId);
     const events = await store.runs.listEvents({ sessionId, runId: run.runId });
     const handle = resume({ agent, sessionId, runId: run.runId, afterSeq: events.at(-1)?.seq ?? 0, interrupted: keepMarker });
     attach(sessionId, { handle, agent, stop: stopOf() });
@@ -510,7 +538,7 @@ export function createChat(options: ChatOptions): Chat {
           }
         }
       }
-      const agent = await agentFor(await settingsOf(id));
+      const agent = await agentFor(await settingsOf(id), id);
       const handle = run({ agent, session: id, workspace, input: text, interrupted: keepMarker });
       attach(id, { handle, agent, stop: stopOf() });
       notify(id);
@@ -587,8 +615,10 @@ export function createChat(options: ChatOptions): Chat {
       await store.sessions.delete({ sessionId });
       await kv.delete(settingsKey(sessionId));
       queues.clear(sessionId);
+      await useServers(sessionId, {});
       notify(sessionId);
     },
+    useServers: (sessionId, servers) => useServers(sessionId, servers),
 
     async create() {
       const id = newId();
@@ -646,6 +676,8 @@ export function createChat(options: ChatOptions): Chat {
         else entry.handle.cancel({ reason: 'copapo closed' });
       }
       await Promise.allSettled(entries.map((entry) => entry.handle.outcome));
+      await Promise.all([mcp.close(), ...[...sessionServers.values()].map((one) => one.clients.close())]);
+      sessionServers.clear();
     },
   };
   return chat;

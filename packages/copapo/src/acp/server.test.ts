@@ -4,20 +4,22 @@ import type { FakeStep } from '@cofold/agents/testing';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createClaudeChat } from '../claude/chat.js';
 import { fakeClaudeSdk } from '../claude/testing.js';
 import { deleteFileTool, gateTool, testChat, testConfig } from '../testing.js';
 import type { Chat } from '../types/chat.js';
+import type { AcpServerOptions } from '../types/acp.js';
 import { serveAcp } from './server.js';
 
 type Message = { jsonrpc: '2.0'; id?: number | string; method?: string; params?: Record<string, unknown>; result?: unknown; error?: { code: number; message: string } };
 type Answerer = (params: Record<string, unknown>) => unknown;
 
 /** A client over two in-memory streams: what it was told, in order, and answers to what it is asked. */
-function connect(chat: Chat, answer: Record<string, Answerer> = {}) {
+function connect(chat: Chat, answer: Record<string, Answerer> = {}, more: Partial<AcpServerOptions> = {}) {
   const stdin = new PassThrough();
   const stdout = new PassThrough();
-  const server = serveAcp({ chatFor: () => chat, workspace: '/work', agentInfo: { name: 'copapo', version: '0.0.1' }, stdin, stdout, warn: () => {} });
+  const server = serveAcp({ chatFor: () => chat, workspace: '/work', agentInfo: { name: 'copapo', version: '0.0.1' }, stdin, stdout, warn: () => {}, ...more });
   const told: Message[] = [];
   const waiting = new Map<number, { resolve(value: unknown): void; reject(error: unknown): void }>();
   let next = 1;
@@ -283,5 +285,79 @@ describe('copapo acp', () => {
     expect(client.updates(sessionId)).toContainEqual(expect.objectContaining({ sessionUpdate: 'tool_call', kind: 'execute' }));
     expect(client.text(sessionId)).toContain('Done.');
     await client.close();
+  });
+
+  it('declares MCP over stdio and http, and a stdio server sent with session/new serves that session\'s turn', async () => {
+    const raw = fileURLToPath(new URL('../../../mcp-client/test-fixtures/raw-server.mjs', import.meta.url));
+    const { chat } = testChat({ script: [
+      { toolCalls: [{ name: 'load_tools', input: { names: ['mcp__raw__add'] } }] },
+      { toolCalls: [{ name: 'mcp__raw__add', input: { a: 40, b: 2 } }] },
+      { text: 'Done.' },
+    ] });
+    const client = connect(chat);
+    try {
+      const init = await client.call<{ agentCapabilities: Record<string, unknown> }>('initialize', { protocolVersion: 1, clientCapabilities: {} });
+      expect(init.agentCapabilities['mcpCapabilities']).toEqual({ http: true, sse: false });
+      const { sessionId } = await client.call<{ sessionId: string }>('session/new', {
+        cwd: '/work', mcpServers: [{ name: 'raw', command: process.execPath, args: [raw], env: [] }, { type: 'sse', name: 'old', url: 'http://x', headers: [] }],
+      });
+      expect((await client.call<{ stopReason: string }>('session/prompt', { sessionId, prompt: prompt('Add') })).stopReason).toBe('end_turn');
+      const tools = client.updates(sessionId).filter((one) => one['sessionUpdate'] === 'tool_call_update');
+      expect(tools.at(-1)).toMatchObject({ status: 'completed', content: [{ type: 'content', content: { type: 'text', text: '42' } }] });
+    } finally {
+      await client.close();
+      await chat.close();
+    }
+  });
+
+  describe('trust', () => {
+    const unasked = { state: 'unasked' as const, folder: '/work', gated: ['/work/.copapo.json'], projectTrust: 'ask' as const };
+    const setup = (form: Answerer | undefined) => {
+      const { chat } = testChat({ script: [] });
+      const built: (boolean | undefined)[] = [];
+      const saved: [string, boolean][] = [];
+      const forms: Record<string, unknown>[] = [];
+      const client = connect(chat, form === undefined ? {} : { 'elicitation/create': (params) => { forms.push(params); return form(params); } }, {
+        chatFor: (_cwd, trusted) => { built.push(trusted); return chat; },
+        trustOf: () => unasked,
+        saveTrust: async (cwd, trusted) => { saved.push([cwd, trusted]); },
+      });
+      return { client, built, saved, forms };
+    };
+
+    it('asks once, with a form tied to the session/new request, and builds the folder with the answer', async () => {
+      const { client, built, saved, forms } = setup(() => ({ action: 'accept', content: { trust: true } }));
+      await client.call('initialize', { protocolVersion: 1, clientCapabilities: { elicitation: { form: {} } } });
+      await Promise.all([client.call('session/new', { cwd: '/work', mcpServers: [] }), client.call('session/new', { cwd: '/work', mcpServers: [] })]);
+      expect(forms).toHaveLength(1);
+      expect(forms[0]).toMatchObject({ mode: 'form', requestId: 2, requestedSchema: { properties: { trust: { type: 'boolean' } } } });
+      expect(String(forms[0]!['message'])).toContain('.copapo.json');
+      expect(saved).toEqual([['/work', true]]);
+      expect(built).toEqual([true]);
+      await client.close();
+    });
+
+    it('saves a decline as no, and a cancel as nothing', async () => {
+      const declined = setup(() => ({ action: 'decline' }));
+      await declined.client.call('initialize', { protocolVersion: 1, clientCapabilities: { elicitation: { form: {} } } });
+      await declined.client.call('session/new', { cwd: '/work', mcpServers: [] });
+      expect(declined.saved).toEqual([['/work', false]]);
+      expect(declined.built).toEqual([false]);
+      await declined.client.close();
+      const cancelled = setup(() => ({ action: 'cancel' }));
+      await cancelled.client.call('initialize', { protocolVersion: 1, clientCapabilities: { elicitation: { form: {} } } });
+      await cancelled.client.call('session/new', { cwd: '/work', mcpServers: [] });
+      expect(cancelled.saved).toEqual([]);
+      expect(cancelled.built).toEqual([undefined]);
+      await cancelled.client.close();
+    });
+
+    it('asks nothing of a client that takes no forms', async () => {
+      const { client, built, forms } = setup(undefined);
+      await opened(client);
+      expect(forms).toEqual([]);
+      expect(built).toEqual([undefined]);
+      await client.close();
+    });
   });
 });

@@ -130,6 +130,8 @@ export function testChat(args: {
   config?: Parameters<typeof testConfig>[0];
   workspace?: string;
   home?: string;
+  /** The common folder; nowhere by default, so the machine's own `~/.agents` stays out of a test. */
+  agentsHome?: string;
   /** The model streams (`createFakeModel({ stream: true })`); `afterDelta` is awaited after each delta the harness took. */
   stream?: boolean;
   afterDelta?: () => Promise<void>;
@@ -150,6 +152,7 @@ export function testChat(args: {
     providers: providerMap(config, [provider, ...(args.providers ?? [])]),
     workspace: args.workspace ?? '/work',
     home: args.home ?? '/nowhere',
+    agentsHome: args.agentsHome ?? '/nowhere/.agents',
     ...(args.tools !== undefined ? { tools: args.tools } : {}),
     warn: args.warn ?? (() => {}),
   });

@@ -30,7 +30,8 @@ export class RpcError extends Error {
   }
 }
 
-export type RequestHandler = (params: Record<string, unknown>) => unknown;
+/** `id` is the request's own, for an answer tied to it, such as a form asked while the request is open. */
+export type RequestHandler = (params: Record<string, unknown>, id: RpcId) => unknown;
 export type NotificationHandler = (params: Record<string, unknown>) => void;
 
 export interface Peer {
@@ -78,7 +79,7 @@ export function createPeer(options: { input: Readable; output: Writable; maxMess
     const handler = requests.get(method);
     if (handler === undefined) { fail(id, new RpcError(METHOD_NOT_FOUND, `Method not found: ${method}`)); return; }
     try {
-      send({ id, result: (await handler(params)) ?? null });
+      send({ id, result: (await handler(params, id)) ?? null });
     } catch (error: unknown) {
       if (error instanceof RpcError) { fail(id, error); return; }
       // The message is the answer a person reads in the client; the stack stays here.

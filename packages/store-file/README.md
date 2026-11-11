@@ -75,6 +75,24 @@ createAgent({ ..., capabilities: [skills({ sources: [fileSkillSource({ root })] 
 ```
 
 `fileSkillSource({ root })` lists `<root>/skills/<name>/SKILL.md` and, when the session has a workspace, `<workspace>/.agents/skills/<name>/SKILL.md` first (a workspace skill shadows a global one of the same name).
+`project: false` reads no workspace folder; a function there is asked on every listing, so a host can gate the project on trust.
+`walk: true` reads `.agents/skills` in the workspace and each folder above it, up to the first one that holds `.git`, nearest first; with no `.git` above, the workspace folder alone.
+The home folder's `.agents/skills` is never read as a project's.
 The name comes from the frontmatter `name`, else the folder; the description from `description`.
 Only `key: value` lines between two `---` fences are read.
 `read({ ref })` returns the body without the frontmatter; `read({ ref, path })` a file beside it, and a `path` that leaves the skill folder is refused.
+
+## Context files
+
+```ts
+import { readContextFiles } from '@cofold/store-file';
+
+const files = await readContextFiles({ workspace, common: [join(homedir(), '.agents', 'AGENTS.md')] });
+const instructions = [base, ...files.map((file) => file.text)].join('\n\n');
+```
+
+The `common` files come first, as given, then one file per folder from the filesystem root down to the workspace: its `AGENTS.md`, or its `CLAUDE.md` when it has none.
+A missing or empty file gives nothing, and no path is read twice.
+A word `@path` outside fenced and inline code imports that file: relative to the file that names it, `~/` from home, `\ ` for a space.
+Imported text follows the importing file's text, four levels deep, each file once.
+

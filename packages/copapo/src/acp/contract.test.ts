@@ -7,6 +7,7 @@ import type { Client, CreateElicitationRequest, CreateElicitationResponse, Reque
 import { ClientSideConnection, ndJsonStream } from '@agentclientprotocol/sdk';
 import type { FakeStep } from '@cofold/agents/testing';
 import { deleteFileTool, gateTool, testChat } from '../testing.js';
+import type { AcpServerOptions } from '../types/acp.js';
 import type { Chat } from '../types/chat.js';
 import { serveAcp } from './server.js';
 
@@ -32,10 +33,10 @@ const SENT: Record<string, string> = {
 };
 
 /** The official client on one side, `serveAcp` on the other, and every frame between them checked against the schema. */
-function connect(chat: Chat, client: Partial<Client>) {
+function connect(chat: Chat, client: Partial<Client>, more: Partial<AcpServerOptions> = {}) {
   const stdin = new PassThrough();
   const stdout = new PassThrough();
-  const server = serveAcp({ chatFor: () => chat, workspace: '/work', agentInfo: { name: 'copapo', version: '0.0.1' }, stdin, stdout, warn: () => {} });
+  const server = serveAcp({ chatFor: () => chat, workspace: '/work', agentInfo: { name: 'copapo', version: '0.0.1' }, stdin, stdout, warn: () => {}, ...more });
   const asked = new Map<string, string>();
   const invalid: string[] = [];
   const lines = (stream: PassThrough, each: (message: Record<string, unknown>) => void): void => {
@@ -155,6 +156,22 @@ describe('copapo acp under the official ACP client', () => {
     expect((await running).stopReason).toBe('cancelled');
     answer({ outcome: { outcome: 'cancelled' } });
     expect(executions()).toBe(0);
+    expect(invalid).toEqual([]);
+    await close();
+  });
+
+  it('asks to trust a folder with a form tied to session/new, as the schema says', async () => {
+    const { chat } = testChat({ script: [] });
+    const forms: CreateElicitationRequest[] = [];
+    const { connection, invalid, close } = connect(chat, {
+      createElicitation: async (params): Promise<CreateElicitationResponse> => { forms.push(params); return { action: 'accept', content: { trust: true } }; },
+    }, {
+      trustOf: () => ({ state: 'unasked', folder: '/work', gated: ['/work/.copapo.json'], projectTrust: 'ask' }),
+      saveTrust: async () => {},
+    });
+    await connection.initialize({ protocolVersion: 1, clientCapabilities: { elicitation: { form: {} } } });
+    await connection.newSession({ cwd: '/work', mcpServers: [] });
+    expect(forms).toHaveLength(1);
     expect(invalid).toEqual([]);
     await close();
   });

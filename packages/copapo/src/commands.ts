@@ -18,11 +18,13 @@ import { exportPath, toMarkdown } from './export.js';
 import { parseAnswers } from './questions.js';
 import { formatRule, parseRule } from './rules.js';
 import type { Chat } from './types/chat.js';
-import type { CopapoConfig, RememberedSettings, RuleLists } from './types/config.js';
+import type { Backend, CopapoConfig, RememberedSettings, RuleLists } from './types/config.js';
 import type { Settings } from './types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
 import type { Snapshot, Turn } from './types/turn.js';
 import type { Warnings } from './warnings.js';
+import type { Trust } from './trust.js';
+import { loadsProject, saveTrust, trustOf } from './trust.js';
 import { createWarnings } from './warnings.js';
 
 /** The three choices a session carries, as `say` and `session set` spell them. */
@@ -107,6 +109,15 @@ export interface Copapo {
   remember(patch: RememberedSettings): Promise<string[]>;
   /** Where the chat's warnings go; the screen takes them while it draws, so stderr never lands on it. */
   warnings?: Warnings;
+  /** The workspace's trust, as read when this service was built; absent in a test that builds its own. */
+  trust?: Trust;
+  /** Whether this service loaded the project's own files: `.copapo.json` and its `.agents/skills`. */
+  trusted?: boolean;
+}
+
+/** What a front that asked the person passes to `openCopapo`: the answer it got, for this service. */
+export interface OpenOptions {
+  trusted?: boolean;
 }
 
 /**
@@ -114,31 +125,37 @@ export interface Copapo {
  * The mutation of `config` is the point: both backends hold this one object and read `model`, `permissions` and
  * `reasoning` from it when a new conversation starts.
  */
-export function rememberInto(args: { config: CopapoConfig; cwd: string; env?: NodeJS.ProcessEnv; path?: string }): Copapo['remember'] {
+export function rememberInto(args: { config: CopapoConfig; cwd: string; env?: NodeJS.ProcessEnv; path?: string; trusted?: boolean }): Copapo['remember'] {
   return async (patch) => {
-    const files = await rememberConfig({ cwd: args.cwd, ...(args.env !== undefined ? { env: args.env } : {}), ...(args.path !== undefined ? { path: args.path } : {}), patch });
+    const files = await rememberConfig({
+      cwd: args.cwd, ...(args.env !== undefined ? { env: args.env } : {}), ...(args.path !== undefined ? { path: args.path } : {}), ...(args.trusted !== undefined ? { trusted: args.trusted } : {}), patch,
+    });
     const { model, ...rest } = patch;
     Object.assign(args.config, rest, model !== undefined && model !== '' ? { model } : {});
     return files;
   };
 }
 
-export function openCopapo(globals: Readonly<Record<string, unknown>>): Copapo {
+export function openCopapo(globals: Readonly<Record<string, unknown>>, options: OpenOptions = {}): Copapo {
   const workspace = resolve(typeof globals['workspace'] === 'string' ? globals['workspace'] : process.cwd());
   // Checked here because the runtimes fail obscurely without it (the CLI reports a binary that "failed to launch").
   if (!isDirectory(workspace)) throw new ArgumentError(`workspace ${workspace} is not a directory`);
   const home = typeof globals['home'] === 'string' ? resolve(globals['home']) : resolveHome({ name: 'cofold' });
   const path = typeof globals['config'] === 'string' ? globals['config'] : undefined;
-  const config = loadConfig({ cwd: workspace, ...(path !== undefined ? { path } : {}) });
-  if (typeof globals['backend'] === 'string') {
-    if (globals['backend'] !== 'cofold' && globals['backend'] !== 'claude') throw new ArgumentError(`--backend must be cofold or claude, not "${globals['backend']}"`);
-    config.backend = globals['backend'];
+  if (typeof globals['backend'] === 'string' && globals['backend'] !== 'cofold' && globals['backend'] !== 'claude') {
+    throw new ArgumentError(`--backend must be cofold or claude, not "${globals['backend']}"`);
   }
+  const chosen = globals['backend'] as Backend | undefined;
+  // The backend says which files are gated, so it is read before trust, from every file but the project's.
+  const trust = trustOf({ workspace, backend: chosen ?? loadConfig({ cwd: workspace, trusted: false, ...(path !== undefined ? { path } : {}) }).backend });
+  const trusted = options.trusted ?? loadsProject(trust);
+  const config = loadConfig({ cwd: workspace, trusted, ...(path !== undefined ? { path } : {}) });
+  if (chosen !== undefined) config.backend = chosen;
   const warnings = createWarnings();
   const chat = config.backend === 'claude'
-    ? createClaudeChat({ config, workspace, home, warn: warnings.warn })
-    : createChat({ store: createFileStore({ root: home }), config, providers: providersFor(config), workspace, home, warn: warnings.warn });
-  return { chat, config, workspace, home, warnings, remember: rememberInto({ config, cwd: workspace, ...(path !== undefined ? { path } : {}) }) };
+    ? createClaudeChat({ config, workspace, home, trusted, warn: warnings.warn })
+    : createChat({ store: createFileStore({ root: home }), config, providers: providersFor(config), workspace, home, trusted, warn: warnings.warn });
+  return { chat, config, workspace, home, warnings, trust, trusted, remember: rememberInto({ config, cwd: workspace, trusted, ...(path !== undefined ? { path } : {}) }) };
 }
 
 function isDirectory(path: string): boolean {
@@ -151,9 +168,9 @@ function isDirectory(path: string): boolean {
  */
 export interface RegistryOptions {
   /** The screen; absent where there is no terminal to draw on. */
-  openScreen?: (copapo: Copapo, sessionId: string | undefined) => Promise<void>;
+  openScreen?: (copapo: Copapo, sessionId: string | undefined, reopen?: (trusted: boolean) => Copapo) => Promise<void>;
   /** How the service is built from the program-wide options; a test hands in a fake model here. */
-  open?: (globals: Readonly<Record<string, unknown>>) => Copapo;
+  open?: (globals: Readonly<Record<string, unknown>>, options?: OpenOptions) => Copapo;
 }
 
 export function createCopapoRegistry(options: RegistryOptions = {}) {
@@ -518,6 +535,25 @@ export function createCopapoRegistry(options: RegistryOptions = {}) {
   });
 
   registry.action({
+    id: 'trust',
+    group: 'setup',
+    summary: 'Trust the workspace, so its own files load',
+    description: 'Saves the answer for the workspace and every folder under it in ~/.config/copapo/config.json, under `trusted`. A trusted folder loads its .copapo.json and .agents/skills; with --no, copapo stops asking there and loads neither.',
+    input: { no: { type: 'boolean', description: 'Do not trust it', default: false } },
+    surfaces: { cli: { pattern: ['trust'] } },
+    examples: [
+      { command: 'copapo trust', description: 'Trust the current folder' },
+      { command: 'copapo -w ~/clones/x trust --no', description: 'Never load that folder\'s own files' },
+    ],
+    run: async ({ input, globals }) => {
+      const workspace = resolve(typeof globals['workspace'] === 'string' ? globals['workspace'] : process.cwd());
+      const file = await saveTrust({ workspace, trusted: !input.no });
+      const said = `${input.no ? 'Not trusted' : 'Trusted'}: ${workspace}\nSaved in ${file}\n`;
+      return output({ workspace, trusted: !input.no, file }, said);
+    },
+  });
+
+  registry.action({
     id: 'config.show',
     group: 'setup',
     summary: 'The configuration in force, keys redacted',
@@ -537,9 +573,9 @@ export function createCopapoRegistry(options: RegistryOptions = {}) {
     needs: ['copapo'],
     input: { session: { type: 'string', description: 'Open on this session', cli: { short: '-s', value: 'ID' } } },
     surfaces: { cli: { pattern: ['chat'] } },
-    run: async ({ input, copapo }) => {
+    run: async ({ input, copapo, globals }) => {
       if (options.openScreen === undefined) throw new ArgumentError('the screen is not available here');
-      await options.openScreen(copapo, input.session);
+      await options.openScreen(copapo, input.session, (trusted) => open(globals, { trusted }));
     },
   });
 
@@ -556,7 +592,12 @@ export function createCopapoRegistry(options: RegistryOptions = {}) {
     surfaces: { cli: { pattern: ['acp'] } },
     run: async ({ copapo, globals }) => {
       const server = serveAcp({
-        chatFor: (cwd) => (cwd === copapo.workspace ? copapo.chat : open({ ...globals, workspace: cwd }).chat),
+        // The service already built serves its own folder, unless the person just answered the trust question there.
+        chatFor: (cwd, trusted) => (cwd === copapo.workspace && trusted === undefined
+          ? copapo.chat
+          : open({ ...globals, workspace: cwd }, trusted !== undefined ? { trusted } : {}).chat),
+        trustOf: (cwd) => trustOf({ workspace: cwd, backend: copapo.config.backend }),
+        saveTrust: (cwd, trusted) => saveTrust({ workspace: cwd, trusted }),
         workspace: copapo.workspace,
         agentInfo: { name: 'copapo', title: 'copapo', version: VERSION },
       });

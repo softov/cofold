@@ -11,7 +11,7 @@ import { registerCopapo } from './app.js';
  * quit key; every path out stops it first, because exiting from the alternate screen with the
  * cursor hidden leaves a shell nobody can type into.
  */
-export async function openScreen(copapo: Copapo, sessionId: string | undefined): Promise<void> {
+export async function openScreen(copapo: Copapo, sessionId: string | undefined, reopen?: (trusted: boolean) => Copapo): Promise<void> {
   const { theme, shell } = copapo.config;
   if (!process.stdout.isTTY) {
     const { text } = await renderStill({
@@ -26,6 +26,16 @@ export async function openScreen(copapo: Copapo, sessionId: string | undefined):
     return;
   }
 
+  // What the trust answer opened, closed with the screen as `copapo` is.
+  const reopened: Copapo[] = [];
+  const reopenAndKeep = reopen === undefined ? undefined : (trusted: boolean): Copapo => {
+    const next = reopen(trusted);
+    reopened.push(next);
+    return next;
+  };
+  const closeAll = async (): Promise<void> => {
+    await Promise.all([copapo, ...reopened].map((one) => one.chat.close()));
+  };
   const terminal = createNodeTerminal();
   let finish: () => void = () => {};
   const done = new Promise<void>((resolve) => { finish = resolve; });
@@ -37,7 +47,8 @@ export async function openScreen(copapo: Copapo, sessionId: string | undefined):
     onBoot: (booted) => registerCopapo(booted, {
       copapo,
       ...(sessionId !== undefined ? { sessionId } : {}),
-      onQuit: () => { void app.stop().then(() => copapo.chat.close()).finally(finish); },
+      ...(reopenAndKeep !== undefined ? { reopen: reopenAndKeep } : {}),
+      onQuit: () => { void app.stop().then(closeAll).finally(finish); },
     }),
   });
   app.services.provide(WRITER_KEY, createWriter(terminal.capabilities()));

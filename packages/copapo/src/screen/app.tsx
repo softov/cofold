@@ -20,9 +20,11 @@ import type { ModelRow, ProviderRow } from '../types/chat.js';
 import type { Settings } from '../types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from '../types/settings.js';
 import type { Snapshot } from '../types/turn.js';
+import { saveTrust } from '../trust.js';
 import { ChatScreen } from './chat.js';
 import { CopapoInfo, showInfo } from './info.js';
 import { SessionsScreen } from './sessions.js';
+import { askTrust } from './trust.js';
 import { ANSWERS, CHAT_SCOPE, COMMANDS, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, PLACE, PROVIDERS, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SNAPSHOT, WARNING } from './state.js';
 
 /** The words on the chips and in the picker, for the values the configuration spells: Claude Code's four modes (cli/03 F8). */
@@ -332,12 +334,39 @@ export interface ScreenOptions {
   sessionId?: string;
   /** Quit, when the application's own key asks for it. */
   onQuit?(): void;
+  /**
+   * copapo opened again with the person's trust answer. With it, a folder not asked yet asks before the screen
+   * mounts; without it (a still frame, a test), the screen mounts on `copapo` as it is.
+   */
+  reopen?(trusted: boolean): Copapo;
 }
 
-/** Mount the application: services, components, screens, surfaces, commands, keys. */
+/**
+ * Mount the application. In a folder not asked yet, the trust question comes first, over an empty screen; a yes
+ * mounts on copapo opened again with the folder's own files, a no or Escape on the copapo already built.
+ */
 export function registerCopapo(app: TextUIApp, options: ScreenOptions): Disposable {
   const bag = createBag();
   bag.add(registerBuiltins(app));
+  const trust = options.copapo.trust;
+  if (trust?.state !== 'unasked' || options.reopen === undefined) {
+    bag.add(mountCopapo(app, options));
+    return bag;
+  }
+  const reopen = options.reopen;
+  void askTrust(app, trust).then(async (answer) => {
+    if (answer !== undefined) await saveTrust({ workspace: trust.folder, trusted: answer });
+    bag.add(mountCopapo(app, { ...options, copapo: answer === true ? reopen(true) : options.copapo }));
+  }).catch((error: unknown) => {
+    bag.add(mountCopapo(app, options));
+    app.store.set(ERROR, `trust: ${error instanceof Error ? error.message : String(error)}`);
+  });
+  return bag;
+}
+
+/** Services, components, screens, surfaces, commands, keys: everything but textui's own widgets. */
+function mountCopapo(app: TextUIApp, options: ScreenOptions): Disposable {
+  const bag = createBag();
   const controller = createController(app, options.copapo);
   bag.add(controller);
   bag.add(app.services.provide(COPAPO, options.copapo));
@@ -476,6 +505,16 @@ export function registerCopapo(app: TextUIApp, options: ScreenOptions): Disposab
       },
     },
     { id: 'app.quit', title: 'Quit', category: 'Navigation', slots: ['palette'], run: () => options.onQuit?.() },
+    {
+      id: 'app.trust', title: 'Trust this folder', category: 'Navigation', slots: ['palette'], description: 'Ask again whether this folder\'s own files load; it applies at the next start',
+      run: async () => {
+        const { workspace } = options.copapo;
+        const answer = await askTrust(app, { folder: options.copapo.trust?.folder ?? workspace, gated: options.copapo.trust?.gated ?? [] });
+        if (answer === undefined) return;
+        const file = await saveTrust({ workspace, trusted: answer });
+        showInfo(app, { title: answer ? 'Trusted' : 'Not trusted', lines: [workspace, `Saved in ${file}`, 'It applies the next time copapo opens this folder.'] });
+      },
+    },
     {
       id: 'go.back', title: 'Back', category: 'Navigation', slots: ['palette'],
       run: () => { if (app.screens.current()?.id !== 'sessions') app.screens.pop(); },

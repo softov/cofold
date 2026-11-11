@@ -1,6 +1,6 @@
 ---
 title: ACP sessions bring their servers
-status: todo
+status: implemented
 depends: [task-04-copapo-connects-its-servers.md]
 layer: "copapo acp"
 refs:
@@ -41,3 +41,4 @@ The servers a client sends with `session/new`, `load`, `resume` or `fork` join t
 
 ## Resume
 
+Implemented 2026-11-10. On the claude backend, a live CLI process keeps the servers it started with; the session's next process gets a new list.

@@ -8,6 +8,8 @@ import { DEFAULT_INSTRUCTIONS } from '../config.js';
 import { createQueues } from '../queue.js';
 import { checkRules } from '../rules.js';
 import { COMPACTED_INPUT, shortTitle } from '../turns.js';
+import { expandServer } from '@cofold/mcp-client';
+import { claudeServersOf, serversFor } from '../servers.js';
 import type { Chat, ChatListener, ClaudeChatOptions, ModelRow, Started } from '../types/chat.js';
 import type { ClaudeDecision, ClaudeMessage, ClaudeQuery, ClaudeSdkSubset, ClaudeSessionMessage } from '../types/claude.js';
 import type { Settings } from '../types/settings.js';
@@ -85,6 +87,11 @@ function deferred(runId: string, inputId: string): NonNullable<Live['turn']> {
 export function createClaudeChat(options: ClaudeChatOptions): Chat {
   const { config, workspace, home } = options;
   const warn = options.warn ?? ((message: string) => process.stderr.write(`copapo: ${message}\n`));
+  // copapo's configured MCP servers; the CLI reads a trusted workspace's `.mcp.json` itself (`settingSources`).
+  const mcpServers = claudeServersOf(Object.fromEntries(Object.entries(serversFor({ config, workspace, trusted: false, warn }))
+    .map(([name, server]) => [name, expandServer(server, process.env, (variable) => warn(`mcp server "${name}": \${${variable}} is not set`))])));
+  /** Each session's own servers (`useServers`), in the SDK's shape. */
+  const sessionServers = new Map<string, Record<string, Record<string, unknown>>>();
   const listeners = new Set<ChatListener>();
   const live = new Map<string, Live>();
   /** Per-session choices, under the same key the harness backend writes, so `session set` reads one thing on both. */
@@ -138,6 +145,10 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
     if (patch.rules !== undefined) checkRules(patch.rules);
   }
 
+  function serversOption(servers: Record<string, Record<string, unknown>>): Pick<Options, 'mcpServers'> {
+    return Object.keys(servers).length > 0 ? { mcpServers: servers as NonNullable<Options['mcpServers']> } : {};
+  }
+
   /** The options a process is started with, from the session's settings (CLI-03 decision 6). */
   function optionsFor(sessionId: string, chosen: Settings, resume: boolean, canUseTool: CanUseTool): Options {
     const model = modelIdOf(chosen.model);
@@ -153,7 +164,9 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       ...(chosen.permissions === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } : {}),
       canUseTool,
       systemPrompt: { type: 'preset', preset: 'claude_code', ...(append !== undefined ? { append } : {}) },
-      settingSources: ['user', 'project'],
+      // A folder copapo does not trust loads none of its own Claude settings, hooks or `.mcp.json`.
+      settingSources: options.trusted === false ? ['user'] : ['user', 'project'],
+      ...serversOption({ ...mcpServers, ...sessionServers.get(sessionId) }),
     };
   }
 
@@ -495,11 +508,18 @@ export function createClaudeChat(options: ClaudeChatOptions): Chat {
       if (held.running) await held.query.interrupt();
     },
 
+    // A live process keeps the servers it started with; the next process for the session gets the new list.
+    async useServers(sessionId, servers) {
+      if (Object.keys(servers).length === 0) sessionServers.delete(sessionId);
+      else sessionServers.set(sessionId, claudeServersOf(servers));
+    },
+
     async remove(sessionId) {
       const held = live.get(sessionId);
       if (held !== undefined) { held.feed.end(); held.query.close(); live.delete(sessionId); }
       queues.clear(sessionId);
       errors.delete(sessionId);
+      sessionServers.delete(sessionId);
       await kv.delete(settingsKey(sessionId));
       await (await sdk()).deleteSession(sessionId, { dir: workspace });
       notify(sessionId);

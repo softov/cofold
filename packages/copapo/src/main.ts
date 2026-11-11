@@ -10,9 +10,9 @@ import { argvFor, createProgram } from './program.js';
  * never pays for one.
  */
 const program = createProgram({
-  openScreen: async (copapo, sessionId) => {
+  openScreen: async (copapo, sessionId, reopen) => {
     const { openScreen } = await import('./screen/tui.js');
-    await openScreen(copapo, sessionId);
+    await openScreen(copapo, sessionId, reopen);
   },
 });
 const argv = argvFor(program, process.argv.slice(2));

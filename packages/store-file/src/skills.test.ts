@@ -33,6 +33,30 @@ describe('fileSkillSource', () => {
     expect(withWorkspace[0]!.ref).toBe(join(workspace, '.agents', 'skills', 'deploy'));
   });
 
+  it('reads no project folder with project false, and asks a function each listing', async () => {
+    expect((await fileSkillSource({ root, project: false }).list({ workspace })).map((s) => s.name)).toEqual(['deploy', 'no-frontmatter']);
+    let trusted = false;
+    const gated = fileSkillSource({ root, project: () => trusted });
+    expect((await gated.list({ workspace })).map((s) => s.name)).not.toContain('review');
+    trusted = true;
+    expect((await gated.list({ workspace })).map((s) => s.name)).toContain('review');
+  });
+
+  it('walks .agents/skills up to the folder that holds .git, nearest first', async () => {
+    const repo = join(root, 'repo');
+    const pkg = join(repo, 'packages', 'pkg');
+    const write = async (dir: string, text: string) => { await mkdir(dir, { recursive: true }); await writeFile(join(dir, 'SKILL.md'), text, 'utf8'); };
+    await mkdir(join(repo, '.git'), { recursive: true });
+    await write(join(repo, '.agents', 'skills', 'lint'), '---\ndescription: Repo lint\n---\nx\n');
+    await write(join(pkg, '.agents', 'skills', 'lint'), '---\ndescription: Package lint\n---\nx\n');
+    await write(join(root, '.agents', 'skills', 'outside'), '---\ndescription: Above the repo\n---\nx\n');
+    const walked = await fileSkillSource({ root, walk: true }).list({ workspace: pkg });
+    expect(walked.find((s) => s.name === 'lint')?.description).toBe('Package lint');
+    expect(walked.map((s) => s.name)).not.toContain('outside');
+    // Without walk, the workspace folder only, as before.
+    expect((await fileSkillSource({ root }).list({ workspace: join(repo, 'packages') })).map((s) => s.name)).not.toContain('lint');
+  });
+
   it('reads the body without frontmatter and files beside it; refuses escapes', async () => {
     const source = fileSkillSource({ root });
     const [deploy] = await source.list({});

@@ -1,7 +1,7 @@
 ---
 title: copapo uses MCP servers
 domain: agent
-status: planned
+status: active
 priority: high
 created: 2026-11-10
 revalidated: 2026-11-10
@@ -91,11 +91,11 @@ config.mcpServers + .mcp.json (trusted) + ACP session mcpServers
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - a client speaks mcp over stdio](task-01-a-client-speaks-mcp-over-stdio.md) | todo | - |
-| [02 - streamable http over fetch](task-02-streamable-http-over-fetch.md) | todo | 01 |
-| [03 - servers become a capability](task-03-servers-become-a-capability.md) | todo | 01 |
-| [04 - copapo connects its servers](task-04-copapo-connects-its-servers.md) | todo | 02, 03 |
-| [05 - acp sessions bring their servers](task-05-acp-sessions-bring-their-servers.md) | todo | 04 |
+| [01 - a client speaks mcp over stdio](task-01-a-client-speaks-mcp-over-stdio.md) | implemented | - |
+| [02 - streamable http over fetch](task-02-streamable-http-over-fetch.md) | implemented | 01 |
+| [03 - servers become a capability](task-03-servers-become-a-capability.md) | implemented | 01 |
+| [04 - copapo connects its servers](task-04-copapo-connects-its-servers.md) | implemented | 02, 03 |
+| [05 - acp sessions bring their servers](task-05-acp-sessions-bring-their-servers.md) | implemented | 04 |
 
 ## Risks and tradeoffs
 
@@ -106,10 +106,10 @@ config.mcpServers + .mcp.json (trusted) + ACP session mcpServers
 
 ## Resume state
 
-- **Done so far:** nothing.
-- **Next action:** [task-01-a-client-speaks-mcp-over-stdio.md](task-01-a-client-speaks-mcp-over-stdio.md).
+- **Done so far:** tasks 01 to 05 are implemented, 2026-11-10, and wait for Softov's review. Nothing is committed.
+- **Next action:** Softov reviews; the first publish of `@cofold/mcp-client` waits on `.project/pending/mcp-client-first-publish.md`.
 - **Open questions:** none.
-- **Watch out for:** stdout of a stdio server carries only protocol lines; its stderr goes to `warn`. A tool call's abort sends `notifications/cancelled`.
+- **Watch out for:** copapo's next release needs `@cofold/mcp-client` on npm first. Each task's *Resume* says where the build departed from the plan.
 
 ## Final verification checklist
 

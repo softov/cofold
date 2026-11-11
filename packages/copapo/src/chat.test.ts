@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { AgentError, createMemoryStore } from '@cofold/agents';
 import type { ModelProvider, Store } from '@cofold/agents';
@@ -678,6 +679,7 @@ describe('createChat', () => {
       providers: providerMap(config, [openaiCompatProvider({ baseUrl: 'http://lm.invalid/v1', name: 'lm', fetch: fetchImpl })]),
       workspace: '/work',
       home: '/nowhere',
+      agentsHome: '/nowhere/.agents',
       warn: () => {},
     });
 
@@ -870,6 +872,75 @@ describe('createChat', () => {
       ]);
     } finally {
       await rm(home, { recursive: true, force: true });
+    }
+  });
+
+  it('sends the configured prompt, then the common AGENTS.md, then each folder top down, CLAUDE.md where AGENTS.md is absent', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'copapo-context-'));
+    await mkdir(join(root, 'agents'), { recursive: true });
+    await mkdir(join(root, 'repo', 'pkg'), { recursive: true });
+    await writeFile(join(root, 'agents', 'AGENTS.md'), 'Common rules.\n');
+    await writeFile(join(root, 'repo', 'AGENTS.md'), 'Repository rules.\n');
+    await writeFile(join(root, 'repo', 'pkg', 'CLAUDE.md'), 'Package rules.\n');
+    try {
+      const { chat, provider } = testChat({ script: [{ text: 'Ok.' }], workspace: join(root, 'repo', 'pkg'), agentsHome: join(root, 'agents') });
+      const started = await chat.say({ text: 'Hi' });
+      expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+      const sent = (provider.model({ id: 'scripted' }) as FakeModel).requests[0]!.instructions;
+      const at = (text: string): number => sent.indexOf(text);
+      expect(at('Common rules.')).toBeGreaterThan(0);
+      expect(at('Repository rules.')).toBeGreaterThan(at('Common rules.'));
+      expect(at('Package rules.')).toBeGreaterThan(at('Repository rules.'));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('lists a skill of copapo\'s home before the common ~/.agents one of the same name, and a parent project folder\'s skill', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'copapo-common-'));
+    const skill = async (dir: string, description: string) => {
+      await mkdir(dir, { recursive: true });
+      await writeFile(join(dir, 'SKILL.md'), ['---', `description: ${description}`, '---', 'x', ''].join('\n'));
+    };
+    await skill(join(root, 'home', 'skills', 'shared'), 'From home');
+    await skill(join(root, 'agents', 'skills', 'shared'), 'From agents');
+    await skill(join(root, 'agents', 'skills', 'common-only'), 'Common');
+    await mkdir(join(root, 'repo', '.git'), { recursive: true });
+    await skill(join(root, 'repo', '.agents', 'skills', 'repo-skill'), 'Repo');
+    await mkdir(join(root, 'repo', 'pkg'), { recursive: true });
+    try {
+      const { chat } = testChat({ script: [], home: join(root, 'home'), agentsHome: join(root, 'agents'), workspace: join(root, 'repo', 'pkg') });
+      const skills = new Map((await chat.skills()).map((one) => [one.name, one.description]));
+      expect(skills.get('shared')).toBe('From home');
+      expect(skills.get('common-only')).toBe('Common');
+      expect(skills.get('repo-skill')).toBe('Repo');
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('gives a turn a configured MCP server\'s tools: a read-only one runs, one that writes asks', async () => {
+    const raw = fileURLToPath(new URL('../../mcp-client/test-fixtures/raw-server.mjs', import.meta.url));
+    const { chat } = testChat({
+      config: { mcpServers: { raw: { command: process.execPath, args: [raw] } } },
+      script: [
+        { toolCalls: [{ name: 'load_tools', input: { names: ['mcp__raw__add', 'mcp__raw__grow'] } }] },
+        { toolCalls: [{ name: 'mcp__raw__add', input: { a: 20, b: 22 } }] },
+        { text: 'It is 42.' },
+        { toolCalls: [{ name: 'mcp__raw__grow', input: {} }] },
+      ],
+    });
+    try {
+      const started = await chat.say({ text: 'Add them' });
+      expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+      const parts = (await chat.snapshot(started.sessionId)).turns[0]!.parts;
+      expect(parts.find((part) => part.kind === 'tool' && part.call.name === 'mcp__raw__add')).toMatchObject({ call: { status: 'completed', output: '42' } });
+      const next = await chat.say({ sessionId: started.sessionId, text: 'Grow it' });
+      expect((await chat.wait(next.sessionId))?.status).toBe('awaiting');
+      expect((await chat.snapshot(next.sessionId)).pending).toMatchObject({ kind: 'toolConfirmation' });
+      await chat.deny(next.sessionId, { reason: 'test' });
+    } finally {
+      await chat.close();
     }
   });
 

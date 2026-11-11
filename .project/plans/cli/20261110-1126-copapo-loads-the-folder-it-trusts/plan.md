@@ -1,7 +1,7 @@
 ---
 title: copapo loads the folder it trusts
 domain: cli
-status: planned
+status: active
 priority: high
 created: 2026-11-10
 revalidated: 2026-11-10
@@ -95,11 +95,11 @@ copapo <command> -> openCopapo -> trustOf(workspace) -> trusted | untrusted | un
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - context files load from the tree](task-01-context-files-load-from-the-tree.md) | todo | - |
-| [02 - skills load from common and tree](task-02-skills-load-from-common-and-tree.md) | todo | - |
-| [03 - trust decides what loads](task-03-trust-decides-what-loads.md) | todo | 02 |
-| [04 - the screen and acp ask](task-04-the-screen-and-acp-ask.md) | todo | 03 |
-| [05 - claude follows trust and docs](task-05-claude-follows-trust-and-docs.md) | todo | 03 |
+| [01 - context files load from the tree](task-01-context-files-load-from-the-tree.md) | implemented | - |
+| [02 - skills load from common and tree](task-02-skills-load-from-common-and-tree.md) | implemented | - |
+| [03 - trust decides what loads](task-03-trust-decides-what-loads.md) | implemented | 02 |
+| [04 - the screen and acp ask](task-04-the-screen-and-acp-ask.md) | implemented | 03 |
+| [05 - claude follows trust and docs](task-05-claude-follows-trust-and-docs.md) | implemented | 03 |
 
 ## Risks and tradeoffs
 
@@ -110,10 +110,10 @@ copapo <command> -> openCopapo -> trustOf(workspace) -> trusted | untrusted | un
 
 ## Resume state
 
-- **Done so far:** nothing.
-- **Next action:** [task-01-context-files-load-from-the-tree.md](task-01-context-files-load-from-the-tree.md).
+- **Done so far:** tasks 01 to 05 are implemented, 2026-11-10, and wait for Softov's review. Nothing is committed.
+- **Next action:** Softov reviews; then `implemented.md` and `status: built`.
 - **Open questions:** none.
-- **Watch out for:** `ahpd`'s cofold plugin calls `fileSkillSource({ root })`; the new options must default to today's behaviour. The trusted map is read from the user layer through `resolveConfig(...).layers`, never from the merged values.
+- **Watch out for:** `ahpd`'s cofold plugin calls `fileSkillSource({ root })`; the new options default to the old behaviour. The trusted map is read from the user file only.
 
 ## Final verification checklist
 

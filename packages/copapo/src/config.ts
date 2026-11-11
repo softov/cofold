@@ -5,6 +5,7 @@ import { ArgumentError, ConfigurationError, check } from '@cofold/commands';
 import { resolveConfig } from '@cofold/config';
 import { PROVIDER_SCHEMA } from '@cofold/model-openai-compat';
 import type { JsonSchema } from '@cofold/sdk';
+import { MCP_SERVERS_SCHEMA } from '@cofold/mcp-client';
 import { TOOLS_SCHEMA } from '@cofold/tools';
 import type { CopapoConfig, ProviderConfig, RememberedSettings } from './types/config.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from './types/settings.js';
@@ -65,6 +66,9 @@ const SCHEMA: JsonSchema = {
       additionalProperties: false,
     },
     tools: TOOLS_SCHEMA,
+    mcpServers: MCP_SERVERS_SCHEMA,
+    trusted: { type: 'object' },
+    projectTrust: { type: 'string', enum: ['ask', 'always', 'never'] },
     theme: { type: 'string', minLength: 1 },
     shell: { type: 'string', minLength: 1 },
   },
@@ -89,9 +93,9 @@ const BASE = {
  * is how a first run needs no file at all. A `COFOLD_MODEL` with no slash names a model of `default`.
  * `COPAPO_BACKEND` picks the runtime.
  */
-export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: string }): CopapoConfig {
+export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: string; trusted?: boolean }): CopapoConfig {
   const env = args.env ?? process.env;
-  const resolved = resolveConfig({ name: 'copapo', project: '.copapo.json', base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
+  const resolved = resolveConfig({ name: 'copapo', ...projectOf(args.trusted), base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
   try {
     check(resolved.values, SCHEMA, 'config');
   } catch (error: unknown) {
@@ -123,6 +127,11 @@ export function loadConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: 
   return config;
 }
 
+/** The project file, `.copapo.json`, only in a folder whose own files load (`trust.ts`); `trusted` absent reads it. */
+function projectOf(trusted: boolean | undefined): { project?: string } {
+  return trusted === false ? {} : { project: '.copapo.json' };
+}
+
 /** `~/.config/copapo/config.json`, `$XDG_CONFIG_HOME` honoured: where a field no file sets is written. */
 export function userConfigPath(env: NodeJS.ProcessEnv, home = homedir()): string {
   return join(env['XDG_CONFIG_HOME'] ?? join(home, '.config'), 'copapo', 'config.json');
@@ -141,12 +150,12 @@ export function indentOf(text: string): string {
  * The layers are resolved again with the arguments `loadConfig` had, so the file found is the one that was read;
  * the base layer (`(defaults)`) is not a file, and a field it alone sets goes to the user file like an unset one.
  */
-export async function rememberConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: string; patch: RememberedSettings }): Promise<string[]> {
+export async function rememberConfig(args: { cwd: string; env?: NodeJS.ProcessEnv; path?: string; trusted?: boolean; patch: RememberedSettings }): Promise<string[]> {
   const env = args.env ?? process.env;
   const fields = (Object.entries(args.patch) as [keyof RememberedSettings, string | undefined][])
     .filter((entry): entry is [keyof RememberedSettings, string] => entry[1] !== undefined && !(entry[0] === 'model' && entry[1] === ''));
   if (fields.length === 0) return [];
-  const resolved = resolveConfig({ name: 'copapo', project: '.copapo.json', base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
+  const resolved = resolveConfig({ name: 'copapo', ...projectOf(args.trusted), base: BASE, cwd: args.cwd, env, ...(args.path !== undefined ? { path: args.path } : {}) });
   const files = new Map<string, Record<string, string>>();
   for (const [field, value] of fields) {
     const source = resolved.sourceOf(field);

@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { Agent, ModelProvider, Rule, SkillSource, SlashCommand, Store, Tool } from '@cofold/agents';
+import type { Agent, Capability, ModelProvider, Rule, SkillSource, SlashCommand, Store, Tool } from '@cofold/agents';
 import { createAgent, createAskUserTool, effortOf, policyOf, rules, skills } from '@cofold/agents';
 import { workspaceSlug } from '@cofold/store-file';
 import { resolveWithin, standardCapabilities } from '@cofold/tools';
@@ -27,6 +27,8 @@ export interface AgentArgs {
   tools?: Tool<any, any>[];
   /** copapo's runtime commands (AGENT-03.6), before the harness's `compact`. */
   commands?: SlashCommand[];
+  /** Beyond the standard tools and the skills: the MCP servers' tools. */
+  capabilities?: Capability[];
   warn(message: string): void;
 }
 
@@ -63,6 +65,7 @@ export function buildAgent(args: AgentArgs): Agent {
         memoryDir: join(args.home, 'memory', workspaceSlug({ workspace: args.workspace })),
       }),
       skills({ sources: args.skills, warn: args.warn }),
+      ...(args.capabilities ?? []),
     ],
     store: args.store,
     policy: rules({

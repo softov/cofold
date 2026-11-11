@@ -1,7 +1,7 @@
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Harness } from '@textui/testing';
 import { renderApp } from '@textui/testing';
 import type { FakeStep } from '@cofold/agents/testing';
@@ -42,6 +42,45 @@ async function screen(args: { script: FakeStep[]; tools?: Tool<any, any>[]; home
 }
 
 describe('the screen', () => {
+  for (const size of SIZES) {
+    for (const [press, answer] of [['enter', true], ['tab enter', false], ['escape', undefined]] as const) {
+      it(`asks to trust a folder not asked yet before the catalogue; ${press} answers ${String(answer)}, at ${size.width}x${size.height}`, async () => {
+        const root = await realpath(await mkdtemp(join(tmpdir(), 'copapo-trust-screen-')));
+        vi.stubEnv('XDG_CONFIG_HOME', join(root, 'xdg'));
+        const { chat } = testChat({ script: [] });
+        const { chat: trustedChat } = testChat({ script: [] });
+        const base = { config: testConfig(), workspace: root, home: '/nowhere', remember: async () => [] };
+        const reopened: boolean[] = [];
+        try {
+          const t = await renderApp({
+            ...size,
+            shell: 'workbench',
+            theme: 'paper',
+            onBoot: (app) => registerCopapo(app, {
+              copapo: { ...base, chat, trust: { state: 'unasked', folder: root, gated: [join(root, '.copapo.json')], projectTrust: 'ask' }, trusted: false },
+              reopen: (trusted) => { reopened.push(trusted); return { ...base, chat: trustedChat, trusted }; },
+              onQuit: () => undefined,
+            }),
+          });
+          await settle(t);
+          expect(t.hasText('Trust this folder?')).toBe(true);
+          expect(t.hasText('No sessions here yet')).toBe(false);
+          t.pressAll(...press.split(' '));
+          await settle(t);
+          expect(t.hasText('Trust this folder?')).toBe(false);
+          expect(t.hasText('No sessions here yet')).toBe(true);
+          expect(reopened).toEqual(answer === true ? [true] : []);
+          const saved = await readFile(join(root, 'xdg', 'copapo', 'config.json'), 'utf8').then((text) => JSON.parse(text) as { trusted?: Record<string, boolean> }, () => undefined);
+          expect(saved?.trusted?.[root]).toBe(answer);
+          await t.unmount();
+        } finally {
+          vi.unstubAllEnvs();
+          await rm(root, { recursive: true, force: true });
+        }
+      });
+    }
+  }
+
   for (const size of SIZES) {
     it(`shows a chat warning on a line above the key hints, and hands warnings back on close, at ${size.width}x${size.height}`, async () => {
       const written: string[] = [];
@@ -154,7 +193,7 @@ describe('the screen', () => {
     const script: FakeStep[] = [{ text: 'Hi.' }];
     const config = testConfig({ providers: [{ id: 'fake', baseUrl: 'http://fake.invalid/v1' }, { id: 'second', baseUrl: 'http://second.invalid/v1' }] });
     const chat = createChat({
-      store: createMemoryStore(), config, providers: providerMap(config, [fakeProvider(script), fakeProvider(script, 'brain')]), workspace: '/work', home: '/nowhere', warn: () => {},
+      store: createMemoryStore(), config, providers: providerMap(config, [fakeProvider(script), fakeProvider(script, 'brain')]), workspace: '/work', home: '/nowhere', agentsHome: '/nowhere/.agents', warn: () => {},
     });
     const t = await renderApp({
       width: 100,
@@ -191,7 +230,7 @@ describe('the screen', () => {
     };
     const config = testConfig({ providers: [{ id: 'local', baseUrl: 'http://10.255.10.10:1235/v1' }, { id: 'fake', baseUrl: 'http://fake.invalid/v1' }] });
     const chat = createChat({
-      store: createMemoryStore(), config, providers: providerMap(config, [down, fakeProvider([{ text: 'Hi.' }])]), workspace: '/work', home: '/nowhere', warn: () => {},
+      store: createMemoryStore(), config, providers: providerMap(config, [down, fakeProvider([{ text: 'Hi.' }])]), workspace: '/work', home: '/nowhere', agentsHome: '/nowhere/.agents', warn: () => {},
     });
     const t = await renderApp({
       width: 100,
@@ -463,7 +502,7 @@ describe('the screen', () => {
     try {
       // What `openCopapo` builds: one `config` the chat reads and `remember` writes, over a temp home so the machine's own file is untouched.
       const config = testConfig();
-      const chat = createChat({ store: createMemoryStore(), config, providers: providerMap(config, [fakeProvider([])]), workspace: root, home: '/nowhere', warn: () => {} });
+      const chat = createChat({ store: createMemoryStore(), config, providers: providerMap(config, [fakeProvider([])]), workspace: root, home: '/nowhere', agentsHome: '/nowhere/.agents', warn: () => {} });
       const t = await renderApp({
         width: 100,
         height: 30,

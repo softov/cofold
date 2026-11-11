@@ -90,6 +90,9 @@ importers:
       '@cofold/config':
         specifier: workspace:^
         version: link:../config
+      '@cofold/mcp-client':
+        specifier: workspace:^
+        version: link:../mcp-client
       '@cofold/model-openai-compat':
         specifier: workspace:^
         version: link:../model-openai-compat
@@ -137,6 +140,27 @@ importers:
         specifier: workspace:^
         version: link:../sdk
     devDependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: 1.30.0
+        version: 1.30.0(zod@4.3.6)
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+
+  packages/mcp-client:
+    devDependencies:
+      '@cofold/agents':
+        specifier: workspace:*
+        version: link:../agents
+      '@cofold/commands':
+        specifier: workspace:^
+        version: link:../commands
+      '@cofold/mcp':
+        specifier: workspace:^
+        version: link:../mcp
+      '@cofold/sdk':
+        specifier: workspace:^
+        version: link:../sdk
       '@modelcontextprotocol/sdk':
         specifier: 1.30.0
         version: 1.30.0(zod@4.3.6)

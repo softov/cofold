@@ -1,6 +1,6 @@
 ---
 title: Skills load from the common folders and the tree
-status: todo
+status: implemented
 depends: []
 layer: "store-file, copapo"
 refs:
@@ -41,3 +41,4 @@ A source can leave the project out, so task 03 can gate it.
 
 ## Resume
 
+Implemented 2026-11-10. Found: when the home folder is a repository, the walk reached `~/.agents/skills` as a project folder. The home folder's `.agents/skills` is never a project folder, in `fileSkillSource` and in `gatedFiles`.

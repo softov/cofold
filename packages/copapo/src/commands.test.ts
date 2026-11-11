@@ -1,7 +1,7 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Io } from '@cofold/commands';
 import { exitCodeFor } from '@cofold/commands';
 import type { ModelProvider, Store } from '@cofold/agents';
@@ -12,7 +12,7 @@ import type { FakeReply } from './claude/testing.js';
 import { fakeClaudeSdk } from './claude/testing.js';
 import { createChat } from './chat.js';
 import type { Copapo } from './commands.js';
-import { rememberInto } from './commands.js';
+import { openCopapo, rememberInto } from './commands.js';
 import { loadConfig } from './config.js';
 import { argvFor, createProgram } from './program.js';
 import { deleteFileTool, fakeProvider, providerMap, testChat, testConfig } from './testing.js';
@@ -284,7 +284,7 @@ describe('the shell', () => {
       open: () => {
         const loaded = loadConfig({ cwd: root, env });
         const config = testConfig({ ...(loaded.model !== undefined ? { model: loaded.model } : { model: undefined }), permissions: loaded.permissions, reasoning: loaded.reasoning });
-        const chat = createChat({ store, config, providers: providerMap(config, [fakeProvider(script)]), workspace: root, home: '/nowhere', warn: () => {} });
+        const chat = createChat({ store, config, providers: providerMap(config, [fakeProvider(script)]), workspace: root, home: '/nowhere', agentsHome: '/nowhere/.agents', warn: () => {} });
         return { chat, config, workspace: root, home: '/nowhere', remember: rememberInto({ config, cwd: root, env }) };
       },
     });
@@ -404,5 +404,43 @@ describe('the shell', () => {
     const result = await run('chat');
     expect(result.code).not.toBe(0);
     expect(result.err).toContain('not available');
+  });
+});
+
+describe('copapo trust', () => {
+  it('saves the answer, and a later open reads the folder\'s .copapo.json', async () => {
+    const root = await realpath(await mkdtemp(join(tmpdir(), 'copapo-trust-cmd-')));
+    const workspace = join(root, 'repo');
+    await mkdir(workspace, { recursive: true });
+    await writeFile(join(workspace, '.copapo.json'), JSON.stringify({ providers: [{ id: 'project', baseUrl: 'http://project.invalid/v1' }] }));
+    vi.stubEnv('XDG_CONFIG_HOME', join(root, 'xdg'));
+    const opened: Copapo[] = [];
+    const open = (trusted?: boolean): Copapo => {
+      const copapo = openCopapo({ workspace, home: join(root, 'home') }, trusted !== undefined ? { trusted } : {});
+      opened.push(copapo);
+      return copapo;
+    };
+    try {
+      const before = open();
+      expect(before.trust).toMatchObject({ state: 'unasked', gated: [join(workspace, '.copapo.json')] });
+      expect(before.config.providers.map((one) => one.id)).not.toContain('project');
+      // A front that asked passes the answer it got.
+      expect(open(true).config.providers.map((one) => one.id)).toContain('project');
+
+      const { run } = shell({ script: [] });
+      const ran = await run('-w', workspace, 'trust');
+      expect(ran.code).toBe(0);
+      expect(ran.out).toContain(`Trusted: ${workspace}`);
+      const after = open();
+      expect(after.trust).toMatchObject({ state: 'trusted', answeredAt: workspace });
+      expect(after.config.providers.map((one) => one.id)).toContain('project');
+
+      expect((await run('-w', workspace, 'trust', '--no')).code).toBe(0);
+      expect(open().config.providers.map((one) => one.id)).not.toContain('project');
+    } finally {
+      for (const copapo of opened) await copapo.chat.close();
+      vi.unstubAllEnvs();
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });

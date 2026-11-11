@@ -1,6 +1,6 @@
 ---
 title: Context files load from the tree
-status: todo
+status: implemented
 depends: []
 layer: "store-file, copapo"
 refs:
@@ -42,3 +42,6 @@ A folder's context file is its `AGENTS.md`, or its `CLAUDE.md` when it has no `A
 
 ## Resume
 
+Implemented 2026-11-10. `readContextFiles` and `importsOf` are in `packages/store-file/src/context.ts`.
+`ChatOptions.agentsHome` names the common folder, `~/.agents` by default.
+`testChat` points it at `/nowhere/.agents`, so the machine's own folder stays out of tests.

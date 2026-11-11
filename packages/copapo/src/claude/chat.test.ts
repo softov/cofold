@@ -12,11 +12,11 @@ import { fakeClaudeSdk } from './testing.js';
 /** A fresh store root per rig: the file store makes the folders on the first write. */
 const freshHome = (): string => join(tmpdir(), `copapo-claude-${randomUUID()}`);
 
-function claudeChat(replies: FakeReply[] = [], config: Parameters<typeof testConfig>[0] = { model: undefined }, args: { home?: string; sdk?: FakeClaudeSdk } = {}): { chat: Chat; sdk: FakeClaudeSdk; home: string } {
+function claudeChat(replies: FakeReply[] = [], config: Parameters<typeof testConfig>[0] = { model: undefined }, args: { home?: string; sdk?: FakeClaudeSdk; trusted?: boolean } = {}): { chat: Chat; sdk: FakeClaudeSdk; home: string } {
   const sdk = args.sdk ?? fakeClaudeSdk();
   sdk.replies.push(...replies);
   const home = args.home ?? freshHome();
-  const chat = createClaudeChat({ config: testConfig(config), workspace: 'C:\\work', home, sdk, warn: () => {} });
+  const chat = createClaudeChat({ config: testConfig(config), workspace: 'C:\\work', home, sdk, ...(args.trusted !== undefined ? { trusted: args.trusted } : {}), warn: () => {} });
   return { chat, sdk, home };
 }
 
@@ -36,6 +36,27 @@ const ASK = {
 };
 
 describe('createClaudeChat', () => {
+  it('passes copapo\'s configured MCP servers to the CLI, ${VAR} expanded', async () => {
+    process.env['COPAPO_TEST_TOKEN'] = 't';
+    try {
+      const { chat, sdk } = claudeChat([{ text: 'Hi.' }], { model: undefined, mcpServers: { docs: { type: 'http', url: 'http://h', headers: { authorization: 'Bearer ${COPAPO_TEST_TOKEN}' } } } });
+      const started = await chat.say({ text: 'Hello' });
+      expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+      expect(sdk.queries[0]?.options?.mcpServers).toEqual({ docs: { type: 'http', url: 'http://h', headers: { authorization: 'Bearer t' } } });
+      await chat.close();
+    } finally {
+      delete process.env['COPAPO_TEST_TOKEN'];
+    }
+  });
+
+  it('loads the project\'s own Claude settings only in a folder copapo trusts', async () => {
+    const { chat, sdk } = claudeChat([{ text: 'Hi.' }], { model: undefined }, { trusted: false });
+    const started = await chat.say({ text: 'Hello' });
+    expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+    expect(sdk.queries[0]?.options?.settingSources).toEqual(['user']);
+    await chat.close();
+  });
+
   it('starts a session on say, lists it, and reads the CLI store back as one complete turn', async () => {
     const { chat, sdk } = claudeChat([{ text: 'Hello back.' }]);
     const seen: string[] = [];

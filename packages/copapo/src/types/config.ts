@@ -34,6 +34,9 @@ export interface ContextConfig {
 /** What runs the conversation: the harness in this process, or Claude Code's runtime through its SDK. */
 export type Backend = 'cofold' | 'claude';
 
+/** What a run that cannot ask does in a folder with gated files and no saved answer: `ask` and `never` load nothing. */
+export type ProjectTrust = 'ask' | 'always' | 'never';
+
 /** `~/.config/copapo/config.json`, `.copapo.json`, `COPAPO_CONFIG`, `--config`, and the `COPAPO_*` variables, merged. */
 export interface CopapoConfig {
   backend: Backend;
@@ -45,7 +48,7 @@ export interface CopapoConfig {
   rules?: RuleLists;
   /** The thinking level new sessions start with. */
   reasoning: Reasoning;
-  /** The system prompt. `<workspace>/AGENTS.md` is appended when present. */
+  /** The system prompt; the context files (`readContextFiles`) follow it. */
   instructions: string;
   limits?: Partial<Limits>;
   /** Sampling; `reasoning` is a setting, not a param, so it is not here. */
@@ -55,6 +58,12 @@ export interface CopapoConfig {
   /** The textui theme and shell the screen opens with. */
   theme: string;
   shell: string;
+  /** MCP servers by name, in Claude Code's shape; each entry is checked when the service starts (`servers.ts`). */
+  mcpServers?: Record<string, unknown>;
+  /** Saved trust answers, by folder; read from the user file alone (`trust.ts`). */
+  trusted?: Record<string, boolean>;
+  /** What a run that cannot ask does in a folder not asked yet; read from the user file alone. */
+  projectTrust?: ProjectTrust;
 }
 
 /** The fields a person's choice is written back as (decision CLI-05.1). */

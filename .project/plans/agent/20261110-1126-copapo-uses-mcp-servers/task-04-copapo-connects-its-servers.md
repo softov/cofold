@@ -1,6 +1,6 @@
 ---
 title: copapo connects its servers
-status: todo
+status: implemented
 depends: [task-02-streamable-http-over-fetch.md, task-03-servers-become-a-capability.md]
 layer: "copapo"
 refs:
@@ -42,3 +42,4 @@ The claude backend gets the same servers.
 
 ## Resume
 
+Implemented 2026-11-10. `.mcp.json` is now a gated file on both backends, since the cofold backend reads it. The claude backend passes only the configured servers, because the CLI reads a trusted workspace's `.mcp.json` itself.

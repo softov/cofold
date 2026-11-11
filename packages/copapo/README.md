@@ -25,7 +25,7 @@ Without a terminal (`copapo | cat`, a CI log) the screen prints one frame and ex
 
 ## Configuration
 
-`~/.config/copapo/config.json`, then the nearest `.copapo.json` up from the workspace, then `$COPAPO_CONFIG`, then `--config FILE`; later files win key by key.
+`~/.config/copapo/config.json`, then the nearest `.copapo.json` up from the workspace (in a trusted folder only; see *Context files, skills and trust*), then `$COPAPO_CONFIG`, then `--config FILE`; later files win key by key.
 `COPAPO_BASE_URL` and `COPAPO_API_KEY` add or replace a provider called `default`; `COPAPO_MODEL` chooses the default model (a bare model id means one of `default`).
 The family's `COFOLD_BASE_URL`, `COFOLD_API_KEY` and `COFOLD_MODEL`, which the examples read, work too; `COPAPO_*` wins where both are set.
 Every model request says `User-Agent: copapo/<version>`; to OpenRouter it also sends `HTTP-Referer: https://github.com/softov/cofold` and `X-OpenRouter-Title: copapo`, so the usage is attributed to copapo. A provider's own `headers` replace any of them.
@@ -58,13 +58,71 @@ Every model request says `User-Agent: copapo/<version>`; to OpenRouter it also s
 | `permissions` | Claude Code's modes: `default` (reads run; a tool that writes, destroys or reaches the network asks), `acceptEdits` (as `default`, and `write_file` / `edit_file` inside the workspace run unasked), `bypassPermissions` (everything runs; a deny or ask rule still wins), `dontAsk` (what would ask is denied instead). See below. |
 | `rules` | `deny`, `ask` and `allow` lists of `{ "tool", "match"? }`, applied to every session before the mode decides; `match` is a glob (`*`, `?`) over what the tool touches: the command for `shell_exec`, the path for the file tools (relative to the workspace when inside it, absolute outside), the pattern for `list_files` / `search_files`. |
 | `reasoning` | `off`, `low`, `medium`, `high`: the thinking level, sent as `params.reasoning.effort` to a model that has it. |
-| `instructions` | The system prompt; `<workspace>/AGENTS.md` is appended when present. |
+| `instructions` | The system prompt; the context files follow it (see *Context files, skills and trust*). |
 | `limits`, `params` | `@cofold/agents` `Limits` and `ModelParams` (without `reasoning`, which is the setting above). |
 | `tools` | The `@cofold/tools` capabilities, all on by default: `files` (`read_file`, `write_file`, `edit_file`, `list_files`, `search_files`), `shell` (`shell_exec`), `web` (`web_fetch`; an object with `search` adds `web_search` over `brave`, `tavily`, `duckduckgo`, asked in that order), `memory` (`memory_read`, `memory_write` under `<home>/memory/<workspace slug>/`). `false` turns one off. |
 | `context` | `maxTokens`: what a request may carry, instructions and history, as the harness estimates it (32 000 by default; set it to what the model has). `autoCompact`: fold the conversation into a summary before a turn once it passes 80% of that (on by default; each session may switch it). |
 | `theme`, `shell` | What the screen opens with. |
+| `mcpServers` | MCP servers whose tools the agent gets, by name, in Claude Code's shape; see *MCP servers*. |
+| `trusted` | The trust answers, folder to `true` or `false`; `copapo trust` and the question write it. Read from the user file only. |
+| `projectTrust` | What a run that cannot ask does in a folder not asked yet: `ask` (the default) and `never` load none of its own files, `always` loads them. Read from the user file only. |
 
 A wrong key is named: `config.permissions must be one of default, acceptEdits, bypassPermissions, dontAsk (read: ~/.config/copapo/config.json)`.
+
+## Context files, skills and trust
+
+The system prompt is `instructions`, then the context files in this order:
+
+| Order | File |
+| --- | --- |
+| 1 | `~/.agents/AGENTS.md`, the folder other agents share |
+| 2 | `~/.cofold/AGENTS.md` (copapo's home, `COFOLD_HOME`) |
+| 3 | One file per folder, from the filesystem root down to the workspace: its `AGENTS.md`, or its `CLAUDE.md` when it has none |
+
+A word `@path` in a context file, outside code, adds that file after it: relative to the file, `~/` from home, `\ ` for a space, four levels deep, each file once.
+Context files load whether or not the folder is trusted, as in pi and Claude Code, so a cloned repository's `AGENTS.md` reaches the model.
+
+Skills, in the order a name clash is settled:
+
+| Order | Folder |
+| --- | --- |
+| 1 | `.agents/skills` in the workspace and each folder above it, up to the repository root (the folder that holds `.git`); nearest first. Trusted folders only. |
+| 2 | `~/.cofold/skills` |
+| 3 | `~/.agents/skills` |
+| 4 | The skills copapo ships, `/init` and `/review` |
+
+The home folder's `.agents/skills` is the shared one, never a project's, even when home is a repository.
+
+Trust decides whether a folder's own files load: `.copapo.json` up the tree, `.agents/skills` up to the repository root, the workspace's `.mcp.json`, and with `--backend claude` the CLI's `.claude/settings.json` and `.claude/settings.local.json`.
+A folder that holds none of them is not asked about.
+One that holds any asks once: on the screen before the catalogue, or over ACP as a form when the client takes forms.
+The answer, yes or no, goes to `~/.config/copapo/config.json` under `trusted`, and covers the folders under it; the closest answer wins.
+Escape, or a cancelled form, saves nothing and loads nothing for that run.
+A run that cannot ask (`say`, `acp` with a client that takes no forms) follows `projectTrust`.
+`copapo trust` and `copapo trust --no` save the workspace's answer; `/trust` asks again, for the next start.
+With `--backend claude`, a folder copapo does not trust starts the CLI with `settingSources: ["user"]`, so the project's Claude settings, hooks and `.mcp.json` stay out.
+
+## MCP servers
+
+The agent gets the tools of the MCP servers in `mcpServers`, then, in a trusted folder, those in the workspace's `.mcp.json`; an entry there replaces a configured one of the same name.
+
+```json
+{
+  "mcpServers": {
+    "files": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "."] },
+    "docs": { "type": "http", "url": "https://docs.example.com/mcp", "headers": { "authorization": "Bearer ${DOCS_TOKEN}" } }
+  }
+}
+```
+
+- A server starts at the first turn that needs it and stays until copapo ends; one that fails shows on the warning line and is tried again at the next turn.
+- Its tools are named `mcp__<server>__<tool>` and are deferred: the agent loads one with `load_tools` before it calls it.
+- The permission mode reads each tool's hints, as pi does: a tool that says `readOnlyHint` runs without asking in `default`; any other asks, as a tool that writes.
+- `${VAR}` and `${VAR:-default}` expand in `command`, `args`, `env`, `url` and `headers`.
+- `copapo acp` takes the servers its client sends with a session, stdio and http, beside the configured ones; ahpd's host tools arrive this way.
+- With `--backend claude`, the configured servers and a session's go to the CLI; the CLI reads a trusted workspace's `.mcp.json` itself.
+
+`@cofold/mcp-client` holds the rest: the keys, the timeouts, and what a result becomes.
 
 ## Tools, the permission mode and the rules
 
@@ -138,7 +196,7 @@ The runtime's commands are the same list `copapo commands` prints. They run in t
 | `/status`, `/usage`, `/context` | The session, model, mode, rules, folders and token totals; what each turn used (tokens by kind, steps, tool calls, refusals), never a price; how much of the context the conversation fills. |
 | `/config`, `/skills` | The configuration with keys redacted; the skills. |
 
-A skill is a `/name` too: sending the line tells the agent to read that skill, and the transcript shows `Skill: name`. `/init` writes or refreshes `AGENTS.md`; `/review` reviews the working tree; both ship with copapo, and a skill of the same name under `~/.cofold/skills` or `<workspace>/.agents/skills` replaces it.
+A skill is a `/name` too: sending the line tells the agent to read that skill, and the transcript shows `Skill: name`. `/init` writes or refreshes `AGENTS.md`; `/review` reviews the working tree; both ship with copapo, and a skill of the same name in any folder *Context files, skills and trust* lists replaces it.
 
 The screen's own commands never reach the runtime; `ctrl+p` lists them too:
 
@@ -210,7 +268,7 @@ It has no dependency: the JSON-RPC loop is copapo's own.
 A turn ends `end_turn` when it completes or a hook stops it, `cancelled` when it is cancelled, and `max_turn_requests` at `limits.maxSteps`; a failed turn is a JSON-RPC error with its message.
 The tools are copapo's own: the client's `fs/*` and `terminal/*` are never called.
 There is no sign-in: the keys are in copapo's configuration.
-Not served: the client's `mcpServers` (cofold has no MCP client yet) and `additionalDirectories`, which are ignored; images, audio and embedded resources in a prompt.
+Not served: `additionalDirectories`, which is ignored; an SSE MCP server, which is left out with a warning; images, audio and embedded resources in a prompt.
 
 ## What is kept, and where
 

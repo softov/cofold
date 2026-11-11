@@ -1,3 +1,4 @@
+import type { Trust } from '../trust.js';
 /**
  * The part of the Agent Client Protocol (version 1) that `copapo acp` speaks, as the protocol's schema
  * names it (`@agentclientprotocol/sdk` 1.8.0, `schema/schema.json`). Only the fields copapo reads or
@@ -120,7 +121,8 @@ export type RequestPermissionOutcome = { outcome: 'cancelled' } | { outcome: 'se
 /** One field of an elicitation form. */
 export type ElicitationProperty =
   | { type: 'string'; title?: string; description?: string; oneOf?: { const: string; title: string }[] }
-  | { type: 'array'; title?: string; description?: string; items: { anyOf: { const: string; title: string }[] } };
+  | { type: 'array'; title?: string; description?: string; items: { anyOf: { const: string; title: string }[] } }
+  | { type: 'boolean'; title?: string; description?: string; default?: boolean };
 
 export interface ElicitationSchema {
   type: 'object';
@@ -141,8 +143,15 @@ export interface SessionInfo {
 
 /** What `serveAcp` is built from. */
 export interface AcpServerOptions {
-  /** The service for a session's `cwd`, built once per `cwd` and kept; `serveAcp` closes each when it ends. */
-  chatFor(cwd: string): Chat;
+  /**
+   * The service for a session's `cwd`, built once per `cwd` and kept; `serveAcp` closes each when it ends.
+   * `trusted` is the person's answer when the server asked; absent, the folder's saved trust decides.
+   */
+  chatFor(cwd: string, trusted?: boolean): Chat;
+  /** The folder's trust, read before its service is built; absent, nothing is asked. */
+  trustOf?(cwd: string): Trust;
+  /** Keeps the person's answer for the folder. */
+  saveTrust?(cwd: string, trusted: boolean): Promise<unknown>;
   /** The folder `session/list` lists when the client names none: `--workspace`. */
   workspace: string;
   agentInfo: Implementation;
