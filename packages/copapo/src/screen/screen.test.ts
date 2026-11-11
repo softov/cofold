@@ -19,6 +19,16 @@ async function settle(t: Harness, times = 12): Promise<void> {
   for (let i = 0; i < times; i++) await t.settle();
 }
 
+/** Settles until `text` is on screen, for what arrives on a timer (the catalogue refreshes 150 ms after a turn's last event); fails after `ms`. */
+async function until(t: Harness, text: string, ms = 3000): Promise<void> {
+  const end = Date.now() + ms;
+  while (!t.hasText(text)) {
+    if (Date.now() > end) throw new Error(`"${text}" never appeared:\n${t.text()}`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await settle(t, 2);
+  }
+}
+
 /** The terminal sizes a layout test runs at: the default, and a narrow one under the shell's breakpoints. */
 const SIZES = [{ width: 100, height: 30 }, { width: 60, height: 24 }];
 
@@ -127,7 +137,7 @@ describe('the screen', () => {
     await settle(t);
     t.press('escape');
     await settle(t);
-    expect(t.hasText('1 in this workspace')).toBe(true);
+    await until(t, '1 in this workspace');
     expect(t.hasText('Hello there')).toBe(true);
     await t.unmount();
   });
@@ -521,19 +531,18 @@ describe('the screen', () => {
     await settle(t, 30);
     t.pressAll('escape', 'escape');
     await settle(t);
-    expect(t.hasText('1 in this workspace')).toBe(true);
+    await until(t, '1 in this workspace');
     t.press('d');
     await settle(t);
     expect(t.hasText('Delete "Hello there"?')).toBe(true);
     t.press('escape');
     await settle(t);
     expect(t.hasText('Delete "Hello there"?')).toBe(false);
-    expect(t.hasText('1 in this workspace')).toBe(true);
+    await until(t, '1 in this workspace');
     t.press('d');
     await settle(t);
     t.press('enter');
-    await settle(t, 20);
-    expect(t.hasText('No sessions here yet')).toBe(true);
+    await until(t, 'No sessions here yet');
     await t.unmount();
   });
 
