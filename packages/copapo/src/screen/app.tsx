@@ -113,6 +113,8 @@ export function createController(app: TextUIApp, copapo: Copapo): Controller {
     async send(text) {
       const trimmed = text.trim();
       if (trimmed === '') return;
+      // A warning lasts until the person's next action.
+      app.store.set(WARNING, null);
       try {
         const current = open();
         const chosen = current === null ? draftSettings() : null;
@@ -373,6 +375,8 @@ function mountCopapo(app: TextUIApp, options: ScreenOptions): Disposable {
   bag.add(app.services.provide(CONTROLLER, controller));
   const warnings = options.copapo.warnings;
   if (warnings !== undefined) bag.add({ dispose: warnings.divert((message) => { app.store.set(WARNING, message); }) });
+  // Changing screen is an action too: the warning has been seen.
+  bag.add(app.store.subscribe(SCREEN, () => { app.store.set(WARNING, null); }));
 
   for (const [component, render] of [
     ['ChatBubble', ChatBubble],

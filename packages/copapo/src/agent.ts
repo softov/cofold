@@ -64,7 +64,8 @@ export function buildAgent(args: AgentArgs): Agent {
         // The memory copapo keeps today: under the store's root, one folder per workspace (decision 123).
         memoryDir: join(args.home, 'memory', workspaceSlug({ workspace: args.workspace })),
       }),
-      skills({ sources: args.skills, warn: args.warn }),
+      // No duplicate warning: copapo orders its sources on purpose, so a project skill shadowing a common or shipped one is meant.
+      skills({ sources: args.skills }),
       ...(args.capabilities ?? []),
     ],
     store: args.store,

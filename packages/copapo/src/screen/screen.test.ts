@@ -82,7 +82,7 @@ describe('the screen', () => {
   }
 
   for (const size of SIZES) {
-    it(`shows a chat warning on a line above the key hints, and hands warnings back on close, at ${size.width}x${size.height}`, async () => {
+    it(`shows a chat warning on a line above the key hints until the next action, and hands warnings back on close, at ${size.width}x${size.height}`, async () => {
       const written: string[] = [];
       const warnings = createWarnings((message) => written.push(message));
       const { chat } = testChat({ script: [] });
@@ -101,6 +101,10 @@ describe('the screen', () => {
       expect(warning).toBeGreaterThan(-1);
       expect(hints).toBe(warning + 1);
       expect(written).toEqual([]);
+      // The next action, here a new conversation, clears it.
+      t.press('n');
+      await settle(t);
+      expect(t.hasText('provider "local"')).toBe(false);
       await t.unmount();
       warnings.warn('after');
       expect(written).toEqual(['after']);

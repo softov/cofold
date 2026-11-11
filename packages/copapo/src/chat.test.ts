@@ -944,6 +944,24 @@ describe('createChat', () => {
     }
   });
 
+  it('warns nothing when a project skill shadows a common one of the same name', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'copapo-shadow-'));
+    for (const dir of [join(root, 'agents', 'skills', 'do-spec'), join(root, 'repo', '.agents', 'skills', 'do-spec')]) {
+      await mkdir(dir, { recursive: true });
+      await writeFile(join(dir, 'SKILL.md'), ['---', `description: ${dir.includes('repo') ? 'Project' : 'Common'}`, '---', 'x', ''].join('\n'));
+    }
+    const warned: string[] = [];
+    try {
+      const { chat } = testChat({ script: [{ text: 'Ok.' }], workspace: join(root, 'repo'), agentsHome: join(root, 'agents'), warn: (message) => warned.push(message) });
+      expect((await chat.skills()).find((one) => one.name === 'do-spec')?.description).toBe('Project');
+      const started = await chat.say({ text: 'Hi' });
+      expect((await chat.wait(started.sessionId))?.status).toBe('completed');
+      expect(warned).toEqual([]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it('lists a workspace skill once, with no duplicate warned', async () => {
     const workspace = await mkdtemp(join(tmpdir(), 'copapo-skills-'));
     await mkdir(join(workspace, '.agents', 'skills', 'mine'), { recursive: true });
