@@ -27,6 +27,7 @@ Without a terminal (`copapo | cat`, a CI log) the screen prints one frame and ex
 
 `~/.config/copapo/config.json`, then the nearest `.copapo.json` up from the workspace (in a trusted folder only; see *Context files, skills and trust*), then `$COPAPO_CONFIG`, then `--config FILE`; later files win key by key.
 `COPAPO_BASE_URL` and `COPAPO_API_KEY` add or replace a provider called `default`; `COPAPO_MODEL` chooses the default model (a bare model id means one of `default`).
+While one provider is configured, the screen shows a model by its id alone (`openai/gpt-4o` for `default/openai/gpt-4o`); the configuration and `/status` keep the full reference.
 The family's `COFOLD_BASE_URL`, `COFOLD_API_KEY` and `COFOLD_MODEL`, which the examples read, work too; `COPAPO_*` wins where both are set.
 Every model request says `User-Agent: copapo/<version>`; to OpenRouter it also sends `HTTP-Referer: https://github.com/softov/cofold` and `X-OpenRouter-Title: copapo`, so the usage is attributed to copapo. A provider's own `headers` replace any of them.
 
@@ -177,8 +178,8 @@ Global options: `--workspace DIR` (`COPAPO_WORKSPACE`, default the current direc
 ## The screen
 
 Two screens.
-The catalogue: `enter` opens, `n` starts a conversation, `d` deletes, `r` refreshes.
-The conversation: type and `enter`; `tab` walks the three chips under the field (model, permissions, thinking) and `enter` opens one; the model chip asks the provider first when more than one lists models, then that provider's models; `ctrl+c` stops a running turn (a turn waiting on a confirmation has it denied with `The turn was stopped` and ends cancelled, the transcript showing `Request interrupted by user`; when nothing runs it quits); `a` and `d` answer a confirmation; a question is answered in its form; `esc` goes back; `ctrl+p` is the palette; `alt+m` toggles markdown.
+The catalogue: `enter` opens, `n` starts a conversation, `d` deletes after asking, `r` refreshes.
+The conversation: type and `enter`; `tab` walks the three chips under the field (model, permissions, thinking) and `enter` opens one; the model chip asks the provider first when more than one lists models, then that provider's models; `ctrl+c` stops a running turn (a turn waiting on a confirmation has it denied with `The turn was stopped` and ends cancelled, the transcript showing `Request interrupted by user`; when nothing runs, a second `ctrl+c` within a moment quits); `a` and `d` answer a confirmation; a question is answered in its form; `esc` goes back, and so does `left` at the start of the field; `ctrl+p` is the palette; `alt+m` toggles markdown.
 While the agent answers, `enter` steers: the message lands in the running turn before its next model step, and the transcript shows it where it landed.
 A `Queue` chip leads the row then (`tab`, `enter`): the draft becomes the next turn instead, listed as a queued row at the end of the transcript, and starts when the turn ends, never after `ctrl+c`; `enter` on a queued row drops it.
 Queued while nothing runs (`/queue`, `copapo queue`), a message is the next turn at once, as in Claude Code.

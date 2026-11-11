@@ -3,12 +3,14 @@ import { ChatComposer, ChatHitl, ChatInputStatus, ChatSessionHead, ChatTranscrip
 import type { BindingPath, RenderOutput } from '@textui/core';
 import { defineComponent, useApp, useCapabilities, useFocusScope, useMemo, useRequiredService, useStore, useStoreValue } from '@textui/core';
 import type { SlashCommandInfo } from '@cofold/agents';
+import { splitModel } from '@cofold/model-openai-compat';
 import { Column, Divider, argumentOf } from '@textui/widgets';
 import { QUEUED_BLOCK, toBlocks } from '../blocks.js';
+import type { ProviderRow } from '../types/chat.js';
 import type { Settings } from '../types/settings.js';
 import type { Snapshot } from '../types/turn.js';
 import { CONTROLLER, PERMISSION_LABELS, REASONING_LABELS, slashName } from './app.js';
-import { ANSWERS, CHAT_SCOPE, COMMANDS, DRAFT, EXPANDED, INPUT_STATUS, MARKDOWN, PLACE, SETTINGS, SNAPSHOT } from './state.js';
+import { ANSWERS, CHAT_SCOPE, COMMANDS, DRAFT, EXPANDED, INPUT_STATUS, MARKDOWN, PLACE, PROVIDERS, SETTINGS, SNAPSHOT } from './state.js';
 import { sessionView } from './sessions.js';
 
 /** The sections of the `/` menu, in that order: the runtime's commands, the skills, then the screen's own. */
@@ -44,6 +46,19 @@ function useSlashCommands(): ChatCommand[] {
 }
 
 /**
+ * A model as the screen shows it: `<provider>/<model id>`, or the model id alone while one provider is configured,
+ * whose name tells nothing apart. The stored reference keeps the provider.
+ */
+export function shownModel(ref: string, providers: number): string {
+  return providers === 1 ? splitModel(ref)?.modelId ?? ref : ref;
+}
+
+/** How many providers the screen knows of; 0 until `chat.providers()` answers. */
+function useProviderCount(): number {
+  return (useStoreValue<ProviderRow[] | null>(PROVIDERS, null) ?? []).length;
+}
+
+/**
  * The row under the field: which model, what it may do without asking, how hard it thinks; while a
  * turn runs, the way to queue the draft instead of steering with it (decision CLI-04.1).
  *
@@ -53,11 +68,12 @@ function useSlashCommands(): ChatCommand[] {
 function useComposerOptions(running: boolean): ComposerOption[] {
   const unicode = useCapabilities().unicode;
   const settings = useStoreValue<Settings | null>(SETTINGS, null) ?? null;
+  const providers = useProviderCount();
   return useMemo(() => {
     if (settings === null) return [];
     return [
       ...(running ? [{ id: 'queue', icon: settingIcon(unicode, 'queue'), label: 'Queue', title: 'Hold the draft as the next turn (enter steers)', commandId: 'chat.queue' }] : []),
-      { id: 'model', icon: settingIcon(unicode, 'model'), label: settings.model || 'first listed model', title: 'Model', commandId: 'compose.model' },
+      { id: 'model', icon: settingIcon(unicode, 'model'), label: settings.model ? shownModel(settings.model, providers) : 'first listed model', title: 'Model', commandId: 'compose.model' },
       {
         id: 'permissions',
         icon: valueIcon(unicode, settings.permissions, PERMISSION_LABELS[settings.permissions].label) ?? settingIcon(unicode, 'permissions'),
@@ -67,7 +83,7 @@ function useComposerOptions(running: boolean): ComposerOption[] {
       },
       { id: 'reasoning', icon: settingIcon(unicode, 'thinking'), label: REASONING_LABELS[settings.reasoning], title: 'Thinking', commandId: 'compose.reasoning' },
     ];
-  }, [settings?.model, settings?.permissions, settings?.reasoning, unicode, running]);
+  }, [settings?.model, settings?.permissions, settings?.reasoning, unicode, running, providers]);
 }
 
 const NONE_EXPANDED: Record<string, boolean> = {};
@@ -99,7 +115,9 @@ export const ChatScreen: (props: Record<string, never>) => RenderOutput =
     const pending = snapshot?.pending ?? null;
     const [answers, setAnswers] = useStore<Record<string, ChatAnswer>>(`${ANSWERS}/${pending?.id ?? 'none'}` as BindingPath, {});
 
-    const model = snapshot?.settings.model;
+    const providers = useProviderCount();
+    const stored = snapshot?.settings.model;
+    const model = stored ? shownModel(stored, providers) : stored;
     const blocks = useMemo(() => toBlocks(snapshot?.turns ?? [], model, snapshot?.queued ?? []), [snapshot, model]);
     const options = useComposerOptions(snapshot?.running ?? false);
     const commands = useSlashCommands();
@@ -195,7 +213,8 @@ export const ChatScreen: (props: Record<string, never>) => RenderOutput =
           onChange={(value: string) => app.store.set(DRAFT, value)}
           onSubmit={(value: string) => void controller.send(value)}
           onCancel={() => app.focus.focus('chat.transcript')}
-          onLeave={() => app.focus.focus('chat.transcript')}
+          // Left off the front of the field: back to the sessions, as escape from the transcript.
+          onLeave={() => void app.execute('go.back')}
           autoFocus={pending === null}
         />
       </Column>

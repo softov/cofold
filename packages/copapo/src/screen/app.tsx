@@ -11,7 +11,7 @@ import {
 import type { ArgChoices, ArgSpec, BoxProps, Disposable, ServiceKey, TextUIApp } from '@textui/core';
 import { createBag, defineComponent, serviceKey, useApp, useStoreValue, useTheme } from '@textui/core';
 import type { LayoutProps } from '@textui/widgets';
-import { Column, KeyHints, MountView, Row, registerBuiltins } from '@textui/widgets';
+import { Column, KeyHints, MountView, Row, confirm, registerBuiltins } from '@textui/widgets';
 import type { Copapo } from '../commands.js';
 import { rememberedOf } from '../commands.js';
 import { exportPath, toMarkdown } from '../export.js';
@@ -19,13 +19,13 @@ import { toAskAnswers } from '../questions.js';
 import type { ModelRow, ProviderRow } from '../types/chat.js';
 import type { Settings } from '../types/settings.js';
 import { PERMISSION_MODES, REASONING_LEVELS } from '../types/settings.js';
-import type { Snapshot } from '../types/turn.js';
+import type { SessionRow, Snapshot } from '../types/turn.js';
 import { saveTrust } from '../trust.js';
 import { ChatScreen } from './chat.js';
 import { CopapoInfo, showInfo } from './info.js';
 import { SessionsScreen } from './sessions.js';
 import { askTrust } from './trust.js';
-import { ANSWERS, CHAT_SCOPE, COMMANDS, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, PLACE, PROVIDERS, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SNAPSHOT, WARNING } from './state.js';
+import { ANSWERS, CHAT_SCOPE, COMMANDS, DRAFT, ERROR, FOCUS, INPUT_STATUS, MARKDOWN, MODELS, OPEN, PLACE, PROVIDERS, QUIT_ARMED, QUIT_WINDOW_MS, SCREEN, SELECTED, SESSIONS, SESSIONS_SCOPE, SETTINGS, SNAPSHOT, WARNING } from './state.js';
 
 /** The words on the chips and in the picker, for the values the configuration spells: Claude Code's four modes (cli/03 F8). */
 export const PERMISSION_LABELS: Record<Settings['permissions'], { label: string; description: string }> = {
@@ -306,8 +306,11 @@ const Status = defineComponent<Record<string, never>>('CopapoStatus', () => {
   const error = useStoreValue<string | null>(ERROR, null) ?? null;
   const warning = useStoreValue<string | null>(WARNING, null) ?? null;
   const said = useStoreValue<ChatSendStatus | null>(INPUT_STATUS, null) ?? null;
+  const armed = useStoreValue<boolean>(QUIT_ARMED, false) ?? false;
   const shown = said?.state === 'failed' && said.text === error ? null : error;
-  const line = shown !== null
+  const line = armed
+    ? <text content="ctrl+c again to quit" fg="warning" bold flex={1} truncate="end" />
+    : shown !== null
     ? <text content={shown} fg="danger" flex={1} truncate="end" />
     : <Hints flex={1} />;
   return warning === null ? line : (
@@ -409,6 +412,8 @@ function mountCopapo(app: TextUIApp, options: ScreenOptions): Disposable {
 
   const { copapo } = options;
   const selected = (): string | null => app.store.get<string | null>(SELECTED) ?? null;
+  /** The first ctrl+c's window, while it is open. Unref'd, so it never holds the process. */
+  let quitting: ReturnType<typeof setTimeout> | null = null;
   const settings = (): Settings | null => app.store.get<Settings>(SETTINGS) ?? null;
   const providers = (): ProviderRow[] => app.store.get<ProviderRow[]>(PROVIDERS) ?? [];
   /**
@@ -510,6 +515,22 @@ function mountCopapo(app: TextUIApp, options: ScreenOptions): Disposable {
     },
     { id: 'app.quit', title: 'Quit', category: 'Navigation', slots: ['palette'], run: () => options.onQuit?.() },
     {
+      // ctrl+c with nothing to stop: the first press says what a second one does, and only a second inside the window quits.
+      id: 'app.interrupt', title: 'Quit on a second ctrl+c', category: 'Navigation', slots: [] as string[],
+      run: () => {
+        if (quitting !== null) {
+          clearTimeout(quitting);
+          quitting = null;
+          app.store.set(QUIT_ARMED, false);
+          void app.execute('app.quit');
+          return;
+        }
+        app.store.set(QUIT_ARMED, true);
+        quitting = setTimeout(() => { quitting = null; app.store.set(QUIT_ARMED, false); }, QUIT_WINDOW_MS);
+        quitting.unref?.();
+      },
+    },
+    {
       id: 'app.trust', title: 'Trust this folder', category: 'Navigation', slots: ['palette'], description: 'Ask again whether this folder\'s own files load; it applies at the next start',
       run: async () => {
         const { workspace } = options.copapo;
@@ -535,7 +556,14 @@ function mountCopapo(app: TextUIApp, options: ScreenOptions): Disposable {
     {
       id: 'session.delete', title: 'Delete the selected session', category: 'Sessions', slots: ['palette'],
       when: `${SELECTED}`,
-      run: () => { const id = selected(); if (id !== null) void controller.remove(id); },
+      run: async () => {
+        const id = selected();
+        if (id === null) return;
+        const title = (app.store.get<SessionRow[]>(SESSIONS) ?? []).find((row) => row.id === id)?.title ?? id;
+        // The question is in the message: a theme with no frame (paper) draws no title.
+        const ok = await confirm(app.layers, { title: 'Delete session', message: `Delete "${title}"? Its messages are removed from disk.`, confirmLabel: 'Delete', tone: 'danger' });
+        if (ok) await controller.remove(id);
+      },
     },
     { id: 'session.refresh', title: 'Refresh sessions', category: 'Sessions', slots: ['palette'], run: () => void controller.refresh() },
     {
@@ -678,7 +706,7 @@ function mountCopapo(app: TextUIApp, options: ScreenOptions): Disposable {
   const keys = [
     { keys: 'ctrl+p', commandId: 'app.palette' },
     { keys: 'ctrl+c', commandId: 'chat.stop', when: `${SCREEN} == 'chat' && ${SNAPSHOT}/running` },
-    { keys: 'ctrl+c', commandId: 'app.quit' },
+    { keys: 'ctrl+c', commandId: 'app.interrupt' },
     { keys: 'ctrl+q', commandId: 'app.quit' },
     { keys: 'ctrl+n', commandId: 'session.new' },
     { keys: 'escape', commandId: 'go.back' },

@@ -13,7 +13,7 @@ import { deleteFileTool, fakeProvider, gateTool, providerMap, testChat, testConf
 import { createWarnings } from '../warnings.js';
 import { registerCopapo } from './app.js';
 import type { Info } from './info.js';
-import { DRAFT, INFO, OPEN } from './state.js';
+import { DRAFT, INFO, OPEN, SETTINGS } from './state.js';
 
 async function settle(t: Harness, times = 12): Promise<void> {
   for (let i = 0; i < times; i++) await t.settle();
@@ -155,7 +155,9 @@ describe('the screen', () => {
     const { t } = await screen({ script: [{ toolCalls: [{ name: 'delete_file', input: { path: 'a' } }] }, { text: 'Gone.' }], tools: [tool] });
     t.press('n');
     await settle(t);
-    expect(t.hasText('fake/scripted')).toBe(true);
+    // One provider: the chip shows the model id alone.
+    expect(t.hasText('scripted')).toBe(true);
+    expect(t.hasText('fake/scripted')).toBe(false);
     expect(t.hasText('Ask before changes')).toBe(true);
     expect(t.hasText('No thinking')).toBe(true);
     // Tab to the permissions chip, open it, pick the third answer: Claude's four modes (cli/03 F8).
@@ -188,8 +190,9 @@ describe('the screen', () => {
     expect(t.hasText('The other one')).toBe(true);
     t.pressAll('down', 'enter');
     await settle(t);
-    expect(t.hasText('fake/other')).toBe(true);
-    expect(t.hasText('fake/scripted')).toBe(false);
+    expect(t.app.store.get<{ model?: string }>(SETTINGS)?.model).toBe('fake/other');
+    expect(t.hasText('The other one')).toBe(false);
+    expect(t.hasText('fake/')).toBe(false);
     await t.unmount();
   });
 
@@ -357,10 +360,11 @@ describe('the screen', () => {
     const shown = t.text();
     const id = t.app.store.get<string>(OPEN) ?? '';
     expect(id).not.toBe('');
-    for (const piece of ['Hello there', 'idle', 'fake/scripted', 'Permissions', 'Ask before changes', 'Thinking     No thinking', 'Auto-compact off', 'Turns        1', 'Tokens       1 in, 1 out', 'Home         /nowhere', 'Workspace    /work', 'Started', `Session      ${id}`]) {
+    for (const piece of ['Hello there', 'idle', 'scripted', 'Permissions', 'Ask before changes', 'Thinking     No thinking', 'Auto-compact off', 'Turns        1', 'Tokens       1 in, 1 out', 'Home         /nowhere', 'Workspace    /work', 'Started', `Session      ${id}`]) {
       expect(shown, piece).toContain(piece);
     }
     expect(shown).not.toContain('A new conversation.');
+    expect(shown).not.toContain('fake/scripted');
     await t.unmount();
   });
 
@@ -491,11 +495,56 @@ describe('the screen', () => {
     await t.unmount();
   });
 
-  it('quits on ctrl+c when nothing is running', async () => {
+  it('quits on a second ctrl+c when nothing is running; one press only says so, and the window closes', async () => {
     const { t, quit } = await screen({ script: [] });
     t.press('ctrl+c');
     await settle(t);
+    expect(quit()).toBe(false);
+    expect(t.hasText('ctrl+c again to quit')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    await settle(t);
+    expect(t.hasText('ctrl+c again to quit')).toBe(false);
+    t.press('ctrl+c');
+    await settle(t);
+    t.press('ctrl+c');
+    await settle(t);
     expect(quit()).toBe(true);
+    await t.unmount();
+  });
+
+  it('asks before d deletes a session; escape keeps it, enter deletes it', async () => {
+    const { t } = await screen({ script: [{ text: 'Hello back.' }] });
+    t.press('n');
+    await settle(t);
+    t.type('Hello there');
+    t.press('enter');
+    await settle(t, 30);
+    t.pressAll('escape', 'escape');
+    await settle(t);
+    expect(t.hasText('1 in this workspace')).toBe(true);
+    t.press('d');
+    await settle(t);
+    expect(t.hasText('Delete "Hello there"?')).toBe(true);
+    t.press('escape');
+    await settle(t);
+    expect(t.hasText('Delete "Hello there"?')).toBe(false);
+    expect(t.hasText('1 in this workspace')).toBe(true);
+    t.press('d');
+    await settle(t);
+    t.press('enter');
+    await settle(t, 20);
+    expect(t.hasText('No sessions here yet')).toBe(true);
+    await t.unmount();
+  });
+
+  it('goes back to the sessions on left at the start of the field', async () => {
+    const { t } = await screen({ script: [] });
+    t.press('n');
+    await settle(t);
+    expect(t.hasText('A new conversation')).toBe(true);
+    t.press('left');
+    await settle(t);
+    expect(t.hasText('No sessions here yet')).toBe(true);
     await t.unmount();
   });
 

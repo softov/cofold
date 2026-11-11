@@ -32,13 +32,20 @@ describe('memory()', () => {
   });
 
   it('write then read round-trips, makes folders, and the index head appears in the section', async () => {
-    expect(await call('memory_write', { path: 'topics/build.md', content: 'pnpm check runs everything\n' })).toBe('wrote topics/build.md (27 bytes)');
+    expect(await call('memory_write', { path: 'topics/build.md', content: 'pnpm check runs everything\n' })).toBe('wrote topics/build.md (27 bytes)\ntopics/build.md is not in MEMORY.md; add a line for it.');
     expect(await call('memory_read', { path: 'topics/build.md' })).toBe('pnpm check runs everything\n');
     await call('memory_write', { path: 'MEMORY.md', content: '# Memory\n- [build](topics/build.md) - how to check\n- third line\n' });
     expect(await readFile(join(dir, 'MEMORY.md'), 'utf8')).toContain('[build]');
     const section = await memory({ dir, indexLines: 2 }).instructions!(args);
     expect(section).toContain('# Memory\n- [build](topics/build.md) - how to check\n[1 more lines; memory_read() has them all]');
     expect(await memory({ dir }).instructions!(args)).not.toContain('more lines');
+  });
+
+  it('reminds to index a file MEMORY.md does not name, and says nothing once it does', async () => {
+    await call('memory_write', { path: 'MEMORY.md', content: '- [notes](notes.md) - what to keep\n' });
+    expect(await call('memory_write', { path: 'notes.md', content: 'x' })).toBe('wrote notes.md (1 bytes)');
+    expect(await call('memory_write', { path: 'other.md', content: 'y' })).toBe('wrote other.md (1 bytes)\nother.md is not in MEMORY.md; add a line for it.');
+    expect(await call('memory_write', { path: 'MEMORY.md', content: '- [notes](notes.md)\n' })).toBe('wrote MEMORY.md (20 bytes)');
   });
 
   it('names its subjects for permission rules: the file relative to the memory folder, or absolute when it leaves it', () => {

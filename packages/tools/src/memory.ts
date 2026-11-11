@@ -81,7 +81,12 @@ function memoryTools(dir: string): Tool<any, any>[] {
         const absolute = inside(input.path);
         await mkdir(dirname(absolute), { recursive: true });
         await writeFile(absolute, input.content, 'utf8');
-        return `wrote ${displayPath(dir, absolute)} (${Buffer.byteLength(input.content)} bytes)`;
+        const shown = displayPath(dir, absolute);
+        const wrote = `wrote ${shown} (${Buffer.byteLength(input.content)} bytes)`;
+        // The index is the model's to keep; a file it does not name yet gets a reminder in the result, which every model reads.
+        if (absolute === join(dir, INDEX)) return wrote;
+        const index = await read(join(dir, INDEX));
+        return index !== undefined && index.includes(shown) ? wrote : `${wrote}\n${shown} is not in ${INDEX}; add a line for it.`;
       },
     }),
   ];

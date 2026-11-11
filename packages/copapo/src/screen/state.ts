@@ -19,6 +19,10 @@ export const EXPANDED = '$/copapo/expanded' as BindingPath;
 export const ERROR = '$/copapo/error' as BindingPath;
 /** The chat's latest warning, shown above the key hints until the person changes screen or sends a message. */
 export const WARNING = '$/copapo/warning' as BindingPath;
+/** A first ctrl+c was pressed, and a second one inside `QUIT_WINDOW_MS` quits. */
+export const QUIT_ARMED = '$/copapo/quitArmed' as BindingPath;
+/** How long the first ctrl+c waits for the second. */
+export const QUIT_WINDOW_MS = 800;
 /** What became of the answer given to the waiting block. */
 export const INPUT_STATUS = '$/copapo/inputStatus' as BindingPath;
 /** Draft answers to the waiting question, keyed under the request id. */
