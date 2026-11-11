@@ -1,6 +1,6 @@
 {
   "name": "@cofold/copapo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A coding agent at the terminal, on the cofold harness or on Claude Code. Use it as a screen, from the shell, or as an ACP agent.",
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
