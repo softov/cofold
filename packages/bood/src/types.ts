@@ -6,8 +6,9 @@
  * layers of plain SVG nodes, and timelines, which move those layers by their
  * target with transform and opacity only. Transform and opacity are what a
  * browser's compositor and React Native's native driver animate off the main
- * thread, so the same data runs smoothly on both. The one exception is a
- * body's `flow`, an outline that keeps changing (see `BodyFlow`).
+ * thread, so the same data runs smoothly on both. The exceptions redraw a
+ * body's outline: its `flow`, an outline that keeps changing (see `BodyFlow`),
+ * and its `bend`, which `bend` and `lean` play (see `BodyBend`).
  */
 
 /** A body tag, as a bot record names it. */
@@ -45,7 +46,8 @@ export type BoodBody =
   | "flame"
   | "rock"
   | "moon"
-  | "balloon";
+  | "balloon"
+  | "clip";
 
 /** doop's agent states, and four plain expressions. */
 export type BoodMood =
@@ -101,7 +103,11 @@ export type BoodAction =
   | "flare"
   | "sway"
   | "float"
-  | "beat";
+  | "beat"
+  | "bend"
+  | "lean"
+  | "knock"
+  | "twirl";
 
 /** A way any body leaves and comes back: it plays its hide half to go and its show half to come. */
 export type BoodTransit =
@@ -160,6 +166,18 @@ export interface BodyFlow {
   glide?: boolean;
 }
 
+/**
+ * How a body bends, for a body made of something that bends, as the clip's
+ * wire. A bend redraws the silhouette, so, like `BodyFlow`, it runs on the main
+ * thread.
+ */
+export interface BodyBend {
+  /** The silhouette with its top turned `angle` degrees, with the same commands at every angle. */
+  outline: (angle: number) => string;
+  /** Where the point at `x`, `y` goes when the top turns `angle` degrees, and how far it turns there, in degrees. */
+  point: (angle: number, x: number, y: number) => [number, number, number];
+}
+
 export interface EyePlacement {
   centerX: number;
   centerY: number;
@@ -207,10 +225,20 @@ export interface BoodCreature {
   antenna?: AntennaPlacement;
   /** False for a body drawn with no brows. */
   brows?: boolean;
+  /**
+   * True for a body whose face sits beside its outline, on whatever is behind
+   * it, as the clip's under its top bend. A filled body then keeps the outline
+   * face colours, since ink meant for the body colour would vanish there.
+   */
+  bareFace?: boolean;
+  /** True for a body whose pupils swing behind a `jump`, `wobble` or `squash`, as googly eyes do. */
+  googly?: boolean;
   /** The moves it plays, in the order a click plays them. */
   actions: BoodAction[];
   /** The silhouette's flow, for a body whose outline never holds still. */
   flow?: BodyFlow;
+  /** How the body bends, for `bend` and `lean`. A body without it leans whole, from its base. */
+  bend?: BodyBend;
   /**
    * How far the face slides when the body turns to one side, as a share of the
    * drawing's width. A round body turns more than a flat one. Default 0.07.

@@ -11,11 +11,13 @@ import { SQUARE } from "../creatures/square/index.js";
 import { TRIANGLE } from "../creatures/triangle/index.js";
 import { eyeGeometry, pupilRoom } from "../face.js";
 import type {
+  BodyBend,
   BoodAction,
   BoodBody,
   BoodLayer,
   BoodPlay,
   BoodTarget,
+  SvgNode,
 } from "../types.js";
 import {
   all,
@@ -34,6 +36,8 @@ export interface PlayOptions {
   /** The body colour, for the effects a move draws. */
   color: string;
   filled?: boolean;
+  /** The eyes the scene draws, as `scene` takes them. Default `"dots"`. */
+  eyes?: "bood" | "dots";
 }
 
 /** Every move, in the order the playground lists them. */
@@ -72,6 +76,10 @@ export const BOOD_ACTIONS: BoodAction[] = [
   "sway",
   "float",
   "beat",
+  "bend",
+  "lean",
+  "knock",
+  "twirl",
 ];
 
 const act = "act";
@@ -132,6 +140,99 @@ const steps = (
     set(act, "turn", 0),
   );
 
+/**
+ * The pupils lagging behind a move, as googly eyes do, then settling back.
+ * Each key is [ms, x, y], with x and y as shares of the room the pupil has.
+ * Only a `googly` body whose pupils have a white to lag inside: ring eyes, or
+ * a filled bare face's dot eyes. A plain dot eye is its own pupil, so it keeps still.
+ */
+const googly = (
+  room: { x: number; y: number } | undefined,
+  keys: [number, number, number][],
+): Step =>
+  room === undefined
+    ? wait(0)
+    : seq(
+        ...keys.map(([ms, x, y]) => move("pupils", { x: x * room.x, y: y * room.y }, ms)),
+        settle("pupils", ["x", "y"]),
+      );
+
+/** A bend's angle in degrees at each share of its time, eased from key to key. */
+type BendCurve = [number, number][];
+/** It sways on its wire, less each time. */
+const SWAY: BendCurve = [[0, 0], [0.2, 29], [0.45, -23], [0.65, 13], [0.82, -5], [1, 0]];
+/** It leans to one side, holds as if to look past something, and springs back. */
+const LEAN: BendCurve = [[0, 0], [0.25, -22], [0.7, -22], [0.85, 3.5], [1, 0]];
+/** How often a bend's outline is drawn anew. */
+const BEND_FRAME = 40;
+
+function angleAt(curve: BendCurve, t: number): number {
+  const k = curve.findIndex(([at]) => at >= t);
+  if (k <= 0) return curve[0]?.[1] ?? 0;
+  const [t0, a0] = curve[k - 1] as [number, number];
+  const [t1, a1] = curve[k] as [number, number];
+  const u = (t - t0) / (t1 - t0);
+  return a0 + (a1 - a0) * u * u * (3 - 2 * u);
+}
+
+/**
+ * A bend that redraws the body: a copy of the silhouette, bent frame by frame
+ * with an SVG `<animate>` as a flow is, stands in for the body while it plays.
+ * The face rides the top of the bend, and a googly body's pupils swing behind it.
+ */
+function bendPlay(
+  shape: BodyBend,
+  curve: BendCurve,
+  ms: number,
+  face: [number, number],
+  room: { x: number; y: number } | undefined,
+  paint: SvgNode,
+): BoodPlay {
+  const count = Math.round(ms / BEND_FRAME);
+  const angles = Array.from({ length: count + 1 }, (_, i) => angleAt(curve, i / count));
+  const lag = Math.max(1, Math.round(count * 0.08));
+  const [fx, fy] = face;
+  const step = all(
+    seq(to("body", "opacity", 0, 0), wait(ms), to("body", "opacity", 1, 0)),
+    seq(
+      ...angles.slice(1).map((angle, i) => {
+        const [x, y, turn] = shape.point(angle, fx, fy);
+        // The pupils fall behind as the head swings, by how far it has turned since a moment ago.
+        const swing = angle - (angles[Math.max(0, i + 1 - lag)] ?? 0);
+        const pupil = Math.max(-1, Math.min(1, -swing / 8));
+        return all(
+          move("face", { x: x - fx, y: y - fy, turn }, BEND_FRAME, "linear"),
+          room === undefined ? wait(0) : to("pupils", "x", pupil * room.x, BEND_FRAME, "linear"),
+        );
+      }),
+    ),
+  );
+  const layer: BoodLayer = {
+    target: "fx:bend",
+    place: "figure",
+    nodes: [
+      {
+        ...paint,
+        attrs: { ...paint.attrs, d: shape.outline(0) },
+        children: [
+          {
+            tag: "animate",
+            attrs: {
+              attributeName: "d",
+              values: angles.map((angle) => shape.outline(angle)).join(";"),
+              calcMode: "linear",
+              dur: `${ms}ms`,
+              begin: "0s",
+              fill: "freeze",
+            },
+          },
+        ],
+      },
+    ],
+  };
+  return { timeline: timeline(step, { origins: { face } }), layers: [layer] };
+}
+
 const shapePath = (d: string, color: string, filled: boolean, width = 45) => ({
   tag: "path" as const,
   attrs: {
@@ -151,9 +252,12 @@ export function action(
 ): BoodPlay {
   const creature = creatures[body];
   const [left] = eyeGeometry(creature, "idle", "dark");
-  const reach = pupilRoom(left, creature.iris).x;
+  const room = pupilRoom(left, creature.iris);
+  const reach = room.x;
   const { color } = options;
   const filled = options.filled ?? false;
+  const whites = options.eyes === "bood" || (filled && creature.bareFace === true);
+  const lagRoom = creature.googly === true && whites ? room : undefined;
   const layers: BoodLayer[] = [];
   let origin: [number, number] = MIDDLE;
   const origins: Partial<Record<BoodTarget, [number, number]>> = {};
@@ -262,7 +366,9 @@ export function action(
       break;
     case "wobble":
       origin = FEET;
-      step = seq(
+      step = all(
+        googly(lagRoom, [[130, -0.6, 0], [130, 0.6, 0], [130, -0.4, 0], [130, 0.3, 0]]),
+        seq(
         ...[
           [1.12, 0.9, 6],
           [0.92, 1.08, -6],
@@ -276,7 +382,7 @@ export function action(
             130,
           ),
         ),
-      );
+      ));
       break;
     case "split": {
       // The body fades out, two small copies hop apart and back, and it fades in.
@@ -539,15 +645,18 @@ export function action(
     }
     case "squash":
       origin = FEET;
-      step = seq(
-        all(to(act, "sy", 0.15, 180), to(act, "sx", 1.6, 180)),
-        wait(220),
-        all(
-          to(act, "sy", 1.25, 200),
-          to(act, "sx", 0.85, 200),
-          to(act, "y", -H * 0.12, 200),
+      step = all(
+        googly(lagRoom, [[180, 0, -0.5], [220, 0, -0.5], [200, 0, 0.7]]),
+        seq(
+          all(to(act, "sy", 0.15, 180), to(act, "sx", 1.6, 180)),
+          wait(220),
+          all(
+            to(act, "sy", 1.25, 200),
+            to(act, "sx", 0.85, 200),
+            to(act, "y", -H * 0.12, 200),
+          ),
+          settle(act, ["sx", "sy", "y"]),
         ),
-        settle(act, ["sx", "sy", "y"]),
       );
       break;
     case "tumble":
@@ -600,7 +709,9 @@ export function action(
       break;
     case "jump":
       origin = FEET;
-      step = seq(
+      step = all(
+        googly(lagRoom, [[200, 0, -0.3], [300, 0, 0.7], [300, 0, -0.6], [90, 0, 0.5]]),
+        seq(
         all(to(act, "sy", 0.7, 200), to(act, "sx", 1.15, 200)),
         all(
           to(act, "sy", 1.15, 300, "out-quad"),
@@ -616,7 +727,7 @@ export function action(
         ),
         all(to(act, "sy", 0.85, 90), to(act, "sx", 1.1, 90)),
         settle(act, ["sx", "sy"]),
-      );
+      ));
       break;
     case "fart": {
       layers.push({
@@ -726,6 +837,85 @@ export function action(
         ),
       );
       break;
+    case "bend":
+    case "lean": {
+      const curve = name === "bend" ? SWAY : LEAN;
+      const ms = name === "bend" ? 1600 : 2400;
+      if (creature.bend !== undefined) {
+        const { centerX, centerY } = creature.eyes;
+        return bendPlay(creature.bend, curve, ms, [centerX, centerY], lagRoom, shapePath("", color, filled));
+      }
+      // A body that cannot bend leans whole, from its base, a third as far.
+      origin = BASE;
+      step = seq(
+        ...curve.slice(1).map(([at, angle], i) =>
+          to(act, "turn", angle / 3, (at - (curve[i]?.[0] ?? 0)) * ms, "ease-in-out"),
+        ),
+      );
+      break;
+    }
+    case "twirl":
+      // It turns round on the spot. From the back there is no face, so the face goes while the back shows.
+      step = all(
+        seq(
+          to(act, "sx", 0.04, 250, "ease-in"),
+          to(act, "sx", -1, 250, "ease-out"),
+          to(act, "sx", 0.04, 250, "ease-in"),
+          to(act, "sx", 1, 250, "ease-out"),
+        ),
+        seq(
+          wait(240),
+          to("face", "opacity", 0, 20, "linear"),
+          wait(480),
+          to("face", "opacity", 1, 20, "linear"),
+        ),
+      );
+      break;
+    case "knock": {
+      // It leans in toward whoever watches twice, as if to tap on the glass, and each tap rings out.
+      const { centerX, centerY } = creature.eyes;
+      const rings = ["fx:knock0", "fx:knock1"] as const;
+      for (const target of rings) {
+        layers.push({
+          target,
+          place: "front",
+          nodes: [
+            {
+              tag: "circle",
+              attrs: { cx: centerX, cy: centerY, r: 900, fill: "none", stroke: color, "stroke-width": 50 },
+            },
+          ],
+        });
+        origins[target] = [centerX, centerY];
+      }
+      step = all(
+        seq(
+          repeat(2, () =>
+            seq(
+              all(to(act, "y", -H * 0.05, 180), size(1.14, 180)),
+              all(to(act, "y", 0, 160), size(0.98, 160)),
+            ),
+          ),
+          settle(act, ["sx", "sy"]),
+        ),
+        ...rings.map((target, k) =>
+          seq(
+            wait(180 + k * 340),
+            all(
+              seq(to(target, "opacity", 0.7, 35, "linear"), to(target, "opacity", 0, 665, "ease-out")),
+              seq(move(target, { sx: 0.6, sy: 0.6 }, 0), move(target, { sx: 1.5, sy: 1.5 }, 700, "ease-out")),
+            ),
+          ),
+        ),
+      );
+      return {
+        timeline: timeline(step, {
+          origins: { act: MIDDLE, ...origins },
+          from: { "fx:knock0": { opacity: 0 }, "fx:knock1": { opacity: 0 } },
+        }),
+        layers,
+      };
+    }
   }
   const eyeLine: [number, number] = [W / 2, left.cy];
   return {

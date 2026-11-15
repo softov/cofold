@@ -1,11 +1,11 @@
 # @cofold/bood
 
-The bood creatures: thirty-four bodies with faces and moods, declared once as data, with motion as keyframes that any renderer can play.
+The bood creatures: thirty-five bodies with faces and moods, declared once as data, with motion as keyframes that any renderer can play.
 No dependencies.
 
 - **Creatures** live one per folder in `src/creatures/<name>/`: `index.ts` declares the body, and `reference.svg` is its reference drawing.
 - **A scene** is a creature in a mood, as a stack of layers of plain SVG nodes.
-- **Motion** is keyframes on transform and opacity only, which browsers and React Native's native driver both animate off the main thread.
+- **Motion** is keyframes on transform and opacity only, which browsers and React Native's native driver both animate off the main thread. Two things redraw an outline instead, on the main thread: a body's `flow`, as the jelly's edge, and its `bend`, as the clip's wire.
 
 ```ts
 import { action, ambient, pose, scene, walk } from "@cofold/bood";
@@ -24,7 +24,7 @@ On a filled body, `mouthTone: "body"` draws the mouth in the body's own tone ins
 
 | Function | What it plays |
 | --- | --- |
-| `action(body, name, { color })` | One of a body's moves, such as `jump`, `roll` or `rubik`. Any body can play any move. |
+| `action(body, name, { color })` | One of a body's moves, such as `jump`, `roll` or `rubik`. Any body can play any move. `bend` and `lean` curve a body that declares a `bend`, as the clip, and lean any other whole from its base. Pass `eyes` as `scene` takes them: on a `googly` body, as the clip, pupils in a white swing behind a `jump`, `wobble` or `squash`. |
 | `transit(kind, "hide" \| "show", { color })` | A way out or back in, such as `portal`, `dust` or `glitch`. The hide half holds the body hidden. |
 | `ambient(body, mood)` | The loops of a mood: breath, brows, the antenna's pulse, radar, waves and particles, an error's shake, a sad tear. |
 | `pose(body, mood, { facing, lift, tilt, depth }, from)` | A head turn: the face slides and narrows toward where it looks, and the head rolls as a face on a ball does (up and left turns it clockwise). `tilt` leans the head left or right without looking anywhere. `depth` draws the side turned toward the viewer bigger and the side turned away smaller, 0.1 for a tenth each way: facing left grows the right eye and shrinks the left, looking up grows the mouth and shrinks the eyes, and the other way round. Held. |

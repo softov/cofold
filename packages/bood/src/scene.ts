@@ -99,6 +99,8 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
     options.color === "mood" ? bodyColor(mood, scheme) : (options.color ?? bodyBaseColor[scheme]);
   // What the face is drawn in on a filled body: the ink, or a light tone on a body too dark for it.
   const onBody = faceInk(color);
+  // A face that sits beside the body, on what is behind it, keeps the outline colours on a filled body.
+  const faceFilled = filled && creature.bareFace !== true;
   const [left, right] = eyeGeometry(creature, mood, scheme);
   /**
    * A detail drawn on the silhouette, such as a cheek or a crest, is drawn in
@@ -193,7 +195,7 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
     creature.brows !== false
   ) {
     const brows = browsByMood[mood];
-    const ink = filled ? onBody : BROW_COLOR;
+    const ink = faceFilled ? onBody : BROW_COLOR;
     const move = browTransform(creature);
     layers.push({
       target: "brows",
@@ -265,6 +267,26 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
       }),
     );
   } else if ((options.eyes ?? "dots") === "dots") {
+    // A filled bare face's dot sits half off its body, so it looks about inside a white eye that keeps it in sight.
+    const whites = filled && !faceFilled;
+    if (whites) {
+      layers.push({
+        target: "eyes",
+        nodes: [left, right].map((eye) => ({
+          tag: "ellipse",
+          attrs: {
+            cx: eye.cx,
+            cy: eye.cy,
+            rx: eye.rx * 0.75,
+            ry: eye.ry * 0.75,
+            fill: "#ffffff",
+            stroke: FACE_INK,
+            "stroke-width": 40,
+            ...tilt(eye),
+          },
+        })),
+      });
+    }
     // Each dot eye in its own layer, so each tilts about its own middle as it looks.
     (
       [
@@ -275,21 +297,34 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
       layers.push({
         target,
         nodes: [
-          {
-            tag: "ellipse",
-            attrs: {
-              cx: eye.cx,
-              cy: eye.cy,
-              rx: eye.rx * 0.3,
-              ry: eye.ry * 0.45,
-              fill: filled ? onBody : eye.ring,
-              ...tilt(eye),
-            },
-          },
+          whites
+            ? {
+                // A round dot, the mood's pupil size, kept inside the white.
+                tag: "circle",
+                attrs: {
+                  cx: eye.cx,
+                  cy: eye.cy,
+                  r: Math.min(eye.pr * 0.6, eye.rx * 0.5, eye.ry * 0.5),
+                  fill: FACE_INK,
+                },
+              }
+            : {
+                tag: "ellipse",
+                attrs: {
+                  cx: eye.cx,
+                  cy: eye.cy,
+                  rx: eye.rx * 0.3,
+                  ry: eye.ry * 0.45,
+                  fill: faceFilled ? onBody : eye.ring,
+                  ...tilt(eye),
+                },
+              },
         ],
       }),
     );
   } else {
+    // A filled body's eye is white, so its rim and pupil are ink; a bare face's sits off the body, on the plain ink.
+    const eyeInk = faceFilled ? onBody : filled ? FACE_INK : undefined;
     layers.push({
       target: "eyes",
       nodes: [left, right].map((eye) => ({
@@ -300,7 +335,7 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
           rx: eye.rx,
           ry: eye.ry,
           fill: filled ? "#ffffff" : "none",
-          stroke: filled ? onBody : eye.ring,
+          stroke: eyeInk ?? eye.ring,
           "stroke-width": 50,
           ...tilt(eye),
         },
@@ -314,7 +349,7 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
           cx: eye.px,
           cy: eye.py,
           r: eye.pr,
-          fill: filled ? onBody : eye.pupil,
+          fill: eyeInk ?? eye.pupil,
         },
       })),
     });
@@ -341,7 +376,7 @@ export function scene(body: BoodBody, options: SceneOptions = {}): BoodScene {
         path({
           d: mouthPath(creature, mood),
           fill: "none",
-          stroke: !filled ? mouthColor(mood) : options.mouthTone === "body" ? bodyTone(color) : onBody,
+          stroke: !faceFilled ? mouthColor(mood) : options.mouthTone === "body" ? bodyTone(color) : onBody,
           "stroke-width": 100,
           "stroke-linecap": "round",
           "stroke-linejoin": "round",

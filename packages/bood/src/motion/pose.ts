@@ -136,6 +136,12 @@ export function faceRoom(body: BoodBody, mood: BoodMood): FaceRoom {
   const creature = creatures[body];
   const shape = creature.parts(mood).filter((part) => part.shape).flatMap((part) => outline(part.d));
   const share = creature.turn ?? DEFAULT_TURN;
+  // A bare face sits off its body, so it cannot leave it: only the turn share bounds it.
+  if (creature.bareFace === true) {
+    const answer = { side: share * W, up: (H / 2) * ROOM_USED, down: (H / 2) * ROOM_USED };
+    rooms.set(key, answer);
+    return answer;
+  }
   const [left, right] = eyeGeometry(creature, mood, "dark");
   const room = pupilRoom(left, creature.iris);
   const { centerX, centerY } = creature.eyes;
@@ -199,6 +205,8 @@ function values(
   // Each eye grows as it comes near and shrinks as it goes far, by the turn and by the lift.
   const eye = (near: number) => (1 + depth * near) * (1 - depth * lift);
   const mouth = 1 + depth * lift;
+  // A bare face's dot stays round as the face narrows round it.
+  const round = creature.bareFace === true ? 1 / (1 - Math.abs(f) * SQUEEZE) : 1;
   // With depth the body turns in depth instead of narrowing flat: its near
   // edge, the right one facing left and the bottom one looking up, grows as
   // much as the near eye does, and the far edge shrinks with it.
@@ -218,8 +226,8 @@ function values(
     },
     pupils: { x: f * room.x * PUPIL_X, y: -lift * room.y * PUPIL_Y },
     glints: { x: f * room.x * PUPIL_X },
-    pupilL: { sx: eye(f), sy: eye(f) },
-    pupilR: { sx: eye(-f), sy: eye(-f) },
+    pupilL: { sx: eye(f) * round, sy: eye(f) },
+    pupilR: { sx: eye(-f) * round, sy: eye(-f) },
     ...(creature.mouth === false ? {} : { mouth: { sx: mouth, sy: mouth } }),
     antenna: { x: f * reach.side * 1.1, ...deep },
     body: { sx: 1 - Math.abs(f) * (depth > 0 ? 0 : BODY_SQUEEZE), ...deep },

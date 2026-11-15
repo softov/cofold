@@ -7,6 +7,7 @@ import bean from "./bean/index.js";
 import bubble from "./bubble/index.js";
 import burst from "./burst/index.js";
 import circle from "./circle/index.js";
+import clip from "./clip/index.js";
 import cloud from "./cloud/index.js";
 import cross from "./cross/index.js";
 import diamond from "./diamond/index.js";
@@ -71,6 +72,7 @@ export const creatures: Record<BoodBody, BoodCreature> = {
   rock,
   moon,
   balloon,
+  clip,
 };
 
 export const BOOD_BODIES = Object.keys(creatures) as BoodBody[];

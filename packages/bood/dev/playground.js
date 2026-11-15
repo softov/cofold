@@ -166,7 +166,7 @@ $("moves").addEventListener("click", (event) => {
   const name = event.target.dataset?.action;
   if (name !== undefined)
     run(
-      action(state.body, name, { color: color(), filled: state.filled }),
+      action(state.body, name, { color: color(), filled: state.filled, eyes: state.eyes }),
       "act",
     );
 });

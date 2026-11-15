@@ -56,7 +56,7 @@ function expectPlayable(play: BoodPlay) {
 describe("creatures", () => {
   it("registers each creature under its own id", () => {
     for (const body of BOOD_BODIES) expect(creatures[body].id).toBe(body);
-    expect(BOOD_BODIES).toHaveLength(34);
+    expect(BOOD_BODIES).toHaveLength(35);
   });
 
   it("reads an old body tag as the body it became", () => {
@@ -81,6 +81,22 @@ describe("creatures", () => {
     }
   });
 
+  it("bends the clip's wire through outlines it can blend between", () => {
+    const commands = (d: string) => d.replace(/[^A-Za-z]/g, "");
+    const bend = creatures.clip.bend!;
+    const straight = creatures.clip.parts("idle")[0]?.d ?? "";
+    expect(bend.outline(0)).toBe(straight);
+    for (const angle of [-30, -5, 12, 30]) {
+      expect(commands(bend.outline(angle))).toBe(commands(straight));
+      expect(bend.outline(angle)).not.toContain("NaN");
+    }
+    // Below the pivot the wire holds still; the top turns the full angle and moves the way it bends.
+    expect(bend.point(30, 4250, 4700)).toEqual([4250, 4700, 0]);
+    const [x, , turn] = bend.point(30, 4250, 450);
+    expect(x).toBeGreaterThan(4250);
+    expect(turn).toBeCloseTo(30, 6);
+  });
+
   it("gives the flame new frames for every loop", () => {
     const flow = creatures.flame.flow!;
     const first = flow.frames();
@@ -92,7 +108,7 @@ describe("creatures", () => {
   it("releases every body but the logo and the owl", () => {
     expect(BOOD_RELEASED).not.toContain("logo");
     expect(BOOD_RELEASED).not.toContain("owl");
-    expect(BOOD_RELEASED).toHaveLength(32);
+    expect(BOOD_RELEASED).toHaveLength(33);
   });
 
   it("offers a name for every body, each name once", () => {
@@ -124,6 +140,29 @@ describe("scene", () => {
         ).toEqual(expect.arrayContaining(["pupilL", "pupilR"]));
       }
     }
+  });
+
+  it("keeps the outline face colours on a filled body whose face sits beside it", () => {
+    const stroke = (body: "clip" | "tall", target: string) =>
+      scene(body, { mood: "happy", filled: true, brows: true, mouth: true }).layers.find((layer) => layer.target === target)
+        ?.nodes[0];
+    const outline = scene("clip", { mood: "happy", brows: true, mouth: true }).layers.find((layer) => layer.target === "mouth")
+      ?.nodes[0];
+    expect(stroke("clip", "mouth")?.attrs["stroke"]).toBe(outline?.attrs["stroke"]);
+    expect(stroke("clip", "brows")?.children?.[0]?.attrs["stroke"]).toBe("#F8E277");
+    expect(stroke("tall", "mouth")?.attrs["stroke"]).not.toBe(outline?.attrs["stroke"]);
+    // Its ring eyes are white like every filled body's, with ink pupils, even on a body too dark for the ink.
+    const rings = scene("clip", { mood: "thinking", color: "#111111", filled: true, eyes: "bood" }).layers;
+    const node = (target: string) => rings.find((layer) => layer.target === target)?.nodes[0]?.attrs;
+    expect(node("eyes")?.fill).toBe("#ffffff");
+    expect(node("eyes")?.stroke).toBe(FACE_INK);
+    expect(node("pupils")?.fill).toBe(FACE_INK);
+    expect(node("glints")).toBeDefined();
+    // Its dot eyes are dark dots that look about inside white eyes that stay put.
+    const dots = scene("clip", { mood: "idle", filled: true }).layers;
+    expect(dots.find((layer) => layer.target === "eyes")?.nodes[0]?.attrs.fill).toBe("#ffffff");
+    expect(dots.find((layer) => layer.target === "pupilL")?.nodes[0]).toMatchObject({ tag: "circle", attrs: { fill: FACE_INK } });
+    expect(scene("tall", { mood: "idle", filled: true }).layers.find((layer) => layer.target === "eyes")).toBeUndefined();
   });
 
   it("keeps the base colour in every mood unless asked for the mood's", () => {
@@ -261,6 +300,30 @@ describe("motion", () => {
       for (const name of creatures[body].actions)
         expectPlayable(action(body, name, { color: "#2f9e5b", filled: true }));
     }
+  });
+
+  it("bends the clip by redrawing it, with the face on the top of the bend, and leans a body that cannot bend", () => {
+    const bend = action("clip", "bend", { color: "#2f9e5b" });
+    const wire = bend.layers.find((layer) => layer.target === "fx:bend")?.nodes[0];
+    expect(wire?.children?.[0]?.attrs["attributeName"]).toBe("d");
+    const body = bend.timeline.tracks.body?.channels.opacity ?? [];
+    expect(body[1]?.value).toBe(0);
+    expect(body.at(-1)?.value).toBe(1);
+    const turn = bend.timeline.tracks.face?.channels.turn ?? [];
+    expect(Math.max(...turn.map((key) => key.value))).toBeGreaterThan(20);
+    expect(turn.at(-1)?.value).toBeCloseTo(0, 6);
+    const lean = action("square", "lean", { color: "#2f9e5b" });
+    expect(lean.layers).toHaveLength(0);
+    expect(Math.min(...(lean.timeline.tracks.act?.channels.turn ?? []).map((key) => key.value))).toBeLessThan(0);
+  });
+
+  it("swings a googly body's ring pupils behind a jump, and leaves other eyes still", () => {
+    expect(action("clip", "jump", { color: "#2f9e5b", eyes: "bood" }).timeline.tracks.pupils).toBeDefined();
+    // A filled clip's dot looks about inside its white; a plain dot eye is its own pupil, so it stays on the body.
+    expect(action("clip", "jump", { color: "#2f9e5b", filled: true }).timeline.tracks.pupils).toBeDefined();
+    expect(action("clip", "jump", { color: "#2f9e5b" }).timeline.tracks.pupils).toBeUndefined();
+    expect(action("clip", "bend", { color: "#2f9e5b" }).timeline.tracks.pupils).toBeUndefined();
+    expect(action("square", "jump", { color: "#2f9e5b", eyes: "bood" }).timeline.tracks.pupils).toBeUndefined();
   });
 
   it("plays both halves of every transit, and the hide half holds", () => {
