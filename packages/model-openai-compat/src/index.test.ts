@@ -231,6 +231,13 @@ describe('openaiCompatProvider', () => {
         top_provider: { max_completion_tokens: 16384 },
       },
       { id: 'x/no-tools', supported_parameters: ['temperature'], pricing: { prompt: 'n/a' }, top_provider: { max_completion_tokens: null } },
+      {
+        id: 'deepseek/deepseek-flash',
+        name: 'DeepSeek-V4.1-Flash',
+        context_window: 1048576,
+        max_output_tokens: 393216,
+        input_modalities: ['text', 'image'],
+      },
     ],
   };
 
@@ -261,6 +268,13 @@ describe('openaiCompatProvider', () => {
         pricing: { inputPerMillion: 0.15, outputPerMillion: 0.6, cacheReadPerMillion: 0.075, currency: 'USD' },
       },
       { id: 'x/no-tools', name: 'x/no-tools', features: { tools: false, streaming: true, images: false, structuredOutput: false, reasoning: false } },
+      {
+        id: 'deepseek/deepseek-flash',
+        name: 'DeepSeek-V4.1-Flash',
+        features: { tools: true, streaming: true, images: false, structuredOutput: false, reasoning: false },
+        contextTokens: 1048576,
+        maxOutputTokens: 393216,
+      },
     ]);
   });
 

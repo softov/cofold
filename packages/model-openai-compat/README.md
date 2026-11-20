@@ -33,7 +33,7 @@ const models = await provider.listModels();      // GET <baseUrl>/models
 const model = provider.model({ id: models[0].id }); // a ModelAdapter
 ```
 
-`listModels()` returns `ModelInfo[]`: `id`, `name`, best-effort `features`, and, when the server reports them (OpenRouter does), `contextTokens`, `maxOutputTokens` and `pricing` in USD per million tokens (`prompt` / `completion`, plus `input_cache_read` / `input_cache_write` as the cache rates when present).
+`listModels()` returns `ModelInfo[]`: `id`, `name`, best-effort `features`, and, when the server reports them, `contextTokens` and `maxOutputTokens`. OpenRouter names the window `context_length` and puts the output ceiling in `top_provider.max_completion_tokens`; the other compatible servers (DeepSeek, vLLM) name them `context_window` and `max_output_tokens`, and both spellings are read. `pricing` is OpenRouter-only, in USD per million tokens (`prompt` / `completion`, plus `input_cache_read` / `input_cache_write` as the cache rates when present).
 `model()` is synchronous and looks nothing up: pass the catalogue entry's `pricing` through (`provider.model({ id, pricing: info.pricing })`) and the adapter carries it as `pricing`, so every run records its `cost`; without it the cost is unknown and `limits.maxCost` never trips.
 LM Studio only reports ids, so every entry gets the default features; override them in `model({ id, features })`.
 

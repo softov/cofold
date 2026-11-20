@@ -45,11 +45,18 @@ export interface WireModelList {
 export interface WireModel {
   id: string;
   name?: string;
+  /** OpenRouter. */
   context_length?: number;
+  /** OpenAI-compatible servers (DeepSeek, vLLM): the window under its own name. */
+  context_window?: number;
+  /** OpenAI-compatible servers: the output ceiling, next to OpenRouter's `top_provider.max_completion_tokens`. */
+  max_output_tokens?: number;
   /** OpenRouter: USD per token as decimal strings (verified against `GET /models`, 2026-09-16). */
   pricing?: { prompt?: string; completion?: string; input_cache_read?: string; input_cache_write?: string };
   /** OpenRouter: request parameters the model accepts. */
   supported_parameters?: string[];
   architecture?: { input_modalities?: string[] };
+  /** OpenAI-compatible servers: the same modalities without the `architecture` wrapper. */
+  input_modalities?: string[];
   top_provider?: { max_completion_tokens?: number | null };
 }
