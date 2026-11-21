@@ -10,7 +10,7 @@ const write = async (path: string, text = '{}\n'): Promise<void> => {
   await mkdir(join(path, '..'), { recursive: true });
   await writeFile(path, text, 'utf8');
 };
-const userFile = (): string => join(root, 'xdg', 'copapo', 'config.json');
+const userFile = (): string => join(root, 'xdg', 'cofold', 'config.json');
 
 beforeEach(async () => {
   root = await realpath(await mkdtemp(join(tmpdir(), 'copapo-trust-')));
@@ -21,11 +21,11 @@ beforeEach(async () => {
 afterEach(async () => { await rm(root, { recursive: true, force: true }); });
 
 describe('trust', () => {
-  it('trusts a folder with nothing gated, and leaves one with a .copapo.json above it unasked', async () => {
+  it('trusts a folder with nothing gated, and leaves one with a .cofold.json above it unasked', async () => {
     expect(trustOf({ workspace: join(root, 'repo', 'pkg'), backend: 'cofold', env }).state).toBe('trusted');
-    await write(join(root, 'repo', '.copapo.json'));
+    await write(join(root, 'repo', '.cofold.json'));
     const trust = trustOf({ workspace: join(root, 'repo', 'pkg'), backend: 'cofold', env });
-    expect(trust).toMatchObject({ state: 'unasked', gated: [join(root, 'repo', '.copapo.json')], projectTrust: 'ask' });
+    expect(trust).toMatchObject({ state: 'unasked', gated: [join(root, 'repo', '.cofold.json')], projectTrust: 'ask' });
     expect(loadsProject(trust)).toBe(false);
   });
 
@@ -53,7 +53,7 @@ describe('trust', () => {
   });
 
   it('saves yes and no in the user file, and the closest answer decides', async () => {
-    await write(join(root, 'repo', '.copapo.json'));
+    await write(join(root, 'repo', '.cofold.json'));
     await write(userFile(), '{\n    "model": "x/y"\n}\n');
     await saveTrust({ workspace: join(root, 'repo'), trusted: true, env });
     expect(trustOf({ workspace: join(root, 'repo', 'pkg'), backend: 'cofold', env })).toMatchObject({ state: 'trusted', answeredAt: join(root, 'repo') });
@@ -66,13 +66,13 @@ describe('trust', () => {
   });
 
   it('never takes an answer from the project file', async () => {
-    await write(join(root, 'repo', '.copapo.json'), JSON.stringify({ trusted: { [join(root, 'repo')]: true }, projectTrust: 'always' }));
+    await write(join(root, 'repo', '.cofold.json'), JSON.stringify({ trusted: { [join(root, 'repo')]: true }, projectTrust: 'always' }));
     const trust = trustOf({ workspace: join(root, 'repo'), backend: 'cofold', env });
     expect(trust).toMatchObject({ state: 'unasked', projectTrust: 'ask' });
   });
 
   it('loads an unasked folder when the user file says projectTrust always', async () => {
-    await write(join(root, 'repo', '.copapo.json'));
+    await write(join(root, 'repo', '.cofold.json'));
     await write(userFile(), JSON.stringify({ projectTrust: 'always' }));
     expect(loadsProject(trustOf({ workspace: join(root, 'repo'), backend: 'cofold', env }))).toBe(true);
   });

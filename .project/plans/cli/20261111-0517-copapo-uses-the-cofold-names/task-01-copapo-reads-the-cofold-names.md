@@ -1,6 +1,6 @@
 ---
 title: copapo reads the cofold names
-status: todo
+status: done
 depends: []
 layer: "copapo"
 refs:
@@ -51,3 +51,5 @@ It reads no copapo-named file or variable.
 - `rg -n "COPAPO_(CONFIG|BASE_URL|API_KEY|MODEL|BACKEND|WORKSPACE)|\.copapo\.json|config/copapo" packages/copapo/src` finds nothing.
 
 ## Resume
+
+Built 2026-11-21. copapo resolves under `cofold`, reads `.cofold.json` and `COFOLD_CONFIG`, and reads `COFOLD_BASE_URL`, `_API_KEY`, `_MODEL`, `_BACKEND` and `_WORKSPACE` alone. A case checks that the copapo user file, `.copapo.json` and the `COPAPO_*` variables are not read. `COPAPO_APP`, `AGENT_ID`, `agentInfo` and `clientInfo` stay. The copapo tests pass in one fork: 16 files, 221 tests.

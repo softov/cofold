@@ -311,7 +311,7 @@ describe('copapo acp', () => {
   });
 
   describe('trust', () => {
-    const unasked = { state: 'unasked' as const, folder: '/work', gated: ['/work/.copapo.json'], projectTrust: 'ask' as const };
+    const unasked = { state: 'unasked' as const, folder: '/work', gated: ['/work/.cofold.json'], projectTrust: 'ask' as const };
     const setup = (form: Answerer | undefined) => {
       const { chat } = testChat({ script: [] });
       const built: (boolean | undefined)[] = [];
@@ -331,7 +331,7 @@ describe('copapo acp', () => {
       await Promise.all([client.call('session/new', { cwd: '/work', mcpServers: [] }), client.call('session/new', { cwd: '/work', mcpServers: [] })]);
       expect(forms).toHaveLength(1);
       expect(forms[0]).toMatchObject({ mode: 'form', requestId: 2, requestedSchema: { properties: { trust: { type: 'boolean' } } } });
-      expect(String(forms[0]!['message'])).toContain('.copapo.json');
+      expect(String(forms[0]!['message'])).toContain('.cofold.json');
       expect(saved).toEqual([['/work', true]]);
       expect(built).toEqual([true]);
       await client.close();

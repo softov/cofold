@@ -166,7 +166,7 @@ describe('copapo acp under the official ACP client', () => {
     const { connection, invalid, close } = connect(chat, {
       createElicitation: async (params): Promise<CreateElicitationResponse> => { forms.push(params); return { action: 'accept', content: { trust: true } }; },
     }, {
-      trustOf: () => ({ state: 'unasked', folder: '/work', gated: ['/work/.copapo.json'], projectTrust: 'ask' }),
+      trustOf: () => ({ state: 'unasked', folder: '/work', gated: ['/work/.cofold.json'], projectTrust: 'ask' }),
       saveTrust: async () => {},
     });
     await connection.initialize({ protocolVersion: 1, clientCapabilities: { elicitation: { form: {} } } });

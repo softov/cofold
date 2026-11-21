@@ -11,7 +11,7 @@ export function askTrust(app: TextUIApp, trust: Pick<Trust, 'folder' | 'gated'>)
   // The question is in the message: a theme with no frame (paper) draws no title.
   const message = files.length > 0
     ? `Trust this folder? ${trust.folder} holds ${files.join(', ')}. Trusting it loads them; copapo keeps the answer.`
-    : `Trust this folder? ${trust.folder}. Trusting it loads its .copapo.json and .agents/skills; copapo keeps the answer.`;
+    : `Trust this folder? ${trust.folder}. Trusting it loads its .cofold.json and .agents/skills; copapo keeps the answer.`;
   return new Promise((resolve) => {
     let settled = false;
     const finish = (value: boolean | undefined): void => {

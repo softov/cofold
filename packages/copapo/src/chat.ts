@@ -132,7 +132,7 @@ export function createChat(options: ChatOptions): Chat {
    */
   function providerOf(ref: string): { provider: ModelProvider; modelId: string } {
     if (providers.size === 0) {
-      throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set COPAPO_BASE_URL or add one to ~/.config/copapo/config.json' });
+      throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set COFOLD_BASE_URL or add one to ~/.config/cofold/config.json' });
     }
     return providerFor(providers, ref);
   }
@@ -144,7 +144,7 @@ export function createChat(options: ChatOptions): Chat {
     const first = config.providers[0];
     const provider = first !== undefined ? providers.get(first.id) : undefined;
     if (first === undefined || provider === undefined) {
-      throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set COPAPO_BASE_URL or add one to ~/.config/copapo/config.json' });
+      throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set COFOLD_BASE_URL or add one to ~/.config/cofold/config.json' });
     }
     const listed = await provider.listModels({ signal: AbortSignal.timeout(LISTING_MS) });
     const chosen = listed[0];
@@ -405,7 +405,7 @@ export function createChat(options: ChatOptions): Chat {
 
     async models({ provider: only } = {}) {
       if (providers.size === 0) {
-        throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set COPAPO_BASE_URL or add one to ~/.config/copapo/config.json' });
+        throw new AgentError({ code: 'invalid_options', message: 'no provider is configured: set COFOLD_BASE_URL or add one to ~/.config/cofold/config.json' });
       }
       if (only !== undefined && !providers.has(only)) {
         throw new AgentError({ code: 'invalid_options', message: `provider "${only}" is not configured; configured: ${[...providers.keys()].join(', ')}` });
