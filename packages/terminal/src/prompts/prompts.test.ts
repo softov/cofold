@@ -96,6 +96,55 @@ describe("a list taller than the terminal", () => {
   });
 });
 
+describe("a numbered list", () => {
+  const twelve = Array.from({ length: 12 }, (_, at) => ({ value: String(at + 1), label: `Item ${String(at + 1)}` }));
+
+  it("takes no number unless asked to, and draws none", async () => {
+    const { prompts, written } = terminal([`3${ENTER}`]);
+    expect(await prompts.select({ message: "m", choices: twelve })).toBe("1");
+    expect(written.join("")).not.toMatch(/ 3 Item 3/u);
+  });
+
+  it("moves to the item a number names, and Enter chooses it", async () => {
+    const { prompts, written } = terminal([`4${ENTER}`]);
+    expect(await prompts.select({ message: "m", choices: twelve, numbers: true })).toBe("4");
+    // Numbered, right-aligned to the widest number, and the foot says a number moves.
+    expect(written.join("")).toContain("○  4 Item 4");
+    expect(written.join("")).toContain("Up and down or a number to move · Enter to choose");
+  });
+
+  it("makes one number of digits typed one after another while it is still a choice", async () => {
+    const { prompts } = terminal([`12${ENTER}`]);
+    expect(await prompts.select({ message: "m", choices: twelve, numbers: true })).toBe("12");
+  });
+
+  it("starts a new number when the longer one is not a choice, and moves nothing for one that names none", async () => {
+    // 1 then 3 is 13, past the twelfth, so 3 starts again; 0 names nothing.
+    const one = terminal([`13${ENTER}`]);
+    expect(await one.prompts.select({ message: "m", choices: twelve, numbers: true })).toBe("3");
+    const none = terminal([`0${ENTER}`]);
+    expect(await none.prompts.select({ message: "m", choices: twelve, numbers: true })).toBe("1");
+  });
+
+  it("starts the number over after any other key", async () => {
+    const { prompts } = terminal([`1${DOWN}2${ENTER}`]);
+    expect(await prompts.select({ message: "m", choices: twelve, numbers: true })).toBe("2");
+  });
+
+  it("takes the prompts' own setting, and a list's own over it", async () => {
+    const on = terminal([`5${ENTER}`], { numbers: true });
+    expect(await on.prompts.select({ message: "m", choices: twelve })).toBe("5");
+    const off = terminal([`5${ENTER}`], { numbers: true });
+    expect(await off.prompts.select({ message: "m", choices: twelve, numbers: false })).toBe("1");
+  });
+
+  it("moves a multiselect's cursor by number, and Space ticks there", async () => {
+    const { prompts, written } = terminal([`3 11 ${ENTER}`]);
+    expect(await prompts.multiselect({ message: "m", choices: twelve, numbers: true })).toEqual(["3", "11"]);
+    expect(written.join("")).toContain("A number to move · Space to select · Enter to continue");
+  });
+});
+
 describe("multiselect", () => {
   const choices = [
     { value: "claude", label: "Claude Code", hint: "Native SDK", group: "Agent providers" },

@@ -84,8 +84,11 @@ export function createPrompts(options: PromptsOptions): Prompts {
     choices: readonly PromptChoice<V>[],
     cursor: number,
     markOf: (at: number, choice: PromptChoice<V>) => string,
+    numbered = false,
   ): string[] => {
     const widest = Math.max(...choices.map((one) => visibleLength(one.label)));
+    const digits = String(choices.length).length;
+    const number = (at: number): string => (numbered ? `${paint.dim(String(at + 1).padStart(digits))} ` : "");
     // Each line with the choice it draws; a heading or a gap draws none.
     const lines: { text: string; choice?: number }[] = [];
     let group: string | undefined;
@@ -98,7 +101,7 @@ export function createPrompts(options: PromptsOptions): Prompts {
       const here = at === cursor;
       const label = pad(here ? paint.cyan(choice.label) : choice.label, widest);
       const hint = choice.hint === undefined ? "" : `  ${paint.dim(choice.hint)}`;
-      lines.push({ text: `${bar}  ${here ? paint.cyan(glyphs.pointer) : " "} ${markOf(at, choice)} ${label}${hint}`, choice: at });
+      lines.push({ text: `${bar}  ${here ? paint.cyan(glyphs.pointer) : " "} ${markOf(at, choice)} ${number(at)}${label}${hint}`, choice: at });
     });
     const limit = room();
     if (lines.length <= limit) return lines.map((line) => line.text);
@@ -119,6 +122,21 @@ export function createPrompts(options: PromptsOptions): Prompts {
     return at;
   };
   const keyName = (key: { name: string; char?: string }): string => (key.name === "char" ? key.char ?? "" : key.name);
+
+  /**
+   * A digit typed at a numbered list: where the cursor goes, and the digits that
+   * make the number so far. Digits typed one after another make one number while
+   * that number is still a choice; one that is not starts a new number with
+   * itself, and a digit that names no choice moves nothing.
+   */
+  const typedMove = (at: number, typed: string, digit: string, length: number): { at: number; typed: string } => {
+    const longer = Number(`${typed}${digit}`);
+    if (typed !== "" && longer >= 1 && longer <= length) return { at: longer - 1, typed: `${typed}${digit}` };
+    const alone = Number(digit);
+    if (alone >= 1 && alone <= length) return { at: alone - 1, typed: digit };
+    return { at, typed: "" };
+  };
+  const isDigit = (key: { name: string; char?: string }): boolean => key.name === "char" && /^[0-9]$/u.test(key.char ?? "");
 
   return {
     interactive,
@@ -181,31 +199,35 @@ export function createPrompts(options: PromptsOptions): Prompts {
     },
 
     select<V extends string>(o: PromptSelectOptions<V>): Promise<V> {
+      type State = { at: number; typed: string };
+      const numbered = o.numbers ?? options.numbers ?? false;
       const start = Math.max(0, o.choices.findIndex((one) => one.value === o.initial));
-      return asked(o.message, {
-        init: start,
-        view: (at) => [
+      return asked<State, V>(o.message, {
+        init: { at: start, typed: "" },
+        view: (s) => [
           head(o.message),
-          ...rows(o.choices, at, (index) => (index === at ? paint.cyan(glyphs.selected) : glyphs.unselected)),
-          foot("Up and down to move · Enter to choose"),
+          ...rows(o.choices, s.at, (index) => (index === s.at ? paint.cyan(glyphs.selected) : glyphs.unselected), numbered),
+          foot(numbered ? "Up and down or a number to move · Enter to choose" : "Up and down to move · Enter to choose"),
         ],
-        step: (at, key) => {
-          if (key.name === "enter") return { done: (o.choices[at] as PromptChoice<V>).value };
-          return { state: move(at, keyName(key), o.choices.length) };
+        step: (s, key) => {
+          if (key.name === "enter") return { done: (o.choices[s.at] as PromptChoice<V>).value };
+          if (numbered && isDigit(key)) return { state: typedMove(s.at, s.typed, key.char as string, o.choices.length) };
+          return { state: { at: move(s.at, keyName(key), o.choices.length), typed: "" } };
         },
       }, (value) => o.choices.find((one) => one.value === value)?.label ?? value);
     },
 
     multiselect<V extends string>(o: PromptMultiselectOptions<V>): Promise<V[]> {
-      type State = { at: number; on: readonly V[]; error?: string };
+      type State = { at: number; on: readonly V[]; error?: string; typed?: string };
+      const numbered = o.numbers ?? options.numbers ?? false;
       const state: State = { at: 0, on: o.initial ?? [] };
       return asked<State, V[]>(o.message, {
         init: state,
         view: (s) => [
           head(o.message),
-          ...rows(o.choices, s.at, (_index, choice) => (s.on.includes(choice.value) ? paint.green(glyphs.checked) : glyphs.unchecked)),
+          ...rows(o.choices, s.at, (_index, choice) => (s.on.includes(choice.value) ? paint.green(glyphs.checked) : glyphs.unchecked), numbered),
           ...(s.error === undefined ? [] : [body(s.error, "fail")]),
-          foot("Space to select · Enter to continue"),
+          foot(numbered ? "A number to move · Space to select · Enter to continue" : "Space to select · Enter to continue"),
         ],
         step: (s, key) => {
           const name = keyName(key);
@@ -213,6 +235,10 @@ export function createPrompts(options: PromptsOptions): Prompts {
             if (o.required === true && s.on.length === 0) return { state: { ...s, error: "Choose at least one." } };
             // In the order the choices are listed, not the order they were ticked.
             return { done: o.choices.map((one) => one.value).filter((value) => s.on.includes(value)) };
+          }
+          if (numbered && isDigit(key)) {
+            const moved = typedMove(s.at, s.typed ?? "", key.char as string, o.choices.length);
+            return { state: { at: moved.at, on: s.on, typed: moved.typed } };
           }
           if (key.name === "space") {
             const value = (o.choices[s.at] as PromptChoice<V>).value;
