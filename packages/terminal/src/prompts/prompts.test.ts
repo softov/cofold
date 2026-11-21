@@ -5,7 +5,7 @@
 import { PassThrough } from "node:stream";
 import { describe, expect, it } from "vitest";
 import { createPrompts, NO_TERMINAL, PromptCancelled } from "./index.js";
-import type { PromptsOptions } from "./index.js";
+import type { PromptsOptions } from "../types/prompts.js";
 
 const UP = "\x1b[A";
 const DOWN = "\x1b[B";
@@ -13,13 +13,14 @@ const ENTER = "\r";
 const ESC = "\x1b";
 
 /** A terminal with the keys already typed. What it printed is `screen()`, without colour or cursor codes. */
-function terminal(keys: string[], extra: Partial<PromptsOptions> = {}, tty = true) {
+function terminal(keys: string[], extra: Partial<PromptsOptions> & { detectColor?: boolean } = {}, tty = true) {
+  const { detectColor = false, ...rest } = extra;
   const input = Object.assign(new PassThrough(), { isTTY: tty, setRawMode: () => undefined });
   const output = Object.assign(new PassThrough(), { isTTY: tty, columns: 60 });
   const written: string[] = [];
   output.on("data", (chunk: Buffer) => written.push(chunk.toString("utf8")));
   for (const key of keys) input.write(key);
-  const prompts = createPrompts({ input, output, env: {}, platform: "linux", color: false, ...extra });
+  const prompts = createPrompts({ input, output, env: {}, platform: "linux", ...(detectColor ? {} : { color: false }), ...rest });
   /** The final screen: erase sequences applied, so only what stayed in the scrollback is left. */
   const screen = (): string => {
     let text = "";
@@ -146,10 +147,10 @@ describe("the frame", () => {
   });
 
   it("writes no colour code with NO_COLOR, and some without it", async () => {
-    const plain = terminal([], { color: undefined, env: { NO_COLOR: "1" } });
+    const plain = terminal([], { detectColor: true, env: { NO_COLOR: "1" } });
     await plain.prompts.group("T", (group) => { group.line("ok", "x"); });
     expect(plain.written.join("")).not.toContain("\x1b[");
-    const colored = terminal([], { color: undefined, env: {} });
+    const colored = terminal([], { detectColor: true, env: {} });
     await colored.prompts.group("T", (group) => { group.line("ok", "x"); });
     expect(colored.written.join("")).toContain("\x1b[32m");
   });
