@@ -19,6 +19,19 @@ Under `--json`, a failure is one flat JSON line on stderr: `{ message, kind, exi
 Depends on [`@cofold/commands`](../commands); part of the [cofold](https://github.com/softov/cofold) family.
 The manual page is [`docs/commands/05-output.md`](../../docs/commands/05-output.md); the whole framework is described in [`@cofold/commands`](../commands).
 
+## Prompts
+
+Inline questions for a command that wants to ask more than yes or no: `select`, `multiselect`, `text` and `confirm`, grouped under an `intro` and an `outro`, with a `group` that draws a task as a spinner or a list of rows.
+
+```ts
+import { createPrompts, PromptCancelled } from "@cofold/terminal";
+
+const ui = createPrompts({ input: process.stdin, output: process.stdout });
+const name = await ui.text({ message: "Name" });
+```
+
+The block is redrawn in place and collapsed to its answer once chosen. Keys typed ahead are kept for the next question. Glyphs fall back to ASCII and colour follows `NO_COLOR`, `FORCE_COLOR` and `TERM=dumb`. Escape, ctrl-c and ctrl-d throw `PromptCancelled`; without a terminal a question rejects with `NO_TERMINAL`, so check `ui.interactive` first. A worked flow is in [`examples/commands/wizard`](../../examples/commands/wizard).
+
 ## License
 
 MIT

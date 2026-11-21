@@ -16,10 +16,19 @@ export { renderDefinitions, renderDocument, renderJson, renderTable, styleFor } 
 export { Program, processIo } from "./program.js";
 export { failureOf, redact, writeFailure } from "./failure.js";
 export { runEntry } from "./entry.js";
+export { keysOf } from "./keys.js";
+export { colorSupported, glyphsFor, paintFor, unicodeSupported } from "./glyphs.js";
+export { createPrompts, NO_TERMINAL, PromptCancelled } from "./prompts/index.js";
 
 export type { EntryOptions } from "./types/entry.js";
 export type { Failure } from "./types/failure.js";
+export type { Glyphs, Paint } from "./types/glyphs.js";
 export type { HelpOptions } from "./types/help.js";
 export type { Invocation } from "./types/invocation.js";
+export type { TerminalKey } from "./types/keys.js";
 export type { OutputMode, Style } from "./types/output.js";
 export type { ProgramOptions } from "./types/program.js";
+export type {
+  PromptChoice, PromptConfirmOptions, PromptGroup, PromptInput, PromptMarks, PromptMultiselectOptions,
+  PromptOutput, Prompts, PromptSelectOptions, PromptsOptions, PromptTextOptions, PromptTone,
+} from "./types/prompts.js";
