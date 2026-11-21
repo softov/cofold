@@ -13,10 +13,10 @@ const ENTER = "\r";
 const ESC = "\x1b";
 
 /** A terminal with the keys already typed. What it printed is `screen()`, without colour or cursor codes. */
-function terminal(keys: string[], extra: Partial<PromptsOptions> & { detectColor?: boolean } = {}, tty = true) {
+function terminal(keys: string[], extra: Partial<PromptsOptions> & { detectColor?: boolean } = {}, tty = true, rows?: number) {
   const { detectColor = false, ...rest } = extra;
   const input = Object.assign(new PassThrough(), { isTTY: tty, setRawMode: () => undefined });
-  const output = Object.assign(new PassThrough(), { isTTY: tty, columns: 60 });
+  const output = Object.assign(new PassThrough(), { isTTY: tty, columns: 60, ...(rows === undefined ? {} : { rows }) });
   const written: string[] = [];
   output.on("data", (chunk: Buffer) => written.push(chunk.toString("utf8")));
   for (const key of keys) input.write(key);
@@ -56,6 +56,43 @@ describe("select", () => {
       choices: [{ value: "a", label: "A" }, { value: "b", label: "B" }, { value: "c", label: "C" }],
     });
     expect(answer).toBe("a");
+  });
+});
+
+describe("a list taller than the terminal", () => {
+  const ten = Array.from({ length: 10 }, (_, at) => ({ value: String(at + 1), label: `Item ${String(at + 1)}` }));
+  /** Each live frame drawn, as its lines. */
+  const frames = (written: string[]): string[][] => written
+    .filter((part) => part.includes("◆  m"))
+    .map((part) => part.replace(/\n$/u, "").split("\n"));
+
+  it("draws a window that keeps the cursor in it, and says how many are out of sight", async () => {
+    const { prompts, screen, written } = terminal([`${DOWN.repeat(5)}${ENTER}`], {}, true, 8);
+    const answer = await prompts.select({ message: "m", choices: ten });
+    expect(answer).toBe("6");
+    const drawn = frames(written);
+    expect(drawn[0]).toContain("│  … 8 more below");
+    expect(drawn[0]?.some((line) => line.includes("Item 3"))).toBe(false);
+    // On the sixth item, both sides have some out of sight.
+    expect(drawn.at(-1)?.some((line) => line.includes("more above"))).toBe(true);
+    expect(drawn.at(-1)?.some((line) => line.includes("❯") && line.includes("Item 6"))).toBe(true);
+    // No frame is taller than the terminal, so each erase covers the frame before it.
+    for (const frame of drawn) expect(frame.length).toBeLessThanOrEqual(8);
+    expect(screen()).toBe("◇  m\n│  Item 6\n│\n");
+  });
+
+  it("windows a multiselect too, and keeps its ticks out of sight", async () => {
+    const { prompts, written } = terminal([` ${UP} ${ENTER}`], {}, true, 8);
+    const answer = await prompts.multiselect({ message: "m", choices: ten });
+    // Up from the first wraps to the last, which the window then shows.
+    expect(answer).toEqual(["1", "10"]);
+    expect(frames(written).at(-1)?.some((line) => line.includes("more above"))).toBe(true);
+  });
+
+  it("draws the list whole when the stream does not know its height", async () => {
+    const { prompts, written } = terminal([ENTER]);
+    await prompts.select({ message: "m", choices: ten });
+    expect(frames(written)[0]?.filter((line) => line.includes("Item"))).toHaveLength(10);
   });
 });
 

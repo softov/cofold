@@ -4,8 +4,8 @@ import type { TerminalKey } from "./keys.js";
 /** The input stream a person types on. `setRawMode` exists only on a real terminal. */
 export type PromptInput = Readable & { isTTY?: boolean; setRawMode?: (on: boolean) => unknown };
 
-/** The output stream the prompts draw on. `columns` is the width, when the stream knows it. */
-export type PromptOutput = Writable & { isTTY?: boolean; columns?: number };
+/** The output stream the prompts draw on. `columns` and `rows` are its size, when the stream knows it. */
+export type PromptOutput = Writable & { isTTY?: boolean; columns?: number; rows?: number };
 
 /** What `createPrompts` is given. Every field but the streams has a default read from the environment. */
 export interface PromptsOptions {

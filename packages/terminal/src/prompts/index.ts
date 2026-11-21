@@ -66,27 +66,51 @@ export function createPrompts(options: PromptsOptions): Prompts {
   const head = (message: string): string => `${paint.cyan(glyphs.active)}  ${message}`;
   const foot = (hint: string): string => `${paint.dim(glyphs.end)}  ${paint.dim(hint)}`;
 
-  /** The rows of a list of choices, with the group headings between. */
+  /**
+   * The lines a list may take: the terminal's height less the question, the
+   * foot and a line for a refusal. A block taller than the screen cannot be
+   * erased by moving up over it, so every key would leave a copy behind; a
+   * stream that does not know its height is drawn whole.
+   */
+  const room = (): number => (output.rows === undefined ? Number.POSITIVE_INFINITY : Math.max(3, output.rows - 4));
+
+  /**
+   * The rows of a list of choices, with the group headings between.
+   *
+   * A list longer than the room is drawn as a window that keeps the cursor in
+   * it, with a line above and below saying how many choices are out of sight.
+   */
   const rows = <V extends string>(
     choices: readonly PromptChoice<V>[],
     cursor: number,
     markOf: (at: number, choice: PromptChoice<V>) => string,
   ): string[] => {
     const widest = Math.max(...choices.map((one) => visibleLength(one.label)));
-    const lines: string[] = [];
+    // Each line with the choice it draws; a heading or a gap draws none.
+    const lines: { text: string; choice?: number }[] = [];
     let group: string | undefined;
     choices.forEach((choice, at) => {
       if (choice.group !== undefined && choice.group !== group) {
-        if (group !== undefined) lines.push(bar);
-        lines.push(body(paint.bold(choice.group)));
+        if (group !== undefined) lines.push({ text: bar });
+        lines.push({ text: body(paint.bold(choice.group)) });
       }
       group = choice.group;
       const here = at === cursor;
       const label = pad(here ? paint.cyan(choice.label) : choice.label, widest);
       const hint = choice.hint === undefined ? "" : `  ${paint.dim(choice.hint)}`;
-      lines.push(`${bar}  ${here ? paint.cyan(glyphs.pointer) : " "} ${markOf(at, choice)} ${label}${hint}`);
+      lines.push({ text: `${bar}  ${here ? paint.cyan(glyphs.pointer) : " "} ${markOf(at, choice)} ${label}${hint}`, choice: at });
     });
-    return lines;
+    const limit = room();
+    if (lines.length <= limit) return lines.map((line) => line.text);
+    // Two lines go to the counts, and the cursor's line sits in the middle of the rest where it can.
+    const shown = Math.max(1, limit - 2);
+    const at = lines.findIndex((line) => line.choice === cursor);
+    const start = Math.min(Math.max(0, at - Math.floor(shown / 2)), lines.length - shown);
+    const window = lines.slice(start, start + shown);
+    const above = lines.slice(0, start).filter((line) => line.choice !== undefined).length;
+    const below = lines.slice(start + shown).filter((line) => line.choice !== undefined).length;
+    const count = (n: number, where: string): string => body(paint.dim(n === 0 ? "" : `${glyphs.ellipsis} ${n} more ${where}`));
+    return [count(above, "above"), ...window.map((line) => line.text), count(below, "below")];
   };
 
   const move = (at: number, key: string, length: number): number => {
