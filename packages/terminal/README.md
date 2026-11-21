@@ -30,7 +30,7 @@ const ui = createPrompts({ input: process.stdin, output: process.stdout });
 const name = await ui.text({ message: "Name" });
 ```
 
-The block is redrawn in place and collapsed to its answer once chosen. Keys typed ahead are kept for the next question. Glyphs fall back to ASCII and colour follows `NO_COLOR`, `FORCE_COLOR` and `TERM=dumb`. Escape, ctrl-c and ctrl-d throw `PromptCancelled`; without a terminal a question rejects with `NO_TERMINAL`, so check `ui.interactive` first. A worked flow is in [`examples/commands/wizard`](../../examples/commands/wizard).
+The block is redrawn in place and collapsed to its answer once chosen. Keys typed ahead are kept for the next question. Glyphs fall back to ASCII and colour follows `NO_COLOR`, `FORCE_COLOR` and `TERM=dumb`. A list taller than the terminal shows a window around the cursor, with a count of the choices above and below it. With `numbers: true`, on `createPrompts` for every list or on one `select` or `multiselect`, each choice is numbered and typing its number moves the cursor to it. Escape, ctrl-c and ctrl-d throw `PromptCancelled`; without a terminal a question rejects with `NO_TERMINAL`, so check `ui.interactive` first. A worked flow is in [`examples/commands/wizard`](../../examples/commands/wizard).
 
 ## License
 

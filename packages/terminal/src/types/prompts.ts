@@ -19,6 +19,8 @@ export interface PromptsOptions {
   unicode?: boolean;
   /** Force colour on or off. Absent, `NO_COLOR`, `TERM=dumb` and a pipe turn it off. */
   color?: boolean;
+  /** Number the choices of every list, and take a typed number as a move. Off by default. */
+  numbers?: boolean;
 }
 
 /** The marks that draw the frame of a prompt, in one of two sets. */
@@ -49,6 +51,11 @@ export interface PromptSelectOptions<V extends string> {
   message: string;
   choices: readonly PromptChoice<V>[];
   initial?: V;
+  /**
+   * Number each choice, and move the cursor to the one whose number is typed. Digits typed one after
+   * another make one number while it is still a choice. Absent, the prompts' own `numbers` is used.
+   */
+  numbers?: boolean;
 }
 
 export interface PromptMultiselectOptions<V extends string> {
@@ -58,6 +65,11 @@ export interface PromptMultiselectOptions<V extends string> {
   initial?: readonly V[];
   /** Refuse an empty answer. */
   required?: boolean;
+  /**
+   * Number each choice, and move the cursor to the one whose number is typed. Digits typed one after
+   * another make one number while it is still a choice. Absent, the prompts' own `numbers` is used.
+   */
+  numbers?: boolean;
 }
 
 export interface PromptTextOptions {
