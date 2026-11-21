@@ -271,7 +271,7 @@ describe('openaiCompatProvider', () => {
       {
         id: 'deepseek/deepseek-flash',
         name: 'DeepSeek-V4.1-Flash',
-        features: { tools: true, streaming: true, images: false, structuredOutput: false, reasoning: false },
+        features: { tools: true, streaming: true, images: true, structuredOutput: false, reasoning: false },
         contextTokens: 1048576,
         maxOutputTokens: 393216,
       },
