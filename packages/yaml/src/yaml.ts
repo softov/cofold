@@ -131,7 +131,13 @@ function blockScalars(text: string): string[] {
     const raw = stripComment(lines[i]!);
     const match = /^(.*?(?::\s+|-\s+))([|>])([1-9][+-]?|[+-][1-9]?|)\s*$/u.exec(raw);
     if (!match) continue;
-    const parent = raw.length - raw.trimStart().length;
+    /*
+     * The block's content must sit deeper than its parent. For `key: |` the
+     * parent is the key's column, which on a `- key: |` item is past the dash,
+     * and for a bare `- |` it is the dash itself.
+     */
+    const lead = /^ *(?:- +)*/u.exec(raw)![0];
+    const parent = match[1]!.length <= lead.length ? lead.lastIndexOf("-") : lead.length;
     const modifier = match[3]!;
     const explicit = /[1-9]/u.exec(modifier);
     let end = i + 1;
@@ -214,6 +220,20 @@ function sequence(lines: Line[], at: number, indent: number): [unknown[], number
     if (rest.startsWith("[") || rest.startsWith("{")) {
       items.push(parseFlow(rest, line.number));
       cursor += 1;
+      continue;
+    }
+
+    /*
+     * `- - a` opens a sequence inside the item, its first entry on the dash's
+     * own line. It is restated at the column that entry starts in, as a mapping
+     * is below, so the following `- b` at that column joins the same sequence.
+     */
+    if (isItem({ indent, text: rest, number: line.number })) {
+      const offset = indent + 2 + (body.length - body.trimStart().length);
+      lines[cursor] = { indent: offset, text: rest, number: line.number };
+      const [value, after] = sequence(lines, cursor, offset);
+      items.push(value);
+      cursor = after;
       continue;
     }
 

@@ -202,3 +202,25 @@ it("bounds bytes and nesting and keeps prototype keys as data", () => {
   expect(Object.getPrototypeOf(data)).toBe(Object.prototype);
   expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
 });
+
+describe("items that open a block on the dash's line", () => {
+  it("measures a block scalar from the key's column on a `- key: |` item", () => {
+    expect(parseYaml("- run: |\n    make\n  name: build\n")).toEqual([{ run: "make\n", name: "build" }]);
+    expect(parseYaml("- a: |2\n    hello\n  b: world\n")).toEqual([{ a: "hello\n", b: "world" }]);
+    expect(parseYaml("- a: >\n    one\n    two\n  b: 1\n")).toEqual([{ a: "one two\n", b: 1 }]);
+  });
+
+  it("measures a bare `- |` from the dash, and a nested one from the inner dash", () => {
+    expect(parseYaml("- |\n  text\n- x\n")).toEqual(["text\n", "x"]);
+    expect(parseYaml("- - |\n    text\n  - x\n")).toEqual([["text\n", "x"]]);
+  });
+
+  it("reads a sequence opened on the dash's line", () => {
+    expect(parseYaml("- - a\n")).toEqual([["a"]]);
+    expect(parseYaml("- - a\n  - b\n")).toEqual([["a", "b"]]);
+    expect(parseYaml("- - a\n  - b\n- c\n")).toEqual([["a", "b"], "c"]);
+    expect(parseYaml("- - - a\n    - b\n  - c\n")).toEqual([[["a", "b"], "c"]]);
+    expect(parseYaml("- - k: 1\n    j: 2\n  - x\n")).toEqual([[{ k: 1, j: 2 }, "x"]]);
+    expect(parseYaml("k:\n  - - a\n    - b\n")).toEqual({ k: [["a", "b"]] });
+  });
+});
