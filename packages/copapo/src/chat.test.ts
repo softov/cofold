@@ -618,7 +618,7 @@ describe('createChat', () => {
   it('says its own hint when no provider is configured at all (decision 123)', async () => {
     // The library's message names the shape; this one names copapo's file and variable, so it is checked first.
     const { chat } = testChat({ script: ECHO, config: { providers: [] } });
-    const hint = 'no provider is configured: set COPAPO_BASE_URL or add one to ~/.config/copapo/config.json';
+    const hint = 'no provider is configured: set COFOLD_BASE_URL or add one to ~/.config/cofold/config.json';
     await expect(chat.say({ text: 'x', settings: { model: 'lm/m' } })).rejects.toMatchObject({ code: 'invalid_options', message: hint });
     await expect(chat.models()).rejects.toMatchObject({ code: 'invalid_options', message: hint });
   });

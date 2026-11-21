@@ -37,7 +37,7 @@ export type Backend = 'cofold' | 'claude';
 /** What a run that cannot ask does in a folder with gated files and no saved answer: `ask` and `never` load nothing. */
 export type ProjectTrust = 'ask' | 'always' | 'never';
 
-/** `~/.config/copapo/config.json`, `.copapo.json`, `COPAPO_CONFIG`, `--config`, and the `COPAPO_*` variables, merged. */
+/** `~/.config/cofold/config.json`, `.cofold.json`, `COFOLD_CONFIG`, `--config`, and the `COFOLD_*` variables, merged. */
 export interface CopapoConfig {
   backend: Backend;
   providers: ProviderConfig[];

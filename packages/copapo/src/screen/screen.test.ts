@@ -67,7 +67,7 @@ describe('the screen', () => {
             shell: 'workbench',
             theme: 'paper',
             onBoot: (app) => registerCopapo(app, {
-              copapo: { ...base, chat, trust: { state: 'unasked', folder: root, gated: [join(root, '.copapo.json')], projectTrust: 'ask' }, trusted: false },
+              copapo: { ...base, chat, trust: { state: 'unasked', folder: root, gated: [join(root, '.cofold.json')], projectTrust: 'ask' }, trusted: false },
               reopen: (trusted) => { reopened.push(trusted); return { ...base, chat: trustedChat, trusted }; },
               onQuit: () => undefined,
             }),
@@ -80,7 +80,7 @@ describe('the screen', () => {
           expect(t.hasText('Trust this folder?')).toBe(false);
           expect(t.hasText('No sessions here yet')).toBe(true);
           expect(reopened).toEqual(answer === true ? [true] : []);
-          const saved = await readFile(join(root, 'xdg', 'copapo', 'config.json'), 'utf8').then((text) => JSON.parse(text) as { trusted?: Record<string, boolean> }, () => undefined);
+          const saved = await readFile(join(root, 'xdg', 'cofold', 'config.json'), 'utf8').then((text) => JSON.parse(text) as { trusted?: Record<string, boolean> }, () => undefined);
           expect(saved?.trusted?.[root]).toBe(answer);
           await t.unmount();
         } finally {
@@ -560,7 +560,7 @@ describe('the screen', () => {
   it('remembers a chip\'s pick in the configuration file, and the next new conversation starts from it', async () => {
     const root = await mkdtemp(join(tmpdir(), 'copapo-screen-remember-'));
     const env: NodeJS.ProcessEnv = { XDG_CONFIG_HOME: join(root, 'config') };
-    const file = join(root, 'config', 'copapo', 'config.json');
+    const file = join(root, 'config', 'cofold', 'config.json');
     try {
       // What `openCopapo` builds: one `config` the chat reads and `remember` writes, over a temp home so the machine's own file is untouched.
       const config = testConfig();

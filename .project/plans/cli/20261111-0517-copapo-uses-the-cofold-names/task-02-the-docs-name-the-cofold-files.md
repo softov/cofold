@@ -1,6 +1,6 @@
 ---
 title: The docs name the cofold files
-status: todo
+status: done
 depends: [task-01-copapo-reads-the-cofold-names.md]
 layer: "docs"
 refs:
@@ -28,3 +28,5 @@ copapo's README and the root README name only the cofold files and variables.
 - `rg -n "COPAPO_|\.copapo\.json|config/copapo" packages/copapo/README.md README.md` finds only `COPAPO_APP`, if the README names it.
 
 ## Resume
+
+Built 2026-11-21. copapo's README and the root README name the cofold files and variables. The sentence on `COPAPO_*` winning is replaced by one on the shared names.

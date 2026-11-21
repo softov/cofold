@@ -90,7 +90,7 @@ function appendRules(held: RuleLists | undefined, added: RuleLists): RuleLists {
 
 /** What every command shares: where the agent works, where sessions live, which file, which model. */
 export const GLOBALS: readonly OptionSpec[] = [
-  { name: '--workspace', short: '-w', value: 'DIR', description: 'Where the agent works; sessions are kept per workspace', env: 'COPAPO_WORKSPACE' },
+  { name: '--workspace', short: '-w', value: 'DIR', description: 'Where the agent works; sessions are kept per workspace', env: 'COFOLD_WORKSPACE' },
   { name: '--home', value: 'DIR', description: 'Where sessions and skills are stored (default ~/.cofold)', env: 'COFOLD_HOME' },
   { name: '--config', short: '-c', value: 'FILE', description: 'Read this configuration file on top of the others' },
   { name: '--backend', short: '-b', value: 'NAME', description: 'What runs the conversation: cofold (the harness here) or claude (Claude Code, through its SDK)' },
@@ -111,7 +111,7 @@ export interface Copapo {
   warnings?: Warnings;
   /** The workspace's trust, as read when this service was built; absent in a test that builds its own. */
   trust?: Trust;
-  /** Whether this service loaded the project's own files: `.copapo.json` and its `.agents/skills`. */
+  /** Whether this service loaded the project's own files: `.cofold.json` and its `.agents/skills`. */
   trusted?: boolean;
 }
 
@@ -478,7 +478,7 @@ export function createCopapoRegistry(options: RegistryOptions = {}) {
     id: 'providers',
     group: 'setup',
     summary: 'The configured providers; the first answers when no model is chosen',
-    description: 'From the configuration (`providers`, or COPAPO_BASE_URL as `default`). A model is written provider/model; `copapo models <provider>` lists what one offers. The key itself is never printed.',
+    description: 'From the configuration (`providers`, or COFOLD_BASE_URL as `default`). A model is written provider/model; `copapo models <provider>` lists what one offers. The key itself is never printed.',
     needs: ['copapo'],
     surfaces: { cli: { pattern: ['providers'] }, mcp: true },
     run: async ({ copapo }) => {
@@ -538,7 +538,7 @@ export function createCopapoRegistry(options: RegistryOptions = {}) {
     id: 'trust',
     group: 'setup',
     summary: 'Trust the workspace, so its own files load',
-    description: 'Saves the answer for the workspace and every folder under it in ~/.config/copapo/config.json, under `trusted`. A trusted folder loads its .copapo.json and .agents/skills; with --no, copapo stops asking there and loads neither.',
+    description: 'Saves the answer for the workspace and every folder under it in ~/.config/cofold/config.json, under `trusted`. A trusted folder loads its .cofold.json and .agents/skills; with --no, copapo stops asking there and loads neither.',
     input: { no: { type: 'boolean', description: 'Do not trust it', default: false } },
     surfaces: { cli: { pattern: ['trust'] } },
     examples: [

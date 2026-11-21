@@ -275,7 +275,7 @@ describe('the shell', () => {
   it('remembers -m on a new session and session set in the configuration, and a fresh copapo starts the next session from them', async () => {
     const root = await mkdtemp(join(tmpdir(), 'copapo-remember-'));
     const env: NodeJS.ProcessEnv = { XDG_CONFIG_HOME: join(root, 'config') };
-    const file = join(root, 'config', 'copapo', 'config.json');
+    const file = join(root, 'config', 'cofold', 'config.json');
     const store = createMemoryStore();
     // What `openCopapo` does, over the scripted provider: one `config` read from the temp home, held by the chat and written back by `remember`.
     const fresh = (script: FakeStep[]) => shell({
@@ -408,11 +408,11 @@ describe('the shell', () => {
 });
 
 describe('copapo trust', () => {
-  it('saves the answer, and a later open reads the folder\'s .copapo.json', async () => {
+  it('saves the answer, and a later open reads the folder\'s .cofold.json', async () => {
     const root = await realpath(await mkdtemp(join(tmpdir(), 'copapo-trust-cmd-')));
     const workspace = join(root, 'repo');
     await mkdir(workspace, { recursive: true });
-    await writeFile(join(workspace, '.copapo.json'), JSON.stringify({ providers: [{ id: 'project', baseUrl: 'http://project.invalid/v1' }] }));
+    await writeFile(join(workspace, '.cofold.json'), JSON.stringify({ providers: [{ id: 'project', baseUrl: 'http://project.invalid/v1' }] }));
     vi.stubEnv('XDG_CONFIG_HOME', join(root, 'xdg'));
     const opened: Copapo[] = [];
     const open = (trusted?: boolean): Copapo => {
@@ -422,7 +422,7 @@ describe('copapo trust', () => {
     };
     try {
       const before = open();
-      expect(before.trust).toMatchObject({ state: 'unasked', gated: [join(workspace, '.copapo.json')] });
+      expect(before.trust).toMatchObject({ state: 'unasked', gated: [join(workspace, '.cofold.json')] });
       expect(before.config.providers.map((one) => one.id)).not.toContain('project');
       // A front that asked passes the answer it got.
       expect(open(true).config.providers.map((one) => one.id)).toContain('project');

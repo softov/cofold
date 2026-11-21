@@ -12,8 +12,8 @@ It is the first program on `@cofold/agents`, and the way a person checks what th
 ## Try it
 
 ```sh
-export COPAPO_BASE_URL=http://localhost:1234/v1     # LM Studio, Ollama, OpenRouter, any Chat Completions server
-export COPAPO_API_KEY=...                          # when the server wants one
+export COFOLD_BASE_URL=http://localhost:1234/v1     # LM Studio, Ollama, OpenRouter, any Chat Completions server
+export COFOLD_API_KEY=...                          # when the server wants one
 copapo models                                      # what it offers; the first is used unless you choose
 copapo                                             # the screen
 copapo say "What does this repository build?"      # one turn, printed; the session id is on the last line
@@ -25,10 +25,10 @@ Without a terminal (`copapo | cat`, a CI log) the screen prints one frame and ex
 
 ## Configuration
 
-`~/.config/copapo/config.json`, then the nearest `.copapo.json` up from the workspace (in a trusted folder only; see *Context files, skills and trust*), then `$COPAPO_CONFIG`, then `--config FILE`; later files win key by key.
-`COPAPO_BASE_URL` and `COPAPO_API_KEY` add or replace a provider called `default`; `COPAPO_MODEL` chooses the default model (a bare model id means one of `default`).
+`~/.config/cofold/config.json`, then the nearest `.cofold.json` up from the workspace (in a trusted folder only; see *Context files, skills and trust*), then `$COFOLD_CONFIG`, then `--config FILE`; later files win key by key.
+`COFOLD_BASE_URL` and `COFOLD_API_KEY` add or replace a provider called `default`; `COFOLD_MODEL` chooses the default model (a bare model id means one of `default`).
 While one provider is configured, the screen shows a model by its id alone (`openai/gpt-4o` for `default/openai/gpt-4o`); the configuration and `/status` keep the full reference.
-The family's `COFOLD_BASE_URL`, `COFOLD_API_KEY` and `COFOLD_MODEL`, which the examples read, work too; `COPAPO_*` wins where both are set.
+The names are cofold's, as every program on the library reads them, so one file and one set of variables serve them all; the command alone is called `copapo`.
 Every model request says `User-Agent: copapo/<version>`; to OpenRouter it also sends `HTTP-Referer: https://github.com/softov/cofold` and `X-OpenRouter-Title: copapo`, so the usage is attributed to copapo. A provider's own `headers` replace any of them.
 
 ```json
@@ -53,7 +53,7 @@ Every model request says `User-Agent: copapo/<version>`; to OpenRouter it also s
 
 | Key | Meaning |
 | --- | --- |
-| `backend` | `cofold` (the harness in this process, the default) or `claude` (Claude Code's runtime through its SDK; see below). `--backend` and `COPAPO_BACKEND` override it. |
+| `backend` | `cofold` (the harness in this process, the default) or `claude` (Claude Code's runtime through its SDK; see below). `--backend` and `COFOLD_BACKEND` override it. |
 | `providers[].id` | How a model is named: `<id>/<model>`; `copapo providers` lists them, `copapo models <id>` what one offers. |
 | `model` | `<provider>/<model>`; the first the first provider lists when absent. |
 | `permissions` | Claude Code's modes: `default` (reads run; a tool that writes, destroys or reaches the network asks), `acceptEdits` (as `default`, and `write_file` / `edit_file` inside the workspace run unasked), `bypassPermissions` (everything runs; a deny or ask rule still wins), `dontAsk` (what would ask is denied instead). See below. |
@@ -68,7 +68,7 @@ Every model request says `User-Agent: copapo/<version>`; to OpenRouter it also s
 | `trusted` | The trust answers, folder to `true` or `false`; `copapo trust` and the question write it. Read from the user file only. |
 | `projectTrust` | What a run that cannot ask does in a folder not asked yet: `ask` (the default) and `never` load none of its own files, `always` loads them. Read from the user file only. |
 
-A wrong key is named: `config.permissions must be one of default, acceptEdits, bypassPermissions, dontAsk (read: ~/.config/copapo/config.json)`.
+A wrong key is named: `config.permissions must be one of default, acceptEdits, bypassPermissions, dontAsk (read: ~/.config/cofold/config.json)`.
 
 ## Context files, skills and trust
 
@@ -94,10 +94,10 @@ Skills, in the order a name clash is settled:
 
 The home folder's `.agents/skills` is the shared one, never a project's, even when home is a repository.
 
-Trust decides whether a folder's own files load: `.copapo.json` up the tree, `.agents/skills` up to the repository root, the workspace's `.mcp.json`, and with `--backend claude` the CLI's `.claude/settings.json` and `.claude/settings.local.json`.
+Trust decides whether a folder's own files load: `.cofold.json` up the tree, `.agents/skills` up to the repository root, the workspace's `.mcp.json`, and with `--backend claude` the CLI's `.claude/settings.json` and `.claude/settings.local.json`.
 A folder that holds none of them is not asked about.
 One that holds any asks once: on the screen before the catalogue, or over ACP as a form when the client takes forms.
-The answer, yes or no, goes to `~/.config/copapo/config.json` under `trusted`, and covers the folders under it; the closest answer wins.
+The answer, yes or no, goes to `~/.config/cofold/config.json` under `trusted`, and covers the folders under it; the closest answer wins.
 Escape, or a cancelled form, saves nothing and loads nothing for that run.
 A run that cannot ask (`say`, `acp` with a client that takes no forms) follows `projectTrust`.
 `copapo trust` and `copapo trust --no` save the workspace's answer; `/trust` asks again, for the next start.
@@ -142,8 +142,8 @@ They live in the configuration (`rules`, every session) and per session (`copapo
 
 `model`, `permissions`, `reasoning` and `autoCompact` are the configuration's defaults for a new session and each session's own afterwards: `copapo say -m -p -t -a` on the first message, `copapo session set <id> -m -p -t -a` later, or the three chips under the composer on the screen (`tab` reaches them, `enter` opens the picker) and `/autocompact`; the session's `rules` are set with `session set --deny --ask --allow` and by `always`.
 They are kept beside the session in the store, and the agent is rebuilt from them for every turn, so a change between two messages takes effect on the next one.
-Every model, permission mode or thinking level a person chooses (a chip, `session set -m/-p/-t`, `say -m/-p/-t` on a new session) is also written back into the configuration as `model`, `permissions`, `reasoning`, so the next new conversation starts from it: into the file that currently sets the field, else `~/.config/copapo/config.json` (`$XDG_CONFIG_HOME` honoured), created if absent; the file's indentation and other fields are kept.
-The shell says `remembered in <file>`; a `COPAPO_MODEL` in the environment still wins over the file while it is set.
+Every model, permission mode or thinking level a person chooses (a chip, `session set -m/-p/-t`, `say -m/-p/-t` on a new session) is also written back into the configuration as `model`, `permissions`, `reasoning`, so the next new conversation starts from it: into the file that currently sets the field, else `~/.config/cofold/config.json` (`$XDG_CONFIG_HOME` honoured), created if absent; the file's indentation and other fields are kept.
+The shell says `remembered in <file>`; a `COFOLD_MODEL` in the environment still wins over the file while it is set.
 
 ## The shell
 
@@ -173,7 +173,7 @@ acp                             an Agent Client Protocol agent on stdin and stdo
 `--json` on any of them gives the record; `session show --json` is the whole projection the screen draws.
 Every command is a `@cofold/commands` action, so the same declarations are an MCP tool set and an HTTP surface when a program wants them.
 
-Global options: `--workspace DIR` (`COPAPO_WORKSPACE`, default the current directory), `--home DIR` (`COFOLD_HOME`, default `~/.cofold`), `--config FILE`.
+Global options: `--workspace DIR` (`COFOLD_WORKSPACE`, default the current directory), `--home DIR` (`COFOLD_HOME`, default `~/.cofold`), `--config FILE`.
 
 ## The screen
 
@@ -217,7 +217,7 @@ The components are `@textui/chat`; what this package adds is the projection from
 
 ## The claude backend
 
-`copapo --backend claude` (or `"backend": "claude"`, or `COPAPO_BACKEND=claude`) runs the same screen and shell over Claude Code's own runtime: its tools, its permission rules, its sessions under `~/.claude/projects/`, its compaction.
+`copapo --backend claude` (or `"backend": "claude"`, or `COFOLD_BACKEND=claude`) runs the same screen and shell over Claude Code's own runtime: its tools, its permission rules, its sessions under `~/.claude/projects/`, its compaction.
 It needs `@anthropic-ai/claude-agent-sdk` installed next to copapo (an optional peer, under Anthropic's licence, with the CLI binary inside) and a Claude login or `ANTHROPIC_API_KEY`; without the package, `copapo --backend claude` says `install @anthropic-ai/claude-agent-sdk to use the claude backend`.
 
 ```sh

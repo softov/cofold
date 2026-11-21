@@ -1,10 +1,10 @@
 ---
 title: copapo uses the cofold names
 domain: cli
-status: planned
+status: built
 priority: high
 created: 2026-11-11
-revalidated: 2026-11-11
+revalidated: 2026-11-21
 decisions:
   - decisions/library-takes-the-config-object.md
 refs:
@@ -72,8 +72,8 @@ copapo -> loadConfig: resolveConfig({ name: 'cofold', project: '.cofold.json' })
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - copapo reads the cofold names](task-01-copapo-reads-the-cofold-names.md) | todo | - |
-| [02 - the docs name the cofold files](task-02-the-docs-name-the-cofold-files.md) | todo | 01 |
+| [01 - copapo reads the cofold names](task-01-copapo-reads-the-cofold-names.md) | done | - |
+| [02 - the docs name the cofold files](task-02-the-docs-name-the-cofold-files.md) | done | 01 |
 
 ## Risks and tradeoffs
 
@@ -84,13 +84,13 @@ copapo -> loadConfig: resolveConfig({ name: 'cofold', project: '.cofold.json' })
 
 ## Resume state
 
-- **Done so far:** the plan, 2026-11-11.
-- **Next action:** [task-01-copapo-reads-the-cofold-names.md](task-01-copapo-reads-the-cofold-names.md).
+- **Done so far:** tasks 01 and 02, 2026-11-21; see [implemented.md](implemented.md).
+- **Next action:** release copapo with the new names; then ahpd's plan `cofold/20261111-1054-cofold-reads-the-cofold-names`.
 - **Open questions:** none.
 - **Watch out for:** keep `COPAPO_APP` and `AGENT_ID`; a blind `COPAPO_` replace renames them.
 
 ## Final verification checklist
 
-- [ ] `rg -n "COPAPO_(CONFIG|BASE_URL|API_KEY|MODEL|BACKEND|WORKSPACE)|\.copapo\.json|config/copapo" packages README.md` finds nothing.
-- [ ] `pnpm --filter @cofold/copapo typecheck` and its tests pass, one suite at a time.
-- [ ] By hand: `COFOLD_BASE_URL=... copapo` starts with no file, and `copapo trust` writes to `~/.config/cofold/config.json`.
+- [x] `rg -n "COPAPO_(CONFIG|BASE_URL|API_KEY|MODEL|BACKEND|WORKSPACE)|\.copapo\.json|config/copapo" packages README.md` finds nothing.
+- [x] `pnpm --filter @cofold/copapo typecheck` and its tests pass, one suite at a time.
+- [x] By hand: `COFOLD_BASE_URL=... copapo` starts with no file, and `copapo trust` writes to `~/.config/cofold/config.json`.

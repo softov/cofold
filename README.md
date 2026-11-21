@@ -69,7 +69,7 @@ node examples/commands/dist/petshop/cli.js mcp tools
 pnpm --filter cofold-examples-agents run pause-resume
 
 # talk to a model server (LM Studio, Ollama, OpenRouter) from a terminal
-COPAPO_BASE_URL=http://localhost:1234/v1 node packages/copapo/dist/main.js
+COFOLD_BASE_URL=http://localhost:1234/v1 node packages/copapo/dist/main.js
 ```
 
 `packages/copapo` links `@textui/*` from a sibling `../textui` checkout until textui 0.6.0 is published; `pnpm install` needs it there.

@@ -23,7 +23,7 @@ export interface Trust {
 }
 
 /**
- * The files a project gives that trust gates: `.copapo.json` up the tree, `.agents/skills` up to the repository
+ * The files a project gives that trust gates: `.cofold.json` up the tree, `.agents/skills` up to the repository
  * root but not the home folder's, `.mcp.json` in the workspace, and for the claude backend the CLI's own project settings.
  */
 export function gatedFiles(workspace: string, backend: Backend): string[] {
@@ -31,7 +31,7 @@ export function gatedFiles(workspace: string, backend: Backend): string[] {
   const common = join(homedir(), '.agents', 'skills');
   const top = repositoryRoot(workspace);
   for (let at = workspace, inRepo = true; ; at = dirname(at)) {
-    const config = join(at, '.copapo.json');
+    const config = join(at, '.cofold.json');
     if (existsSync(config)) found.push(config);
     const skills = join(at, '.agents', 'skills');
     // The home folder's is the common folder, shared by every project, even when home is a repository.
@@ -62,7 +62,7 @@ function repositoryRoot(workspace: string): string | undefined {
 export function trustOf(args: { workspace: string; backend: Backend; env?: NodeJS.ProcessEnv }): Trust {
   const env = args.env ?? process.env;
   const folder = realPath(args.workspace);
-  const user = resolveConfig({ name: 'copapo', cwd: folder, env, environment: false });
+  const user = resolveConfig({ name: 'cofold', cwd: folder, env, environment: false });
   const answers = user.get<Record<string, unknown>>('trusted') ?? {};
   const projectTrust = projectTrustOf(user.get<unknown>('projectTrust'));
   let best: { at: string; trusted: boolean } | undefined;
