@@ -40,6 +40,7 @@ packages/copapo/            @cofold/copapo, binary `copapo`: the harness in this
 packages/cofold/             later: the program (daemon + CLI), not yet created
 examples/commands/          the framework's example programs (petshop, kitchen-sink, clerver, open-cli, mcp-server)
 examples/agents/            hosts that use the harness
+scripts/                    hand-run checks against real services (live-models.mjs lists the DeepSeek and OpenRouter catalogues through the built model-openai-compat; needs API keys in the environment)
 docs/commands/  docs/agents/
 .project/                   plans/<domain>/<NN>-<slug>/{plan.md,task-NN-*.md}, plans/index.md, specs/, research/
 .agents/skills/             the skills; nothing else lives under .agents
