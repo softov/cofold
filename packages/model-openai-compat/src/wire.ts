@@ -119,7 +119,7 @@ export function mapFinish(reason: string | null | undefined, hasToolCalls: boole
 
 export function fromWireModel(model: WireModel, defaults: ModelFeatures): ModelInfo {
   const params = model.supported_parameters;
-  const modalities = model.architecture?.input_modalities;
+  const modalities = model.architecture?.input_modalities ?? model.input_modalities;
   const features: ModelFeatures = params
     ? {
         tools: params.includes('tools'),
@@ -128,7 +128,9 @@ export function fromWireModel(model: WireModel, defaults: ModelFeatures): ModelI
         structuredOutput: params.includes('structured_outputs') || params.includes('response_format'),
         reasoning: params.includes('reasoning') || params.includes('include_reasoning'),
       }
-    : defaults;
+    : modalities
+      ? { ...defaults, images: modalities.includes('image') }
+      : defaults;
   const maxOut = model.top_provider?.max_completion_tokens ?? model.max_output_tokens;
   const contextTokens = model.context_length ?? model.context_window;
   const pricing = pricingOf(model.pricing);
