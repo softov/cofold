@@ -77,10 +77,15 @@ export function assembleRequest(args: {
     picked.unshift(unit);
     used += cost;
   }
-  const messages = picked.flat().map(stripReasoning);
+  const messages = picked.flat().map(forModel);
   return { instructions: args.instructions, messages, tools: args.tools, params: args.params, cacheKey: args.cacheKey, signal: args.signal };
 }
 
-function stripReasoning(m: Message): Message {
-  return m.parts.some((p) => p.type === 'reasoning') ? { ...m, parts: m.parts.filter((p) => p.type !== 'reasoning') } : m;
+/** A message as a model is sent it: no reasoning part (decision 60), and no part's times. */
+function forModel(m: Message): Message {
+  if (!m.parts.some((p) => p.type === 'reasoning' || p.startedAt !== undefined || p.endedAt !== undefined)) return m;
+  return {
+    ...m,
+    parts: m.parts.filter((p) => p.type !== 'reasoning').map(({ startedAt: _startedAt, endedAt: _endedAt, ...part }) => part),
+  };
 }

@@ -1,6 +1,6 @@
 ---
 title: A part has a start and an end
-status: todo
+status: done
 depends: []
 layer: "agents"
 refs:
@@ -29,3 +29,5 @@ Each content part type has optional `startedAt` and `endedAt`, as ISO 8601 strin
 - `pnpm --filter @cofold/agents test` passes.
 
 ## Resume
+
+Done on 2026-11-24. `PartTimes` is on each part. The context builder sends a model neither field: `forModel` in `run/context.ts` strips them with the reasoning parts.

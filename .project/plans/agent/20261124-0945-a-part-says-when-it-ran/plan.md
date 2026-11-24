@@ -1,7 +1,7 @@
 ---
 title: A part says when it ran
 domain: agent
-status: planned
+status: active
 priority: high
 created: 2026-11-24
 revalidated: 2026-11-24
@@ -50,8 +50,8 @@ The files read and the patterns to reuse are the `refs` above, each with its not
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - a part has a start and an end](task-01-a-part-has-a-start-and-an-end.md) | todo | - |
-| [02 - a run stamps each part](task-02-a-run-stamps-each-part.md) | todo | 01 |
+| [01 - a part has a start and an end](task-01-a-part-has-a-start-and-an-end.md) | done | - |
+| [02 - a run stamps each part](task-02-a-run-stamps-each-part.md) | done | 01 |
 
 ## Risks and tradeoffs
 
@@ -59,8 +59,8 @@ The files read and the patterns to reuse are the `refs` above, each with its not
 
 ## Resume state
 
-- **Done so far:** nothing.
-- **Next action:** [task-01-a-part-has-a-start-and-an-end.md](task-01-a-part-has-a-start-and-an-end.md).
+- **Done so far:** tasks 01 and 02, on 2026-11-24.
+- **Next action:** Softov's review, then `status: built`.
 - **Open questions:** none.
 - **Watch out for:** `textOf()` and the context builder must ignore the new fields.
 

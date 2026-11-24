@@ -30,6 +30,11 @@ describe('contracts', () => {
     expectTypeOf<RunOutcome['status']>().toEqualTypeOf<'completed' | 'awaiting' | 'stopped' | 'cancelled' | 'failed'>();
   });
 
+  it('every ContentPart may say when it ran', () => {
+    expectTypeOf<ContentPart['startedAt']>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<ContentPart['endedAt']>().toEqualTypeOf<string | undefined>();
+  });
+
   it('ContentPart has exactly the five part kinds', () => {
     expectTypeOf<ContentPart['type']>().toEqualTypeOf<'text' | 'image' | 'reasoning' | 'toolCall' | 'toolResult'>();
   });

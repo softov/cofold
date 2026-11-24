@@ -1,7 +1,17 @@
 export type Role = 'system' | 'user' | 'assistant' | 'tool';
 
-export interface TextPart { type: 'text'; text: string }
-export interface ImagePart {
+/**
+ * When a part was produced, as ISO 8601 strings. A model part runs from its first streamed delta to its last, or
+ * spans the whole model call when the reply did not stream; a tool result runs while its tool executed. Absent on a
+ * part written before the run kept times. Never sent to a model.
+ */
+export interface PartTimes {
+  startedAt?: string;
+  endedAt?: string;
+}
+
+export interface TextPart extends PartTimes { type: 'text'; text: string }
+export interface ImagePart extends PartTimes {
   type: 'image';
   mimeType: string;
   /** Exactly one of `data` (base64) or `url`. */
@@ -9,8 +19,8 @@ export interface ImagePart {
   url?: string;
 }
 /** Model reasoning (thinking) text. Never sent back to a model; textOf() ignores it. */
-export interface ReasoningPart { type: 'reasoning'; text: string }
-export interface ToolCallPart {
+export interface ReasoningPart extends PartTimes { type: 'reasoning'; text: string }
+export interface ToolCallPart extends PartTimes {
   type: 'toolCall';
   /** Model-supplied id when present, otherwise newId(). Pairs with ToolResultPart.callId. */
   callId: string;
@@ -20,7 +30,7 @@ export interface ToolCallPart {
   /** The argument string exactly as the model produced it. */
   raw: string;
 }
-export interface ToolResultPart {
+export interface ToolResultPart extends PartTimes {
   type: 'toolResult';
   callId: string;
   name: string;

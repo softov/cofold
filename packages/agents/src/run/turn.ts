@@ -321,13 +321,39 @@ export async function runTurn(ctx: TurnContext, entry: TurnEntry): Promise<void>
  */
 async function callModel(ctx: TurnContext, request: ModelRequest): Promise<ModelReply> {
   const { agent, emit, counters } = ctx;
-  if (!agent.model.stream || !agent.model.features.streaming) return agent.model.complete(request);
+  const called = now();
+  if (!agent.model.stream || !agent.model.features.streaming) return stamped(await agent.model.complete(request), called, now(), []);
+  // Each run of deltas of one kind, in order: the times a reasoning or text part of the reply was produced.
+  const runs: { kind: 'text' | 'reasoning'; startedAt: string; endedAt: string }[] = [];
   for await (const event of agent.model.stream(request)) {
-    if (event.type === 'done') return event.reply;
+    if (event.type === 'done') return stamped(event.reply, called, now(), runs);
     if (event.type === 'toolCall.delta') continue; // assembled by the adapter; whole in done.reply (decision 105)
-    await emit({ type: 'model.delta', step: counters.steps, kind: event.type === 'text.delta' ? 'text' : 'reasoning', text: event.text });
+    const kind = event.type === 'text.delta' ? 'text' : 'reasoning';
+    const at = now();
+    const last = runs.at(-1);
+    if (last?.kind === kind) last.endedAt = at;
+    else runs.push({ kind, startedAt: at, endedAt: at });
+    await emit({ type: 'model.delta', step: counters.steps, kind, text: event.text });
   }
   throw new ModelError({ code: 'invalid_response', message: 'the stream ended before the reply was complete' });
+}
+
+/**
+ * The reply with each part's times. A text or reasoning part takes the delta run of its kind in the same place among
+ * the parts of that kind; any other part, and every part of a reply that did not stream, takes the model call's span.
+ * A part that already has times keeps them.
+ */
+function stamped(reply: ModelReply, startedAt: string, endedAt: string, runs: { kind: 'text' | 'reasoning'; startedAt: string; endedAt: string }[]): ModelReply {
+  const seen = { text: 0, reasoning: 0 };
+  const parts = reply.message.parts.map((part) => {
+    if (part.startedAt !== undefined || part.endedAt !== undefined) return part;
+    if (part.type === 'text' || part.type === 'reasoning') {
+      const run = runs.filter((one) => one.kind === part.type)[seen[part.type]++];
+      if (run) return { ...part, startedAt: run.startedAt, endedAt: run.endedAt };
+    }
+    return { ...part, startedAt, endedAt };
+  });
+  return { ...reply, message: { ...reply.message, parts } };
 }
 
 /**
@@ -358,7 +384,9 @@ async function processCalls(ctx: TurnContext, calls: ToolCallPart[], resolved?: 
     // back here, so the loop goes on with the very same array (decisions 122, 75-77). `pause` stays outside the
     // catch below: a store failure in it is a run failure, not a tool-hook failure.
     let result: ToolCallResult;
+    let ran = now();
     for (;;) {
+      ran = now();
       try { result = decided ? await applyResolved(ctx, deps, call, decided) : await handleToolCall(deps, call); }
       catch (e) { await finishRun(ctx, hookFailure(e)); return 'done'; }
       if (result.kind !== 'approval' && result.kind !== 'input') break;
@@ -371,14 +399,14 @@ async function processCalls(ctx: TurnContext, calls: ToolCallPart[], resolved?: 
     if (result.kind === 'aborted') { await finishRun(ctx, await interrupt(ctx, calls, i)); return 'done'; }
     if (result.kind === 'stop') {
       // The rest of the batch is answered so the transcript stays model-valid (decision 90), then the run ends on purpose (decision 97).
-      await appendResult(ctx, result.part);
+      await appendResult(ctx, timed(result.part, ran));
       for (const rest of calls.slice(i + 1)) {
         await appendResult(ctx, { type: 'toolResult', callId: rest.callId, name: rest.name, content: 'Not executed: the run was stopped', isError: true });
       }
       await finishRun(ctx, { status: 'stopped', reason: 'hook', ...tally(ctx) });
       return 'done';
     }
-    await appendResult(ctx, result.part);
+    await appendResult(ctx, timed(result.part, ran));
   }
   if (limitHit) { await finishRun(ctx, { status: 'stopped', reason: 'max_tool_calls', ...tally(ctx) }); return 'done'; }
   return 'continue';
@@ -475,6 +503,11 @@ async function pause(ctx: TurnContext, args: { call: ToolCallPart; kind: 'approv
   } finally {
     if (joined) liveRuns.delete(runId);
   }
+}
+
+/** A tool result with the time its tool ran: from `startedAt` to now, unless it already has times. */
+function timed(part: ToolResultPart, startedAt: string): ToolResultPart {
+  return part.startedAt !== undefined || part.endedAt !== undefined ? part : { ...part, startedAt, endedAt: now() };
 }
 
 export async function appendResult(ctx: TurnContext, part: ToolResultPart): Promise<void> {
