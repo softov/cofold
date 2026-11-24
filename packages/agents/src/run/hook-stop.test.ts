@@ -46,8 +46,8 @@ describe('a hook ends the run (decision 97)', () => {
 
     const transcript = await store.sessions.listMessages({ sessionId: 's' });
     expect(transcript.map((m) => m.role)).toEqual(['user', 'assistant', 'tool', 'tool']);
-    expect(transcript[2]!.parts).toEqual([{ type: 'toolResult', callId: 'c1', name: 'echo', content: 'Not executed: enough for today', isError: true }]);
-    expect(transcript[3]!.parts).toEqual([{ type: 'toolResult', callId: 'c2', name: 'echo', content: 'Not executed: the run was stopped', isError: true }]);
+    expect(transcript[2]!.parts).toMatchObject([{ type: 'toolResult', callId: 'c1', name: 'echo', content: 'Not executed: enough for today', isError: true }]);
+    expect(transcript[3]!.parts).toMatchObject([{ type: 'toolResult', callId: 'c2', name: 'echo', content: 'Not executed: the run was stopped', isError: true }]);
     // Nothing executed: no tool step, the tool-call counter stays at zero (decision 56).
     expect((await store.runs.listSteps(ref(handle))).map((s) => s.kind)).toEqual(['model']);
     expect(await store.runs.get(ref(handle))).toMatchObject({ status: 'stopped' });
@@ -68,8 +68,8 @@ describe('a hook ends the run (decision 97)', () => {
     expect(events[5]).toMatchObject({ type: 'tool.completed', callId: 'n1', content: 'noted: all set', isError: false });
 
     const transcript = await store.sessions.listMessages({ sessionId: 's' });
-    expect(transcript[2]!.parts).toEqual([{ type: 'toolResult', callId: 'n1', name: 'notify_done', content: 'noted: all set', isError: false }]);
-    expect(transcript[3]!.parts).toEqual([{ type: 'toolResult', callId: 'c2', name: 'echo', content: 'Not executed: the run was stopped', isError: true }]);
+    expect(transcript[2]!.parts).toMatchObject([{ type: 'toolResult', callId: 'n1', name: 'notify_done', content: 'noted: all set', isError: false }]);
+    expect(transcript[3]!.parts).toMatchObject([{ type: 'toolResult', callId: 'c2', name: 'echo', content: 'Not executed: the run was stopped', isError: true }]);
     const steps = await store.runs.listSteps(ref(handle));
     expect(steps.map((s) => [s.kind, s.status])).toEqual([['model', 'completed'], ['tool', 'completed']]);
     expect(steps[1]).toMatchObject({ kind: 'tool', name: 'notify_done', detail: { stoppedBy: 'afterTool', reason: 'the agent is done' } });
@@ -97,7 +97,7 @@ describe('a hook ends the run (decision 97)', () => {
     const outcome = await handle.outcome;
     expect(outcome).toMatchObject({ status: 'stopped', reason: 'hook' });
     const transcript = await store.sessions.listMessages({ sessionId: 's' });
-    expect(transcript[2]!.parts).toEqual([{ type: 'toolResult', callId: 'f1', name: 'failing', content: 'boom', isError: true }]);
+    expect(transcript[2]!.parts).toMatchObject([{ type: 'toolResult', callId: 'f1', name: 'failing', content: 'boom', isError: true }]);
     const steps = await store.runs.listSteps(ref(handle));
     expect(steps[1]).toMatchObject({ kind: 'tool', status: 'failed', detail: { stoppedBy: 'afterTool', reason: 'give up' } });
   });

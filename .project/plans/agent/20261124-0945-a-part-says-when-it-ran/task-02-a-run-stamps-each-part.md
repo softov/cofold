@@ -1,6 +1,6 @@
 ---
 title: A run stamps each part
-status: todo
+status: done
 depends: [01]
 layer: "agents"
 refs:
@@ -36,3 +36,5 @@ A run writes each part of a model reply and each tool result with its `startedAt
 - `pnpm test` passes in the repository.
 
 ## Resume
+
+Done on 2026-11-24. `stamped` in `run/turn.ts` stamps a reply, and `timed` a tool result. Five older cases compared parts exactly and now use `toMatchObject`. The cases are in `run/part-times.test.ts`. A transcript with no times needs no case: both fields are optional, and no code reads them back.

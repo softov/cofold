@@ -80,7 +80,7 @@ describe('streaming (decisions 102, 104, 105)', () => {
     const outcome = await handle.outcome;
     expect(deltas(events)).toMatchObject([{ kind: 'reasoning', text: 'thinking hard' }, { kind: 'text', text: 'yes' }]);
     if (outcome.status !== 'completed') throw new Error(outcome.status);
-    expect(outcome.message.parts).toEqual([{ type: 'reasoning', text: 'thinking hard' }, { type: 'text', text: 'yes' }]);
+    expect(outcome.message.parts).toMatchObject([{ type: 'reasoning', text: 'thinking hard' }, { type: 'text', text: 'yes' }]);
   });
 
   it('4. an interrupted stream fails the step and the run; nothing was executed and the next run has a valid history', async () => {

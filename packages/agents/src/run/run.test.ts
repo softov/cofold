@@ -79,7 +79,7 @@ describe('run: happy path', () => {
     const transcript = await store.sessions.listMessages({ sessionId: 's' });
     expect(transcript.map((m) => m.role)).toEqual(['user', 'assistant', 'tool', 'assistant']);
     expect(transcript.map((m) => m.source)).toEqual(['input', 'model', 'tool', 'model']);
-    expect(transcript[2]!.parts).toEqual([{ type: 'toolResult', callId: expect.any(String), name: 'echo', content: 'echo:hi', isError: false }]);
+    expect(transcript[2]!.parts).toMatchObject([{ type: 'toolResult', callId: expect.any(String), name: 'echo', content: 'echo:hi', isError: false }]);
 
     const steps = await store.runs.listSteps(ref(handle));
     expect(steps.map((s) => [s.kind, s.index, s.status])).toEqual([['model', 0, 'completed'], ['tool', 1, 'completed'], ['model', 2, 'completed']]);
