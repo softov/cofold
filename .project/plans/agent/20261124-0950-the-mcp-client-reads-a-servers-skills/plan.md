@@ -1,7 +1,7 @@
 ---
 title: The MCP client reads a server's skills
 domain: agent
-status: planned
+status: active
 priority: high
 created: 2026-11-24
 revalidated: 2026-11-24
@@ -49,7 +49,7 @@ The files read and the patterns to reuse are the `refs` above, each with its not
 
 | Task | Status | Depends on |
 | --- | --- | --- |
-| [01 - a connection reads skills](task-01-a-connection-reads-skills.md) | todo | - |
+| [01 - a connection reads skills](task-01-a-connection-reads-skills.md) | done | - |
 
 ## Risks and tradeoffs
 
@@ -57,8 +57,8 @@ The files read and the patterns to reuse are the `refs` above, each with its not
 
 ## Resume state
 
-- **Done so far:** nothing.
-- **Next action:** [task-01-a-connection-reads-skills.md](task-01-a-connection-reads-skills.md).
+- **Done so far:** task 01, on 2026-11-24.
+- **Next action:** Softov's review, then `status: built`.
 - **Open questions:** none.
 - **Watch out for:** a skill's supporting files are read by URI and are not in `resources/list`.
 

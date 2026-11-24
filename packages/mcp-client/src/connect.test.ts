@@ -84,3 +84,33 @@ describe('launchOf', () => {
     }
   });
 });
+
+describe('connectMcp reads a server\'s skills (SEP-2640)', () => {
+  it('lists every page of skills, gets one, and reads its files', async () => {
+    const connection = await connectMcp({ name: 'skills', server: { command: process.execPath, args: [fixture('skills-server.mjs')] }, clientInfo, timeoutMs: 10_000 });
+    try {
+      expect(connection.servesSkills).toBe(true);
+      const skills = await connection.skills();
+      expect(skills.map((one) => one.frontmatter.name)).toEqual(['one', 'two']);
+      expect(skills[1]!.resources).toHaveLength(2);
+      const two = await connection.skill('skill://two/SKILL.md');
+      expect(two.frontmatter).toMatchObject({ name: 'two', description: 'The two skill' });
+      expect(await connection.read('skill://two/notes.md')).toEqual([{ uri: 'skill://two/notes.md', mimeType: 'text/markdown', text: 'Notes.' }]);
+      await expect(connection.skill('skill://none/SKILL.md')).rejects.toThrow('no skill');
+    } finally {
+      await connection.close();
+    }
+  });
+
+  it('answers no skills, and sends no call, to a server without the extension', async () => {
+    const connection = await connectMcp({ name: 'plain', server: { command: process.execPath, args: [fixture('skills-server.mjs')], env: { SKILLS_OFF: '1' } }, clientInfo, timeoutMs: 10_000 });
+    try {
+      expect(connection.servesSkills).toBe(false);
+      expect(await connection.skills()).toEqual([]);
+      const state = (await connection.call('calls', {})).structuredContent as { calls: string[] };
+      expect(state.calls).not.toContain('skills/list');
+    } finally {
+      await connection.close();
+    }
+  });
+});

@@ -55,4 +55,12 @@ An entry with a `url` and no `type` is refused, as in Claude Code.
 - Over HTTP, the session id and the agreed protocol version go on every request; the GET stream is not opened, and a server that forgets the session closes the connection until the next `tools()`.
 - `status()` gives each server's state for a host that shows it; `close()` ends every connection.
 
-OAuth sign-in, the SSE transport, resources and prompts are not supported.
+## Skills
+
+A connection from `connectMcp` reads the skills a server serves through the skills extension, [SEP-2640](https://modelcontextprotocol.io/seps/2640-skills-extension).
+
+- `servesSkills` says whether the server declares the extension and `resources`.
+- `skills()` lists every page of `skills/list`; it answers none, and sends nothing, to a server without the extension.
+- `skill(uri)` gets one skill by its `SKILL.md` URI, and `read(uri)` reads one file with `resources/read`.
+
+OAuth sign-in, the SSE transport, prompts and resources other than a skill's files are not supported.

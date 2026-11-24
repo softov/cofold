@@ -1,10 +1,13 @@
 import { createHttpTransport } from './http.js';
 import { createRpcClient, messageOf } from './rpc.js';
 import { createStdioTransport } from './stdio.js';
-import type { McpCallResult, McpClientInfo, McpServerConfig, McpToolInfo, Transport } from './types.js';
+import type { McpCallResult, McpClientInfo, McpResourceContents, McpServerConfig, McpSkillInfo, McpToolInfo, Transport } from './types.js';
 
 /** The versions this client speaks, newest first; `initialize` asks for the first. */
 export const PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
+
+/** The key a server declares the skills extension under, in `capabilities.extensions` (SEP-2640). */
+export const SKILLS_EXTENSION = 'io.modelcontextprotocol/skills';
 
 /** One server, initialized, with its tools listed. */
 export interface McpConnection {
@@ -15,6 +18,16 @@ export interface McpConnection {
   /** The tools as last listed; a `list_changed` lists them again. */
   tools(): McpToolInfo[];
   call(tool: string, input: unknown, options?: { signal?: AbortSignal; timeoutMs?: number }): Promise<McpCallResult>;
+  /** What the server said it can do at `initialize`. */
+  readonly capabilities: Record<string, unknown>;
+  /** Whether the server declares the skills extension (SEP-2640) and resources, so the skill calls below are served. */
+  readonly servesSkills: boolean;
+  /** Every skill the server lists, every page; none, and no call, when it does not serve skills. */
+  skills(options?: { timeoutMs?: number }): Promise<McpSkillInfo[]>;
+  /** One skill by its `SKILL.md` URI, listed or not. */
+  skill(uri: string, options?: { timeoutMs?: number }): Promise<McpSkillInfo>;
+  /** A resource's contents, by `resources/read`. */
+  read(uri: string, options?: { timeoutMs?: number }): Promise<McpResourceContents[]>;
   /** Why the connection closed; undefined while it is open. */
   readonly closed: string | undefined;
   close(): Promise<void>;
@@ -67,7 +80,7 @@ export async function connectMcp(options: ConnectOptions): Promise<McpConnection
 
   try {
     const answer = (await rpc.request('initialize', { protocolVersion: PROTOCOL_VERSIONS[0], capabilities: {}, clientInfo: options.clientInfo }, timeout)) as {
-      protocolVersion?: string; serverInfo?: { name?: string; version?: string }; instructions?: string; capabilities?: { tools?: unknown };
+      protocolVersion?: string; serverInfo?: { name?: string; version?: string }; instructions?: string; capabilities?: { tools?: unknown; resources?: unknown; extensions?: Record<string, unknown> };
     } | null;
     const version = answer?.protocolVersion;
     if (typeof version !== 'string' || !PROTOCOL_VERSIONS.includes(version)) {
@@ -76,6 +89,10 @@ export async function connectMcp(options: ConnectOptions): Promise<McpConnection
     transport.agreed?.(version);
     await rpc.notify('notifications/initialized');
     if (answer?.capabilities?.tools !== undefined) await listAll();
+    const capabilities: Record<string, unknown> = answer?.capabilities ?? {};
+    // SEP-2640: the extension under `capabilities.extensions`, which a server MUST pair with `resources`.
+    // https://modelcontextprotocol.io/seps/2640-skills-extension
+    const servesSkills = answer?.capabilities?.extensions?.[SKILLS_EXTENSION] !== undefined && answer.capabilities.resources !== undefined;
     return {
       name,
       serverInfo: answer?.serverInfo ?? {},
@@ -84,6 +101,28 @@ export async function connectMcp(options: ConnectOptions): Promise<McpConnection
       async call(tool, input, callOptions = {}) {
         await listing;
         return (await rpc.request('tools/call', { name: tool, arguments: input ?? {} }, callOptions)) as McpCallResult;
+      },
+      capabilities,
+      servesSkills,
+      async skills(skillOptions = {}) {
+        if (!servesSkills) return [];
+        const found: McpSkillInfo[] = [];
+        let cursor: string | undefined;
+        do {
+          const page = (await rpc.request('skills/list', cursor !== undefined ? { cursor } : {}, (skillOptions.timeoutMs !== undefined ? { timeoutMs: skillOptions.timeoutMs } : timeout))) as { skills?: McpSkillInfo[]; nextCursor?: string } | null;
+          found.push(...(page?.skills ?? []));
+          cursor = typeof page?.nextCursor === 'string' && page.nextCursor !== '' ? page.nextCursor : undefined;
+        } while (cursor !== undefined);
+        return found;
+      },
+      async skill(uri, skillOptions = {}) {
+        const answer = (await rpc.request('skills/get', { uri }, (skillOptions.timeoutMs !== undefined ? { timeoutMs: skillOptions.timeoutMs } : timeout))) as { skill?: McpSkillInfo } | null;
+        if (answer?.skill === undefined) throw new Error(`the server answered skills/get for ${uri} with no skill`);
+        return answer.skill;
+      },
+      async read(uri, readOptions = {}) {
+        const answer = (await rpc.request('resources/read', { uri }, (readOptions.timeoutMs !== undefined ? { timeoutMs: readOptions.timeoutMs } : timeout))) as { contents?: McpResourceContents[] } | null;
+        return answer?.contents ?? [];
       },
       get closed() { return rpc.closed; },
       close: () => transport.close(),

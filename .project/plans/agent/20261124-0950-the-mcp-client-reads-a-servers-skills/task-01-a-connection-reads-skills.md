@@ -1,6 +1,6 @@
 ---
 title: A connection reads skills
-status: todo
+status: done
 depends: []
 layer: "mcp-client"
 refs:
@@ -18,6 +18,7 @@ refs:
 - `UPDATE: packages/mcp-client/src/types.ts` - `McpSkillInfo` and `McpResourceContents`.
 - `UPDATE: packages/mcp-client/src/index.ts` - export the new types.
 - `UPDATE: packages/mcp-client/src/connect.test.ts` - the skill cases.
+- `CREATE: packages/mcp-client/test-fixtures/skills-server.mjs` - a stdio server with the extension.
 
 ## Steps
 
@@ -35,3 +36,5 @@ refs:
 - `pnpm test` passes in the repository.
 
 ## Resume
+
+Done on 2026-11-24. `SKILLS_EXTENSION` names the key. The fake connection in `capability.test.ts` gained the new members. The fixture is `test-fixtures/skills-server.mjs`, and the README has a *Skills* section.

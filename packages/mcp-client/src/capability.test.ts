@@ -19,8 +19,11 @@ const fixture = (name: string): string => fileURLToPath(new URL(`../test-fixture
 /** A connection whose tools and answers a test writes. */
 function fake(tools: McpToolInfo[], answer: (tool: string, input: unknown) => McpCallResult = () => ({ content: [] })): McpConnection {
   return {
-    name: 'fake', serverInfo: {}, instructions: undefined, closed: undefined,
+    name: 'fake', serverInfo: {}, instructions: undefined, closed: undefined, capabilities: {}, servesSkills: false,
     tools: () => tools,
+    skills: async () => [],
+    skill: async (uri) => { throw new Error(`no skill ${uri}`); },
+    read: async () => [],
     call: async (tool, input) => answer(tool, input),
     close: async () => {},
   };
