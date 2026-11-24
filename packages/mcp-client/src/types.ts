@@ -61,6 +61,36 @@ export interface McpCallResult {
   isError?: boolean;
 }
 
+/** One file of a served skill, as `skills/list` and `skills/get` give it (SEP-2640). */
+export interface McpSkillResource {
+  uri: string;
+  /** `sha256:` and 64 lowercase hex digits. */
+  digest: string;
+  /** Bytes of the raw content. */
+  size: number;
+}
+
+/**
+ * One skill a server serves, as `skills/list` and `skills/get` give it (SEP-2640).
+ * https://modelcontextprotocol.io/seps/2640-skills-extension
+ */
+export interface McpSkillInfo {
+  /** The skill's `SKILL.md`. */
+  uri: string;
+  /** The `SKILL.md` front matter, as JSON; `name` and `description` by the Agent Skills format. */
+  frontmatter: { name?: string; description?: string; [key: string]: unknown };
+  /** Every file of the skill, or `dynamic` when the server cannot list them ahead. */
+  resources: McpSkillResource[] | 'dynamic';
+}
+
+/** One entry of what `resources/read` answers: text or base64 bytes. */
+export interface McpResourceContents {
+  uri: string;
+  mimeType?: string;
+  text?: string;
+  blob?: string;
+}
+
 /** Who this client is, as `initialize` tells the server. */
 export interface McpClientInfo {
   name: string;
