@@ -1,6 +1,6 @@
 {
   "name": "@cofold/mcp-client",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Use the tools of MCP servers from a @cofold/agents agent: stdio and Streamable HTTP, with no dependency, as one capability.",
   "license": "MIT",
   "author": "Luiz Fernando Softov <lfs@softov.dev>",
