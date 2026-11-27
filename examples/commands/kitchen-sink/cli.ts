@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { coerce, createRegistry, output } from "@cofold/commands";
 import { globalOptions, Program, renderTable, runEntry } from "@cofold/terminal";
@@ -244,6 +245,6 @@ export const program = new Program({
 });
 
 const entry = process.argv[1];
-if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
+if (entry !== undefined && import.meta.url === pathToFileURL(realpathSync(entry)).href) {
   await runEntry(program, process.argv.slice(2));
 }

@@ -10,8 +10,9 @@
  *   node dist/wizard/cli.js configure --config-file /tmp/wizard.json
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { createRegistry, output } from "@cofold/commands";
 import { createPrompts, Program, PromptCancelled, runEntry } from "@cofold/terminal";
 import { configure } from "./flow.js";
@@ -73,6 +74,7 @@ export const program = new Program({
   registry,
 });
 
-if (process.argv[1]?.endsWith("cli.js") === true) {
+const entry = process.argv[1];
+if (entry !== undefined && import.meta.url === pathToFileURL(realpathSync(entry)).href) {
   await runEntry(program, process.argv.slice(2));
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { createRegistry } from "@cofold/commands";
 import { Program, runEntry } from "@cofold/terminal";
@@ -69,7 +69,7 @@ async function build(argv: readonly string[]): Promise<Program> {
 }
 
 const entry = process.argv[1];
-if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
+if (entry !== undefined && import.meta.url === pathToFileURL(realpathSync(entry)).href) {
   const argv = process.argv.slice(2);
   await runEntry(await build(argv), argv);
 }

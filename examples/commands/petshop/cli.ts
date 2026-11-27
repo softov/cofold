@@ -12,6 +12,8 @@
  * a remove, which the terminal asks about before running.
  */
 
+import { realpathSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { createServer } from "node:http";
 import { createRegistry, output, ArgumentError } from "@cofold/commands";
 import { Program, renderTable, runEntry } from "@cofold/terminal";
@@ -236,6 +238,7 @@ export const program = new Program({
 
 export { registry };
 
-if (process.argv[1]?.endsWith("cli.js") === true) {
+const entry = process.argv[1];
+if (entry !== undefined && import.meta.url === pathToFileURL(realpathSync(entry)).href) {
   await runEntry(program, process.argv.slice(2));
 }

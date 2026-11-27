@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -101,7 +102,7 @@ function readGlobal(argv: readonly string[], name: string): string | undefined {
 }
 
 const entry = process.argv[1];
-if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
+if (entry !== undefined && import.meta.url === pathToFileURL(realpathSync(entry)).href) {
   const argv = process.argv.slice(2);
   await runEntry(await build(argv), argv);
 }
