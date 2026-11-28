@@ -6,6 +6,6 @@ refs:
 ---
 
 The HTTP surface in `serve.ts` reads only JSON bodies.
-After [A command uploads a file](../briefs/a-command-uploads-a-file.md), a command with a file is not an HTTP route.
+After [A command uploads a file](../plans/commands/20261128-0634-a-command-uploads-a-file/plan.md), a command with a file is not an HTTP route.
 `serve.ts` could also read `multipart/form-data`, so that `s2cmd serve` exposes those commands too.
 Then a command with a file is on every surface, as every other command is.
